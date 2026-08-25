@@ -1,0 +1,18 @@
+# IntelliJ
+.idea/
+*.iml
+
+# Maven
+target/
+
+# Antigravity
+.antigravity-bridge/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+.mvn/wrapper/maven-wrapper.jar
