@@ -24,6 +24,15 @@ Tài liệu này giúp lấy điểm quản lý GitHub, báo cáo và trả lờ
 
 Nếu nhóm ít hơn năm người, gộp Social với Content và gộp Governance với Identity. Mỗi thành viên vẫn phải có commit backend, UI và test ở phần được phân công.
 
+## Phân công 3 tuần theo thành viên
+
+| Thành viên | Phạm vi chính | Minh chứng tài liệu |
+| --- | --- | --- |
+| Bằng | Use case chính, ma trận Use Case-API-DB-UI, sequence Tạo bài viết/Like/Reply, Messaging/Notification/WebSocket và test case | `testing.md`, `notifications.md`, `chat.md` |
+| Khôi | Spring Boot/Auth/JWT, API User/Profile/Follow, sequence Đăng nhập và Cập nhật hồ sơ | `authentication.md`, `authorization.md`, `profile.md`, `social-graph.md` |
+| Ngọc | Rà soát CSDL/ERD, schema, PK/FK, trigger, stored procedure, index, dữ liệu mẫu và Entity JPA dự kiến; module Post/Reaction/Topic/Community | `database.md`, `posts.md`, `engagement.md`, `groups-events.md`, `ngoc-database-deliverables.md` |
+| Quân | Wireframe/mockup, giao diện Thymeleaf + Bootstrap, layout/fragment và hình giao diện cho báo cáo | `ui-ux.md` |
+
 ## Lộ trình đề xuất
 
 | Giai đoạn | Kết quả |
