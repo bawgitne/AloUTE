@@ -42,6 +42,7 @@ Không sử dụng đồng thời MongoDB, SQL Server, MySQL và PostgreSQL. Pos
 14. [Validation và security](security-validation.md)
 15. [Thiết kế dữ liệu](database.md)
     - [Bàn giao nhiệm vụ CSDL của Ngọc](ngoc-database-deliverables.md)
+    - [ERD CSDL ALOUTE](erd.md)
 16. [Giao diện responsive](ui-ux.md)
 17. [Kiểm thử](testing.md)
 18. [Git, phân công, lộ trình và demo](project-management.md)
