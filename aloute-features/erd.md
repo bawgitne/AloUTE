@@ -2,6 +2,12 @@
 
 Tài liệu này dùng để ôn và vẽ nhanh sơ đồ ERD cho đề tài **Xây dựng trang mạng xã hội ALOUTE**.
 
+## Hình ERD
+
+![ERD CSDL ALOUTE](aloute-erd.png)
+
+Bản vector phóng to không vỡ: [aloute-erd.svg](aloute-erd.svg).
+
 ## Bảng và khóa chính/phụ
 
 | Bảng | PK | FK quan trọng | Ghi chú |

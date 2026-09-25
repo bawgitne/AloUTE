@@ -1,0 +1,291 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1250" viewBox="0 0 1800 1250">
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .title { font: 700 34px Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 18px Arial, sans-serif; fill: #475569; }
+      .entity { fill: #ffffff; stroke: #334155; stroke-width: 2; rx: 12; }
+      .head { fill: #dbeafe; stroke: #334155; stroke-width: 2; }
+      .head-green { fill: #dcfce7; stroke: #334155; stroke-width: 2; }
+      .head-orange { fill: #ffedd5; stroke: #334155; stroke-width: 2; }
+      .head-purple { fill: #f3e8ff; stroke: #334155; stroke-width: 2; }
+      .name { font: 700 18px Arial, sans-serif; fill: #0f172a; }
+      .field { font: 15px Consolas, monospace; fill: #1e293b; }
+      .pk { font: 700 15px Consolas, monospace; fill: #b91c1c; }
+      .fk { font: 700 15px Consolas, monospace; fill: #1d4ed8; }
+      .rel { stroke: #475569; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .rel-soft { stroke: #94a3b8; stroke-width: 1.8; fill: none; marker-end: url(#arrow-soft); }
+      .label { font: 700 14px Arial, sans-serif; fill: #0f172a; paint-order: stroke; stroke: #f8fafc; stroke-width: 4; }
+      .legend { font: 16px Arial, sans-serif; fill: #334155; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrow-soft" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1800" height="1250"/>
+  <text class="title" x="70" y="58">ERD CSDL ALOUTE - Mạng xã hội</text>
+  <text class="subtitle" x="70" y="88">PK màu đỏ, FK màu xanh. Các bảng trung gian biểu diễn quan hệ N-N.</text>
+
+  <!-- Relationship lines behind entities -->
+  <path class="rel" d="M 350 255 C 430 255, 430 170, 520 170"/>
+  <text class="label" x="410" y="230">1 - 1</text>
+
+  <path class="rel" d="M 350 300 C 435 300, 435 325, 520 325"/>
+  <text class="label" x="410" y="305">1 - N</text>
+
+  <path class="rel" d="M 350 355 C 425 355, 425 510, 520 510"/>
+  <text class="label" x="410" y="465">1 - N</text>
+
+  <path class="rel" d="M 350 430 C 420 430, 420 700, 520 700"/>
+  <text class="label" x="395" y="660">1 - N</text>
+
+  <path class="rel" d="M 350 510 C 420 510, 420 915, 520 915"/>
+  <text class="label" x="388" y="875">1 - N</text>
+
+  <path class="rel" d="M 350 570 C 410 570, 410 1090, 520 1090"/>
+  <text class="label" x="388" y="1045">1 - N</text>
+
+  <path class="rel" d="M 350 660 C 320 690, 320 735, 350 765"/>
+  <text class="label" x="250" y="720">User - User</text>
+
+  <path class="rel" d="M 790 390 C 850 390, 850 340, 920 340"/>
+  <text class="label" x="835" y="355">1 - N</text>
+
+  <path class="rel" d="M 790 460 C 850 460, 850 505, 920 505"/>
+  <text class="label" x="835" y="490">1 - N</text>
+
+  <path class="rel" d="M 790 535 C 850 535, 850 670, 920 670"/>
+  <text class="label" x="835" y="630">1 - N</text>
+
+  <path class="rel" d="M 790 595 C 850 595, 850 835, 920 835"/>
+  <text class="label" x="835" y="790">1 - N</text>
+
+  <path class="rel" d="M 790 640 C 850 640, 850 1000, 920 1000"/>
+  <text class="label" x="835" y="960">1 - N</text>
+
+  <path class="rel" d="M 1190 875 C 1260 875, 1260 825, 1330 825"/>
+  <text class="label" x="1234" y="840">N - 1</text>
+
+  <path class="rel" d="M 790 1010 C 860 1010, 860 1110, 920 1110"/>
+  <text class="label" x="838" y="1080">1 - N</text>
+
+  <path class="rel" d="M 790 940 C 1010 940, 1010 970, 1330 970"/>
+  <text class="label" x="1040" y="940">1 - N</text>
+
+  <path class="rel" d="M 790 735 C 1030 735, 1030 1000, 1330 1000"/>
+  <text class="label" x="1040" y="735">1 - N</text>
+
+  <path class="rel" d="M 350 190 C 570 190, 700 170, 920 170"/>
+  <text class="label" x="610" y="155">1 - N</text>
+
+  <path class="rel" d="M 1190 175 C 1255 175, 1265 210, 1330 210"/>
+  <text class="label" x="1230" y="190">N - 1</text>
+
+  <path class="rel" d="M 350 615 C 620 615, 1060 390, 1330 390"/>
+  <text class="label" x="1010" y="410">1 - N</text>
+
+  <path class="rel" d="M 350 650 C 650 650, 1040 570, 1330 570"/>
+  <text class="label" x="1010" y="555">1 - N</text>
+
+  <path class="rel" d="M 350 690 C 650 690, 1040 730, 1330 730"/>
+  <text class="label" x="1010" y="710">1 - N</text>
+
+  <path class="rel-soft" d="M 1190 1020 C 1270 1020, 1270 1085, 1330 1085"/>
+  <text class="label" x="1230" y="1062">N - 1</text>
+
+  <!-- USERS -->
+  <g transform="translate(70 130)">
+    <rect class="entity" x="0" y="0" width="280" height="610"/>
+    <rect class="head" x="0" y="0" width="280" height="42"/>
+    <text class="name" x="18" y="27">USERS</text>
+    <text class="pk" x="18" y="72">PK id</text>
+    <text class="field" x="18" y="102">email UK</text>
+    <text class="field" x="18" y="132">username UK</text>
+    <text class="field" x="18" y="162">password_hash</text>
+    <text class="field" x="18" y="192">status</text>
+    <text class="field" x="18" y="222">email_verified_at</text>
+    <text class="field" x="18" y="252">created_at</text>
+    <text class="field" x="18" y="282">updated_at</text>
+    <text class="field" x="18" y="312">deleted_at</text>
+    <text class="fk" x="18" y="342">FK deleted_by</text>
+    <text class="field" x="18" y="386">Self-reference qua:</text>
+    <text class="fk" x="18" y="416">friend_requests</text>
+    <text class="fk" x="18" y="446">friendships</text>
+    <text class="fk" x="18" y="476">follows</text>
+    <text class="fk" x="18" y="506">blocks</text>
+    <text class="field" x="18" y="550">Quan hệ chính:</text>
+    <text class="field" x="18" y="580">profile, post, group, chat</text>
+  </g>
+
+  <!-- USER PROFILE -->
+  <g transform="translate(520 110)">
+    <rect class="entity" x="0" y="0" width="270" height="130"/>
+    <rect class="head-green" x="0" y="0" width="270" height="42"/>
+    <text class="name" x="18" y="27">USER_PROFILES</text>
+    <text class="pk" x="18" y="72">PK/FK user_id</text>
+    <text class="field" x="18" y="102">display_name, bio, avatar</text>
+  </g>
+
+  <!-- USER ROLES -->
+  <g transform="translate(920 110)">
+    <rect class="entity" x="0" y="0" width="270" height="130"/>
+    <rect class="head-purple" x="0" y="0" width="270" height="42"/>
+    <text class="name" x="18" y="27">USER_ROLES</text>
+    <text class="pk" x="18" y="72">PK/FK user_id</text>
+    <text class="pk" x="18" y="102">PK/FK role_id</text>
+  </g>
+
+  <g transform="translate(1330 150)">
+    <rect class="entity" x="0" y="0" width="270" height="120"/>
+    <rect class="head-purple" x="0" y="0" width="270" height="42"/>
+    <text class="name" x="18" y="27">ROLES</text>
+    <text class="pk" x="18" y="72">PK id</text>
+    <text class="field" x="18" y="102">name UK</text>
+  </g>
+
+  <!-- POSTS -->
+  <g transform="translate(520 280)">
+    <rect class="entity" x="0" y="0" width="270" height="400"/>
+    <rect class="head-orange" x="0" y="0" width="270" height="42"/>
+    <text class="name" x="18" y="27">POSTS</text>
+    <text class="pk" x="18" y="72">PK id</text>
+    <text class="fk" x="18" y="102">FK author_id</text>
+    <text class="fk" x="18" y="132">FK group_id</text>
+    <text class="field" x="18" y="162">content</text>
+    <text class="field" x="18" y="192">visibility</text>
+    <text class="field" x="18" y="222">status</text>
+    <text class="field" x="18" y="252">reaction_count</text>
+    <text class="field" x="18" y="282">comment_count</text>
+    <text class="field" x="18" y="312">share_count</text>
+    <text class="field" x="18" y="342">deleted_at</text>
+    <text class="fk" x="18" y="372">FK deleted_by</text>
+  </g>
+
+  <g transform="translate(920 285)">
+    <rect class="entity" x="0" y="0" width="270" height="140"/>
+    <rect class="head-orange" x="0" y="0" width="270" height="42"/>
+    <text class="name" x="18" y="27">POST_MEDIA</text>
+    <text class="pk" x="18" y="72">PK id</text>
+    <text class="fk" x="18" y="102">FK post_id</text>
+    <text class="field" x="18" y="132">url, mime_type, file_size</text>
+  </g>
+
+  <g transform="translate(920 455)">
+    <rect class="entity" x="0" y="0" width="270" height="150"/>
+    <rect class="head-orange" x="0" y="0" width="270" height="42"/>
+    <text class="name" x="18" y="27">COMMENTS</text>
+    <text class="pk" x="18" y="72">PK id</text>
+    <text class="fk" x="18" y="102">FK post_id, author_id</text>
+    <text class="fk" x="18" y="132">FK parent_id (reply)</text>
+  </g>
+
+  <g transform="translate(920 630)">
+    <rect class="entity" x="0" y="0" width="270" height="130"/>
+    <rect class="head-orange" x="0" y="0" width="270" height="42"/>
+    <text class="name" x="18" y="27">POST_REACTIONS</text>
+    <text class="pk" x="18" y="72">PK id</text>
+    <text class="fk" x="18" y="102">FK post_id, user_id</text>
+  </g>
+
+  <g transform="translate(920 795)">
+    <rect class="entity" x="0" y="0" width="270" height="150"/>
+    <rect class="head-orange" x="0" y="0" width="270" height="42"/>
+    <text class="name" x="18" y="27">POST_HASHTAGS</text>
+    <text class="pk" x="18" y="72">PK/FK post_id</text>
+    <text class="pk" x="18" y="102">PK/FK hashtag_id</text>
+    <text class="field" x="18" y="132">N-N post - hashtag</text>
+  </g>
+
+  <g transform="translate(1330 795)">
+    <rect class="entity" x="0" y="0" width="270" height="130"/>
+    <rect class="head-orange" x="0" y="0" width="270" height="42"/>
+    <text class="name" x="18" y="27">HASHTAGS</text>
+    <text class="pk" x="18" y="72">PK id</text>
+    <text class="field" x="18" y="102">name UK</text>
+  </g>
+
+  <g transform="translate(920 965)">
+    <rect class="entity" x="0" y="0" width="270" height="140"/>
+    <rect class="head-orange" x="0" y="0" width="270" height="42"/>
+    <text class="name" x="18" y="27">POST_TOPICS</text>
+    <text class="pk" x="18" y="72">PK/FK post_id</text>
+    <text class="pk" x="18" y="102">PK/FK topic_id</text>
+  </g>
+
+  <g transform="translate(1330 1040)">
+    <rect class="entity" x="0" y="0" width="270" height="130"/>
+    <rect class="head-green" x="0" y="0" width="270" height="42"/>
+    <text class="name" x="18" y="27">TOPICS</text>
+    <text class="pk" x="18" y="72">PK id</text>
+    <text class="field" x="18" y="102">name, slug UK</text>
+  </g>
+
+  <!-- COMMUNITY -->
+  <g transform="translate(520 860)">
+    <rect class="entity" x="0" y="0" width="270" height="180"/>
+    <rect class="head-green" x="0" y="0" width="270" height="42"/>
+    <text class="name" x="18" y="27">GROUPS</text>
+    <text class="pk" x="18" y="72">PK id</text>
+    <text class="fk" x="18" y="102">FK owner_id</text>
+    <text class="field" x="18" y="132">name, slug UK</text>
+    <text class="field" x="18" y="162">privacy, requires_approval</text>
+  </g>
+
+  <g transform="translate(520 1060)">
+    <rect class="entity" x="0" y="0" width="270" height="145"/>
+    <rect class="head-green" x="0" y="0" width="270" height="42"/>
+    <text class="name" x="18" y="27">GROUP_MEMBERS</text>
+    <text class="pk" x="18" y="72">PK id</text>
+    <text class="fk" x="18" y="102">FK group_id, user_id</text>
+    <text class="field" x="18" y="132">role, status, joined_at</text>
+  </g>
+
+  <!-- REALTIME -->
+  <g transform="translate(1330 330)">
+    <rect class="entity" x="0" y="0" width="270" height="140"/>
+    <rect class="head-purple" x="0" y="0" width="270" height="42"/>
+    <text class="name" x="18" y="27">CONVERSATION_MEMBERS</text>
+    <text class="pk" x="18" y="72">PK/FK conversation_id</text>
+    <text class="pk" x="18" y="102">PK/FK user_id</text>
+  </g>
+
+  <g transform="translate(1330 505)">
+    <rect class="entity" x="0" y="0" width="270" height="135"/>
+    <rect class="head-purple" x="0" y="0" width="270" height="42"/>
+    <text class="name" x="18" y="27">MESSAGES</text>
+    <text class="pk" x="18" y="72">PK id</text>
+    <text class="fk" x="18" y="102">FK conversation_id, sender_id</text>
+  </g>
+
+  <g transform="translate(1330 670)">
+    <rect class="entity" x="0" y="0" width="270" height="120"/>
+    <rect class="head-purple" x="0" y="0" width="270" height="42"/>
+    <text class="name" x="18" y="27">NOTIFICATIONS</text>
+    <text class="pk" x="18" y="72">PK id</text>
+    <text class="fk" x="18" y="102">FK user_id, actor_id</text>
+  </g>
+
+  <g transform="translate(1330 935)">
+    <rect class="entity" x="0" y="0" width="270" height="80"/>
+    <rect class="head-green" x="0" y="0" width="270" height="42"/>
+    <text class="name" x="18" y="27">GROUP_TOPICS</text>
+    <text class="pk" x="18" y="68">PK/FK group_id, topic_id</text>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(70 785)">
+    <rect class="entity" x="0" y="0" width="280" height="250"/>
+    <rect class="head" x="0" y="0" width="280" height="42"/>
+    <text class="name" x="18" y="27">Ghi nhớ khi vẽ</text>
+    <text class="legend" x="18" y="72">1. USERS là bảng trung tâm.</text>
+    <text class="legend" x="18" y="102">2. N-N cần bảng nối.</text>
+    <text class="legend" x="18" y="132">3. Comment tự tham chiếu.</text>
+    <text class="legend" x="18" y="162">4. Follow/block/friend là</text>
+    <text class="legend" x="36" y="188">self-reference User-User.</text>
+    <text class="legend" x="18" y="218">5. Soft delete dùng deleted_at.</text>
+  </g>
+</svg>
