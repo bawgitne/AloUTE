@@ -23,12 +23,11 @@ src/
 │   │   ├── dto/                  # Data Transfer Objects
 │   │   │   ├── request/          # DTO nhận từ client (@Valid)
 │   │   │   └── response/         # DTO trả về cho client / ViewModel
-│   │   ├── mapper/               # Chuyển đổi giữa Entity và DTO
 │   │   ├── security/             # Role, UserPrincipal, Filters, JWT
 │   │   └── common/               # Các thành phần dùng chung
 │   │       ├── api/              # ApiResponse envelope, ErrorCode
 │   │       ├── exception/        # Custom exceptions, GlobalExceptionHandler
-│   │       └── util/             # Helper / Utility functions
+│   │       └── util/             # ModelMapperUtil (map Entity <-> DTO trực tiếp trong Service)
 │   │
 │   └── resources/                <--- FRONTEND (FE) & CONFIG
 │       ├── templates/            # Thymeleaf HTML Templates
@@ -67,7 +66,7 @@ Database
 ```
 
 - **Controller**: Chỉ nhận request, validate DTO, lấy User qua Principal và gọi Service. Tuyệt đối không gọi Repository trực tiếp.
-- **Service**: Nơi xử lý toàn bộ logic nghiệp vụ, tính toán quyền hạn và quản lý `@Transactional`.
+- **Service**: Nơi xử lý toàn bộ logic nghiệp vụ, tính toán quyền hạn, quản lý `@Transactional`, và **dùng `ModelMapperUtil.map(...)` để chuyển đổi Entity <-> DTO trực tiếp**.
 - **Repository**: Chỉ thực hiện các thao tác CRUD và query database.
 - **Entity**: Khai báo mapping JPA, không trả trực tiếp ra API Controller (luôn map qua DTO).
 
