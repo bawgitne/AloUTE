@@ -1,0 +1,19 @@
+---
+description: Read skills documentation before coding in ALOUTE
+globs: *
+alwaysApply: true
+---
+
+# Cursor Rule: ALOUTE Skills Integration
+
+Before proposing or generating any code:
+1. Always consult `skills/INDEX.md` to identify the owner file.
+2. Read the designated owner file in `skills/`:
+   - `skills/domain_system.md`: Domain, entity models, business rules, permissions, DB schema.
+   - `skills/system_architecture.md`: Response format (`ApiResponse`), pagination, error handling.
+   - `skills/aloute-openapi.yaml`: Exact OpenAPI spec — never invent custom endpoints or schemas.
+   - `skills/backend_rule.md`: Spring Boot backend architecture, layers, JPA, transactions.
+   - `skills/author_rule.md`: Spring Security, JWT, authentication, authorization.
+   - `skills/frontend_rule.md`: Frontend Thymeleaf, Bootstrap, JavaScript.
+   - `skills/docker_reverse_proxy_rule.md`: Docker and Nginx reverse proxy.
+3. Adhere to: ONE RULE -> ONE OWNER -> ONE SOURCE OF TRUTH.

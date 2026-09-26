@@ -4,15 +4,29 @@
 
 # Maven
 target/
+.mvn/wrapper/maven-wrapper.jar
 
-# Antigravity
+# Antigravity & AI
 .antigravity-bridge/
 
-# Logs
+# Node / Frontend
+node_modules/
+dist/
+build/
+bin/
+out/
+
+# Logs & Environment
 *.log
+.env
+.env.local
 
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
-.mvn/wrapper/maven-wrapper.jar
+# Editors
+.vscode/
+*.swp
+*.swo

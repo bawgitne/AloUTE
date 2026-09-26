@@ -1,0 +1,2626 @@
+openapi: 3.1.0
+
+info:
+  title: ALOUTE API
+  version: 0.1.0
+  description: |
+    Canonical HTTP API contract for ALOUTE.
+
+    Ownership:
+    - Global response, pagination, HTTP and error conventions come from ALOUTE_SYSTEM_ARCHITECTURE.md.
+    - Business behavior and permissions come from ALOUTE_DOMAIN_SYSTEM.md.
+    - Authentication/authorization enforcement comes from SPRING_SECURITY_CONVENTION.md.
+    - Spring Boot implementation details come from ALOUTE_SPRING_BOOT_BACKEND_CONVENTION.md.
+    - WebSocket realtime events are intentionally not described by OpenAPI.
+
+    Current domain GAPs are intentionally not modeled as completed APIs:
+    - private follow-request approval lifecycle
+    - private community join-request approval lifecycle
+    - advanced community moderation
+    - group-conversation ownership/admin lifecycle
+    - password-reset / email-verification / refresh-session lifecycle
+    - notification preferences
+
+servers:
+  - url: /
+    description: Same-origin ALOUTE server
+
+tags:
+  - name: Auth
+  - name: Users
+  - name: Social
+  - name: Posts
+  - name: Media
+  - name: Topics
+  - name: Polls
+  - name: Communities
+  - name: Feeds
+  - name: Conversations
+  - name: Notifications
+  - name: Reports
+
+paths:
+
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      description: |
+        On success the backend authenticates the user and sets the JWT access credential
+        in an HttpOnly cookie named `aloute_access_token`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            Set-Cookie:
+              description: HttpOnly authentication cookie.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout current user
+      responses:
+        '204':
+          description: Logged out; authentication cookie cleared
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current authenticated user
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/users/{userId}:
+    get:
+      tags: [Users]
+      summary: Get user profile
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/users/me/profile:
+    patch:
+      tags: [Users]
+      summary: Update current user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/users/{userId}/posts:
+    get:
+      tags: [Users, Posts]
+      summary: List posts by user
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Visible posts by user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/users/{userId}/followers:
+    get:
+      tags: [Users, Social]
+      summary: List followers
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Followers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPageEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/users/{userId}/following:
+    get:
+      tags: [Users, Social]
+      summary: List users followed by a user
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Following list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPageEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/social/follows/{userId}:
+    put:
+      tags: [Social]
+      summary: Follow a user
+      description: |
+        Creates the current user's follow relationship to the target user.
+        Private-account follow-request approval is not modeled yet.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Follow relationship active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialRelationEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Social]
+      summary: Unfollow a user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: Follow relationship removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/social/blocks/{userId}:
+    put:
+      tags: [Social]
+      summary: Block a user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Block relationship active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialRelationEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Social]
+      summary: Unblock a user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: Block removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/social/mutes/{userId}:
+    put:
+      tags: [Social]
+      summary: Mute a user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Mute active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialRelationEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Social]
+      summary: Unmute a user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: Mute removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/social/restrictions/{userId}:
+    put:
+      tags: [Social]
+      summary: Restrict a user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Restriction active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialRelationEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Social]
+      summary: Remove user restriction
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: Restriction removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/posts:
+    post:
+      tags: [Posts]
+      summary: Create post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostRequest'
+      responses:
+        '201':
+          description: Post created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/posts/{postId}:
+    get:
+      tags: [Posts]
+      summary: Get post
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          description: Visible post
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Posts]
+      summary: Edit own post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePostRequest'
+      responses:
+        '200':
+          description: Updated post
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [Posts]
+      summary: Delete own post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '204':
+          description: Post deleted
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/posts/{postId}/replies:
+    get:
+      tags: [Posts]
+      summary: List replies
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Visible replies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Posts]
+      summary: Reply to post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReplyRequest'
+      responses:
+        '201':
+          description: Reply created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/posts/{postId}/quotes:
+    post:
+      tags: [Posts]
+      summary: Quote a post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateQuoteRequest'
+      responses:
+        '201':
+          description: Quote post created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/posts/{postId}/likes/me:
+    put:
+      tags: [Posts]
+      summary: Like post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          description: Like active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostInteractionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Posts]
+      summary: Unlike post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '204':
+          description: Like removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/posts/{postId}/bookmarks/me:
+    put:
+      tags: [Posts]
+      summary: Bookmark post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          description: Bookmark active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostInteractionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Posts]
+      summary: Remove bookmark
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '204':
+          description: Bookmark removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/posts/{postId}/reposts/me:
+    put:
+      tags: [Posts]
+      summary: Repost
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          description: Repost active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostInteractionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Posts]
+      summary: Remove repost
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '204':
+          description: Repost removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/media:
+    post:
+      tags: [Media]
+      summary: Upload media
+      description: |
+        Uploads an image, video or GIF through the backend media-storage abstraction.
+        Binary storage is handled by the configured external media provider.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, purpose]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                purpose:
+                  $ref: '#/components/schemas/MediaPurpose'
+      responses:
+        '201':
+          description: Media uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '413':
+          description: Upload rejected by infrastructure size limit
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/media/{mediaId}:
+    delete:
+      tags: [Media]
+      summary: Delete owned unattached media
+      parameters:
+        - $ref: '#/components/parameters/MediaId'
+      responses:
+        '204':
+          description: Media deleted
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/topics:
+    get:
+      tags: [Topics]
+      summary: List topics
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        '200':
+          description: Topics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicPageEnvelope'
+
+  /api/topics/{topicId}:
+    get:
+      tags: [Topics]
+      summary: Get topic
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/TopicId'
+      responses:
+        '200':
+          description: Topic
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/topics/{topicId}/posts:
+    get:
+      tags: [Topics, Posts]
+      summary: List posts for topic
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/TopicId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Topic posts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/users/me/topics/{topicId}:
+    put:
+      tags: [Topics]
+      summary: Add topic to current user's interests
+      parameters:
+        - $ref: '#/components/parameters/TopicId'
+      responses:
+        '204':
+          description: Interest added
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Topics]
+      summary: Remove topic from current user's interests
+      parameters:
+        - $ref: '#/components/parameters/TopicId'
+      responses:
+        '204':
+          description: Interest removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/polls/{pollId}:
+    get:
+      tags: [Polls]
+      summary: Get poll
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PollId'
+      responses:
+        '200':
+          description: Poll
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PollEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/polls/{pollId}/votes:
+    post:
+      tags: [Polls]
+      summary: Vote in poll
+      parameters:
+        - $ref: '#/components/parameters/PollId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VotePollRequest'
+      responses:
+        '200':
+          description: Vote accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PollEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/communities:
+    get:
+      tags: [Communities]
+      summary: Browse communities
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        '200':
+          description: Communities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityPageEnvelope'
+    post:
+      tags: [Communities]
+      summary: Create community
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCommunityRequest'
+      responses:
+        '201':
+          description: Community created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/communities/{communityId}:
+    get:
+      tags: [Communities]
+      summary: Get community
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+      responses:
+        '200':
+          description: Community
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Communities]
+      summary: Update community
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCommunityRequest'
+      responses:
+        '200':
+          description: Updated community
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [Communities]
+      summary: Delete community
+      description: Ownership rule comes from the domain system.
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+      responses:
+        '204':
+          description: Community deleted
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/communities/{communityId}/join:
+    post:
+      tags: [Communities]
+      summary: Join public community
+      description: Private-community join approval is not modeled yet.
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+      responses:
+        '200':
+          description: Membership created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityMembershipEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/communities/{communityId}/members:
+    get:
+      tags: [Communities]
+      summary: List community members
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Members
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityMemberPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/communities/{communityId}/members/me:
+    delete:
+      tags: [Communities]
+      summary: Leave community
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+      responses:
+        '204':
+          description: Membership removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/communities/{communityId}/members/{userId}/role:
+    patch:
+      tags: [Communities]
+      summary: Change scoped community role
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCommunityRoleRequest'
+      responses:
+        '200':
+          description: Membership role updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityMembershipEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/communities/{communityId}/posts:
+    get:
+      tags: [Communities, Posts]
+      summary: List community posts
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Community posts visible to current viewer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Communities, Posts]
+      summary: Create community post
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostRequest'
+      responses:
+        '201':
+          description: Community post created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/feed/home:
+    get:
+      tags: [Feeds]
+      summary: Get home feed
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Home feed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/feed/following:
+    get:
+      tags: [Feeds]
+      summary: Get following feed
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Following feed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/feeds:
+    get:
+      tags: [Feeds]
+      summary: List current user's custom feeds
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Custom feeds
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    post:
+      tags: [Feeds]
+      summary: Create custom feed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFeedRequest'
+      responses:
+        '201':
+          description: Feed created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/feeds/{feedId}:
+    get:
+      tags: [Feeds]
+      summary: Get custom feed
+      parameters:
+        - $ref: '#/components/parameters/FeedId'
+      responses:
+        '200':
+          description: Feed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Feeds]
+      summary: Update owned custom feed
+      parameters:
+        - $ref: '#/components/parameters/FeedId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFeedRequest'
+      responses:
+        '200':
+          description: Updated feed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Feeds]
+      summary: Delete owned custom feed
+      parameters:
+        - $ref: '#/components/parameters/FeedId'
+      responses:
+        '204':
+          description: Feed deleted
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/feeds/{feedId}/posts:
+    get:
+      tags: [Feeds]
+      summary: Get posts generated by custom feed
+      parameters:
+        - $ref: '#/components/parameters/FeedId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Feed posts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/feeds/{feedId}/saves/me:
+    put:
+      tags: [Feeds]
+      summary: Save public custom feed
+      parameters:
+        - $ref: '#/components/parameters/FeedId'
+      responses:
+        '204':
+          description: Feed saved
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Feeds]
+      summary: Remove saved custom feed
+      parameters:
+        - $ref: '#/components/parameters/FeedId'
+      responses:
+        '204':
+          description: Saved feed removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/conversations:
+    get:
+      tags: [Conversations]
+      summary: List current user's conversations
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Conversations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    post:
+      tags: [Conversations]
+      summary: Create direct or group conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConversationRequest'
+      responses:
+        '201':
+          description: Conversation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/conversations/{conversationId}:
+    get:
+      tags: [Conversations]
+      summary: Get conversation
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: Conversation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/conversations/{conversationId}/messages:
+    get:
+      tags: [Conversations]
+      summary: Load conversation message history
+      description: Sending realtime messages is handled by the WebSocket contract, not this OpenAPI file.
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            default: createdAt,desc
+      responses:
+        '200':
+          description: Messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagePageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/notifications:
+    get:
+      tags: [Notifications]
+      summary: List current user's notifications
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/reports:
+    post:
+      tags: [Reports]
+      summary: Report a user or post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReportRequest'
+      responses:
+        '201':
+          description: Report created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+components:
+
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: aloute_access_token
+      description: HttpOnly JWT access credential.
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+
+    Size:
+      name: size
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    Sort:
+      name: sort
+      in: query
+      required: false
+      schema:
+        type: string
+        default: createdAt,desc
+
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+    PostId:
+      name: postId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+    MediaId:
+      name: mediaId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+    TopicId:
+      name: topicId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+    PollId:
+      name: pollId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+    CommunityId:
+      name: communityId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+    FeedId:
+      name: feedId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+  responses:
+    BadRequest:
+      description: Malformed or invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    Unauthenticated:
+      description: Authentication required or credential invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    Forbidden:
+      description: Authenticated but operation is not permitted
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    Conflict:
+      description: Request conflicts with current resource state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    ValidationError:
+      description: Semantic or field validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+  schemas:
+
+    ApiError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          examples: [POST_NOT_FOUND]
+        message:
+          type: string
+        fieldErrors:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+    ErrorEnvelope:
+      type: object
+      required: [success, error, traceId]
+      properties:
+        success:
+          type: boolean
+          const: false
+        error:
+          $ref: '#/components/schemas/ApiError'
+        traceId:
+          type: string
+
+    PageMeta:
+      type: object
+      required: [page, size, totalElements, totalPages, hasNext, hasPrevious]
+      properties:
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+        hasNext:
+          type: boolean
+        hasPrevious:
+          type: boolean
+
+    UserSummary:
+      type: object
+      required: [id, username, displayName, isVerified]
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        isVerified:
+          type: boolean
+
+    UserResponse:
+      type: object
+      required: [id, username, email, isVerified, isPrivate, isActive]
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        isVerified:
+          type: boolean
+        isPrivate:
+          type: boolean
+        isActive:
+          type: boolean
+
+    ProfileResponse:
+      type: object
+      required:
+        - id
+        - username
+        - displayName
+        - isVerified
+        - isPrivate
+        - followersCount
+        - followingCount
+        - postsCount
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        displayName:
+          type: string
+        bio:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        website:
+          type: string
+          format: uri
+          nullable: true
+        isVerified:
+          type: boolean
+        isPrivate:
+          type: boolean
+        followersCount:
+          type: integer
+          format: int64
+          minimum: 0
+        followingCount:
+          type: integer
+          format: int64
+          minimum: 0
+        postsCount:
+          type: integer
+          format: int64
+          minimum: 0
+        capabilities:
+          $ref: '#/components/schemas/ProfileCapabilities'
+
+    ProfileCapabilities:
+      type: object
+      properties:
+        canFollow:
+          type: boolean
+        canMessage:
+          type: boolean
+        canBlock:
+          type: boolean
+        canEdit:
+          type: boolean
+
+    PostVisibility:
+      type: string
+      enum: [PUBLIC, FOLLOWERS, MENTIONED]
+
+    MediaType:
+      type: string
+      enum: [IMAGE, VIDEO, GIF]
+
+    MediaPurpose:
+      type: string
+      enum:
+        - POST
+        - MESSAGE
+        - USER_AVATAR
+        - COMMUNITY_AVATAR
+        - COMMUNITY_COVER
+
+    MediaResponse:
+      type: object
+      required: [id, type, url]
+      properties:
+        id:
+          type: integer
+          format: int64
+        type:
+          $ref: '#/components/schemas/MediaType'
+        url:
+          type: string
+          format: uri
+        width:
+          type: integer
+          nullable: true
+        height:
+          type: integer
+          nullable: true
+        durationSeconds:
+          type: number
+          format: double
+          nullable: true
+        position:
+          type: integer
+          nullable: true
+
+    PostCapabilities:
+      type: object
+      required: [canEdit, canDelete, canReply, canQuote]
+      properties:
+        canEdit:
+          type: boolean
+        canDelete:
+          type: boolean
+        canReply:
+          type: boolean
+        canQuote:
+          type: boolean
+
+    PostViewerState:
+      type: object
+      properties:
+        liked:
+          type: boolean
+        bookmarked:
+          type: boolean
+        reposted:
+          type: boolean
+
+    PostResponse:
+      type: object
+      required:
+        - id
+        - author
+        - content
+        - visibility
+        - allowReply
+        - allowQuote
+        - likeCount
+        - replyCount
+        - repostCount
+        - quoteCount
+        - viewCount
+        - createdAt
+      properties:
+        id:
+          type: integer
+          format: int64
+        author:
+          $ref: '#/components/schemas/UserSummary'
+        content:
+          type: string
+        parentPostId:
+          type: integer
+          format: int64
+          nullable: true
+        quotedPostId:
+          type: integer
+          format: int64
+          nullable: true
+        communityId:
+          type: integer
+          format: int64
+          nullable: true
+        visibility:
+          $ref: '#/components/schemas/PostVisibility'
+        allowReply:
+          type: boolean
+        allowQuote:
+          type: boolean
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaResponse'
+        topics:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopicResponse'
+        poll:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/PollResponse'
+        likeCount:
+          type: integer
+          format: int64
+          minimum: 0
+        replyCount:
+          type: integer
+          format: int64
+          minimum: 0
+        repostCount:
+          type: integer
+          format: int64
+          minimum: 0
+        quoteCount:
+          type: integer
+          format: int64
+          minimum: 0
+        viewCount:
+          type: integer
+          format: int64
+          minimum: 0
+        viewerState:
+          $ref: '#/components/schemas/PostViewerState'
+        capabilities:
+          $ref: '#/components/schemas/PostCapabilities'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    TopicResponse:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        slug:
+          type: string
+          nullable: true
+
+    PollOptionResponse:
+      type: object
+      required: [id, text, voteCount]
+      properties:
+        id:
+          type: integer
+          format: int64
+        text:
+          type: string
+        voteCount:
+          type: integer
+          format: int64
+          minimum: 0
+        selectedByCurrentUser:
+          type: boolean
+          nullable: true
+
+    PollResponse:
+      type: object
+      required: [id, allowMultiple, options]
+      properties:
+        id:
+          type: integer
+          format: int64
+        question:
+          type: string
+          nullable: true
+        allowMultiple:
+          type: boolean
+        closesAt:
+          type: string
+          format: date-time
+          nullable: true
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/PollOptionResponse'
+
+    CommunityRole:
+      type: string
+      enum: [MEMBER, MODERATOR, ADMIN]
+
+    CommunityResponse:
+      type: object
+      required: [id, ownerId, name, slug, isPrivate, memberCount, postCount]
+      properties:
+        id:
+          type: integer
+          format: int64
+        ownerId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        coverUrl:
+          type: string
+          format: uri
+          nullable: true
+        isPrivate:
+          type: boolean
+        memberCount:
+          type: integer
+          format: int64
+          minimum: 0
+        postCount:
+          type: integer
+          format: int64
+          minimum: 0
+        currentUserRole:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommunityRole'
+        isOwner:
+          type: boolean
+          nullable: true
+
+    CommunityMembershipResponse:
+      type: object
+      required: [communityId, user, role, joinedAt]
+      properties:
+        communityId:
+          type: integer
+          format: int64
+        user:
+          $ref: '#/components/schemas/UserSummary'
+        role:
+          $ref: '#/components/schemas/CommunityRole'
+        joinedAt:
+          type: string
+          format: date-time
+
+    FeedResponse:
+      type: object
+      required: [id, name, isPublic]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        isPublic:
+          type: boolean
+        topicIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        userIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+
+    ConversationType:
+      type: string
+      enum: [DIRECT, GROUP]
+
+    ConversationResponse:
+      type: object
+      required: [id, type, members, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        type:
+          $ref: '#/components/schemas/ConversationType'
+        name:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSummary'
+        createdAt:
+          type: string
+          format: date-time
+
+    MessageResponse:
+      type: object
+      required: [id, conversationId, sender, content, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        conversationId:
+          type: integer
+          format: int64
+        sender:
+          $ref: '#/components/schemas/UserSummary'
+        replyToMessageId:
+          type: integer
+          format: int64
+          nullable: true
+        content:
+          type: string
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaResponse'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    NotificationType:
+      type: string
+      enum: [LIKE, REPLY, FOLLOW, REPOST, QUOTE, MENTION, MESSAGE, COMMUNITY]
+
+    NotificationResponse:
+      type: object
+      required: [id, type, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        type:
+          $ref: '#/components/schemas/NotificationType'
+        actor:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/UserSummary'
+        postId:
+          type: integer
+          format: int64
+          nullable: true
+        messageId:
+          type: integer
+          format: int64
+          nullable: true
+        communityId:
+          type: integer
+          format: int64
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    ReportReason:
+      type: string
+      enum: [SPAM, HARASSMENT, HATE, MISINFORMATION, VIOLENCE, OTHER]
+
+    ReportStatus:
+      type: string
+      enum: [PENDING, REVIEWED, REJECTED, RESOLVED]
+
+    ReportResponse:
+      type: object
+      required: [id, reason, status, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        reportedUserId:
+          type: integer
+          format: int64
+          nullable: true
+        reportedPostId:
+          type: integer
+          format: int64
+          nullable: true
+        reason:
+          $ref: '#/components/schemas/ReportReason'
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        createdAt:
+          type: string
+          format: date-time
+
+    SocialRelationResponse:
+      type: object
+      required: [targetUserId, active]
+      properties:
+        targetUserId:
+          type: integer
+          format: int64
+        active:
+          type: boolean
+
+    PostInteractionResponse:
+      type: object
+      required: [postId, active]
+      properties:
+        postId:
+          type: integer
+          format: int64
+        active:
+          type: boolean
+
+    RegisterRequest:
+      type: object
+      required: [username, email, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+          maxLength: 100
+        bio:
+          type: string
+          maxLength: 500
+          nullable: true
+        website:
+          type: string
+          format: uri
+          nullable: true
+        avatarMediaId:
+          type: integer
+          format: int64
+          nullable: true
+        isPrivate:
+          type: boolean
+
+    PollCreateInput:
+      type: object
+      required: [options, allowMultiple]
+      properties:
+        question:
+          type: string
+          maxLength: 300
+          nullable: true
+        allowMultiple:
+          type: boolean
+        closesAt:
+          type: string
+          format: date-time
+          nullable: true
+        options:
+          type: array
+          minItems: 2
+          maxItems: 10
+          items:
+            type: string
+            minLength: 1
+            maxLength: 200
+
+    CreatePostRequest:
+      type: object
+      required: [content, visibility]
+      properties:
+        content:
+          type: string
+        visibility:
+          $ref: '#/components/schemas/PostVisibility'
+        allowReply:
+          type: boolean
+          default: true
+        allowQuote:
+          type: boolean
+          default: true
+        mediaIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+        mentionedUserIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+        topicIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+        poll:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/PollCreateInput'
+
+    UpdatePostRequest:
+      type: object
+      properties:
+        content:
+          type: string
+        visibility:
+          $ref: '#/components/schemas/PostVisibility'
+        allowReply:
+          type: boolean
+        allowQuote:
+          type: boolean
+
+    CreateReplyRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreatePostRequest'
+
+    CreateQuoteRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreatePostRequest'
+
+    VotePollRequest:
+      type: object
+      required: [optionIds]
+      properties:
+        optionIds:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+
+    CreateCommunityRequest:
+      type: object
+      required: [name, slug, isPrivate]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        slug:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+        isPrivate:
+          type: boolean
+        avatarMediaId:
+          type: integer
+          format: int64
+          nullable: true
+        coverMediaId:
+          type: integer
+          format: int64
+          nullable: true
+
+    UpdateCommunityRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+        isPrivate:
+          type: boolean
+        avatarMediaId:
+          type: integer
+          format: int64
+          nullable: true
+        coverMediaId:
+          type: integer
+          format: int64
+          nullable: true
+
+    UpdateCommunityRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role:
+          $ref: '#/components/schemas/CommunityRole'
+
+    CreateFeedRequest:
+      type: object
+      required: [name, isPublic]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+        isPublic:
+          type: boolean
+        topicIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+        userIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+
+    UpdateFeedRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+        isPublic:
+          type: boolean
+        topicIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+        userIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+
+    CreateConversationRequest:
+      type: object
+      required: [type, memberIds]
+      properties:
+        type:
+          $ref: '#/components/schemas/ConversationType'
+        memberIds:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+        name:
+          type: string
+          maxLength: 100
+          nullable: true
+        avatarMediaId:
+          type: integer
+          format: int64
+          nullable: true
+
+    CreateReportRequest:
+      type: object
+      required: [reason]
+      oneOf:
+        - required: [reportedUserId]
+        - required: [reportedPostId]
+      properties:
+        reportedUserId:
+          type: integer
+          format: int64
+          nullable: true
+        reportedPostId:
+          type: integer
+          format: int64
+          nullable: true
+        reason:
+          $ref: '#/components/schemas/ReportReason'
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+
+    UserEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/UserResponse'
+        meta:
+          type: 'null'
+
+    ProfileEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/ProfileResponse'
+        meta:
+          type: 'null'
+
+    PostEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/PostResponse'
+        meta:
+          type: 'null'
+
+    MediaEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/MediaResponse'
+        meta:
+          type: 'null'
+
+    TopicEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/TopicResponse'
+        meta:
+          type: 'null'
+
+    PollEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/PollResponse'
+        meta:
+          type: 'null'
+
+    CommunityEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/CommunityResponse'
+        meta:
+          type: 'null'
+
+    CommunityMembershipEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/CommunityMembershipResponse'
+        meta:
+          type: 'null'
+
+    FeedEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/FeedResponse'
+        meta:
+          type: 'null'
+
+    ConversationEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/ConversationResponse'
+        meta:
+          type: 'null'
+
+    ReportEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/ReportResponse'
+        meta:
+          type: 'null'
+
+    SocialRelationEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/SocialRelationResponse'
+        meta:
+          type: 'null'
+
+    PostInteractionEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/PostInteractionResponse'
+        meta:
+          type: 'null'
+
+    UserPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSummary'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    PostPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PostResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    TopicPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopicResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    CommunityPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommunityResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    CommunityMemberPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommunityMembershipResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    FeedPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeedResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    ConversationPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConversationResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    MessagePageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    NotificationPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+security:
+  - cookieAuth: []
