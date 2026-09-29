@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" width="1440" height="900">
+  <defs>
+    <style>
+      .bg { fill: #0B0F19; }
+      .meta-bar { fill: #030712; }
+      .meta-text { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; fill: #F8FAFC; font-weight: 600; }
+      .meta-sub { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; fill: #64748B; }
+      .nav-bg { fill: #111827; stroke: #1F2937; stroke-width: 1; }
+      .brand-title { font-family: system-ui, -apple-system, sans-serif; font-size: 20px; font-weight: 800; fill: #3B82F6; }
+      .card { fill: #131B2A; stroke: #233148; stroke-width: 1.5; rx: 8px; }
+      .card-subtle { fill: #0F172A; stroke: #1E293B; stroke-width: 1; rx: 6px; }
+      .card-hover { fill: #1A2438; stroke: #2A3A55; stroke-width: 1; rx: 6px; }
+      .card-active { fill: #172554; stroke: #2563EB; stroke-width: 1.5; rx: 6px; }
+      .text-title { font-family: system-ui, -apple-system, sans-serif; font-size: 16px; font-weight: 700; fill: #F8FAFC; }
+      .text-section { font-family: system-ui, -apple-system, sans-serif; font-size: 14px; font-weight: 600; fill: #E2E8F0; }
+      .text-body { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 400; fill: #CBD5E1; }
+      .text-bold { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 600; fill: #F8FAFC; }
+      .text-muted { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 400; fill: #94A3B8; }
+      .text-small { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 400; fill: #64748B; }
+      .btn-primary { fill: #2563EB; stroke: #1D4ED8; stroke-width: 1; rx: 6px; }
+      .btn-primary-text { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 600; fill: #FFFFFF; text-anchor: middle; }
+      .btn-secondary { fill: #1E293B; stroke: #334155; stroke-width: 1; rx: 6px; }
+      .btn-secondary-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #CBD5E1; text-anchor: middle; }
+      .btn-accent { fill: #3B82F6; stroke: #2563EB; stroke-width: 1; rx: 6px; }
+      .btn-accent-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #FFFFFF; text-anchor: middle; }
+      .btn-danger { fill: #450A0A; stroke: #991B1B; stroke-width: 1; rx: 6px; }
+      .btn-danger-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #FCA5A5; text-anchor: middle; }
+      .badge-wire { fill: #1E293B; stroke: #334155; stroke-width: 1; rx: 4px; }
+      .badge-text { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 600; fill: #94A3B8; text-anchor: middle; }
+      .badge-role { fill: #1E3A8A; stroke: #3B82F6; stroke-width: 1; rx: 4px; }
+      .badge-role-text { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 700; fill: #93C5FD; text-anchor: middle; }
+      .input-box { fill: #0B0F19; stroke: #334155; stroke-width: 1.5; rx: 6px; }
+      .input-bg { fill: #0F172A; stroke: #1E293B; stroke-width: 1; rx: 6px; }
+      .input-text { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; fill: #F1F5F9; }
+      .input-placeholder { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; fill: #64748B; }
+      .avatar-box { fill: #1E293B; stroke: #475569; stroke-width: 1.5; }
+      .avatar-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #E2E8F0; text-anchor: middle; }
+      .media-ph { fill: #0F172A; stroke: #334155; stroke-width: 1.5; stroke-dasharray: 4,4; rx: 6px; }
+      .media-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #94A3B8; text-anchor: middle; }
+      .alert-error { fill: #2D1214; stroke: #7F1D1D; stroke-width: 1.5; rx: 6px; }
+      .alert-error-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 500; fill: #FCA5A5; }
+      .alert-info { fill: #0C1E3A; stroke: #1E40AF; stroke-width: 1.5; rx: 6px; }
+      .alert-info-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 500; fill: #93C5FD; }
+      .footer-bar { fill: #030712; stroke: #1F2937; stroke-width: 1; }
+      .footer-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 500; fill: #64748B; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1440" height="900" class="bg" />
+
+  <!-- Top Metadata Bar -->
+  <rect x="0" y="0" width="1440" height="38" class="meta-bar" />
+  <text x="24" y="24" class="meta-text">AloUTE WIREFRAME [01-login] — LOGIN &amp; AUTHENTICATION</text>
+  <text x="1416" y="24" class="meta-sub" text-anchor="end">Owner: Phạm Minh Quân  •  Week 1 UI Design Evidence  •  Dark University Theme  •  1440×900</text>
+
+
+    <!-- Guest Layout: Centered Auth Card (X: 470, Y: 105, Width: 500, Height: 710) -->
+    <g id="login-container">
+      <!-- Main Card -->
+      <rect x="470" y="105" width="500" height="710" class="card" />
+
+      <!-- Branding Header -->
+      <rect x="470" y="105" width="500" height="85" fill="#172554" rx="8" />
+      <text x="720" y="145" class="brand-title" font-size="28px" text-anchor="middle">AloUTE</text>
+      <text x="720" y="168" class="text-muted" font-size="13px" text-anchor="middle">Modern University Social Network  •  HCMUTE Student Portal</text>
+
+      <!-- Form Title -->
+      <text x="510" y="222" class="text-title" font-size="18px">Sign in to your account</text>
+      <text x="510" y="242" class="text-muted">Enter your campus credentials to access your feed and communities.</text>
+
+      <!-- Validation Error Box -->
+      <rect x="510" y="260" width="420" height="48" class="alert-error" />
+      <text x="526" y="282" class="alert-error-text" font-weight="700">⚠️ Authentication Error</text>
+      <text x="526" y="298" class="alert-error-text">Invalid username or password. Please verify your credentials or contact IT.</text>
+
+      <!-- Field 1: Username / Email -->
+      <text x="510" y="335" class="text-bold">Username or Student Email *</text>
+      <rect x="510" y="345" width="420" height="42" class="input-box" />
+      <text x="526" y="371" class="input-placeholder">e.g. 24110311 or student@hcmute.edu.vn</text>
+
+      <!-- Field 2: Password -->
+      <text x="510" y="415" class="text-bold">Password *</text>
+      <rect x="510" y="425" width="420" height="42" class="input-box" />
+      <text x="526" y="451" class="input-text">••••••••••••••••</text>
+      <text x="910" y="451" class="text-muted" font-size="12px" text-anchor="end">👁️ Show</text>
+
+      <!-- Remember Me & Forgot Password -->
+      <rect x="510" y="488" width="16" height="16" class="input-box" rx="3" />
+      <polyline points="513,496 517,501 523,491" fill="none" stroke="#3B82F6" stroke-width="2"/>
+      <text x="536" y="501" class="text-body" font-size="13px">Remember this device for 30 days</text>
+
+      <text x="930" y="501" font-family="system-ui, sans-serif" font-size="13px" font-weight="600" fill="#3B82F6" text-anchor="end">Forgot password?</text>
+
+      <!-- Login Button -->
+      <rect x="510" y="530" width="420" height="44" class="btn-primary" />
+      <text x="720" y="557" class="btn-primary-text" font-size="15px">Log In to AloUTE</text>
+
+      <!-- Divider -->
+      <line x1="510" y1="600" x2="690" y2="600" stroke="#233148" />
+      <text x="720" y="604" class="text-muted" font-size="12px" text-anchor="middle">or</text>
+      <line x1="750" y1="600" x2="930" y2="600" stroke="#233148" />
+
+      <!-- Register Link Area -->
+      <rect x="510" y="625" width="420" height="44" class="btn-secondary" />
+      <text x="720" y="652" class="btn-secondary-text" font-size="13px">Don&apos;t have an account? Create an Account / Register</text>
+
+      <!-- Institutional Security Notice -->
+      <rect x="510" y="695" width="420" height="70" class="card-subtle" />
+      <text x="526" y="718" class="text-section" font-size="11px">🛡️ Institutional Authentication Policy</text>
+      <text x="526" y="736" class="text-muted" font-size="11px">AloUTE uses internal university authentication credentials.</text>
+      <text x="526" y="752" class="text-muted" font-size="11px">Third-party social logins (Google, Facebook, 2FA) are disabled by policy.</text>
+
+      <!-- Side Annotation Panel (X: 1010, Y: 105, Width: 380) -->
+      <rect x="1010" y="105" width="380" height="360" class="card" />
+      <text x="1030" y="135" class="text-section">Wireframe Annotations: Login</text>
+      <line x1="1030" y1="147" x2="1370" y2="147" stroke="#233148" />
+
+      <text x="1030" y="172" class="text-bold">Screen ID:</text>
+      <text x="1110" y="172" class="text-body">WF-01 (Guest Flow)</text>
+
+      <text x="1030" y="196" class="text-bold">Route Target:</text>
+      <text x="1130" y="196" class="text-body">/auth/login → /feed</text>
+
+      <text x="1030" y="222" class="text-bold">Components:</text>
+      <text x="1030" y="242" class="text-muted">• AloUTE Campus Branding Header</text>
+      <text x="1030" y="260" class="text-muted">• Username / Institutional Email input</text>
+      <text x="1030" y="278" class="text-muted">• Password input with masked bullets &amp; toggle</text>
+      <text x="1030" y="296" class="text-muted">• Remember me &amp; Forgot Password link</text>
+      <text x="1030" y="314" class="text-muted">• Primary Log In CTA + Register link</text>
+      <text x="1030" y="332" class="text-muted">• Explicit Validation &amp; Error alert display</text>
+
+      <rect x="1030" y="355" width="340" height="90" class="card-subtle" />
+      <text x="1042" y="375" class="text-bold" font-size="12px">Responsive Specs:</text>
+      <text x="1042" y="395" class="text-muted" font-size="11px">Desktop: 500px Centered Modal Card</text>
+      <text x="1042" y="412" class="text-muted" font-size="11px">Tablet: 460px Centered Card with 24px margins</text>
+      <text x="1042" y="429" class="text-muted" font-size="11px">Mobile: 100% Full-width view, compact spacing</text>
+    </g>
+
+  <!-- Bottom Responsive & Evidence Ribbon -->
+  <rect x="0" y="865" width="1440" height="35" class="footer-bar" />
+  <text x="24" y="887" class="footer-text">Responsive Layout: Centered Single Column Card (Desktop: 500px | Tablet: 460px | Mobile: 100% full width)</text>
+  <text x="1416" y="887" class="footer-text" text-anchor="end">Week 1 Wireframe Specification  •  Modern University Social Network  •  Dark Theme Mockup</text>
+</svg>
