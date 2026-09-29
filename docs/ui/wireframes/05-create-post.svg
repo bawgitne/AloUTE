@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" width="1440" height="900">
+  <defs>
+    <style>
+      .bg { fill: #0B0F19; }
+      .meta-bar { fill: #030712; }
+      .meta-text { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; fill: #F8FAFC; font-weight: 600; }
+      .meta-sub { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; fill: #64748B; }
+      .nav-bg { fill: #111827; stroke: #1F2937; stroke-width: 1; }
+      .brand-title { font-family: system-ui, -apple-system, sans-serif; font-size: 20px; font-weight: 800; fill: #3B82F6; }
+      .card { fill: #131B2A; stroke: #233148; stroke-width: 1.5; rx: 8px; }
+      .card-subtle { fill: #0F172A; stroke: #1E293B; stroke-width: 1; rx: 6px; }
+      .card-hover { fill: #1A2438; stroke: #2A3A55; stroke-width: 1; rx: 6px; }
+      .card-active { fill: #172554; stroke: #2563EB; stroke-width: 1.5; rx: 6px; }
+      .text-title { font-family: system-ui, -apple-system, sans-serif; font-size: 16px; font-weight: 700; fill: #F8FAFC; }
+      .text-section { font-family: system-ui, -apple-system, sans-serif; font-size: 14px; font-weight: 600; fill: #E2E8F0; }
+      .text-body { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 400; fill: #CBD5E1; }
+      .text-bold { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 600; fill: #F8FAFC; }
+      .text-muted { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 400; fill: #94A3B8; }
+      .text-small { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 400; fill: #64748B; }
+      .btn-primary { fill: #2563EB; stroke: #1D4ED8; stroke-width: 1; rx: 6px; }
+      .btn-primary-text { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 600; fill: #FFFFFF; text-anchor: middle; }
+      .btn-secondary { fill: #1E293B; stroke: #334155; stroke-width: 1; rx: 6px; }
+      .btn-secondary-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #CBD5E1; text-anchor: middle; }
+      .btn-accent { fill: #3B82F6; stroke: #2563EB; stroke-width: 1; rx: 6px; }
+      .btn-accent-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #FFFFFF; text-anchor: middle; }
+      .btn-danger { fill: #450A0A; stroke: #991B1B; stroke-width: 1; rx: 6px; }
+      .btn-danger-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #FCA5A5; text-anchor: middle; }
+      .badge-wire { fill: #1E293B; stroke: #334155; stroke-width: 1; rx: 4px; }
+      .badge-text { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 600; fill: #94A3B8; text-anchor: middle; }
+      .badge-role { fill: #1E3A8A; stroke: #3B82F6; stroke-width: 1; rx: 4px; }
+      .badge-role-text { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 700; fill: #93C5FD; text-anchor: middle; }
+      .input-box { fill: #0B0F19; stroke: #334155; stroke-width: 1.5; rx: 6px; }
+      .input-bg { fill: #0F172A; stroke: #1E293B; stroke-width: 1; rx: 6px; }
+      .input-text { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; fill: #F1F5F9; }
+      .input-placeholder { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; fill: #64748B; }
+      .avatar-box { fill: #1E293B; stroke: #475569; stroke-width: 1.5; }
+      .avatar-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #E2E8F0; text-anchor: middle; }
+      .media-ph { fill: #0F172A; stroke: #334155; stroke-width: 1.5; stroke-dasharray: 4,4; rx: 6px; }
+      .media-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #94A3B8; text-anchor: middle; }
+      .alert-error { fill: #2D1214; stroke: #7F1D1D; stroke-width: 1.5; rx: 6px; }
+      .alert-error-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 500; fill: #FCA5A5; }
+      .alert-info { fill: #0C1E3A; stroke: #1E40AF; stroke-width: 1.5; rx: 6px; }
+      .alert-info-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 500; fill: #93C5FD; }
+      .footer-bar { fill: #030712; stroke: #1F2937; stroke-width: 1; }
+      .footer-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 500; fill: #64748B; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1440" height="900" class="bg" />
+
+  <!-- Top Metadata Bar -->
+  <rect x="0" y="0" width="1440" height="38" class="meta-bar" />
+  <text x="24" y="24" class="meta-text">AloUTE WIREFRAME [05-create-post] — CREATE POST COMPOSER MODAL</text>
+  <text x="1416" y="24" class="meta-sub" text-anchor="end">Owner: Phạm Minh Quân  •  Week 1 UI Design Evidence  •  Dark University Theme  •  1440×900</text>
+
+
+
+    <!-- Global Navbar (Y: 38 - 92) -->
+    <rect x="0" y="38" width="1440" height="54" class="nav-bg" />
+    <text x="40" y="72" class="brand-title">AloUTE</text>
+    <rect x="125" y="58" width="70" height="20" class="badge-wire" />
+    <text x="160" y="72" class="badge-text">HCMUTE</text>
+    <text x="205" y="72" class="text-muted">University Social Network</text>
+
+    <!-- Global Search -->
+    <rect x="800" y="50" width="360" height="32" class="input-bg" />
+    <text x="815" y="71" class="input-placeholder">🔍 Search posts, people, communities...</text>
+
+    <!-- Nav Items -->
+
+        <text x="360" y="70" font-family="system-ui, sans-serif" font-size="14px" font-weight="700" fill="#3B82F6">Home</text>
+        <line x1="360" y1="88" x2="396" y2="88" stroke="#3B82F6" stroke-width="2"/>
+        <text x="440" y="70" font-family="system-ui, sans-serif" font-size="14px" font-weight="500" fill="#94A3B8">Community</text>
+
+        <text x="550" y="70" font-family="system-ui, sans-serif" font-size="14px" font-weight="500" fill="#94A3B8">Messages</text>
+
+        <text x="655" y="70" font-family="system-ui, sans-serif" font-size="14px" font-weight="500" fill="#94A3B8">Notifications</text>
+
+
+    <!-- Notification Badge -->
+    <circle cx="760" cy="62" r="8" fill="#EF4444" />
+    <text x="760" y="66" font-family="system-ui, sans-serif" font-size="10px" font-weight="700" fill="#FFFFFF" text-anchor="middle">3</text>
+
+    <!-- User Profile Chip -->
+    <rect x="1200" y="47" width="200" height="36" class="card-subtle" rx="18" />
+    <circle cx="1220" cy="65" r="14" class="avatar-box" />
+    <text x="1220" y="69" class="avatar-text">MQ</text>
+    <text x="1242" y="69" class="text-bold">Minh Quân</text>
+    <text x="1380" y="69" class="text-muted">▼</text>
+
+    <!-- Dimmed Feed Background Behind Modal -->
+    <rect x="0" y="92" width="1440" height="773" fill="#000000" opacity="0.65" />
+
+    <!-- Centered Post Composer Modal Card (X: 340, Y: 110, Width: 760, Height: 730) -->
+    <g id="create-post-modal">
+      <rect x="340" y="110" width="760" height="730" class="card" />
+
+      <!-- Modal Header -->
+      <rect x="340" y="110" width="760" height="60" fill="#1A2438" rx="8" />
+      <text x="365" y="145" class="text-title" font-size="18px">Create a Post</text>
+      <text x="500" y="145" class="text-muted">Share academic updates, questions, or poll with campus</text>
+      <rect x="1050" y="125" width="30" height="30" class="btn-secondary" />
+      <text x="1065" y="145" class="btn-secondary-text" font-size="14px">✕</text>
+      <line x1="340" y1="170" x2="1100" y2="170" stroke="#233148" />
+
+      <!-- Author Row & Visibility Selector -->
+      <circle cx="375" cy="205" r="20" class="avatar-box" />
+      <text x="375" y="210" class="avatar-text">PQ</text>
+      <text x="405" y="200" class="text-bold">Phạm Minh Quân</text>
+
+      <!-- Visibility Dropdown -->
+      <rect x="405" y="210" width="170" height="24" class="input-bg" />
+      <text x="415" y="226" class="text-muted" font-size="11px">🌐 Public - Campus Wide ▼</text>
+
+      <!-- Topic Dropdown Selector -->
+      <text x="610" y="226" class="text-bold" font-size="12px">Topic:</text>
+      <rect x="660" y="210" width="180" height="24" class="input-box" />
+      <text x="670" y="226" class="text-body" font-size="12px">#CongNghePhanMem ▼</text>
+
+      <!-- Content Composer Text Area -->
+      <rect x="365" y="250" width="710" height="135" class="input-box" />
+      <text x="380" y="280" class="input-text">What do you want to share with the university community?</text>
+      <text x="380" y="300" class="input-text">Write your post, academic question, or event announcement here...</text>
+      <text x="1055" y="375" class="text-muted" font-size="11px" text-anchor="end">142 / 2000 characters</text>
+
+      <!-- Validation & Error Area -->
+      <rect x="365" y="395" width="710" height="40" class="alert-error" />
+      <text x="380" y="415" class="alert-error-text" font-weight="700">⚠️ Post Validation Constraints:</text>
+      <text x="380" y="428" class="alert-error-text">Content length must be between 1 and 2000 chars. Media limited to 10MB (JPG, PNG, PDF).</text>
+
+      <!-- Media Attachment Area (Dropzone) -->
+      <rect x="365" y="445" width="710" height="80" class="media-ph" />
+      <text x="720" y="480" class="media-text">📁 Click or Drag to Attach Files: Images (JPG/PNG), Slide Decks, PDF Documents</text>
+      <rect x="380" y="495" width="260" height="24" class="card-subtle" />
+      <text x="390" y="511" class="text-body" font-size="11px">📄 architecture-diagram-v1.png (2.4MB)  ✕</text>
+
+      <!-- Poll Option Component -->
+      <rect x="365" y="535" width="710" height="155" class="card-subtle" />
+      <text x="380" y="555" class="text-section" font-size="13px">📊 Campus Poll (Optional)</text>
+
+      <text x="380" y="578" class="text-muted" font-size="11px">Poll Question:</text>
+      <rect x="460" y="565" width="600" height="28" class="input-box" />
+      <text x="470" y="583" class="input-text" font-size="12px">Chọn ngày báo cáo đồ án tiến độ tuần tới:</text>
+
+      <text x="380" y="613" class="text-muted" font-size="11px">Option 1:</text>
+      <rect x="460" y="600" width="380" height="26" class="input-box" />
+      <text x="470" y="618" class="input-text" font-size="12px">Thứ Hai (08:00 - 11:30)</text>
+
+      <text x="380" y="643" class="text-muted" font-size="11px">Option 2:</text>
+      <rect x="460" y="630" width="380" height="26" class="input-box" />
+      <text x="470" y="648" class="input-text" font-size="12px">Thứ Tư (13:30 - 17:00)</text>
+
+      <rect x="850" y="615" width="100" height="28" class="btn-secondary" />
+      <text x="900" y="633" class="btn-secondary-text" font-size="11px">+ Add Option</text>
+
+      <text x="965" y="633" class="text-muted" font-size="11px">Poll Duration: 3 Days ▼</text>
+
+      <!-- Modal Footer -->
+      <line x1="340" y1="700" x2="1100" y2="700" stroke="#233148" />
+      <text x="365" y="725" class="text-muted" font-size="12px">Topic Chips: [#DoAn] [#ThongBao] [#HoiDap]</text>
+
+      <rect x="890" y="708" width="90" height="34" class="btn-secondary" />
+      <text x="935" y="729" class="btn-secondary-text" font-size="13px">Cancel</text>
+
+      <rect x="990" y="708" width="90" height="34" class="btn-primary" />
+      <text x="1035" y="729" class="btn-primary-text" font-size="13px">Post</text>
+    </g>
+
+    <!-- Side Specification Card -->
+    <rect x="1120" y="110" width="280" height="340" class="card" />
+    <text x="1136" y="135" class="text-section">Composer Specification</text>
+    <line x1="1136" y1="147" x2="1384" y2="147" stroke="#233148" />
+    <text x="1136" y="170" class="text-bold">Screen ID: WF-05</text>
+    <text x="1136" y="195" class="text-body">• Author attribution from auth session</text>
+    <text x="1136" y="215" class="text-body">• Plain text area with char limit</text>
+    <text x="1136" y="235" class="text-body">• Topic selector &amp; Visibility tag</text>
+    <text x="1136" y="255" class="text-body">• Single/Multi media attachment</text>
+    <text x="1136" y="275" class="text-body">• Optional lightweight Poll feature</text>
+    <text x="1136" y="295" class="text-body">• Cancel &amp; Submit Post buttons</text>
+
+    <rect x="1136" y="320" width="248" height="110" class="card-subtle" />
+    <text x="1146" y="340" class="text-bold" font-size="11px">Scope Boundaries (Excluded):</text>
+    <text x="1146" y="358" class="text-muted" font-size="11px">• No rich-text WYSIWYG editor</text>
+    <text x="1146" y="374" class="text-muted" font-size="11px">• No AI writing assistant</text>
+    <text x="1146" y="390" class="text-muted" font-size="11px">• No video streaming/reel composer</text>
+    <text x="1146" y="406" class="text-muted" font-size="11px">• Plain modal overlay pattern</text>
+
+
+  <!-- Bottom Responsive & Evidence Ribbon -->
+  <rect x="0" y="865" width="1440" height="35" class="footer-bar" />
+  <text x="24" y="887" class="footer-text">Responsive Layout: Centered Modal Overlay (Desktop: 760px | Tablet: 680px | Mobile: Full Screen Sheet)</text>
+  <text x="1416" y="887" class="footer-text" text-anchor="end">Week 1 Wireframe Specification  •  Modern University Social Network  •  Dark Theme Mockup</text>
+</svg>
