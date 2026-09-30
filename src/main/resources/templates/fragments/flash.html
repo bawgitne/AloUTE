@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="flash" class="flash-messages-container" aria-live="polite">
+    <!-- Success Alert -->
+    <div th:if="${successMessage != null or success != null}"
+         class="alert alert-success alert-dismissible fade show"
+         role="alert">
+        <i class="bi bi-check-circle-fill me-2 fs-5" aria-hidden="true"></i>
+        <div class="flex-grow-1" th:text="${successMessage != null ? successMessage : success}">Thao tác thành công.</div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng thông báo"></button>
+    </div>
+
+    <!-- Error Alert -->
+    <div th:if="${errorMessage != null or error != null}"
+         class="alert alert-danger alert-dismissible fade show"
+         role="alert">
+        <i class="bi bi-exclamation-octagon-fill me-2 fs-5" aria-hidden="true"></i>
+        <div class="flex-grow-1" th:text="${errorMessage != null ? errorMessage : error}">Đã xảy ra lỗi, vui lòng thử lại.</div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng thông báo"></button>
+    </div>
+
+    <!-- Warning Alert -->
+    <div th:if="${warningMessage != null or warning != null}"
+         class="alert alert-warning alert-dismissible fade show"
+         role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2 fs-5" aria-hidden="true"></i>
+        <div class="flex-grow-1" th:text="${warningMessage != null ? warningMessage : warning}">Cảnh báo hệ thống.</div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng thông báo"></button>
+    </div>
+
+    <!-- Info Alert -->
+    <div th:if="${infoMessage != null or info != null}"
+         class="alert alert-info alert-dismissible fade show"
+         role="alert">
+        <i class="bi bi-info-circle-fill me-2 fs-5" aria-hidden="true"></i>
+        <div class="flex-grow-1" th:text="${infoMessage != null ? infoMessage : info}">Thông tin thông báo.</div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng thông báo"></button>
+    </div>
+</div>
+</body>
+</html>

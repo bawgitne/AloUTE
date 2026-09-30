@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:fragment="layout(title, content)">
+<head th:replace="~{fragments/head :: head(${title})}"></head>
+<body class="aloute-auth-body">
+    <main class="auth-container" role="main">
+        <div class="auth-card">
+            <!-- Brand Identity Header -->
+            <div class="auth-brand">
+                <a th:href="@{/feed}" href="/feed" class="d-inline-flex align-items-center gap-2 mb-2 text-decoration-none">
+                    <span class="fs-3 fw-bold">Alo<span class="text-primary">UTE</span></span>
+                    <span class="badge bg-primary">Campus</span>
+                </a>
+                <h1 class="auth-brand-title" th:text="${title}">Đăng nhập</h1>
+                <p class="auth-brand-subtitle">Mạng xã hội học tập &amp; kết nối sinh viên UTE</p>
+            </div>
+
+            <!-- Global Flash Messages Area -->
+            <div th:replace="~{fragments/flash :: flash}"></div>
+
+            <!-- Page-Specific Auth Form Slot -->
+            <div th:replace="${content}"></div>
+        </div>
+    </main>
+</body>
+</html>
