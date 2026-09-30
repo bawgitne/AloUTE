@@ -1,0 +1,77 @@
+/**
+ * AloUTE Design Tokens
+ * Source of truth: UI_DESIGN_SYSTEM.md & WEEK2_UI_STYLE_DECISION.md
+ * Modern University Social Network — Light Campus Style
+ */
+
+:root {
+  /* Surfaces & Backgrounds */
+  --aloute-bg-body: #f8fafc;
+  --aloute-bg-surface: #ffffff;
+  --aloute-bg-surface-elevated: #ffffff;
+  --aloute-bg-surface-hover: #f1f5f9;
+  --aloute-bg-surface-active: #e2e8f0;
+
+  /* Borders & Dividers */
+  --aloute-border-color: #e2e8f0;
+  --aloute-border-subtle: #f1f5f9;
+  --aloute-border-strong: #cbd5e1;
+  --aloute-border-focus: #2563eb;
+  --aloute-focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.25);
+
+  /* Typography / Text Colors */
+  --aloute-text-primary: #0f172a;
+  --aloute-text-secondary: #475569;
+  --aloute-text-muted: #64748b;
+  --aloute-text-inverse: #ffffff;
+
+  /* Accent Colors (Academic Blue) */
+  --aloute-accent: #2563eb;
+  --aloute-accent-hover: #1d4ed8;
+  --aloute-accent-active: #1e40af;
+  --aloute-accent-subtle: #eff6ff;
+  --aloute-accent-contrast: #ffffff;
+
+  /* Status Colors */
+  --aloute-success: #16a34a;
+  --aloute-success-bg: #f0fdf4;
+  --aloute-success-border: #bbf7d0;
+  --aloute-danger: #dc2626;
+  --aloute-danger-bg: #fef2f2;
+  --aloute-danger-border: #fecaca;
+  --aloute-warning: #d97706;
+  --aloute-warning-bg: #fffbeb;
+  --aloute-warning-border: #fde68a;
+  --aloute-info: #0284c7;
+  --aloute-info-bg: #f0f9ff;
+  --aloute-info-border: #bae6fd;
+
+  /* Layout Boundaries */
+  --aloute-container-max: 1280px;
+  --aloute-sidebar-left-width: 260px;
+  --aloute-feed-max-width: 660px;
+  --aloute-sidebar-right-width: 320px;
+  --aloute-navbar-height: 64px;
+
+  /* Spacing */
+  --aloute-space-xs: 0.25rem;
+  --aloute-space-sm: 0.5rem;
+  --aloute-space-md: 1rem;
+  --aloute-space-lg: 1.5rem;
+  --aloute-space-xl: 2rem;
+
+  /* Border Radii */
+  --aloute-radius-sm: 6px;
+  --aloute-radius-md: 10px;
+  --aloute-radius-lg: 14px;
+  --aloute-radius-full: 9999px;
+
+  /* Light Elevation & Shadows */
+  --aloute-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --aloute-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --aloute-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+
+  /* Transitions */
+  --aloute-transition-fast: 150ms ease-in-out;
+  --aloute-transition-normal: 250ms ease-in-out;
+}

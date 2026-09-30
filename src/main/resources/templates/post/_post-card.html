@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- Reusable Post Card Fragment -->
+<article th:fragment="postCard(post)" class="post-card" th:attr="data-post-id=${post != null ? post.id : ''}">
+    <div th:if="${post != null}">
+        <!-- Post Header: Author info, timestamp, capabilities dropdown -->
+        <header class="post-card-header">
+            <div class="post-author-meta">
+                <!-- Canonical /users/{id} route if author present, else fallback hook -->
+                <a th:href="${post.author != null and post.author.id != null} ? @{/users/{id}(id=${post.author.id})} : '#'"
+                   data-page="user-profile"
+                   data-action="navigate-profile"
+                   class="d-flex align-items-center gap-2 text-decoration-none">
+                    <img th:src="${post.author != null and post.author.avatarUrl != null and !post.author.avatarUrl.isEmpty()} ? ${post.author.avatarUrl} : 'https://placehold.co/44x44/e2e8f0/475569?text=U'"
+                         alt="Avatar người đăng"
+                         class="avatar-img avatar-sm"
+                         width="40"
+                         height="40">
+                    <div>
+                        <div class="d-flex align-items-center gap-1">
+                            <span class="post-author-name"
+                                  th:text="${post.author != null ? (post.author.displayName != null ? post.author.displayName : post.author.username) : 'Sinh viên AloUTE'}">
+                                Nguyễn Văn A
+                            </span>
+                            <i th:if="${post.author != null and post.author.isVerified}"
+                               class="bi bi-patch-check-fill text-primary small"
+                               aria-label="Tài khoản đã xác minh"></i>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="post-timestamp" th:text="${post.createdAt != null ? post.createdAt : 'Vừa xong'}">10 phút trước</span>
+                            <span th:if="${post.visibility != null}" class="post-badge" th:text="${post.visibility}">PUBLIC</span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Capabilities Actions Dropdown (Edit/Delete presentational hooks) -->
+            <div th:if="${post.capabilities != null and (post.capabilities.canEdit or post.capabilities.canDelete)}" class="dropdown">
+                <button class="btn btn-link text-muted p-1"
+                        type="button"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                        aria-label="Thao tác bài viết">
+                    <i class="bi bi-three-dots" aria-hidden="true"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow">
+                    <li th:if="${post.capabilities.canEdit}">
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-action="edit-post"
+                                th:attr="data-post-id=${post.id}">
+                            <i class="bi bi-pencil" aria-hidden="true"></i>
+                            <span>Chỉnh sửa bài viết</span>
+                        </button>
+                    </li>
+                    <li th:if="${post.capabilities.canDelete}">
+                        <button type="button"
+                                class="dropdown-item text-danger d-flex align-items-center gap-2"
+                                data-action="delete-post"
+                                th:attr="data-post-id=${post.id}">
+                            <i class="bi bi-trash" aria-hidden="true"></i>
+                            <span>Xóa bài viết</span>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </header>
+
+        <!-- Post Content (Escaped output) -->
+        <div class="post-card-content">
+            <p class="mb-2" th:text="${post.content}">Nội dung bài viết mẫu trên diễn đàn AloUTE.</p>
+        </div>
+
+        <!-- Post Media Gallery (if present) -->
+        <div th:if="${post.media != null and !post.media.isEmpty()}" class="post-media-container">
+            <div th:each="mediaItem : ${post.media}" class="mb-2 last-mb-0">
+                <img th:if="${mediaItem.type == null or mediaItem.type.toString() == 'IMAGE'}"
+                     th:src="${mediaItem.url}"
+                     alt="Hình ảnh đính kèm bài viết"
+                     class="post-media-img"
+                     loading="lazy">
+            </div>
+        </div>
+
+        <!-- Post Topics / Tags (UI placeholder / neutral action hook) -->
+        <div th:if="${post.topics != null and !post.topics.isEmpty()}" class="post-topics">
+            <button th:each="topic : ${post.topics}"
+                    type="button"
+                    class="post-topic-tag"
+                    data-action="topic"
+                    th:attr="data-topic-id=${topic.id != null ? topic.id : ''}"
+                    th:text="'#' + ${topic.name}">#hoc-tap</button>
+        </div>
+
+        <!-- Post Interaction Controls Fragment -->
+        <footer class="post-card-footer mt-2">
+            <div th:replace="~{post/_interaction-bar :: interactionBar(post=${post})}"></div>
+        </footer>
+    </div>
+</article>
+</body>
+</html>

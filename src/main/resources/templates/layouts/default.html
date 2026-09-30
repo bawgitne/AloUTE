@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:fragment="layout(title, content)">
+<head th:replace="~{fragments/head :: head(${title})}"></head>
+<body class="aloute-body">
+    <!-- Global Header / Navbar -->
+    <header th:replace="~{fragments/navbar :: navbar}"></header>
+
+    <!-- Main 3-Column Layout Container -->
+    <div class="container-fluid aloute-layout-container">
+        <div class="row g-4 justify-content-center">
+            <!-- Left Panel: User Profile Summary & Navigation -->
+            <aside class="col-md-4 col-lg-3 col-xl-3 d-none d-md-block aloute-left-panel" aria-label="Điều hướng">
+                <div th:replace="~{fragments/sidebar :: sidebar}"></div>
+            </aside>
+
+            <!-- Center Panel: Activity Stream / Main Content -->
+            <main class="col-12 col-md-8 col-lg-9 col-xl-6 aloute-feed-panel" id="main-content" role="main">
+                <!-- Global Flash Feedback Notifications -->
+                <div th:replace="~{fragments/flash :: flash}"></div>
+
+                <!-- Page Content Slot -->
+                <div th:replace="${content}"></div>
+            </main>
+
+            <!-- Right Panel: Community & Campus Information -->
+            <aside class="col-xl-3 d-none d-xl-block aloute-right-panel" aria-label="Thông tin bổ sung">
+                <div th:replace="~{fragments/info-card :: info-cards}"></div>
+            </aside>
+        </div>
+    </div>
+</body>
+</html>
