@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Khôi - AloUTE API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: #f4f6f8; color: #222; }
+        .wrap { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+        h1 { margin-bottom: 6px; }
+        .note { color: #555; margin-bottom: 22px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+        .card { background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 16px; }
+        label { display: block; margin-top: 10px; font-weight: 600; }
+        input, textarea { width: 100%; box-sizing: border-box; padding: 9px; margin-top: 5px; border: 1px solid #bbb; border-radius: 6px; }
+        button { margin-top: 12px; padding: 9px 14px; border: 0; border-radius: 6px; cursor: pointer; background: #1f6feb; color: white; }
+        button.secondary { background: #555; }
+        button.danger { background: #b42318; }
+        pre { background: #111827; color: #e5e7eb; padding: 14px; border-radius: 8px; min-height: 120px; overflow: auto; white-space: pre-wrap; }
+        .status { font-weight: 700; margin-top: 8px; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <h1>AloUTE - Test API phần Khôi</h1>
+    <div class="note">Trang này chỉ dùng để kiểm tra Auth/JWT, User/Profile và Follow bằng fetch() ngay trên trình duyệt.</div>
+
+    <div class="grid">
+        <div class="card">
+            <h2>Đăng ký</h2>
+            <label>Username</label><input id="regUsername" value="khoi123">
+            <label>Email</label><input id="regEmail" value="khoi@gmail.com">
+            <label>Password</label><input id="regPassword" type="password" value="12345678">
+            <button onclick="registerUser()">POST /api/auth/register</button>
+        </div>
+
+        <div class="card">
+            <h2>Đăng nhập / JWT</h2>
+            <label>Email</label><input id="loginEmail" value="khoi@gmail.com">
+            <label>Password</label><input id="loginPassword" type="password" value="12345678">
+            <button onclick="loginUser()">POST /api/auth/login</button>
+            <button class="secondary" onclick="getMe()">GET /api/auth/me</button>
+            <button class="danger" onclick="logoutUser()">POST /api/auth/logout</button>
+        </div>
+
+        <div class="card">
+            <h2>Hồ sơ</h2>
+            <label>User ID cần xem</label><input id="profileUserId" type="number" value="1">
+            <button class="secondary" onclick="getProfile()">GET /api/users/{id}</button>
+            <label>Display name</label><input id="displayName" value="Nguyen Doan Minh Khoi">
+            <label>Bio</label><textarea id="bio">Sinh vien HCMUTE</textarea>
+            <label>Website</label><input id="website" value="">
+            <button onclick="updateProfile()">PATCH /api/users/me/profile</button>
+        </div>
+
+        <div class="card">
+            <h2>Follow</h2>
+            <label>User ID mục tiêu</label><input id="followUserId" type="number" value="2">
+            <button onclick="followUser()">PUT Follow</button>
+            <button class="danger" onclick="unfollowUser()">DELETE Unfollow</button>
+            <button class="secondary" onclick="followers()">GET Followers</button>
+            <button class="secondary" onclick="following()">GET Following</button>
+        </div>
+    </div>
+
+    <h2>Kết quả</h2>
+    <div id="status" class="status">Chưa gửi request.</div>
+    <pre id="output">Kết quả API sẽ hiện ở đây.</pre>
+</div>
+<script>
+    function getCookie(name) {
+        const prefix = name + '=';
+        const item = document.cookie.split('; ').find(v => v.startsWith(prefix));
+        return item ? decodeURIComponent(item.substring(prefix.length)) : null;
+    }
+
+    async function api(path, options = {}) {
+        const method = (options.method || 'GET').toUpperCase();
+        const headers = { ...(options.headers || {}) };
+        if (options.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+
+        if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+            const csrf = getCookie('XSRF-TOKEN');
+            if (csrf) headers['X-XSRF-TOKEN'] = csrf;
+        }
+
+        const response = await fetch(path, {
+            ...options,
+            method,
+            headers,
+            credentials: 'include'
+        });
+
+        const text = await response.text();
+        let body = null;
+        if (text) {
+            try { body = JSON.parse(text); } catch { body = text; }
+        }
+
+        document.getElementById('status').textContent = `${method} ${path} -> HTTP ${response.status}`;
+        document.getElementById('output').textContent = body === null ? '(không có body)' : JSON.stringify(body, null, 2);
+        return { response, body };
+    }
+
+    function registerUser() {
+        return api('/api/auth/register', {
+            method: 'POST',
+            body: JSON.stringify({
+                username: document.getElementById('regUsername').value,
+                email: document.getElementById('regEmail').value,
+                password: document.getElementById('regPassword').value
+            })
+        });
+    }
+
+    function loginUser() {
+        return api('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({
+                email: document.getElementById('loginEmail').value,
+                password: document.getElementById('loginPassword').value
+            })
+        });
+    }
+
+    function getMe() { return api('/api/auth/me'); }
+    function logoutUser() { return api('/api/auth/logout', { method: 'POST' }); }
+
+    function getProfile() {
+        const id = document.getElementById('profileUserId').value;
+        return api(`/api/users/${id}`);
+    }
+
+    function updateProfile() {
+        const payload = {
+            displayName: document.getElementById('displayName').value,
+            bio: document.getElementById('bio').value,
+            website: document.getElementById('website').value || null
+        };
+        return api('/api/users/me/profile', { method: 'PATCH', body: JSON.stringify(payload) });
+    }
+
+    function followUser() {
+        const id = document.getElementById('followUserId').value;
+        return api(`/api/social/follows/${id}`, { method: 'PUT' });
+    }
+
+    function unfollowUser() {
+        const id = document.getElementById('followUserId').value;
+        return api(`/api/social/follows/${id}`, { method: 'DELETE' });
+    }
+
+    function followers() {
+        const id = document.getElementById('profileUserId').value;
+        return api(`/api/users/${id}/followers`);
+    }
+
+    function following() {
+        const id = document.getElementById('profileUserId').value;
+        return api(`/api/users/${id}/following`);
+    }
+
+    // Gọi GET public khi trang mở để Spring Security phát XSRF-TOKEN cookie cho các request ghi dữ liệu sau login.
+    fetch('/api/users/1', { credentials: 'include' }).catch(() => {});
+</script>
+</body>
+</html>

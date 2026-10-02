@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="937" viewBox="0 0 1400 937">
+<defs><marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7"/></marker></defs>
+<style>text{font-family:Arial,sans-serif;fill:#111}.title{font-size:22px;font-weight:700}.p{font-size:13px;font-weight:600}.m{font-size:12px}.box{fill:#fff;stroke:#111;stroke-width:1.2}.life{stroke:#777;stroke-dasharray:5 5}.arrow{stroke:#111;stroke-width:1.3;marker-end:url(#arrow)}.return{stroke:#555;stroke-width:1.1;stroke-dasharray:4 4;marker-end:url(#arrow)}</style>
+<text class="title" x="700.0" y="40" text-anchor="middle">ALOUTE — Sequence Cập nhật hồ sơ (Khôi)</text>
+<rect class="box" x="0.0" y="95" width="140" height="42" rx="4"/>
+<text class="p" x="70.0" y="121" text-anchor="middle">User</text>
+<line class="life" x1="70.0" y1="137" x2="70.0" y2="897.0"/>
+<rect class="box" x="180.0" y="95" width="140" height="42" rx="4"/>
+<text class="p" x="250.0" y="121" text-anchor="middle">Profile UI</text>
+<line class="life" x1="250.0" y1="137" x2="250.0" y2="897.0"/>
+<rect class="box" x="360.0" y="95" width="140" height="42" rx="4"/>
+<text class="p" x="430.0" y="121" text-anchor="middle">JWT Filter</text>
+<line class="life" x1="430.0" y1="137" x2="430.0" y2="897.0"/>
+<rect class="box" x="540.0" y="95" width="140" height="42" rx="4"/>
+<text class="p" x="610.0" y="121" text-anchor="middle">UserController</text>
+<line class="life" x1="610.0" y1="137" x2="610.0" y2="897.0"/>
+<rect class="box" x="720.0" y="95" width="140" height="42" rx="4"/>
+<text class="p" x="790.0" y="121" text-anchor="middle">CurrentUser</text>
+<line class="life" x1="790.0" y1="137" x2="790.0" y2="897.0"/>
+<rect class="box" x="900.0" y="95" width="140" height="42" rx="4"/>
+<text class="p" x="970.0" y="121" text-anchor="middle">ProfileService</text>
+<line class="life" x1="970.0" y1="137" x2="970.0" y2="897.0"/>
+<rect class="box" x="1080.0" y="95" width="140" height="42" rx="4"/>
+<text class="p" x="1150.0" y="121" text-anchor="middle">Repositories</text>
+<line class="life" x1="1150.0" y1="137" x2="1150.0" y2="897.0"/>
+<rect class="box" x="1260.0" y="95" width="140" height="42" rx="4"/>
+<text class="p" x="1330.0" y="121" text-anchor="middle">DB</text>
+<line class="life" x1="1330.0" y1="137" x2="1330.0" y2="897.0"/>
+<line class="arrow" x1="70.0" y1="169" x2="250.0" y2="169"/>
+<text class="m" x="160.0" y="162" text-anchor="middle">Chỉnh hồ sơ</text>
+<line class="arrow" x1="250.0" y1="217" x2="430.0" y2="217"/>
+<text class="m" x="340.0" y="210" text-anchor="middle">PATCH /api/users/me/profile + cookie</text>
+<line class="arrow" x1="430.0" y1="265" x2="430.0" y2="265"/>
+<text class="m" x="430.0" y="258" text-anchor="middle">Verify JWT + SecurityContext</text>
+<line class="arrow" x1="430.0" y1="313" x2="610.0" y2="313"/>
+<text class="m" x="520.0" y="306" text-anchor="middle">Authenticated request</text>
+<line class="arrow" x1="610.0" y1="361" x2="790.0" y2="361"/>
+<text class="m" x="700.0" y="354" text-anchor="middle">requireUserId()</text>
+<line class="return" x1="790.0" y1="409" x2="610.0" y2="409"/>
+<text class="m" x="700.0" y="402" text-anchor="middle">currentUserId</text>
+<line class="arrow" x1="610.0" y1="457" x2="970.0" y2="457"/>
+<text class="m" x="790.0" y="450" text-anchor="middle">updateCurrentProfile(id, request)</text>
+<line class="arrow" x1="970.0" y1="505" x2="1150.0" y2="505"/>
+<text class="m" x="1060.0" y="498" text-anchor="middle">load User + Profile</text>
+<line class="arrow" x1="1150.0" y1="553" x2="1330.0" y2="553"/>
+<text class="m" x="1240.0" y="546" text-anchor="middle">SELECT</text>
+<line class="return" x1="1330.0" y1="601" x2="1150.0" y2="601"/>
+<text class="m" x="1240.0" y="594" text-anchor="middle">User + Profile</text>
+<line class="return" x1="1150.0" y1="649" x2="970.0" y2="649"/>
+<text class="m" x="1060.0" y="642" text-anchor="middle">entities</text>
+<line class="arrow" x1="970.0" y1="697" x2="970.0" y2="697"/>
+<text class="m" x="970.0" y="690" text-anchor="middle">Validate + update allowed fields</text>
+<line class="arrow" x1="970.0" y1="745" x2="1330.0" y2="745"/>
+<text class="m" x="1150.0" y="738" text-anchor="middle">UPDATE trong transaction</text>
+<line class="return" x1="970.0" y1="793" x2="610.0" y2="793"/>
+<text class="m" x="790.0" y="786" text-anchor="middle">ProfileResponse</text>
+<line class="return" x1="610.0" y1="841" x2="250.0" y2="841"/>
+<text class="m" x="430.0" y="834" text-anchor="middle">200 ProfileEnvelope</text>
+</svg>

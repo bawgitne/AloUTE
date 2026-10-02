@@ -1,0 +1,41 @@
+@startuml
+title ALOUTE - Sequence Cập nhật hồ sơ (phần Khôi)
+
+actor User
+boundary "Profile UI" as UI
+control "JwtAuthenticationFilter" as JwtFilter
+control "CurrentUserProvider" as CurrentUser
+control "UserController" as Controller
+control "UserProfileService" as Service
+database "UserRepository" as UserRepo
+database "ProfileRepository" as ProfileRepo
+database "Relational DB" as DB
+
+User -> UI: Chỉnh thông tin hồ sơ
+UI -> JwtFilter: PATCH /api/users/me/profile\nCookie aloute_access_token
+JwtFilter -> JwtFilter: Verify JWT + build SecurityContext
+
+alt JWT hợp lệ
+    JwtFilter -> Controller: request authenticated
+    Controller -> CurrentUser: requireUserId()
+    CurrentUser --> Controller: currentUserId
+    Controller -> Service: updateCurrentProfile(currentUserId, request)
+    Service -> UserRepo: findById(currentUserId)
+    UserRepo -> DB: SELECT user
+    DB --> UserRepo: User
+    Service -> ProfileRepo: findById(currentUserId)
+    ProfileRepo -> DB: SELECT profile
+    DB --> ProfileRepo: Profile
+    Service -> Service: Validate + update allowed fields
+    Service -> DB: UPDATE User/Profile in transaction
+    Service --> Controller: ProfileResponse
+    Controller --> UI: 200 ProfileEnvelope
+else JWT thiếu/không hợp lệ
+    JwtFilter --> UI: 401 ErrorEnvelope
+end
+
+note over Service
+avatarMediaId thuộc Media module.
+Phần Khôi không tự tạo Media/Firebase implementation.
+end note
+@enduml

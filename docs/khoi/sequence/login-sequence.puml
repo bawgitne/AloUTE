@@ -1,0 +1,37 @@
+@startuml
+title ALOUTE - Sequence Đăng nhập (phần Khôi)
+
+actor User
+boundary "Login UI" as UI
+control "AuthController" as Controller
+control "AuthService" as Service
+control "AuthenticationManager" as AuthManager
+control "CustomUserDetailsService" as UDS
+database "UserRepository / DB" as DB
+control "PasswordEncoder" as Encoder
+control "JwtTokenProvider" as JWT
+
+User -> UI: Nhập email + password
+UI -> Controller: POST /api/auth/login
+Controller -> Service: login(LoginRequest)
+Service -> AuthManager: authenticate(email, password)
+AuthManager -> UDS: loadUserByUsername(email)
+UDS -> DB: findByEmailIgnoreCase(email)
+DB --> UDS: User
+UDS --> AuthManager: UserPrincipal
+AuthManager -> Encoder: matches(raw, passwordHash)
+
+alt Thông tin hợp lệ
+    Encoder --> AuthManager: true
+    AuthManager --> Service: Authentication
+    Service --> Controller: AuthenticatedUser
+    Controller -> JWT: generate(UserPrincipal)
+    JWT --> Controller: signed JWT
+    Controller --> UI: 200 + UserEnvelope\nSet-Cookie aloute_access_token (HttpOnly)
+else Email/password không hợp lệ
+    Encoder --> AuthManager: false
+    AuthManager --> Service: AuthenticationException
+    Service --> Controller: AUTH_INVALID_CREDENTIALS
+    Controller --> UI: 401 ErrorEnvelope
+end
+@enduml
