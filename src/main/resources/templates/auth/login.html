@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/auth :: layout(title='Đăng nhập', content=~{::#login-content})}">
+<body>
+<div id="login-content">
+    <!-- Login Form (Neutralized presentational form hook; pending backend auth action) -->
+    <form action="#" onsubmit="return false;" data-action="login" class="needs-validation" novalidate>
+        <!-- Form-Level Error Feedback if any -->
+        <div th:if="${param.error != null}" class="alert alert-danger py-2 small mb-3" role="alert">
+            <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>
+            <span>Email hoặc mật khẩu không chính xác. Vui lòng thử lại.</span>
+        </div>
+
+        <div th:if="${param.logout != null}" class="alert alert-info py-2 small mb-3" role="alert">
+            <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+            <span>Bạn đã đăng xuất thành công khỏi hệ thống.</span>
+        </div>
+
+        <!-- Email Field -->
+        <div class="mb-3">
+            <label for="email" class="form-label">Email UTE</label>
+            <div class="input-group">
+                <input type="email"
+                       class="form-control"
+                       id="email"
+                       name="email"
+                       th:value="${param.email}"
+                       placeholder="user@student.hcmute.edu.vn"
+                       autocomplete="email"
+                       required>
+            </div>
+            <div th:if="${fieldErrors != null and fieldErrors.email != null}"
+                 class="invalid-feedback d-block"
+                 th:text="${fieldErrors.email}">
+                Email không hợp lệ.
+            </div>
+        </div>
+
+        <!-- Password Field -->
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <label for="password" class="form-label mb-0">Mật khẩu</label>
+                <a href="#" data-action="forgot-password" class="small text-muted text-decoration-none">Quên mật khẩu?</a>
+            </div>
+            <div class="input-group">
+                <input type="password"
+                       class="form-control"
+                       id="password"
+                       name="password"
+                       placeholder="Nhập mật khẩu của bạn"
+                       autocomplete="current-password"
+                       required>
+            </div>
+            <div th:if="${fieldErrors != null and fieldErrors.password != null}"
+                 class="invalid-feedback d-block"
+                 th:text="${fieldErrors.password}">
+                Mật khẩu không được để trống.
+            </div>
+        </div>
+
+        <!-- Remember Me Checkbox -->
+        <div class="mb-4 form-check">
+            <input type="checkbox" class="form-check-input" id="remember-me" name="remember-me">
+            <label class="form-check-label small text-secondary" for="remember-me">Ghi nhớ đăng nhập trên thiết bị này</label>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="d-grid mb-3">
+            <button type="button" class="btn btn-primary py-2 fw-semibold" data-action="login">
+                <i class="bi bi-box-arrow-in-right me-1" aria-hidden="true"></i>
+                <span>Đăng nhập</span>
+            </button>
+        </div>
+
+        <!-- Switch to Register Link (Presentational hook) -->
+        <div class="text-center pt-2 border-top border-secondary-subtle">
+            <p class="small text-secondary mb-0">
+                Chưa có tài khoản sinh viên?
+                <a href="#" data-page="auth-register" data-action="navigate-register" class="fw-semibold text-primary">Đăng ký ngay</a>
+            </p>
+        </div>
+    </form>
+</div>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/default :: layout(title='Tạo bài viết mới', content=~{::#create-post-content})}">
+<body>
+<div id="create-post-content">
+    <div class="aloute-card p-3 p-md-4">
+        <!-- Form Header -->
+        <header class="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom border-secondary-subtle">
+            <h1 class="fs-5 fw-bold mb-0 d-flex align-items-center gap-2">
+                <i class="bi bi-pencil-square text-primary" aria-hidden="true"></i>
+                <span>Tạo bài viết mới</span>
+            </h1>
+            <a th:href="@{/feed}" class="btn btn-sm btn-link text-muted text-decoration-none">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+                <span class="visually-hidden">Đóng</span>
+            </a>
+        </header>
+
+        <!-- Create Post Form (Neutralized presentational form hook; pending backend post action) -->
+        <form action="#" onsubmit="return false;" data-action="create-post" class="needs-validation" novalidate>
+            <!-- Content Field -->
+            <div class="mb-3">
+                <label for="postContent" class="form-label">Nội dung bài viết <span class="text-danger">*</span></label>
+                <textarea class="form-control"
+                          id="postContent"
+                          name="content"
+                          rows="6"
+                          placeholder="Chia sẻ thảo luận học tập, câu hỏi chuyên ngành, hoặc thông tin sinh viên..."
+                          required
+                          maxlength="2000"
+                          th:text="${postForm != null ? postForm.content : ''}"></textarea>
+                <div class="d-flex justify-content-between align-items-center mt-1">
+                    <div class="form-text">Hỗ trợ tối đa 2000 ký tự. Vui lòng tuân thủ văn hóa AloUTE.</div>
+                    <div class="text-muted small" id="char-count">0 / 2000</div>
+                </div>
+                <div th:if="${fieldErrors != null and fieldErrors.content != null}"
+                     class="invalid-feedback d-block"
+                     th:text="${fieldErrors.content}">
+                    Nội dung không được để trống.
+                </div>
+            </div>
+
+            <!-- Visibility Selection (OpenAPI: PUBLIC, FOLLOWERS, MENTIONED) -->
+            <div class="mb-3">
+                <label for="visibility" class="form-label">Phạm vi hiển thị</label>
+                <select class="form-select" id="visibility" name="visibility">
+                    <option value="PUBLIC" selected>Công khai (Toàn bộ sinh viên AloUTE)</option>
+                    <option value="FOLLOWERS">Người theo dõi (Chỉ người theo dõi bạn)</option>
+                    <option value="MENTIONED">Chỉ người được nhắc đến</option>
+                </select>
+            </div>
+
+            <!-- Interaction Permissions (allowReply, allowQuote) -->
+            <div class="mb-4 p-3 rounded" style="background-color: var(--aloute-bg-surface-elevated); border: 1px solid var(--aloute-border-subtle);">
+                <div class="form-label mb-2">Quyền tương tác</div>
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="allowReply" name="allowReply" value="true" checked>
+                    <label class="form-check-label text-secondary small" for="allowReply">
+                        Cho phép người khác bình luận vào bài viết
+                    </label>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="allowQuote" name="allowQuote" value="true" checked>
+                    <label class="form-check-label text-secondary small" for="allowQuote">
+                        Cho phép người khác trích dẫn bài viết này
+                    </label>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="d-flex align-items-center justify-content-end gap-2 pt-2 border-top border-secondary-subtle">
+                <!-- Canonical /feed route -->
+                <a th:href="@{/feed}" class="btn btn-secondary">Hủy bỏ</a>
+                <button type="button" class="btn btn-primary px-4 fw-semibold" data-action="create-post">
+                    <i class="bi bi-send me-1" aria-hidden="true"></i>
+                    <span>Đăng bài</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>

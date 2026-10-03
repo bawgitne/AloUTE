@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="sidebar" class="sidebar-wrapper">
+    <!-- User Profile Summary (Authenticated) -->
+    <div th:if="${currentUser != null}" class="aloute-card p-3 mb-3">
+        <a th:href="${currentUser?.id != null} ? @{/users/{id}(id=${currentUser.id})} : '#'"
+           data-page="user-profile"
+           data-action="navigate-profile"
+           class="d-flex align-items-center gap-3 text-decoration-none text-reset">
+            <img th:src="${currentUser.avatarUrl != null and !currentUser.avatarUrl.isEmpty()} ? ${currentUser.avatarUrl} : 'https://placehold.co/60x60/e2e8f0/475569?text=U'"
+                 alt="Avatar người dùng"
+                 class="avatar-img avatar-lg rounded-circle"
+                 width="54"
+                 height="54">
+            <div class="sidebar-user-info min-w-0">
+                <h2 class="sidebar-user-name text-truncate fs-6 mb-0"
+                    th:text="${currentUser?.displayName ?: (currentUser?.username ?: 'Sinh viên')}">Tên sinh viên</h2>
+                <p class="sidebar-user-handle text-truncate mb-1 small text-muted"
+                   th:text="'@' + ${currentUser?.username ?: 'sinhvien'}">@sinhvien</p>
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle small py-0 px-2">UTE Member</span>
+            </div>
+        </a>
+    </div>
+
+    <!-- Guest Welcome Box (Unauthenticated) -->
+    <div th:if="${currentUser == null}" class="aloute-card p-3 mb-3">
+        <h2 class="fs-6 fw-bold mb-1">Chào mừng bạn!</h2>
+        <p class="text-secondary small mb-3">Tham gia cộng đồng sinh viên Trường Đại học Sư phạm Kỹ thuật TP.HCM ngay hôm nay.</p>
+        <div class="d-grid gap-2">
+            <a href="#" data-page="auth-login" data-action="navigate-login" class="btn btn-sm btn-secondary w-100">Đăng nhập</a>
+            <a href="#" data-page="auth-register" data-action="navigate-register" class="btn btn-sm btn-primary w-100">Đăng ký tài khoản</a>
+        </div>
+    </div>
+
+    <!-- Navigation Shortcuts -->
+    <div class="aloute-card p-2">
+        <nav aria-label="Điều hướng thanh bên">
+            <ul class="sidebar-nav">
+                <li>
+                    <!-- Canonical /feed route -->
+                    <a th:href="@{/feed}" class="sidebar-nav-link" th:classappend="${activeNav == 'feed'} ? 'active' : ''">
+                        <i class="bi bi-house-door-fill sidebar-nav-icon" aria-hidden="true"></i>
+                        <span>Bảng tin chính</span>
+                    </a>
+                </li>
+                <li>
+                    <!-- Canonical /users/{id} route if user authenticated, else fallback -->
+                    <a th:href="${currentUser != null and currentUser.id != null} ? @{/users/{id}(id=${currentUser.id})} : '#'"
+                       data-page="user-profile"
+                       data-action="navigate-profile"
+                       class="sidebar-nav-link"
+                       th:classappend="${activeNav == 'profile'} ? 'active' : ''">
+                        <i class="bi bi-person-fill sidebar-nav-icon" aria-hidden="true"></i>
+                        <span>Hồ sơ cá nhân</span>
+                    </a>
+                </li>
+                <li>
+                    <!-- Presentational hook for post/create -->
+                    <a href="#" data-page="post-create" data-action="navigate-create-post" class="sidebar-nav-link" th:classappend="${activeNav == 'create-post'} ? 'active' : ''">
+                        <i class="bi bi-plus-square-fill sidebar-nav-icon" aria-hidden="true"></i>
+                        <span>Tạo bài viết mới</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
+</body>
+</html>
