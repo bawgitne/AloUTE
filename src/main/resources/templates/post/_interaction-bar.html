@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- Reusable Post Interaction Bar Fragment -->
+<div th:fragment="interactionBar(post)" class="interaction-bar" th:if="${post != null}">
+    <!-- Like Action Button -->
+    <button type="button"
+            class="interaction-btn interaction-btn-like"
+            th:classappend="${post.viewerState != null and post.viewerState.liked} ? 'is-active' : ''"
+            th:attr="data-action='like',data-post-id=${post.id != null ? post.id : ''},aria-pressed=${post.viewerState != null and post.viewerState.liked ? 'true' : 'false'}"
+            aria-label="Thích bài viết">
+        <i class="bi" th:classappend="${post.viewerState != null and post.viewerState.liked} ? 'bi-heart-fill' : 'bi-heart'" aria-hidden="true"></i>
+        <span class="interaction-count" th:text="${post.likeCount != null ? post.likeCount : 0}">0</span>
+        <span class="visually-hidden">lượt thích</span>
+    </button>
+
+    <!-- Reply / Comment Action Button (Presentational hook: view-comments) -->
+    <button type="button"
+            class="interaction-btn"
+            th:attr="data-action='view-comments',data-post-id=${post.id != null ? post.id : ''}"
+            aria-label="Bình luận và xem phản hồi">
+        <i class="bi bi-chat" aria-hidden="true"></i>
+        <span class="interaction-count" th:text="${post.replyCount != null ? post.replyCount : 0}">0</span>
+        <span class="visually-hidden">bình luận</span>
+    </button>
+
+    <!-- Repost / Share Action Button -->
+    <button type="button"
+            class="interaction-btn"
+            th:classappend="${post.viewerState != null and post.viewerState.reposted} ? 'is-active' : ''"
+            th:attr="data-action='repost',data-post-id=${post.id != null ? post.id : ''},aria-pressed=${post.viewerState != null and post.viewerState.reposted ? 'true' : 'false'}"
+            aria-label="Chia sẻ lại bài viết">
+        <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+        <span class="interaction-count" th:text="${post.repostCount != null ? post.repostCount : 0}">0</span>
+        <span class="visually-hidden">chia sẻ</span>
+    </button>
+
+    <!-- Bookmark / Save Button -->
+    <button type="button"
+            class="interaction-btn"
+            th:classappend="${post.viewerState != null and post.viewerState.bookmarked} ? 'is-active' : ''"
+            th:attr="data-action='bookmark',data-post-id=${post.id != null ? post.id : ''},aria-pressed=${post.viewerState != null and post.viewerState.bookmarked ? 'true' : 'false'}"
+            aria-label="Lưu bài viết">
+        <i class="bi" th:classappend="${post.viewerState != null and post.viewerState.bookmarked} ? 'bi-bookmark-fill' : 'bi-bookmark'" aria-hidden="true"></i>
+    </button>
+</div>
+</body>
+</html>

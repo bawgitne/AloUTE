@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<nav th:fragment="navbar" class="navbar navbar-expand aloute-navbar" aria-label="Thanh điều hướng chính">
+    <div class="container-fluid d-flex align-items-center justify-content-between px-0">
+        <!-- Brand & Campus Identifier (Canonical /feed route) -->
+        <div class="d-flex align-items-center gap-3">
+            <a class="navbar-brand d-flex align-items-center gap-2" th:href="@{/feed}" href="/feed">
+                <span class="fs-4 fw-bold">Alo<span class="text-primary">UTE</span></span>
+                <span class="badge-brand">Campus</span>
+            </a>
+
+            <!-- Search affordance (Presentational non-submitting search box) -->
+            <div class="d-none d-sm-block aloute-search-box" role="search">
+                <span class="bi bi-search aloute-search-icon" aria-hidden="true"></span>
+                <input class="form-control aloute-search-input"
+                       type="search"
+                       name="q"
+                       placeholder="Tìm kiếm bài viết, chủ đề..."
+                       aria-label="Tìm kiếm nội dung">
+            </div>
+        </div>
+
+        <!-- Right: Actions & User Controls -->
+        <div class="d-flex align-items-center gap-2">
+            <!-- Create Post quick action (Presentational hook) -->
+            <a href="#" data-page="post-create" data-action="navigate-create-post" class="btn btn-sm btn-primary d-none d-sm-inline-flex">
+                <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                <span>Tạo bài viết</span>
+            </a>
+            <a href="#" data-page="post-create" data-action="navigate-create-post" class="btn btn-sm btn-primary d-inline-flex d-sm-none p-1 px-2" aria-label="Tạo bài viết">
+                <i class="bi bi-pencil-square" aria-hidden="true"></i>
+            </a>
+
+            <!-- Authenticated User Dropdown -->
+            <div th:if="${currentUser != null}" class="dropdown">
+                <button class="btn btn-link text-decoration-none p-0 d-flex align-items-center gap-2"
+                        type="button"
+                        id="userNavbarDropdown"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                        aria-label="Menu tài khoản">
+                    <img th:src="${currentUser.avatarUrl != null and !currentUser.avatarUrl.isEmpty()} ? ${currentUser.avatarUrl} : 'https://placehold.co/40x40/e2e8f0/475569?text=U'"
+                         alt="Avatar người dùng"
+                         class="avatar-img avatar-sm"
+                         width="32"
+                         height="32">
+                    <span class="d-none d-md-inline fw-medium small" th:text="${currentUser?.displayName ?: (currentUser?.username ?: 'Sinh viên')}">Quân</span>
+                    <i class="bi bi-chevron-down text-muted small" aria-hidden="true"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg" aria-labelledby="userNavbarDropdown">
+                    <li class="px-3 py-2 border-bottom border-secondary-subtle">
+                        <div class="fw-semibold small" th:text="${currentUser?.displayName ?: (currentUser?.username ?: 'Sinh viên UTE')}">Sinh viên UTE</div>
+                        <div class="text-muted small" th:text="'@' + ${currentUser?.username ?: 'sinhvien'}">@user</div>
+                    </li>
+                    <li>
+                        <!-- Canonical feed page: /feed -->
+                        <a class="dropdown-item d-flex align-items-center gap-2" th:href="@{/feed}" href="/feed">
+                            <i class="bi bi-house-door text-secondary" aria-hidden="true"></i>
+                            <span>Bảng tin chính</span>
+                        </a>
+                    </li>
+                    <li>
+                        <!-- Canonical user page: /users/{id} if id available, else fallback hook -->
+                        <a class="dropdown-item d-flex align-items-center gap-2"
+                           th:href="${currentUser?.id != null} ? @{/users/{id}(id=${currentUser.id})} : '#'"
+                           data-page="user-profile"
+                           data-action="navigate-profile">
+                            <i class="bi bi-person text-secondary" aria-hidden="true"></i>
+                            <span>Hồ sơ cá nhân</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center gap-2" href="#" data-page="post-create" data-action="navigate-create-post">
+                            <i class="bi bi-plus-circle text-secondary" aria-hidden="true"></i>
+                            <span>Tạo bài viết mới</span>
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <!-- Presentational logout action pending backend auth integration -->
+                        <button type="button" class="dropdown-item text-danger d-flex align-items-center gap-2" data-action="logout">
+                            <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                            <span>Đăng xuất</span>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Guest Navigation Links (Presentational hooks) -->
+            <div th:if="${currentUser == null}" class="d-flex align-items-center gap-2">
+                <a href="#" data-page="auth-login" data-action="navigate-login" class="btn btn-sm btn-secondary">Đăng nhập</a>
+                <a href="#" data-page="auth-register" data-action="navigate-register" class="btn btn-sm btn-primary">Đăng ký</a>
+            </div>
+        </div>
+    </div>
+</nav>
+</body>
+</html>
