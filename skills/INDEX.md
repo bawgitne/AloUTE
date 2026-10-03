@@ -38,10 +38,13 @@ Firebase upload / storage key
 STOMP destination / realtime event
 → ALOUTE_REALTIME_WEBSOCKET_CONVENTION.md
 
-Thymeleaf / Bootstrap / browser JavaScript
+Thymeleaf / Bootstrap / browser JavaScript (Giao diện chính thức SSR) & Vue 3 SPA (fe-vue mở rộng)
 → ALOUTE_FRONTEND_CONVENTION.md
 
-Docker / Nginx / VPS
+Database Triggers, Stored Procedures & Index (Nguyễn Duy Ngọc phụ trách)
+→ ALOUTE_DOMAIN_SYSTEM.md & ALOUTE_SPRING_BOOT_BACKEND_CONVENTION.md
+
+Docker / Nginx / VPS / Deploy (Khôi & Ngọc)
 → ALOUTE_DOCKER_REVERSE_PROXY_CONVENTION.md
 ```
 
@@ -54,6 +57,23 @@ IMPLEMENT
 ```
 
 Không được tự định nghĩa lại.
+
+---
+
+# 1.1. BẢNG PHÂN CÔNG TRÁCH NHIỆM 4 THÀNH VIÊN (SOURCE OF TRUTH THEO FILE WORD)
+
+Theo kế hoạch thực hiện 3 tuần chính thức nộp GVHD Th.S Nguyễn Trần Thi Văn (`Nhom13_KeHoachCodeTest.docx`), ranh giới công việc của 4 thành viên được chốt như sau:
+
+| Thành viên & MSSV | Vai trò chính | Phạm vi nhiệm vụ cụ thể | File/Module sở hữu chính |
+| :--- | :--- | :--- | :--- |
+| **Ngô Anh Bằng**<br>*(24110166 — Nhóm trưởng)* | **Realtime, Communication & Lead** | - Lựa chọn Use Case chính, lập ma trận Use Case – API – DB – UI.<br>- Vẽ Sequence Diagram: Tạo bài viết, Like/Reply bài viết.<br>- Xây dựng Messaging (Direct/Group), Notification, Spring WebSocket (STOMP).<br>- Lập và hoàn thiện test case cho các luồng Messaging/Notification.<br>- Nghiên cứu và đề xuất hướng áp dụng thuật toán gợi ý bài viết cho Feed. | `service/ConversationService`, `MessageService`, `NotificationService`, WebSocket config, STOMP handlers |
+| **Nguyễn Đoàn Minh Khôi**<br>*(24110259)* | **Security, Identity, Social & Deploy** | - Khởi tạo Spring Boot skeleton, Spring Security + JWT (HttpOnly Cookie & Bearer fallback).<br>- Cài đặt API Auth, User, Profile, quan hệ Follow/Unfollow, phân quyền.<br>- Vẽ Sequence Diagram: Đăng nhập, Cập nhật hồ sơ.<br>- Xây dựng API Report/Moderation và kiểm soát quyền quản trị nội dung.<br>- Kiểm thử API Auth/User, setup DNS/domain, Nginx reverse proxy, deploy VPS. | `security/*`, `controller/api/AuthController`, `UserController`, `SocialController`, `ReportController`, `service/AuthService`, `UserService`, `SocialService` |
+| **Nguyễn Duy Ngọc**<br>*(22110381)* | **Database, Content & DevOps** | - Rà soát CSDL/ERD, tạo schema, PK/FK, quan hệ 1-N, N-N, self-ref, soft delete.<br>- **BẮT BUỘC: Viết Trigger, Stored Procedure, Index** và tối ưu Spring Data JPA.<br>- Cài đặt module Post, Reaction (Like, Comment, Repost/Quote, Bookmark), Topic, Community.<br>- Tích hợp Firebase Cloud Storage lưu trữ media (ảnh/video).<br>- Đóng gói hệ thống bằng Docker/Docker Compose, Linux network, CI/CD, backup/rollback CSDL. | `db/migration/*.sql` (Triggers, Stored Procedures, DDL), `entity/*`, `repository/*`, `service/PostService`, `CommunityService`, `MediaService`, `Dockerfile`, `docker-compose.yml` |
+| **Phạm Minh Quân**<br>*(24110311)* | **Frontend, UI/UX & E2E Testing** | - Thiết kế 10 wireframes/mockup SVG hoàn chỉnh (`docs/ui/wireframes/`).<br>- Hiện thực hóa **giao diện chính bằng Thymeleaf + Bootstrap 5** (Layout, Fragments, Responsive mobile/tablet/desktop).<br>- Tích hợp giao diện Thymeleaf với backend Spring Boot và CSDL.<br>- Kiểm tra responsive, CSS tokens (`tokens.css`), form validation UI, error/empty/loading states.<br>- Thực hiện kiểm thử end-to-end theo checklist, sửa lỗi frontend phát sinh và chuẩn bị demo. | `resources/templates/*` (layouts, fragments, auth, user, post, community, messaging...), `resources/static/*` (css, js, images), `docs/ui/wireframes/*` |
+
+> **Nguyên tắc phân định ranh giới cho AI Agent & Developer**:
+> 1. AI khi code feature nào phải bám đúng thành viên chịu trách nhiệm, không can thiệp chéo hoặc tự ý xóa bỏ code/tài liệu của thành viên khác.
+> 2. Giao diện chính để nghiệm thu đồ án môn học với thầy Văn là **Thymeleaf + Bootstrap (SSR)**. Thư mục `fe-vue` (Vue 3 SPA) đóng vai trò client mở rộng / nâng cao độc lập, không thay thế việc hoàn thiện các file template Thymeleaf trong `src/main/resources/templates/`.
 
 ---
 

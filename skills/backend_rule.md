@@ -39,22 +39,20 @@
 
 # 1. BACKEND ARCHITECTURE MODEL
 
-ALOUTE backend dùng:
+ALOUTE backend dùng kiến trúc Monolith phân lớp chuẩn (Layered MVC Architecture):
 
 ```text
-Spring Boot
+Spring Boot 3 (Java 21)
 +
-Spring MVC
+Spring MVC (Thymeleaf SSR + REST Controllers)
 +
-Spring Data JPA
+Spring Data JPA (Hibernate, PostgreSql/MySQL)
 +
-Spring Security
+Spring Security (JWT, Cookie & Header)
 +
-WebSocket
+Spring WebSocket (STOMP Broker)
 +
-Modular Monolith
-+
-Package-by-Feature
+Layered MVC Architecture (Controller → Service → Repository → Entity/DB)
 ```
 
 Luồng mặc định:
@@ -62,142 +60,97 @@ Luồng mặc định:
 ```text
 HTTP Request
    ↓
-Controller
+Controller (PageController hoặc ApiController)
    ↓
-Application / Service
+Service (Business Logic, Invariant, Transaction)
    ↓
-Domain Policy / Business Rule
+Repository (Spring Data JPA Interface)
    ↓
-Repository / Integration Port
-   ↓
-Database / External Service
+Database (PostgreSQL/MySQL + Triggers + Stored Procedures)
 ```
 
 Response:
 
 ```text
+Database
+   ↓
 Repository
    ↓
-Service
-   ↓
-Mapper
+Service (ModelMapperUtil / Entity to DTO)
    ↓
 Response DTO / ViewModel
    ↓
-Controller
+Controller (Thymeleaf View hoặc ApiResponse<T>)
 ```
 
 Không bỏ qua Service để Controller gọi Repository trực tiếp.
 
 ---
 
-# 2. PACKAGE-BY-FEATURE
+# 2. LAYERED MVC ARCHITECTURE & CODE OWNERSHIP
 
-Backend không tổ chức toàn bộ project theo kiểu:
-
-```text
-controller/
-service/
-repository/
-entity/
-dto/
-```
-
-rồi đổ toàn bộ feature vào các folder global đó.
-
-Ưu tiên:
-
-```text
-feature/
-├── user/
-├── social/
-├── post/
-├── topic/
-├── poll/
-├── community/
-├── feed/
-├── messaging/
-├── notification/
-├── moderation/
-└── analytics/
-```
-
-Mỗi feature tự sở hữu implementation của mình.
-
----
-
-# 3. ROOT PACKAGE STRUCTURE
+Theo quyết định thống nhất kiến trúc (commit `52f8622` và `ARCHITECTURE_TEMPLATE.md`), codebase được tổ chức theo Layered MVC để đảm bảo phân định ranh giới trách nhiệm rõ ràng giữa 4 thành viên:
 
 ```text
 com.aloute
 │
 ├── AlouteApplication.java
 │
-├── config/
+├── config/                  # App configs (WebMvc, WebSocket, ModelMapper)
+├── security/                # Spring Security, JWT Filter, Principal (Khôi phụ trách)
+├── common/                  # ApiResponse<T>, ErrorCode, Exceptions, ModelMapperUtil
 │
-├── common/
-│   ├── api/
-│   ├── exception/
-│   ├── validation/
-│   ├── pagination/
-│   ├── mapper/
-│   └── util/
+├── controller/
+│   ├── page/                # Thymeleaf SSR Controllers (Quân phụ trách)
+│   └── api/                 # REST Controllers (Khôi, Bằng, Ngọc, Quân)
 │
-├── security/
+├── service/                 # Interface & Implementation business logic
+│   ├── impl/
+│   └── (AuthService, UserService, PostService, FeedService, ...)
 │
-├── integration/
-│   └── firebase/
-│
-├── realtime/
-│
-└── feature/
-    ├── auth/
-    ├── user/
-    ├── social/
-    ├── post/
-    ├── topic/
-    ├── poll/
-    ├── community/
-    ├── feed/
-    ├── messaging/
-    ├── notification/
-    ├── moderation/
-    └── analytics/
+├── repository/              # Spring Data JPA Repositories (Ngọc & Backend members)
+├── entity/                  # JPA Entities (Đồng bộ với DB Schema của Ngọc)
+└── dto/
+    ├── request/             # Request payloads (@Valid)
+    └── response/            # Response DTOs
 ```
 
-`common/` chỉ chứa cross-cutting code thực sự dùng chung.
-
-Không biến:
-
-```text
-common/
-```
-
-thành nơi vứt mọi class không biết đặt đâu.
+### Phân công sở hữu code (Code Ownership Matrix):
+- **Nguyễn Đoàn Minh Khôi**: `security/`, `service/AuthService`, `service/UserService`, `service/SocialService`, `controller/api/AuthController`, `controller/api/UserController`, `controller/api/SocialController`, Docker & VPS.
+- **Nguyễn Duy Ngọc**: `entity/`, `repository/`, `service/PostService`, `service/CommunityService`, `service/MediaService`, Database Triggers, Stored Procedures, Indexes DDL.
+- **Ngô Anh Bằng**: `config/WebSocketConfig`, `realtime/`, `service/FeedService`, `service/ConversationService`, `service/NotificationService`, `controller/api/ConversationController`, `controller/api/NotificationController`.
+- **Phạm Minh Quân**: `controller/page/*`, Thymeleaf templates & static assets (`resources/templates/*`, `resources/static/*`), UI/UX Responsive, Form validation UI, E2E testing.
 
 ---
 
-# 4. STANDARD FEATURE STRUCTURE
+# 3. ROOT PACKAGE STRUCTURE & DEPENDENCY INVARIANTS
 
-Feature đủ lớn có thể dùng:
+Quy tắc phụ thuộc giữa các package:
+1. `controller` chỉ gọi `service`, KHÔNG ĐƯỢC gọi `repository`.
+2. `service` gọi `repository`, `service` khác, hoặc `common/util`.
+3. `repository` chỉ làm việc với `entity`.
+4. `userId`/`authorId` trong mọi action bảo mật phải lấy từ `UserPrincipal` qua `CurrentUserProvider`, không nhận tùy tiện từ request body.
 
-```text
-feature/post/
-├── controller/
-│   ├── page/
-│   └── api/
-│
-├── dto/
-│   ├── request/
-│   └── response/
-│
-├── entity/
-├── repository/
-├── service/
-├── mapper/
-├── policy/
-├── event/
-└── exception/
+---
+
+# 4. SPRING DATA JPA VỚI TRIGGERS VÀ STORED PROCEDURES
+
+Vì hệ thống có Database Triggers tự động cập nhật counter (`like_count`, `reply_count`, `follower_count`, `member_count`) và Stored Procedures (Nguyễn Duy Ngọc phụ trách):
+
+### 4.1. Đồng bộ Triggers với JPA Entity:
+- Sau khi insert/update các quan hệ tương tác (ví dụ: `PostLike`, `Follow`), counter trên bảng chính được cập nhật ngầm dưới DB.
+- Service cần gọi:
+```java
+entityManager.flush();
+entityManager.refresh(post); // Làm mới state entity từ database để lấy count mới nhất từ Trigger
+```
+
+### 4.2. Gọi Stored Procedures qua Repository:
+- Khai báo annotation `@Procedure` trong JPA Repository:
+```java
+@Procedure(procedureName = "sp_soft_delete_post_cascade")
+void softDeletePostCascade(@Param("p_post_id") UUID postId, @Param("p_user_id") UUID userId);
+```
 ```
 
 Không bắt buộc tạo folder rỗng.

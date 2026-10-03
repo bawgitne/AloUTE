@@ -253,35 +253,36 @@ Những dữ liệu này phải đọc từ domain/database khi cần.
 
 ---
 
-# 9. JWT TRANSPORT FOR THYMELEAF WEB APP
+# 9. JWT TRANSPORT FOR THYMELEAF WEB APP & REST CLIENTS
 
-ALOUTE là browser-based Thymeleaf application.
+> **Người phụ trách**: Nguyễn Đoàn Minh Khôi.
 
-Mặc định:
+ALOUTE là hệ thống đa giao diện (Thymeleaf SSR chính thức + REST API cho SPA/Postman).
+
+Quy ước truyền nhận Token:
 
 ```text
-JWT access credential
-→ HttpOnly cookie
+1. Web Thymeleaf (Browser):
+   JWT access credential → HttpOnly Cookie (tên: `aloute_access_token`)
+2. REST API Clients / Postman / fe-vue:
+   JWT access credential → HTTP Header `Authorization: Bearer <token>`
 ```
+
+Filter `JwtAuthenticationFilter` phải trích xuất token theo thứ tự linh hoạt:
+1. Đọc từ Cookie `aloute_access_token`.
+2. Nếu không có cookie, đọc từ Header `Authorization: Bearer <token>`.
 
 Cookie production cần security attributes phù hợp:
 
 ```text
 HttpOnly
 Secure
-SameSite theo deployment requirement
+SameSite=Lax
+Path=/
 ```
 
-Browser JavaScript không đọc raw JWT.
-
-Không lưu JWT mặc định vào:
-
-```text
-localStorage
-sessionStorage
-window.*
-HTML data attribute
-```
+Browser JavaScript trên Thymeleaf không đọc raw JWT để ngăn ngừa XSS.
+CSRF Token (`XSRF-TOKEN` cookie + `X-XSRF-TOKEN` header) bắt buộc kích hoạt cho các request ghi dữ liệu (POST, PUT, PATCH, DELETE) khi gửi từ Cookie.
 
 Nếu sau này project mở external API dùng Bearer token, phải định nghĩa profile đó riêng; không trộn hai chiến lược tùy endpoint.
 

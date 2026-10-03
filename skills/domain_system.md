@@ -404,6 +404,14 @@ position
 
 Binary storage thuộc architecture, không thuộc domain document.
 
+## 9.1. Media Storage & Quota Shield
+
+Để bảo vệ tài nguyên hệ thống và tối ưu chi phí lưu trữ đối với media:
+- **Tối ưu Client-side**: Ảnh được khuyến nghị nén sang WebP phía client (độ phân giải tối đa 1920px, chất lượng ~82%) trước khi upload để tiết kiệm băng thông.
+- **Giới hạn kích thước**: Ảnh tối đa 5 MB; Video tối đa 30 MB.
+- **Hạn mức tài khoản (User Storage Quota)**: Mỗi tài khoản được cấp tối đa 150 MB media. Khi chạm ngưỡng, hệ thống từ chối upload mới cho đến khi xóa bớt media cũ.
+- **Ngưỡng an toàn toàn hệ thống (Global Safety Cap)**: Ngưỡng trần an toàn đặt ở 8.5 GB (85% của gói Free Tier 10GB). Chạm ngưỡng này hệ thống tạm ngắt nhận file mới để ngăn phát sinh chi phí.
+
 ---
 
 # 10. POST LIKE
@@ -605,6 +613,18 @@ Constraint kiểu:
 không đủ để enforce invariant này.
 
 Đây là business invariant bắt buộc khi implement vote.
+
+## 17.2. Multiple-choice and Database Constraint
+
+Nếu `allow_multiple = true`, user có thể chọn nhiều option trong một lần vote.
+
+Do đó, ràng buộc duy nhất ở CSDL bắt buộc phải là:
+
+```text
+UNIQUE (poll_id, option_id, user_id)
+```
+
+Tuyệt đối không đặt `UNIQUE (poll_id, user_id)` ở tầng CSDL vì sẽ gây lỗi xung đột (crash) khi user chọn từ 2 phương án trở lên. Việc kiểm soát người dùng chỉ vote 1 lần đối với single-choice (`allow_multiple = false`) được xử lý bằng tầng Application Logic trước khi ghi DB.
 
 ---
 
@@ -814,11 +834,12 @@ User khác có thể save public custom feed.
 
 # 27. FEED TYPES
 
-Functional feed hiện có thể gồm:
+Functional feed hiện gồm:
 
 ```text
 Home Feed
 Following Feed
+Explore Feed
 Custom Feed
 Community Feed
 Topic Feed
@@ -826,7 +847,7 @@ Topic Feed
 
 ## Home Feed
 
-Nguồn có thể gồm:
+Nguồn gồm:
 
 ```text
 followed users
@@ -834,7 +855,18 @@ interested topics
 recommended posts
 ```
 
-Ranking algorithm chưa được domain document hiện tại chốt.
+**BẤT BIẾN QUAN TRỌNG (PRIVACY INVARIANT):**
+- Bài viết trong Nhóm Kín (`is_private = 1`) **tuyệt đối không được rò rỉ ra Home Feed** của bất kỳ ai không phải là thành viên nhóm.
+- Mọi điều kiện lọc Home Feed phải đảm bảo bài viết nhóm kín chỉ hiển thị khi `currentUserId IN (SELECT user_id FROM community_members WHERE community_id = post.community_id)`.
+- Loại trừ hoàn toàn bài viết của người bị chặn (Block) cả 2 chiều và người bị tắt tiếng (Mute).
+
+## Following Feed
+
+Nguồn gồm các bài viết từ những người dùng mà `currentUserId` đang theo dõi.
+
+## Explore Feed
+
+Nguồn gồm các bài viết công khai (`PUBLIC`) có tương tác cao (thịnh hành), bài mới từ các chủ đề hot. Dành cho cả Guest và User đã đăng nhập để khám phá nội dung mới.
 
 ## Custom Feed
 
@@ -1010,6 +1042,14 @@ COMMUNITY
 ```
 
 Notification là side-effect của business action khác; user không trực tiếp tạo arbitrary notification.
+
+## 33.1. Notification Management Actions
+
+User có quyền quản lý notification của chính mình (`user_id == current_user.id`):
+1. **Unread Count**: Đếm số notification chưa đọc (`is_read == false`).
+2. **Mark as Read**: Đánh dấu 1 notification cụ thể là đã đọc (`is_read = true`).
+3. **Mark All as Read**: Đánh dấu toàn bộ notification của user là đã đọc trong 1 transaction.
+4. **Delete Notification**: Xóa 1 notification cá nhân.
 
 ---
 
@@ -1727,6 +1767,33 @@ Community Moderator/Admin/Owner có thêm use case theo permission matrix tươn
 - Feed improvement requirements.
 
 Technical cache/queue/search-engine decisions không nằm trong domain file này.
+
+---
+
+# 64.1. DATABASE TRIGGERS, STORED PROCEDURES & INDEXES (BẮT BUỘC ĐỒ ÁN)
+
+> **Người phụ trách**: Nguyễn Duy Ngọc.
+> **Mục tiêu**: Đáp ứng tiêu chí bắt buộc của học phần môn học (Cơ sở dữ liệu nâng cao / Lập trình ứng dụng Web).
+
+### 1. Database Triggers (Bảo toàn Invariant & Counter tự động)
+- `trg_set_updated_at`: Tự động gán `updated_at = NOW()` trước mọi lệnh `UPDATE` trên các bảng `users`, `profiles`, `posts`, `communities`, `conversations`.
+- `trg_post_reaction_count`: Tự động tăng `posts.like_count` (+1) khi insert vào `post_likes`, giảm (-1) khi delete.
+- `trg_post_reply_count`: Tự động tăng `posts.reply_count` (+1) khi insert post có `parent_post_id IS NOT NULL`, giảm (-1) khi soft-delete/delete.
+- `trg_user_follow_count`: Tự động tăng/giảm `follower_count` và `following_count` trên bảng `profiles` khi insert/delete trên bảng `follows`.
+- `trg_community_member_count`: Tự động cập nhật `communities.member_count` khi insert/delete thành viên trên bảng `community_members`.
+- `trg_community_prevent_owner_leave`: Chặn không cho xóa row `community_members` có `role = 'OWNER'` (chỉ được chuyển giao quyền trước).
+
+### 2. Stored Procedures (Tối ưu nghiệp vụ phức tạp & Cascade)
+- `sp_search_posts_and_topics(keyword VARCHAR, p_offset INT, p_limit INT)`: Tìm kiếm toàn cục đa bảng với phân trang, trả về danh sách post và chủ đề liên quan.
+- `sp_soft_delete_post_cascade(p_post_id UUID, p_user_id UUID)`: Thực hiện soft delete (`deleted_at = NOW()`) cho bài viết gốc và cập nhật cascade trạng thái hiển thị của các replies và interaction liên quan.
+- `sp_calculate_trending_topics(p_hours INT, p_limit INT)`: Tính toán các topic có số lượt đăng bài và tương tác cao nhất trong N giờ gần nhất.
+
+### 3. Database Indexes (Tối ưu hiệu năng truy vấn)
+- `idx_posts_user_created`: `(user_id, created_at DESC)` cho trang cá nhân.
+- `idx_posts_feed`: `(visibility, created_at DESC)` cho Home Feed và Explore Feed.
+- `idx_follows_lookup`: `(follower_id, followed_id)` và `(followed_id, follower_id)` kiểm tra quan hệ mạng xã hội.
+- `idx_notifications_user_read`: `(user_id, is_read, created_at DESC)` cho thông báo.
+- `idx_messages_conversation`: `(conversation_id, created_at DESC)` cho tin nhắn.
 
 ---
 

@@ -58,28 +58,38 @@ Không copy lại bảng, enum, response body hoặc rule.
 # 2. TECH STACK CHÍNH
 
 ```text
-Application
-├── Java
-├── Spring Boot
-├── Spring MVC
-├── Spring Security
-├── Spring Data JPA
-├── Thymeleaf
-├── Bootstrap
-├── JavaScript
-├── JWT
-└── WebSocket
+Application & Backend (Monolith)
+├── Java 21 / Spring Boot 3.2+
+├── Spring MVC (API Controller & Page Controller)
+├── Spring Security (JWT HttpOnly Cookie + Bearer Authorization fallback)
+├── Spring Data JPA + Hibernate
+└── Realtime: Spring WebSocket (STOMP Protocol over /ws)
 
-Persistence
-├── Relational Database — chọn 1 database chính
-│   ├── PostgreSQL
-│   ├── MySQL
-│   └── SQL Server
-└── MongoDB — optional, chỉ khi có use case document rõ ràng
+Frontend Systems
+├── Giao diện chính nghiệm thu đồ án (SSR): Thymeleaf + Bootstrap 5 + Vanilla JavaScript enhancement
+│   └── Nằm tại src/main/resources/templates/ & static/ (Phạm Minh Quân phụ trách)
+└── Client SPA mở rộng (Advanced Demo): Vue 3 SPA (Vite + Pinia + Vue Router)
+    └── Nằm tại fe-vue/ tiêu thụ chung REST API (/api/*)
 
-External Infrastructure
-└── Firebase
-    └── media/object storage integration của project
+Persistence & Database Processing
+├── Relational Database: PostgreSQL (Production/Staging) / MySQL (Tương thích) / H2 (Local Dev/Test)
+├── JPA Entities & Repository Layer
+└── Database Processing (Nguyễn Duy Ngọc phụ trách):
+    ├── Database Triggers (Audit updated_at, Counter sync: likes, replies, followers, members)
+    ├── Stored Procedures (Tìm kiếm nâng cao, Soft-delete cascade, Báo cáo kiểm duyệt)
+    └── B-Tree Indexes & Constraints (Chống duplicate, tối ưu query phân trang)
+
+External Infrastructure & Media Storage
+├── Firebase Cloud Storage integration (Lưu trữ nhị phân media ảnh, video)
+└── Free-Tier Quota Shield:
+    ├── Giới hạn upload: Ảnh tối đa 5 MB (WebP tối ưu), Video tối đa 30 MB
+    └── Hạn mức người dùng: Tối đa 150 MB/tài khoản; Trần an toàn hệ thống 8.5 GB
+
+Deployment & DevOps (Khôi & Ngọc phụ trách)
+├── Dockerfile (Multi-stage build cho Spring Boot app)
+├── Docker Compose (Spring Boot + PostgreSQL + Nginx)
+├── Nginx Reverse Proxy (SSL Let's Encrypt, HTTP/2, WebSocket Upgrade /ws)
+└── Linux VPS (Ubuntu Server) + CI/CD GitHub Actions
 ```
 
 ---
@@ -158,112 +168,111 @@ Rule:
 
 ---
 
-# 5. PROJECT STRUCTURE
+# 5. PROJECT STRUCTURE & LAYERED MVC ARCHITECTURE
+
+Dự án áp dụng cấu trúc phân tầng **Layered MVC bên ngoài** đồng bộ theo `ARCHITECTURE_TEMPLATE.md` (commit `52f8622`) để đảm bảo cả 4 thành viên phát triển mượt mà, tránh xung đột:
 
 ```text
 src/
 ├── main/
-│   ├── java/com/aloute/
-│   │   ├── AlouteApplication.java
+│   ├── java/com/aloute/          <--- BACKEND JAVA 21 / SPRING BOOT 3
+│   │   ├── AlouteApplication.java # Khởi chạy Spring Boot
 │   │   │
-│   │   ├── config/
-│   │   │   ├── WebMvcConfig.java
-│   │   │   ├── PersistenceConfig.java
-│   │   │   ├── WebSocketConfig.java
-│   │   │   └── FirebaseConfig.java
+│   │   ├── config/               # Cấu hình Spring (Security, WebMvc, WebSocket, Firebase)
 │   │   │
-│   │   ├── common/
-│   │   │   ├── api/
-│   │   │   ├── exception/
-│   │   │   ├── validation/
-│   │   │   ├── pagination/
-│   │   │   ├── mapper/
-│   │   │   └── util/
+│   │   ├── controller/           # Tầng tiếp nhận request
+│   │   │   ├── api/              # RestController trả JSON (@RestController cho AJAX/API /api/*)
+│   │   │   └── page/             # Controller trả Thymeleaf HTML view (@Controller)
 │   │   │
-│   │   ├── security/
+│   │   ├── service/              # Tầng nghiệp vụ (Interfaces & @Transactional boundaries)
+│   │   │   └── impl/             # Service Implementations (Chuyển đổi Entity <-> DTO)
 │   │   │
-│   │   ├── integration/
-│   │   │   └── firebase/
+│   │   ├── repository/           # Tầng truy xuất dữ liệu (Spring Data JPA Repositories)
 │   │   │
-│   │   ├── realtime/
+│   │   ├── entity/               # Tầng JPA Entities (Mapping bảng CSDL quan hệ)
 │   │   │
-│   │   └── feature/
-│   │       ├── auth/
-│   │       ├── user/
-│   │       ├── social/
-│   │       ├── post/
-│   │       ├── topic/
-│   │       ├── poll/
-│   │       ├── community/
-│   │       ├── feed/
-│   │       ├── messaging/
-│   │       ├── notification/
-│   │       ├── moderation/
-│   │       └── analytics/
+│   │   ├── dto/                  # Data Transfer Objects
+│   │   │   ├── request/          # DTO nhận từ client (@Valid)
+│   │   │   └── response/         # DTO trả về cho client / ViewModel
+│   │   │
+│   │   ├── security/             # Spring Security, JWT (Filter, Provider, Principal)
+│   │   │
+│   │   └── common/               # Thành phần dùng chung
+│   │       ├── api/              # ApiResponse<T>, PageMeta
+│   │       ├── exception/        # ApiException, GlobalExceptionHandler, ErrorResponse
+│   │       └── util/             # ModelMapperUtil, DateUtils
 │   │
-│   └── resources/
-│       ├── templates/
-│       ├── static/
-│       ├── application.yml
-│       ├── application-dev.yml
-│       ├── application-test.yml
-│       └── application-prod.yml
+│   └── resources/                <--- FRONTEND THYMELEAF & DATABASE SCRIPTS
+│       ├── templates/            # Giao diện chính Thymeleaf (Phạm Minh Quân)
+│       │   ├── layouts/          # Layout master (default.html, auth.html)
+│       │   ├── fragments/        # Thành phần tái sử dụng (head, navbar, sidebar, pagination, modal)
+│       │   ├── auth/             # Màn hình đăng nhập, đăng ký
+│       │   ├── user/             # Trang cá nhân, profile, friends
+│       │   ├── feed/             # Trang chủ, bảng tin bài viết
+│       │   ├── post/             # Chi tiết bài viết, lưu bài viết
+│       │   ├── community/        # Trang nhóm/cộng đồng
+│       │   ├── messaging/        # Chat 1-1, tin nhắn
+│       │   ├── notification/     # Hộp thông báo
+│       │   └── error/            # 404.html, 500.html, error.html
+│       │
+│       ├── static/               # Static assets
+│       │   ├── css/              # tokens.css, app.css
+│       │   ├── js/               # core (dom.js, http-client.js), features
+│       │   └── images/           # Ảnh tĩnh, icon
+│       │
+│       ├── db/                   # Kịch bản CSDL & Stored Logic (Nguyễn Duy Ngọc)
+│       │   ├── schema.sql        # DDL bảng, khóa chính/ngoại, index
+│       │   ├── triggers.sql      # Database Triggers (audit updated_at, counter sync)
+│       │   ├── procedures.sql    # Stored Procedures (search, cascade delete)
+│       │   └── data-seed.sql     # Dữ liệu mẫu (30 users, 100 posts, groups)
+│       │
+│       ├── application.yml       # Cấu hình chung
+│       └── application-dev.yml   # Cấu hình môi trường dev (H2/PostgreSQL)
+│
+├── fe-vue/                       <--- CLIENT SPA MỞ RỘNG (VUE 3 + VITE)
+│   └── (Tiêu thụ chung các endpoint REST API /api/*)
 │
 └── test/
-    └── java/com/aloute/
+    └── java/com/aloute/          # Unit test & Integration test (Bắt buộc theo kế hoạch)
 ```
-
-Chi tiết cấu trúc `security/` thuộc `SPRING_SECURITY_CONVENTION.md`.
-
-Chi tiết `templates/` và `static/` thuộc `ALOUTE_FRONTEND_CONVENTION.md`.
-
-Chi tiết entity/feature thuộc `ALOUTE_DOMAIN_SYSTEM.md`.
 
 ---
 
-# 6. FEATURE PACKAGE
+# 6. MA TRẬN PHÂN CHIA MODULE & PHỤ TRÁCH MÃ NGUỒN
 
-Một feature điển hình:
+Để thực hiện đúng kế hoạch 3 tuần nộp GVHD, mã nguồn được phân định sở hữu rõ ràng:
 
+| Phân hệ / Module | Tầng Controller & DTO | Tầng Service & Nghiệp vụ | Tầng Entity, DB & Stored Processing | Người phụ trách chính |
+| :--- | :--- | :--- | :--- | :--- |
+| **Auth & Security** | `AuthController`<br>`LoginRequest`, `RegisterRequest` | `AuthService`<br>`AuthServiceImpl` | `User` (passwordHash, isVerified, isActive)<br>Security Context, JWT Filters | **Khôi** |
+| **User & Profile** | `UserController`<br>`UpdateProfileRequest`, `ProfileResponse` | `UserService`, `UserProfileService` | `Profile`, `User` (bio, avatarUrl, counters)<br>Trigger cập nhật `updated_at` | **Khôi** |
+| **Social Graph** | `SocialController`<br>`SocialRelationResponse` | `SocialService`, `FollowService` | `Follow`, `Block`, `Mute`<br>Trigger đồng bộ `followers_count`, `following_count` | **Khôi** (chính) & **Ngọc** (DB) |
+| **Post & Content** | `PostController`<br>`CreatePostRequest`, `PostResponse` | `PostService`<br>`PostServiceImpl` | `Post`, `PostMedia`, `PostTopic`, `PostVisibility`<br>Procedure tạo bài viết kèm media | **Ngọc** |
+| **Reaction & Comment** | `ReactionController`, `CommentController`<br>`PostInteractionResponse` | `ReactionService`, `CommentService` | `PostLike`, `Bookmark`, `Repost`, `Comment`<br>Trigger đồng bộ `like_count`, `reply_count` | **Ngọc** |
+| **Community / Group** | `CommunityController`<br>`CreateCommunityRequest` | `CommunityService`<br>`CommunityServiceImpl` | `Community`, `CommunityMember`, `CommunityRole`<br>Trigger bảo vệ không mất Owner cuối | **Ngọc** |
+| **Feed & Search** | `FeedPageController`, `SearchController`<br>`FeedResponse`, `SearchResponse` | `FeedService`, `SearchService` | B-Tree Indexes phục vụ query Feed/Search<br>Nghiên cứu thuật toán tính điểm đề xuất | **Bằng** (Nghiệp vụ) & **Ngọc** (Query/Index) |
+| **Messaging & Chat** | `ConversationController`, `MessageController`<br>`SendMessageRequest`, `MessageResponse` | `ConversationService`, `MessageService` | `Conversation`, `ConversationMember`, `Message`<br>Spring WebSocket STOMP endpoint (`/ws`) | **Bằng** |
+| **Notification** | `NotificationController`<br>`NotificationResponse`, `UnreadCount` | `NotificationService`<br>`NotificationServiceImpl` | `Notification`, `NotificationType`<br>Gửi thông báo realtime qua STOMP | **Bằng** |
+| **Report & Moderation** | `ReportController`<br>`ReportRequest`, `ReportResponse` | `ReportService`, `ModerationService` | `Report`, `ReportReason`, `ReportStatus`<br>Quyền quản trị duyệt/khóa nội dung | **Khôi** |
+| **Giao diện SSR (Thymeleaf)** | `PageController` (Feed, User, Community, Msg...) | Chuyển tiếp ViewModel sang View | `templates/*`, `static/*`, HTML, CSS tokens, Form validation | **Quân** |
+| **DevOps & Triển khai** | N/A | N/A | `Dockerfile`, `docker-compose.yml`, `nginx.conf`, VPS setup | **Khôi & Ngọc** |
+
+Dependency chiều dọc chuẩn:
 ```text
-feature/post/
-├── controller/
-│   ├── page/
-│   └── api/
-├── dto/
-│   ├── request/
-│   └── response/
-├── entity/
-├── repository/
-├── service/
-├── mapper/
-├── policy/
-└── exception/
-```
-
-Không bắt buộc tạo folder rỗng.
-
-Dependency mặc định:
-
-```text
-Controller
+Controller (api / page)
    ↓
-Service
+Service (Interface & Impl)
    ↓
-Repository / Integration Port
+Repository (Spring Data JPA) / Database Triggers & Procedures
+   ↓
+Relational Database (PostgreSQL / MySQL)
 ```
-
-Cho phép service gọi public service của domain khác khi use case cần.
 
 Không cho phép:
-
 ```text
 Controller → Repository
-Repository → Service
 Repository → Controller
-Entity → Controller
-Template → Repository
-Feature A → internal/private implementation của Feature B
+Entity → Controller trực tiếp (bắt buộc qua DTO / ViewModel)
 ```
 
 ---
@@ -892,17 +901,16 @@ Architecture file chỉ giữ HTTP/security boundary ở mức system integratio
 
 # 23. FRONTEND BOUNDARY
 
-Frontend hiện tại:
+Frontend được hỗ trợ:
 
 ```text
-Server-rendered Thymeleaf
-+
-Bootstrap
-+
-JavaScript progressive enhancement
+1. Server-rendered Thymeleaf (SSR — Giao diện chính thức nghiệm thu học phần):
+   Spring MVC + Thymeleaf + Bootstrap 5 + Vanilla JavaScript progressive enhancement (Phạm Minh Quân phụ trách)
+2. Vue 3 SPA Architecture (fe-vue — Client Single Page Application mở rộng):
+   Vue 3 (Composition API, <script setup>) + Vite + Pinia + Vue Router + Custom Token Design System
 ```
 
-Không dùng Vue architecture cho phiên bản này.
+Giao diện Thymeleaf tại `src/main/resources/templates/` là sản phẩm chính thức nộp đồ án cho GVHD Th.S Nguyễn Trần Thi Văn theo cam kết trong `Nhom13_KeHoachCodeTest.docx`. Vue 3 SPA tại `fe-vue/` đóng vai trò client mở rộng độc lập, tiêu thụ chung các API RESTful từ Backend Spring Boot.
 
 File này không định nghĩa chi tiết:
 
