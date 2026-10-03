@@ -20,3 +20,7 @@ spring:
     cache: false
     mode: HTML
     encoding: UTF-8
+
+# Local development/test only. Production/VPS must override both values via environment variables.
+ALOUTE_JWT_SECRET: YWxvdXRlLWRldi1qd3Qtc2VjcmV0LWtleS0zMi1ieXRlcyEh
+ALOUTE_JWT_EXPIRATION_SECONDS: 3600
