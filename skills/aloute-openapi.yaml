@@ -140,6 +140,27 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/users/by-username/{username}:
+    get:
+      tags: [Users]
+      summary: Get user profile by handle/username
+      security: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/users/me/profile:
     patch:
       tags: [Users]
@@ -640,6 +661,44 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
+  /api/media/quota:
+    get:
+      tags: [Media]
+      summary: Get user and system media storage quota
+      responses:
+        '200':
+          description: Quota details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/media/file/{path}:
+    get:
+      tags: [Media]
+      summary: Stream media file from storage edge
+      security: []
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Media file stream
+        '206':
+          description: Partial content range stream
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/topics:
     get:
       tags: [Topics]
@@ -1040,6 +1099,22 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
+  /api/feed/explore:
+    get:
+      tags: [Feeds]
+      summary: Get explore / trending feed
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Explore feed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+
   /api/feeds:
     get:
       tags: [Feeds]
@@ -1283,6 +1358,74 @@ paths:
                 $ref: '#/components/schemas/NotificationPageEnvelope'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+
+  /api/notifications/unread-count:
+    get:
+      tags: [Notifications]
+      summary: Get unread notifications count
+      responses:
+        '200':
+          description: Unread notification count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      unreadCount:
+                        type: integer
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark a single notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Notification marked as read
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/notifications/read-all:
+    patch:
+      tags: [Notifications]
+      summary: Mark all notifications as read
+      responses:
+        '200':
+          description: All notifications marked as read
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/notifications/{id}:
+    delete:
+      tags: [Notifications]
+      summary: Delete a notification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Notification deleted
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /api/reports:
     post:

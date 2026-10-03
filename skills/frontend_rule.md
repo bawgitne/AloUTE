@@ -14,27 +14,33 @@
 
 ---
 
-# 1. FRONTEND MODEL
+# 1. FRONTEND ARCHITECTURE & OWNERSHIP
 
-ALOUTE dùng **server-rendered application**.
+Theo kế hoạch đồ án nhóm (`Nhom13_KeHoachCodeTest.docx`), **Phạm Minh Quân** chịu trách nhiệm chính về toàn bộ giao diện người dùng.
+
+Hệ thống hỗ trợ 2 mô hình giao diện:
+1. **Model A (Primary Course Deliverable — Chính thức nộp môn học)**:
+   - **Thymeleaf SSR + Bootstrap 5 + Vanilla JS** (nằm trong `src/main/resources/templates` và `src/main/resources/static`).
+   - Server-side rendered pages được render trực tiếp bởi các `PageController`.
+   - JavaScript chỉ đóng vai trò enhancement tương tác (like, comment, voting, WebSocket realtime stomp).
+2. **Model B (Extended REST Client — Mở rộng)**:
+   - **Vue 3 SPA** (nằm trong thư mục `fe-vue`).
+   - Hoạt động như một external client độc lập gọi REST API `/api/v1/*`.
+   - Không được làm ảnh hưởng hoặc làm xáo trộn kiến trúc Thymeleaf SSR chính thức.
 
 ```text
 Browser
    ↓
-Spring MVC Page Controller
+Spring MVC Page Controller (Quân phụ trách)
    ↓
 ViewModel / Model
    ↓
 Thymeleaf
    ↓
-HTML
-   ↓
-Bootstrap + JavaScript enhancement
+HTML + Bootstrap 5 + JavaScript enhancement
 ```
 
-JavaScript chỉ tăng tương tác khi cần.
-
-Không xây một SPA thứ hai bên trong Thymeleaf.
+JavaScript chỉ tăng tương tác khi cần, không biến Thymeleaf template thành SPA giả lập.
 
 ---
 
