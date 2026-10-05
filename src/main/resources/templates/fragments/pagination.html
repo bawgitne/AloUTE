@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<nav th:fragment="pagination(pageMeta, baseUrl)"
+     th:if="${pageMeta != null and pageMeta.totalPages > 1}"
+     aria-label="Điều hướng phân trang"
+     class="mt-4 mb-3">
+    <div class="d-flex flex-column flex-sm-row align-items-center justify-content-between gap-2">
+        <div class="small text-muted">
+            Hiển thị trang <span class="fw-semibold" th:text="${pageMeta.page + 1}">1</span> /
+            <span class="fw-semibold" th:text="${pageMeta.totalPages}">1</span>
+            (<span th:text="${pageMeta.totalElements}">0</span> kết quả)
+        </div>
+
+        <ul class="pagination pagination-custom mb-0">
+            <!-- First / Previous Page Button -->
+            <li class="page-item" th:classappend="${!pageMeta.hasPrevious} ? 'disabled' : ''">
+                <a class="page-link"
+                   th:href="@{${baseUrl}(page=${pageMeta.page - 1})}"
+                   aria-label="Trang trước"
+                   th:attr="aria-disabled=${!pageMeta.hasPrevious ? 'true' : null},tabindex=${!pageMeta.hasPrevious ? '-1' : null}">
+                    <i class="bi bi-chevron-left" aria-hidden="true"></i>
+                    <span class="d-none d-sm-inline ms-1">Trước</span>
+                </a>
+            </li>
+
+            <!-- Page Number Indicators -->
+            <li class="page-item active" aria-current="page">
+                <span class="page-link" th:text="${pageMeta.page + 1}">1</span>
+            </li>
+
+            <!-- Next Page Button -->
+            <li class="page-item" th:classappend="${!pageMeta.hasNext} ? 'disabled' : ''">
+                <a class="page-link"
+                   th:href="@{${baseUrl}(page=${pageMeta.page + 1})}"
+                   aria-label="Trang tiếp"
+                   th:attr="aria-disabled=${!pageMeta.hasNext ? 'true' : null},tabindex=${!pageMeta.hasNext ? '-1' : null}">
+                    <span class="d-none d-sm-inline me-1">Sau</span>
+                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                </a>
+            </li>
+        </ul>
+    </div>
+</nav>
+</body>
+</html>

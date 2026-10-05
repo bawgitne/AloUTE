@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:aloutedb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  sql:
+    init:
+      mode: never
+
+  thymeleaf:
+    cache: false
+    mode: HTML
+    encoding: UTF-8
+
+aloute:
+  firebase:
+    enabled: false
+    bucket: ${ALOUTE_FIREBASE_BUCKET:}
+    credentials-path: ${ALOUTE_FIREBASE_CREDENTIALS_PATH:}
+
+# Local development/test only. Production/VPS must override both values via environment variables.
+ALOUTE_JWT_SECRET: YWxvdXRlLWRldi1qd3Qtc2VjcmV0LWtleS0zMi1ieXRlcyEh
+ALOUTE_JWT_EXPIRATION_SECONDS: 3600

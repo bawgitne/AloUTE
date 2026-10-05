@@ -1,0 +1,67 @@
+package com.aloute.config;
+
+import com.aloute.entity.Profile;
+import com.aloute.entity.User;
+import com.aloute.repository.ProfileRepository;
+import com.aloute.repository.UserRepository;
+import com.aloute.security.authorization.Role;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+
+@Configuration
+@org.springframework.context.annotation.Profile("dev")
+public class DevTestDataInitializer {
+
+    public static final String ADMIN_EMAIL = "admin@aloute.local";
+    public static final String ADMIN_PASSWORD = "Admin@123";
+    public static final String USER_EMAIL = "user@aloute.local";
+    public static final String USER_PASSWORD = "User@123";
+
+    @Bean
+    CommandLineRunner initDevTestAccounts(UserRepository userRepository,
+                                          ProfileRepository profileRepository,
+                                          PasswordEncoder passwordEncoder,
+                                          PlatformTransactionManager transactionManager) {
+        return args -> {
+            TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+            transactionTemplate.executeWithoutResult(status -> {
+                createIfMissing(userRepository, profileRepository, passwordEncoder,
+                        "admin", ADMIN_EMAIL, ADMIN_PASSWORD, "AloUTE Admin", Role.SYSTEM_ADMIN);
+                createIfMissing(userRepository, profileRepository, passwordEncoder,
+                        "user", USER_EMAIL, USER_PASSWORD, "AloUTE User", Role.USER);
+            });
+        };
+    }
+
+    private void createIfMissing(UserRepository userRepository,
+                                 ProfileRepository profileRepository,
+                                 PasswordEncoder passwordEncoder,
+                                 String username,
+                                 String email,
+                                 String rawPassword,
+                                 String displayName,
+                                 Role role) {
+        if (userRepository.existsByEmailIgnoreCase(email) || userRepository.existsByUsernameIgnoreCase(username)) {
+            return;
+        }
+
+        User user = new User();
+        user.setUsername(username);
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode(rawPassword));
+        user.setVerified(true);
+        user.setPrivateAccount(false);
+        user.setActive(true);
+        user.setRole(role);
+        user = userRepository.save(user);
+
+        Profile profile = new Profile();
+        profile.setUser(user);
+        profile.setDisplayName(displayName);
+        profileRepository.save(profile);
+    }
+}

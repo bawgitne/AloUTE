@@ -1,0 +1,300 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" width="1440" height="900">
+  <defs>
+    <style>
+      .bg { fill: #0B0F19; }
+      .meta-bar { fill: #030712; }
+      .meta-text { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; fill: #F8FAFC; font-weight: 600; }
+      .meta-sub { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; fill: #64748B; }
+      .nav-bg { fill: #111827; stroke: #1F2937; stroke-width: 1; }
+      .brand-title { font-family: system-ui, -apple-system, sans-serif; font-size: 20px; font-weight: 800; fill: #3B82F6; }
+      .card { fill: #131B2A; stroke: #233148; stroke-width: 1.5; rx: 8px; }
+      .card-subtle { fill: #0F172A; stroke: #1E293B; stroke-width: 1; rx: 6px; }
+      .card-hover { fill: #1A2438; stroke: #2A3A55; stroke-width: 1; rx: 6px; }
+      .card-active { fill: #172554; stroke: #2563EB; stroke-width: 1.5; rx: 6px; }
+      .text-title { font-family: system-ui, -apple-system, sans-serif; font-size: 16px; font-weight: 700; fill: #F8FAFC; }
+      .text-section { font-family: system-ui, -apple-system, sans-serif; font-size: 14px; font-weight: 600; fill: #E2E8F0; }
+      .text-body { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 400; fill: #CBD5E1; }
+      .text-bold { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 600; fill: #F8FAFC; }
+      .text-muted { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 400; fill: #94A3B8; }
+      .text-small { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 400; fill: #64748B; }
+      .btn-primary { fill: #2563EB; stroke: #1D4ED8; stroke-width: 1; rx: 6px; }
+      .btn-primary-text { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 600; fill: #FFFFFF; text-anchor: middle; }
+      .btn-secondary { fill: #1E293B; stroke: #334155; stroke-width: 1; rx: 6px; }
+      .btn-secondary-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #CBD5E1; text-anchor: middle; }
+      .btn-accent { fill: #3B82F6; stroke: #2563EB; stroke-width: 1; rx: 6px; }
+      .btn-accent-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #FFFFFF; text-anchor: middle; }
+      .btn-danger { fill: #450A0A; stroke: #991B1B; stroke-width: 1; rx: 6px; }
+      .btn-danger-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #FCA5A5; text-anchor: middle; }
+      .badge-wire { fill: #1E293B; stroke: #334155; stroke-width: 1; rx: 4px; }
+      .badge-text { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 600; fill: #94A3B8; text-anchor: middle; }
+      .badge-role { fill: #1E3A8A; stroke: #3B82F6; stroke-width: 1; rx: 4px; }
+      .badge-role-text { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 700; fill: #93C5FD; text-anchor: middle; }
+      .input-box { fill: #0B0F19; stroke: #334155; stroke-width: 1.5; rx: 6px; }
+      .input-bg { fill: #0F172A; stroke: #1E293B; stroke-width: 1; rx: 6px; }
+      .input-text { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; fill: #F1F5F9; }
+      .input-placeholder { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; fill: #64748B; }
+      .avatar-box { fill: #1E293B; stroke: #475569; stroke-width: 1.5; }
+      .avatar-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #E2E8F0; text-anchor: middle; }
+      .media-ph { fill: #0F172A; stroke: #334155; stroke-width: 1.5; stroke-dasharray: 4,4; rx: 6px; }
+      .media-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #94A3B8; text-anchor: middle; }
+      .alert-error { fill: #2D1214; stroke: #7F1D1D; stroke-width: 1.5; rx: 6px; }
+      .alert-error-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 500; fill: #FCA5A5; }
+      .alert-info { fill: #0C1E3A; stroke: #1E40AF; stroke-width: 1.5; rx: 6px; }
+      .alert-info-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 500; fill: #93C5FD; }
+      .footer-bar { fill: #030712; stroke: #1F2937; stroke-width: 1; }
+      .footer-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 500; fill: #64748B; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1440" height="900" class="bg" />
+
+  <!-- Top Metadata Bar -->
+  <rect x="0" y="0" width="1440" height="38" class="meta-bar" />
+  <text x="24" y="24" class="meta-text">AloUTE WIREFRAME [03-home-feed] — HOME FEED &amp; CAMPUS STREAM</text>
+  <text x="1416" y="24" class="meta-sub" text-anchor="end">Owner: Phạm Minh Quân  •  Week 1 UI Design Evidence  •  Dark University Theme  •  1440×900</text>
+
+
+    <!-- Global Navbar (Y: 38 - 92) -->
+    <rect x="0" y="38" width="1440" height="54" class="nav-bg" />
+    <text x="40" y="72" class="brand-title">AloUTE</text>
+    <rect x="125" y="58" width="70" height="20" class="badge-wire" />
+    <text x="160" y="72" class="badge-text">HCMUTE</text>
+    <text x="205" y="72" class="text-muted">University Social Network</text>
+
+    <!-- Global Search -->
+    <rect x="800" y="50" width="360" height="32" class="input-bg" />
+    <text x="815" y="71" class="input-placeholder">🔍 Search posts, people, communities...</text>
+
+    <!-- Nav Items -->
+
+        <text x="360" y="70" font-family="system-ui, sans-serif" font-size="14px" font-weight="700" fill="#3B82F6">Home</text>
+        <line x1="360" y1="88" x2="396" y2="88" stroke="#3B82F6" stroke-width="2"/>
+        <text x="440" y="70" font-family="system-ui, sans-serif" font-size="14px" font-weight="500" fill="#94A3B8">Community</text>
+
+        <text x="550" y="70" font-family="system-ui, sans-serif" font-size="14px" font-weight="500" fill="#94A3B8">Messages</text>
+
+        <text x="655" y="70" font-family="system-ui, sans-serif" font-size="14px" font-weight="500" fill="#94A3B8">Notifications</text>
+
+
+    <!-- Notification Badge -->
+    <circle cx="760" cy="62" r="8" fill="#EF4444" />
+    <text x="760" y="66" font-family="system-ui, sans-serif" font-size="10px" font-weight="700" fill="#FFFFFF" text-anchor="middle">3</text>
+
+    <!-- User Profile Chip -->
+    <rect x="1200" y="47" width="200" height="36" class="card-subtle" rx="18" />
+    <circle cx="1220" cy="65" r="14" class="avatar-box" />
+    <text x="1220" y="69" class="avatar-text">MQ</text>
+    <text x="1242" y="69" class="text-bold">Minh Quân</text>
+    <text x="1380" y="69" class="text-muted">▼</text>
+
+    <!-- LEFT COLUMN (X: 40, Y: 105, Width: 260) -->
+    <g id="left-column">
+      <!-- Mini Profile -->
+      <rect x="40" y="105" width="260" height="235" class="card" />
+      <rect x="40" y="105" width="260" height="60" fill="#1E293B" rx="8" />
+      <circle cx="90" cy="165" r="28" class="avatar-box" stroke-width="3" stroke="#131B2A" />
+      <text x="90" y="171" class="avatar-text" font-size="16px">PQ</text>
+
+      <text x="130" y="180" class="text-title" font-size="15px">Phạm Minh Quân</text>
+      <text x="130" y="196" class="text-muted">@quan_pm</text>
+
+      <text x="56" y="222" class="text-body" font-size="12px">Software Engineering Student</text>
+      <text x="56" y="238" class="text-muted" font-size="11px">Faculty of IT • HCMUTE K22</text>
+
+      <line x1="56" y1="250" x2="284" y2="250" stroke="#233148" />
+      <text x="56" y="270" class="text-bold">356</text>
+      <text x="82" y="270" class="text-muted" font-size="12px">Followers</text>
+      <text x="160" y="270" class="text-bold">210</text>
+      <text x="186" y="270" class="text-muted" font-size="12px">Following</text>
+
+      <rect x="56" y="285" width="228" height="32" class="btn-secondary" />
+      <text x="170" y="306" class="btn-secondary-text" font-size="12px">View Full Profile</text>
+
+      <!-- Navigation Card -->
+      <rect x="40" y="355" width="260" height="295" class="card" />
+      <text x="56" y="380" class="text-section">Navigation</text>
+      <line x1="56" y1="392" x2="284" y2="392" stroke="#233148" />
+
+        <rect x="52" y="157" width="236" height="34" class="card-hover" fill="#172554" stroke="#2563EB"/>
+        <text x="64" y="179" font-family="system-ui, sans-serif" font-size="14px">🏠</text>
+        <text x="92" y="179" font-family="system-ui, sans-serif" font-size="13px" font-weight="700" fill="#3B82F6">Home Feed</text>
+
+        <text x="64" y="219" font-family="system-ui, sans-serif" font-size="14px">👥</text>
+        <text x="92" y="219" font-family="system-ui, sans-serif" font-size="13px" font-weight="500" fill="#94A3B8">Communities</text>
+
+        <text x="64" y="259" font-family="system-ui, sans-serif" font-size="14px">💬</text>
+        <text x="92" y="259" font-family="system-ui, sans-serif" font-size="13px" font-weight="500" fill="#94A3B8">Messages (2)</text>
+
+        <text x="64" y="299" font-family="system-ui, sans-serif" font-size="14px">🔔</text>
+        <text x="92" y="299" font-family="system-ui, sans-serif" font-size="13px" font-weight="500" fill="#94A3B8">Notifications (3)</text>
+
+        <text x="64" y="339" font-family="system-ui, sans-serif" font-size="14px">👤</text>
+        <text x="92" y="339" font-family="system-ui, sans-serif" font-size="13px" font-weight="500" fill="#94A3B8">My Profile</text>
+
+        <text x="64" y="379" font-family="system-ui, sans-serif" font-size="14px">🔖</text>
+        <text x="92" y="379" font-family="system-ui, sans-serif" font-size="13px" font-weight="500" fill="#94A3B8">Saved Bookmarks</text>
+
+      <rect x="56" y="600" width="228" height="36" class="btn-primary" />
+      <text x="170" y="623" class="btn-primary-text">+ Create New Post</text>
+
+      <!-- Layout Annotation Card -->
+      <rect x="40" y="665" width="260" height="85" class="card-subtle" />
+      <text x="52" y="685" class="text-section" font-size="12px">📌 Layout Annotation</text>
+      <text x="52" y="703" class="text-muted" font-size="11px">Desktop: 260px Left Sidebar</text>
+      <text x="52" y="720" class="text-muted" font-size="11px">Tablet: Compact Icon Bar (64px)</text>
+      <text x="52" y="737" class="text-muted" font-size="11px">Mobile: Bottom App Bar / Menu</text>
+    </g>
+    <!-- CENTER COLUMN: Feed Stream & Post Composer (X: 320, Y: 105, Width: 760) -->
+    <g id="center-column">
+      <!-- Create Post Composer Box -->
+      <rect x="320" y="105" width="760" height="120" class="card" />
+      <circle cx="355" cy="142" r="20" class="avatar-box" />
+      <text x="355" y="147" class="avatar-text">PQ</text>
+
+      <rect x="390" y="122" width="670" height="40" class="input-bg" />
+      <text x="406" y="147" class="input-placeholder">What&apos;s on your mind? Share academic insights or campus news...</text>
+
+      <line x1="336" y1="178" x2="1064" y2="178" stroke="#233148" />
+
+      <!-- Composer Toolbar Buttons -->
+      <rect x="340" y="188" width="95" height="26" class="btn-secondary" />
+      <text x="387" y="205" class="btn-secondary-text" font-size="11px">📷 + Photo</text>
+
+      <rect x="445" y="188" width="90" height="26" class="btn-secondary" />
+      <text x="490" y="205" class="btn-secondary-text" font-size="11px">📊 Add Poll</text>
+
+      <rect x="545" y="188" width="130" height="26" class="badge-wire" />
+      <text x="610" y="205" class="badge-text" font-size="11px">Topic: #Chung ▼</text>
+
+      <rect x="685" y="188" width="115" height="26" class="badge-wire" />
+      <text x="742" y="205" class="badge-text" font-size="11px">🌐 Public ▼</text>
+
+      <rect x="990" y="186" width="75" height="30" class="btn-primary" />
+      <text x="1027" y="206" class="btn-primary-text" font-size="12px">Post</text>
+
+      <!-- Post Card 1: Rich Post with Image -->
+      <rect x="320" y="240" width="760" height="280" class="card" />
+
+      <!-- Author Row -->
+      <circle cx="352" cy="272" r="18" class="avatar-box" />
+      <text x="352" y="277" class="avatar-text">NN</text>
+      <text x="382" y="268" class="text-bold">TS. Nguyễn Duy Ngọc</text>
+      <rect x="530" y="254" width="70" height="18" class="badge-role" />
+      <text x="565" y="267" class="badge-role-text" font-size="10px">Lecturer</text>
+      <text x="382" y="286" class="text-muted" font-size="11px">@ngoc_nd  •  2 hours ago  •  🌐 Public</text>
+
+      <rect x="980" y="256" width="85" height="22" class="badge-wire" />
+      <text x="1022" y="271" class="badge-text" font-size="10px">#ThongBaoKhoa</text>
+
+      <!-- Post Content -->
+      <text x="340" y="314" class="text-body">Kế hoạch báo cáo tiến độ đồ án môn học Công Nghệ Phần Mềm đã được cập nhật.</text>
+      <text x="340" y="332" class="text-body">Các nhóm sinh viên K22 chú ý nộp báo cáo đúng hạn trên hệ thống trước 17:00 thứ 6 tuần này.</text>
+
+      <!-- Media Placeholder Box -->
+      <rect x="340" y="348" width="720" height="115" class="media-ph" />
+      <text x="700" y="410" class="media-text">🖼️ [ Media Attachment: bang-phan-cong-do-an-k22.png  •  1200×630 Aspect Ratio ]</text>
+
+      <!-- Interaction Bar -->
+      <line x1="336" y1="478" x2="1064" y2="478" stroke="#233148" />
+      <text x="352" y="501" class="text-muted" font-size="13px">👍 Like (38)</text>
+      <text x="450" y="501" class="text-muted" font-size="13px">💬 Reply (14)</text>
+      <text x="548" y="501" class="text-muted" font-size="13px">🔁 Repost (5)</text>
+      <text x="646" y="501" class="text-muted" font-size="13px">🔖 Bookmark</text>
+      <text x="1040" y="501" class="text-muted" font-size="13px" text-anchor="end">🔗 Share</text>
+
+      <!-- Post Card 2: Student Discussion -->
+      <rect x="320" y="535" width="760" height="175" class="card" />
+      <circle cx="352" cy="567" r="18" class="avatar-box" />
+      <text x="352" y="572" class="avatar-text">AB</text>
+      <text x="382" y="563" class="text-bold">Ngô Anh Bằng</text>
+      <text x="382" y="581" class="text-muted" font-size="11px">@bang_na  •  4 hours ago  •  Group: SE Club</text>
+
+      <rect x="980" y="551" width="85" height="22" class="badge-wire" />
+      <text x="1022" y="566" class="badge-text" font-size="10px">#LapTrinhWeb</text>
+
+      <text x="340" y="612" class="text-body">Có bạn nào đang làm Spring Boot + Thymeleaf gặp lỗi CSRF token khi gửi POST request</text>
+      <text x="340" y="630" class="text-body">từ modal AJAX không? Mình xin kinh nghiệm xử lý với ạ.</text>
+
+      <!-- Interaction Bar 2 -->
+      <line x1="336" y1="655" x2="1064" y2="655" stroke="#233148" />
+      <text x="352" y="678" class="text-muted" font-size="13px">👍 Like (12)</text>
+      <text x="450" y="678" class="text-muted" font-size="13px">💬 Reply (8)</text>
+      <text x="548" y="678" class="text-muted" font-size="13px">🔁 Repost (2)</text>
+      <text x="646" y="678" class="text-muted" font-size="13px">🔖 Bookmark</text>
+
+      <!-- Feed States & Empty/Loading Specification Callout -->
+      <rect x="320" y="725" width="760" height="75" class="card-subtle" />
+      <text x="336" y="746" class="text-section" font-size="12px">📋 Feed States Specification</text>
+      <text x="336" y="764" class="text-muted" font-size="11px">• [Active Feed]: Cards displayed above in reverse chronological order</text>
+      <text x="336" y="780" class="text-muted" font-size="11px">• [Empty State]: &quot;No posts yet. Follow fellow peers or join campus communities to populate your stream.&quot;</text>
+      <text x="730" y="764" class="text-muted" font-size="11px">• [Loading Skeleton]: Pulsing card placeholders</text>
+      <text x="730" y="780" class="text-muted" font-size="11px">• [Error State]: &quot;Could not load feed. [Retry]&quot;</text>
+    </g>
+    <!-- RIGHT COLUMN (X: 1100, Y: 105, Width: 300) -->
+    <g id="right-column">
+      <!-- Suggested Communities -->
+      <rect x="1100" y="105" width="300" height="260" class="card" />
+      <text x="1116" y="130" class="text-section">Campus Communities</text>
+      <text x="1384" y="130" class="text-muted" font-size="12px" text-anchor="end">See all</text>
+      <line x1="1116" y1="142" x2="1384" y2="142" stroke="#233148" />
+
+      <!-- Community 1 -->
+      <circle cx="1136" cy="168" r="16" class="avatar-box" />
+      <text x="1136" y="172" class="avatar-text">SE</text>
+      <text x="1160" y="165" class="text-bold" font-size="13px">CLB Phần Mềm (SE Club)</text>
+      <text x="1160" y="180" class="text-muted" font-size="11px">1,450 members • Academic</text>
+      <rect x="1325" y="156" width="60" height="26" class="btn-secondary" />
+      <text x="1355" y="173" class="btn-secondary-text" font-size="11px">Join</text>
+
+      <!-- Community 2 -->
+      <circle cx="1136" cy="216" r="16" class="avatar-box" />
+      <text x="1136" y="220" class="avatar-text">DEV</text>
+      <text x="1160" y="213" class="text-bold" font-size="13px">UTE Developers Hub</text>
+      <text x="1160" y="228" class="text-muted" font-size="11px">890 members • Tech &amp; AI</text>
+      <rect x="1325" y="204" width="60" height="26" class="btn-secondary" />
+      <text x="1355" y="221" class="btn-secondary-text" font-size="11px">Join</text>
+
+      <!-- Community 3 -->
+      <circle cx="1136" cy="264" r="16" class="avatar-box" />
+      <text x="1136" y="268" class="avatar-text">K22</text>
+      <text x="1160" y="261" class="text-bold" font-size="13px">K22 Khoa CNTT</text>
+      <text x="1160" y="276" class="text-muted" font-size="11px">2,100 members • Official</text>
+      <rect x="1325" y="252" width="60" height="26" class="badge-wire" />
+      <text x="1355" y="269" class="badge-text" font-size="11px">Joined</text>
+
+      <rect x="1116" y="305" width="268" height="32" class="btn-secondary" />
+      <text x="1250" y="326" class="btn-secondary-text" font-size="12px">Explore More Groups</text>
+
+      <!-- Trending Topics -->
+      <rect x="1100" y="380" width="300" height="220" class="card" />
+      <text x="1116" y="405" class="text-section">Trending Topics</text>
+      <line x1="1116" y1="417" x2="1384" y2="417" stroke="#233148" />
+
+      <text x="1116" y="440" class="text-bold" font-size="13px">#DoAnTotNghiep2026</text>
+      <text x="1116" y="455" class="text-muted" font-size="11px">142 posts • Academic Discussion</text>
+
+      <text x="1116" y="482" class="text-bold" font-size="13px">#LichThiHocKy2</text>
+      <text x="1116" y="497" class="text-muted" font-size="11px">98 posts • Examination Notice</text>
+
+      <text x="1116" y="524" class="text-bold" font-size="13px">#UTE_Hackathon2026</text>
+      <text x="1116" y="539" class="text-muted" font-size="11px">76 posts • Student Competition</text>
+
+      <text x="1116" y="566" class="text-bold" font-size="13px">#CongNghePhanMem</text>
+      <text x="1116" y="581" class="text-muted" font-size="11px">64 posts • Course Discussion</text>
+
+      <!-- Campus Information -->
+      <rect x="1100" y="615" width="300" height="135" class="card" />
+      <text x="1116" y="640" class="text-section">Campus Information</text>
+      <line x1="1116" y1="652" x2="1384" y2="652" stroke="#233148" />
+      <text x="1116" y="674" class="text-body" font-size="12px">📚 Central Library Hours: 07:30 - 20:30</text>
+      <text x="1116" y="694" class="text-body" font-size="12px">🏛️ Phòng Đào Tạo: Tiếp SV tại A1-102</text>
+      <text x="1116" y="714" class="text-body" font-size="12px">⚠️ Hạn nộp Đề cương: 04/10/2026</text>
+      <text x="1116" y="734" class="text-small">AloUTE Campus Network © 2026</text>
+    </g>
+
+  <!-- Bottom Responsive & Evidence Ribbon -->
+  <rect x="0" y="865" width="1440" height="35" class="footer-bar" />
+  <text x="24" y="887" class="footer-text">Responsive Layout: Desktop: Left (260px) | Center (760px) | Right (300px) • Tablet: Left + Center • Mobile: Center only (Compact Menu)</text>
+  <text x="1416" y="887" class="footer-text" text-anchor="end">Week 1 Wireframe Specification  •  Modern University Social Network  •  Dark Theme Mockup</text>
+</svg>

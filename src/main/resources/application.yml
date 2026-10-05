@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: aloute
+  profiles:
+    active: dev
+
+server:
+  port: 8080

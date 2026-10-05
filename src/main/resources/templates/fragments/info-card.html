@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="info-cards" class="info-panel-wrapper">
+    <!-- Community Rules Card -->
+    <div class="aloute-card p-3 mb-3">
+        <h2 class="fs-6 fw-bold mb-2 d-flex align-items-center gap-2">
+            <i class="bi bi-shield-check text-primary" aria-hidden="true"></i>
+            <span>Văn hóa AloUTE</span>
+        </h2>
+        <p class="small text-secondary mb-2">Không gian giao lưu học thuật và đời sống văn minh dành riêng cho sinh viên UTE.</p>
+        <ul class="list-unstyled small text-muted mb-0 d-flex flex-column gap-1">
+            <li class="d-flex align-items-start gap-2">
+                <i class="bi bi-dot text-primary fs-5 lh-1" aria-hidden="true"></i>
+                <span>Tôn trọng bạn bè và giảng viên</span>
+            </li>
+            <li class="d-flex align-items-start gap-2">
+                <i class="bi bi-dot text-primary fs-5 lh-1" aria-hidden="true"></i>
+                <span>Chia sẻ thông tin học tập chính xác</span>
+            </li>
+            <li class="d-flex align-items-start gap-2">
+                <i class="bi bi-dot text-primary fs-5 lh-1" aria-hidden="true"></i>
+                <span>Bảo vệ quyền riêng tư cá nhân</span>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Trending Topics Card -->
+    <div class="aloute-card p-3 mb-3">
+        <h2 class="fs-6 fw-bold mb-2 d-flex align-items-center gap-2">
+            <i class="bi bi-hash text-primary" aria-hidden="true"></i>
+            <span>Chủ đề nổi bật</span>
+        </h2>
+        <div class="d-flex flex-wrap gap-2 pt-1">
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill py-1 px-2">#hoc-tap</span>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill py-1 px-2">#nghien-cuu</span>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill py-1 px-2">#ute-connect</span>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill py-1 px-2">#clb-khoa</span>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill py-1 px-2">#do-an-tot-nghiep</span>
+        </div>
+    </div>
+
+    <!-- Quick Links Card -->
+    <div class="aloute-card p-3 mb-3">
+        <h2 class="fs-6 fw-bold mb-2 d-flex align-items-center gap-2">
+            <i class="bi bi-link-45deg text-primary" aria-hidden="true"></i>
+            <span>Liên kết nhanh</span>
+        </h2>
+        <ul class="list-unstyled small mb-0 d-flex flex-column gap-2">
+            <li>
+                <a href="https://hcmute.edu.vn" target="_blank" rel="noopener noreferrer" class="text-secondary d-flex align-items-center justify-content-between">
+                    <span>Cổng thông tin HCMUTE</span>
+                    <i class="bi bi-box-arrow-up-right small text-muted" aria-hidden="true"></i>
+                </a>
+            </li>
+            <li>
+                <a href="https://online.hcmute.edu.vn" target="_blank" rel="noopener noreferrer" class="text-secondary d-flex align-items-center justify-content-between">
+                    <span>Trang thông tin đào tạo</span>
+                    <i class="bi bi-box-arrow-up-right small text-muted" aria-hidden="true"></i>
+                </a>
+            </li>
+            <li>
+                <a href="https://lib.hcmute.edu.vn" target="_blank" rel="noopener noreferrer" class="text-secondary d-flex align-items-center justify-content-between">
+                    <span>Thư viện trường</span>
+                    <i class="bi bi-box-arrow-up-right small text-muted" aria-hidden="true"></i>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Footer Meta -->
+    <footer class="text-center text-muted small py-2">
+        <p class="mb-0">&copy; 2026 AloUTE. Mạng xã hội sinh viên UTE.</p>
+    </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" width="1440" height="900">
+  <defs>
+    <style>
+      .bg { fill: #0B0F19; }
+      .meta-bar { fill: #030712; }
+      .meta-text { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; fill: #F8FAFC; font-weight: 600; }
+      .meta-sub { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; fill: #64748B; }
+      .nav-bg { fill: #111827; stroke: #1F2937; stroke-width: 1; }
+      .brand-title { font-family: system-ui, -apple-system, sans-serif; font-size: 20px; font-weight: 800; fill: #3B82F6; }
+      .card { fill: #131B2A; stroke: #233148; stroke-width: 1.5; rx: 8px; }
+      .card-subtle { fill: #0F172A; stroke: #1E293B; stroke-width: 1; rx: 6px; }
+      .card-hover { fill: #1A2438; stroke: #2A3A55; stroke-width: 1; rx: 6px; }
+      .card-active { fill: #172554; stroke: #2563EB; stroke-width: 1.5; rx: 6px; }
+      .text-title { font-family: system-ui, -apple-system, sans-serif; font-size: 16px; font-weight: 700; fill: #F8FAFC; }
+      .text-section { font-family: system-ui, -apple-system, sans-serif; font-size: 14px; font-weight: 600; fill: #E2E8F0; }
+      .text-body { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 400; fill: #CBD5E1; }
+      .text-bold { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 600; fill: #F8FAFC; }
+      .text-muted { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 400; fill: #94A3B8; }
+      .text-small { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 400; fill: #64748B; }
+      .btn-primary { fill: #2563EB; stroke: #1D4ED8; stroke-width: 1; rx: 6px; }
+      .btn-primary-text { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 600; fill: #FFFFFF; text-anchor: middle; }
+      .btn-secondary { fill: #1E293B; stroke: #334155; stroke-width: 1; rx: 6px; }
+      .btn-secondary-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #CBD5E1; text-anchor: middle; }
+      .btn-accent { fill: #3B82F6; stroke: #2563EB; stroke-width: 1; rx: 6px; }
+      .btn-accent-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #FFFFFF; text-anchor: middle; }
+      .btn-danger { fill: #450A0A; stroke: #991B1B; stroke-width: 1; rx: 6px; }
+      .btn-danger-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #FCA5A5; text-anchor: middle; }
+      .badge-wire { fill: #1E293B; stroke: #334155; stroke-width: 1; rx: 4px; }
+      .badge-text { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 600; fill: #94A3B8; text-anchor: middle; }
+      .badge-role { fill: #1E3A8A; stroke: #3B82F6; stroke-width: 1; rx: 4px; }
+      .badge-role-text { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 700; fill: #93C5FD; text-anchor: middle; }
+      .input-box { fill: #0B0F19; stroke: #334155; stroke-width: 1.5; rx: 6px; }
+      .input-bg { fill: #0F172A; stroke: #1E293B; stroke-width: 1; rx: 6px; }
+      .input-text { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; fill: #F1F5F9; }
+      .input-placeholder { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; fill: #64748B; }
+      .avatar-box { fill: #1E293B; stroke: #475569; stroke-width: 1.5; }
+      .avatar-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #E2E8F0; text-anchor: middle; }
+      .media-ph { fill: #0F172A; stroke: #334155; stroke-width: 1.5; stroke-dasharray: 4,4; rx: 6px; }
+      .media-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 600; fill: #94A3B8; text-anchor: middle; }
+      .alert-error { fill: #2D1214; stroke: #7F1D1D; stroke-width: 1.5; rx: 6px; }
+      .alert-error-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 500; fill: #FCA5A5; }
+      .alert-info { fill: #0C1E3A; stroke: #1E40AF; stroke-width: 1.5; rx: 6px; }
+      .alert-info-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 500; fill: #93C5FD; }
+      .footer-bar { fill: #030712; stroke: #1F2937; stroke-width: 1; }
+      .footer-text { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; font-weight: 500; fill: #64748B; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1440" height="900" class="bg" />
+
+  <!-- Top Metadata Bar -->
+  <rect x="0" y="0" width="1440" height="38" class="meta-bar" />
+  <text x="24" y="24" class="meta-text">AloUTE WIREFRAME [07-search] — SEARCH &amp; MULTI-CATEGORY RESULTS</text>
+  <text x="1416" y="24" class="meta-sub" text-anchor="end">Owner: Phạm Minh Quân  •  Week 1 UI Design Evidence  •  Dark University Theme  •  1440×900</text>
+
+
+    <!-- Global Navbar (Y: 38 - 92) -->
+    <rect x="0" y="38" width="1440" height="54" class="nav-bg" />
+    <text x="40" y="72" class="brand-title">AloUTE</text>
+    <rect x="125" y="58" width="70" height="20" class="badge-wire" />
+    <text x="160" y="72" class="badge-text">HCMUTE</text>
+    <text x="205" y="72" class="text-muted">University Social Network</text>
+
+    <!-- Global Search -->
+    <rect x="800" y="50" width="360" height="32" class="input-bg" />
+    <text x="815" y="71" class="input-placeholder">🔍 Search posts, people, communities...</text>
+
+    <!-- Nav Items -->
+
+        <text x="360" y="70" font-family="system-ui, sans-serif" font-size="14px" font-weight="500" fill="#94A3B8">Home</text>
+
+        <text x="440" y="70" font-family="system-ui, sans-serif" font-size="14px" font-weight="500" fill="#94A3B8">Community</text>
+
+        <text x="550" y="70" font-family="system-ui, sans-serif" font-size="14px" font-weight="500" fill="#94A3B8">Messages</text>
+
+        <text x="655" y="70" font-family="system-ui, sans-serif" font-size="14px" font-weight="500" fill="#94A3B8">Notifications</text>
+
+
+    <!-- Notification Badge -->
+    <circle cx="760" cy="62" r="8" fill="#EF4444" />
+    <text x="760" y="66" font-family="system-ui, sans-serif" font-size="10px" font-weight="700" fill="#FFFFFF" text-anchor="middle">3</text>
+
+    <!-- User Profile Chip -->
+    <rect x="1200" y="47" width="200" height="36" class="card-subtle" rx="18" />
+    <circle cx="1220" cy="65" r="14" class="avatar-box" />
+    <text x="1220" y="69" class="avatar-text">MQ</text>
+    <text x="1242" y="69" class="text-bold">Minh Quân</text>
+    <text x="1380" y="69" class="text-muted">▼</text>
+
+    <!-- LEFT COLUMN (X: 40, Y: 105, Width: 260) -->
+    <g id="left-column">
+      <!-- Mini Profile -->
+      <rect x="40" y="105" width="260" height="235" class="card" />
+      <rect x="40" y="105" width="260" height="60" fill="#1E293B" rx="8" />
+      <circle cx="90" cy="165" r="28" class="avatar-box" stroke-width="3" stroke="#131B2A" />
+      <text x="90" y="171" class="avatar-text" font-size="16px">PQ</text>
+
+      <text x="130" y="180" class="text-title" font-size="15px">Phạm Minh Quân</text>
+      <text x="130" y="196" class="text-muted">@quan_pm</text>
+
+      <text x="56" y="222" class="text-body" font-size="12px">Software Engineering Student</text>
+      <text x="56" y="238" class="text-muted" font-size="11px">Faculty of IT • HCMUTE K22</text>
+
+      <line x1="56" y1="250" x2="284" y2="250" stroke="#233148" />
+      <text x="56" y="270" class="text-bold">356</text>
+      <text x="82" y="270" class="text-muted" font-size="12px">Followers</text>
+      <text x="160" y="270" class="text-bold">210</text>
+      <text x="186" y="270" class="text-muted" font-size="12px">Following</text>
+
+      <rect x="56" y="285" width="228" height="32" class="btn-secondary" />
+      <text x="170" y="306" class="btn-secondary-text" font-size="12px">View Full Profile</text>
+
+      <!-- Navigation Card -->
+      <rect x="40" y="355" width="260" height="295" class="card" />
+      <text x="56" y="380" class="text-section">Navigation</text>
+      <line x1="56" y1="392" x2="284" y2="392" stroke="#233148" />
+
+        <rect x="52" y="157" width="236" height="34" class="card-hover" fill="#172554" stroke="#2563EB"/>
+        <text x="64" y="179" font-family="system-ui, sans-serif" font-size="14px">🏠</text>
+        <text x="92" y="179" font-family="system-ui, sans-serif" font-size="13px" font-weight="700" fill="#3B82F6">Home Feed</text>
+        <rect x="52" y="197" width="236" height="34" class="card-hover" fill="#172554" stroke="#2563EB"/>
+        <text x="64" y="219" font-family="system-ui, sans-serif" font-size="14px">👥</text>
+        <text x="92" y="219" font-family="system-ui, sans-serif" font-size="13px" font-weight="700" fill="#3B82F6">Communities</text>
+        <rect x="52" y="237" width="236" height="34" class="card-hover" fill="#172554" stroke="#2563EB"/>
+        <text x="64" y="259" font-family="system-ui, sans-serif" font-size="14px">💬</text>
+        <text x="92" y="259" font-family="system-ui, sans-serif" font-size="13px" font-weight="700" fill="#3B82F6">Messages (2)</text>
+        <rect x="52" y="277" width="236" height="34" class="card-hover" fill="#172554" stroke="#2563EB"/>
+        <text x="64" y="299" font-family="system-ui, sans-serif" font-size="14px">🔔</text>
+        <text x="92" y="299" font-family="system-ui, sans-serif" font-size="13px" font-weight="700" fill="#3B82F6">Notifications (3)</text>
+        <rect x="52" y="317" width="236" height="34" class="card-hover" fill="#172554" stroke="#2563EB"/>
+        <text x="64" y="339" font-family="system-ui, sans-serif" font-size="14px">👤</text>
+        <text x="92" y="339" font-family="system-ui, sans-serif" font-size="13px" font-weight="700" fill="#3B82F6">My Profile</text>
+        <rect x="52" y="357" width="236" height="34" class="card-hover" fill="#172554" stroke="#2563EB"/>
+        <text x="64" y="379" font-family="system-ui, sans-serif" font-size="14px">🔖</text>
+        <text x="92" y="379" font-family="system-ui, sans-serif" font-size="13px" font-weight="700" fill="#3B82F6">Saved Bookmarks</text>
+
+      <rect x="56" y="600" width="228" height="36" class="btn-primary" />
+      <text x="170" y="623" class="btn-primary-text">+ Create New Post</text>
+
+      <!-- Layout Annotation Card -->
+      <rect x="40" y="665" width="260" height="85" class="card-subtle" />
+      <text x="52" y="685" class="text-section" font-size="12px">📌 Layout Annotation</text>
+      <text x="52" y="703" class="text-muted" font-size="11px">Desktop: 260px Left Sidebar</text>
+      <text x="52" y="720" class="text-muted" font-size="11px">Tablet: Compact Icon Bar (64px)</text>
+      <text x="52" y="737" class="text-muted" font-size="11px">Mobile: Bottom App Bar / Menu</text>
+    </g>
+    <!-- CENTER COLUMN: Search Hub & Multi-Category Results (X: 320, Y: 105, Width: 760) -->
+    <g id="center-column">
+      <!-- Search Input Card -->
+      <rect x="320" y="105" width="760" height="80" class="card" />
+      <rect x="340" y="125" width="580" height="42" class="input-box" />
+      <text x="360" y="151" class="input-text">🔍 CNPM K22</text>
+      <text x="900" y="151" class="text-muted" font-size="14px">✕</text>
+
+      <rect x="935" y="125" width="130" height="42" class="btn-primary" />
+      <text x="1000" y="151" class="btn-primary-text" font-size="14px">Search</text>
+
+      <!-- Category Filter Tabs -->
+      <rect x="320" y="195" width="760" height="44" class="card" />
+
+      <text x="370" y="222" class="text-muted">People (12)</text>
+
+      <text x="500" y="222" class="text-bold" fill="#3B82F6">Posts (45)</text>
+      <line x1="480" y1="236" x2="570" y2="236" stroke="#3B82F6" stroke-width="2"/>
+
+      <text x="640" y="222" class="text-muted">Communities (4)</text>
+      <text x="790" y="222" class="text-muted">Topics (8)</text>
+
+      <!-- Results Stream for Active Tab "Posts" -->
+      <!-- Result Item 1 -->
+      <rect x="320" y="250" width="760" height="135" class="card" />
+      <circle cx="350" cy="275" r="16" class="avatar-box" />
+      <text x="350" y="279" class="avatar-text">NN</text>
+      <text x="375" y="272" class="text-bold">TS. Nguyễn Duy Ngọc</text>
+      <text x="375" y="288" class="text-muted" font-size="11px">@ngoc_nd  •  2 hours ago  •  In Khoa CNTT</text>
+
+      <text x="340" y="316" class="text-body">Kế hoạch báo cáo tiến độ đồ án môn học <tspan font-weight="700" fill="#3B82F6">CNPM K22</tspan> đã được cập nhật...</text>
+      <text x="340" y="334" class="text-body">Các nhóm chuẩn bị nộp báo cáo wireframe và sequence diagram theo kế hoạch.</text>
+
+      <text x="340" y="365" class="text-muted" font-size="12px">👍 54 Likes   •   💬 18 Replies   •   Topic: #ThongBaoKhoa</text>
+
+      <!-- Result Item 2 -->
+      <rect x="320" y="395" width="760" height="135" class="card" />
+      <circle cx="350" cy="420" r="16" class="avatar-box" />
+      <text x="350" y="424" class="avatar-text">PQ</text>
+      <text x="375" y="417" class="text-bold">Phạm Minh Quân</text>
+      <text x="375" y="433" class="text-muted" font-size="11px">@quan_pm  •  1 day ago  •  Public</text>
+
+      <text x="340" y="461" class="text-body">Tài liệu phân tích và thiết kế hệ thống AloUTE nhóm 13 lớp <tspan font-weight="700" fill="#3B82F6">CNPM K22</tspan>...</text>
+      <text x="340" y="479" class="text-body">Tổng hợp 10 màn hình wireframe SVG theo đúng chuẩn Word kế hoạch.</text>
+
+      <text x="340" y="510" class="text-muted" font-size="12px">👍 28 Likes   •   💬 7 Replies   •   Topic: #CongNghePhanMem</text>
+
+      <!-- Result Item 3 (Community Match Highlight) -->
+      <rect x="320" y="540" width="760" height="95" class="card" />
+      <circle cx="355" cy="580" r="20" class="avatar-box" />
+      <text x="355" y="584" class="avatar-text">SE</text>
+      <text x="390" y="572" class="text-bold">CLB Phần Mềm - Nhóm Học Tập <tspan font-weight="700" fill="#3B82F6">CNPM K22</tspan></text>
+      <text x="390" y="590" class="text-muted" font-size="12px">850 members  •  Nhóm thảo luận đồ án và chia sẻ tài liệu thực hành</text>
+      <rect x="970" y="565" width="95" height="32" class="btn-secondary" />
+      <text x="1017" y="586" class="btn-secondary-text">Join Club</text>
+
+      <!-- Pagination / Load More Button -->
+      <rect x="560" y="648" width="280" height="34" class="btn-secondary" />
+      <text x="700" y="670" class="btn-secondary-text">Load More Results (Page 1 of 5)</text>
+
+      <!-- Empty Result State Specification (Annotated Wireframe Box) -->
+      <rect x="320" y="695" width="760" height="115" class="card-subtle" />
+      <text x="340" y="718" class="text-section" font-size="13px">🔍∅ Empty Result State Specification (Display when query returns 0 matches):</text>
+      <circle cx="370" cy="762" r="22" class="badge-wire" />
+      <text x="370" y="768" font-family="system-ui, sans-serif" font-size="18px" fill="#94A3B8" text-anchor="middle">∅</text>
+      <text x="410" y="754" class="text-bold" font-size="13px">No results found for &quot;xyz999_query&quot;</text>
+      <text x="410" y="774" class="text-muted" font-size="12px">Check your spelling, try broader campus keywords, or browse by category tabs above.</text>
+    </g>
+    <!-- RIGHT COLUMN: Search Scope & Guidelines (X: 1100, Y: 105, Width: 300) -->
+    <g id="right-column">
+      <!-- Search Scope Rules -->
+      <rect x="1100" y="105" width="300" height="235" class="card" />
+      <text x="1116" y="130" class="text-section">Search Scope &amp; Rules</text>
+      <line x1="1116" y1="142" x2="1384" y2="142" stroke="#233148" />
+
+      <text x="1116" y="165" class="text-bold" font-size="12px">Search Scope:</text>
+      <text x="1116" y="180" class="text-muted" font-size="11px">Internal HCMUTE campus content only</text>
+
+      <text x="1116" y="205" class="text-bold" font-size="12px">4 Category Tabs:</text>
+      <text x="1116" y="220" class="text-muted" font-size="11px">People, Posts, Communities, Topics</text>
+
+      <rect x="1116" y="240" width="268" height="85" class="card-subtle" />
+      <text x="1126" y="260" class="text-section" font-size="11px">🛡️ Scope Boundary Note</text>
+      <text x="1126" y="278" class="text-muted" font-size="11px">• No Boolean operators (AND/OR/NOT)</text>
+      <text x="1126" y="294" class="text-muted" font-size="11px">• No recommendation AI ranking</text>
+      <text x="1126" y="310" class="text-muted" font-size="11px">• Standard keyword &amp; prefix matching</text>
+
+      <!-- Recent Searches -->
+      <rect x="1100" y="355" width="300" height="180" class="card" />
+      <text x="1116" y="380" class="text-section">Recent Searches</text>
+      <line x1="1116" y1="392" x2="1384" y2="392" stroke="#233148" />
+
+      <text x="1116" y="415" class="text-body" font-size="12px">🕒 CNPM K22</text>
+      <text x="1116" y="440" class="text-body" font-size="12px">🕒 Thầy Nguyễn Duy Ngọc</text>
+      <text x="1116" y="465" class="text-body" font-size="12px">🕒 Đồ án tốt nghiệp</text>
+      <text x="1116" y="490" class="text-body" font-size="12px">🕒 CLB Phần Mềm SE</text>
+
+      <!-- Popular Topics -->
+      <rect x="1100" y="550" width="300" height="160" class="card" />
+      <text x="1116" y="575" class="text-section">Popular Topics</text>
+      <line x1="1116" y1="587" x2="1384" y2="587" stroke="#233148" />
+      <text x="1116" y="612" class="text-bold" font-size="12px">#DoAnTotNghiep</text>
+      <text x="1116" y="635" class="text-bold" font-size="12px">#DangKyMonHoc</text>
+      <text x="1116" y="658" class="text-bold" font-size="12px">#LichThiHocKy</text>
+    </g>
+
+  <!-- Bottom Responsive & Evidence Ribbon -->
+  <rect x="0" y="865" width="1440" height="35" class="footer-bar" />
+  <text x="24" y="887" class="footer-text">Responsive Layout: Desktop: Left (260px) | Center (760px) | Right (300px) • Tablet: Left + Center • Mobile: Center only</text>
+  <text x="1416" y="887" class="footer-text" text-anchor="end">Week 1 Wireframe Specification  •  Modern University Social Network  •  Dark Theme Mockup</text>
+</svg>
