@@ -3,24 +3,21 @@
 <body>
 <nav th:fragment="navbar" class="navbar navbar-expand aloute-navbar" aria-label="Thanh điều hướng chính">
     <div class="container-fluid d-flex align-items-center justify-content-between px-0">
-        <!-- Brand + primary university social navigation -->
-        <div class="d-flex align-items-center gap-3 flex-grow-1 min-w-0">
-            <a class="navbar-brand d-flex align-items-center gap-2 flex-shrink-0" th:href="@{/feed}" href="/feed">
+        <!-- Brand & Campus Identifier (Canonical /feed route) -->
+        <div class="d-flex align-items-center gap-3">
+            <a class="navbar-brand d-flex align-items-center gap-2" th:href="@{/feed}" href="/feed">
                 <span class="fs-4 fw-bold">Alo<span class="text-primary">UTE</span></span>
-                <span class="badge-brand">HCMUTE</span>
+                <span class="badge-brand">Campus</span>
             </a>
 
-            <nav class="d-none d-lg-flex aloute-top-nav" aria-label="Điều hướng nhanh">
-                <a th:href="@{/feed}" class="aloute-top-nav-link active">Home</a>
-                <a href="#" data-action="community" class="aloute-top-nav-link">Community</a>
-                <a href="#" data-action="messages" class="aloute-top-nav-link">Messages</a>
-                <a href="#" data-action="notifications" class="aloute-top-nav-link position-relative">Notifications<span class="nav-dot">3</span></a>
-            </nav>
-
-            <div class="d-none d-md-block aloute-search-box ms-auto" role="search">
+            <!-- Search affordance (Presentational non-submitting search box) -->
+            <div class="d-none d-sm-block aloute-search-box" role="search">
                 <span class="bi bi-search aloute-search-icon" aria-hidden="true"></span>
-                <input class="form-control aloute-search-input" type="search" name="q"
-                       placeholder="Search posts, people, communities..." aria-label="Tìm kiếm nội dung">
+                <input class="form-control aloute-search-input"
+                       type="search"
+                       name="q"
+                       placeholder="Tìm kiếm bài viết, chủ đề..."
+                       aria-label="Tìm kiếm nội dung">
             </div>
         </div>
 
