@@ -40,6 +40,8 @@ public final class SecurityWhitelist {
             "/images/**",
             "/webjars/**",
             "/favicon.ico",
-            "/error"
+            "/error",
+            "/khoi-test",
+            "/khoi-test/**"
     };
 }

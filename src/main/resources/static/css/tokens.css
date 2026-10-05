@@ -1,53 +1,77 @@
-/** AloUTE dark university design tokens — aligned with Week 1 wireframes. */
+/**
+ * AloUTE Design Tokens
+ * Source of truth: UI_DESIGN_SYSTEM.md & WEEK2_UI_STYLE_DECISION.md
+ * Modern University Social Network — Light Campus Style
+ */
+
 :root {
-  --aloute-bg-body: #0b0f19;
-  --aloute-bg-surface: #131b2a;
-  --aloute-bg-surface-elevated: #172235;
-  --aloute-bg-surface-hover: #1b2940;
-  --aloute-bg-surface-active: #22324c;
-  --aloute-border-color: #263650;
-  --aloute-border-subtle: #1e2b40;
-  --aloute-border-strong: #344760;
+  /* Surfaces & Backgrounds */
+  --aloute-bg-body: #f8fafc;
+  --aloute-bg-surface: #ffffff;
+  --aloute-bg-surface-elevated: #ffffff;
+  --aloute-bg-surface-hover: #f1f5f9;
+  --aloute-bg-surface-active: #e2e8f0;
+
+  /* Borders & Dividers */
+  --aloute-border-color: #e2e8f0;
+  --aloute-border-subtle: #f1f5f9;
+  --aloute-border-strong: #cbd5e1;
   --aloute-border-focus: #2563eb;
-  --aloute-focus-ring: 0 0 0 3px rgba(37,99,235,.28);
-  --aloute-text-primary: #f1f5f9;
-  --aloute-text-secondary: #c4cddd;
-  --aloute-text-muted: #8898b2;
+  --aloute-focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.25);
+
+  /* Typography / Text Colors */
+  --aloute-text-primary: #0f172a;
+  --aloute-text-secondary: #475569;
+  --aloute-text-muted: #64748b;
   --aloute-text-inverse: #ffffff;
-  --aloute-accent: #2f6ff2;
-  --aloute-accent-hover: #4b82f5;
-  --aloute-accent-active: #1d4ed8;
-  --aloute-accent-subtle: #172d58;
+
+  /* Accent Colors (Academic Blue) */
+  --aloute-accent: #2563eb;
+  --aloute-accent-hover: #1d4ed8;
+  --aloute-accent-active: #1e40af;
+  --aloute-accent-subtle: #eff6ff;
   --aloute-accent-contrast: #ffffff;
-  --aloute-success: #22c55e;
-  --aloute-success-bg: #0f2c20;
-  --aloute-success-border: #1d5a3c;
-  --aloute-danger: #f87171;
-  --aloute-danger-bg: #35191d;
-  --aloute-danger-border: #6b2a34;
-  --aloute-warning: #fbbf24;
-  --aloute-warning-bg: #33280d;
-  --aloute-warning-border: #675018;
-  --aloute-info: #60a5fa;
-  --aloute-info-bg: #102844;
-  --aloute-info-border: #214e80;
-  --aloute-container-max: 1440px;
+
+  /* Status Colors */
+  --aloute-success: #16a34a;
+  --aloute-success-bg: #f0fdf4;
+  --aloute-success-border: #bbf7d0;
+  --aloute-danger: #dc2626;
+  --aloute-danger-bg: #fef2f2;
+  --aloute-danger-border: #fecaca;
+  --aloute-warning: #d97706;
+  --aloute-warning-bg: #fffbeb;
+  --aloute-warning-border: #fde68a;
+  --aloute-info: #0284c7;
+  --aloute-info-bg: #f0f9ff;
+  --aloute-info-border: #bae6fd;
+
+  /* Layout Boundaries */
+  --aloute-container-max: 1280px;
   --aloute-sidebar-left-width: 260px;
-  --aloute-feed-max-width: 760px;
-  --aloute-sidebar-right-width: 300px;
+  --aloute-feed-max-width: 660px;
+  --aloute-sidebar-right-width: 320px;
   --aloute-navbar-height: 64px;
-  --aloute-space-xs: .25rem;
-  --aloute-space-sm: .5rem;
+
+  /* Spacing */
+  --aloute-space-xs: 0.25rem;
+  --aloute-space-sm: 0.5rem;
   --aloute-space-md: 1rem;
   --aloute-space-lg: 1.5rem;
   --aloute-space-xl: 2rem;
+
+  /* Border Radii */
   --aloute-radius-sm: 6px;
   --aloute-radius-md: 10px;
-  --aloute-radius-lg: 12px;
+  --aloute-radius-lg: 14px;
   --aloute-radius-full: 9999px;
-  --aloute-shadow-sm: 0 1px 2px rgba(0,0,0,.22);
-  --aloute-shadow-md: 0 6px 20px rgba(0,0,0,.25);
-  --aloute-shadow-lg: 0 16px 38px rgba(0,0,0,.35);
+
+  /* Light Elevation & Shadows */
+  --aloute-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --aloute-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --aloute-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+
+  /* Transitions */
   --aloute-transition-fast: 150ms ease-in-out;
   --aloute-transition-normal: 250ms ease-in-out;
 }
