@@ -13,6 +13,7 @@
    - Các file SVG đóng vai trò là wireframe/mockup cấu trúc, thông tin, phân bố không gian, input/output và luồng tương tác cơ bản.
    - **Không phải mã nguồn ứng dụng**: Không thay đổi hoặc thay thế template Thymeleaf, CSS, JS runtime.
    - **Không sửa đổi backend/database**: Không can thiệp Spring Boot, Controller, Service, Repository, Entity hay JWT/Security.
+   - **Bảo tồn bằng chứng lịch sử Tuần 1**: Bảng màu tối (Dark Palette) thể hiện trong 10 file SVG này là bằng chứng thiết kế đã hoàn thành và đóng băng trong Tuần 1. Đối với quá trình hiện thực hóa giao diện Tuần 2, định hướng trực quan chính thức được phê duyệt là **Modern University Social Network — Light Campus Style** (đặc tả tại `UI_DESIGN_SYSTEM.md` và `WEEK2_UI_STYLE_DECISION.md`). Toàn bộ file SVG được giữ nguyên vẹn để bảo toàn tính xác thực của artifact lịch sử; bảng màu sáng trong Design System là nguồn thẩm quyền duy nhất cho quá trình hiện thực hóa Tuần 2.
 
 2. **Định hướng thiết kế**:
    - **Phong cách**: *Modern University Social Network* — Mạng xã hội học thuật chuyên nghiệp cho sinh viên và giảng viên Trường Đại học Sư phạm Kỹ thuật TP.HCM (HCMUTE).
@@ -45,10 +46,12 @@
 
 ---
 
-## 3. Hệ thống trực quan của Wireframe (Dark Visual Direction)
+## 3. Hệ thống trực quan của Wireframe (Week 1 Historical Dark Evidence)
+
+> **Lưu ý chuyển tiếp thẩm quyền (Week 2 Style Authority)**: Các thông số màu tối bên dưới mô tả hiện trạng các artifact SVG Tuần 1 đóng vai trò bằng chứng lịch sử (Historical Design Evidence). Bảng màu sáng chính thức (Modern University Social Network — Light Campus Style: nền sáng `#F8FAFC`, thẻ trắng `#FFFFFF`, viền `#E2E8F0`, accent `#2563EB`) được quy định trong `UI_DESIGN_SYSTEM.md` và `WEEK2_UI_STYLE_DECISION.md` là nguồn thẩm quyền duy nhất (authoritative baseline) cho việc triển khai mã nguồn giao diện Tuần 2.
 
 - **Canvas Dimension**: `1440 × 900` px.
-- **Màu sắc wireframe tối chuẩn (Đồng bộ với UI Design System & tokens.css)**:
+- **Màu sắc wireframe tối chuẩn (Bằng chứng lịch sử Tuần 1)**:
   - Nền canvas tối chuyên nghiệp: `#0B0F19` (Dark body background).
   - Khối thẻ / Card surface: `#131B2A` viền `#233148` (Slate dark borders), bo góc `rx="8px"`.
   - Thanh trạng thái / Metadata: `#030712`, chữ sáng `#F8FAFC`, phụ `#64748B`.
