@@ -83,7 +83,7 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--aloute-accent);
 }
 
-.aloute-navbar .badge-brand {
+.badge-brand {
   background-color: var(--aloute-accent);
   color: var(--aloute-accent-contrast);
   font-size: 0.75rem;
@@ -515,6 +515,11 @@ h1, h2, h3, h4, h5, h6 {
   border-color: var(--aloute-border-focus);
   color: var(--aloute-text-secondary);
   text-decoration: none;
+}
+
+.post-permissions-panel {
+  background-color: var(--aloute-bg-surface-elevated);
+  border: 1px solid var(--aloute-border-subtle);
 }
 
 /* ==========================================================================
@@ -1084,9 +1089,18 @@ h1, h2, h3, h4, h5, h6 {
 
   .profile-actions .btn {
     flex: 1;
-    min-height: 42px;
+    min-height: 44px;
     padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
+  }
+
+  .interaction-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .auth-card .btn {
+    min-height: 44px;
   }
 
   .profile-nav-tabs .nav-link {
@@ -1108,5 +1122,19 @@ h1, h2, h3, h4, h5, h6 {
   .aloute-card {
     overflow-wrap: break-word;
     word-break: break-word;
+  }
+}
+
+/* ==========================================================================
+   Accessibility: Reduced Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none;
+    animation: none;
+    scroll-behavior: auto;
   }
 }
