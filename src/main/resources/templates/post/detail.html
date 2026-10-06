@@ -25,6 +25,7 @@
 
     <!-- Main Post Content -->
     <div th:if="${post != null}">
+        <h1 class="visually-hidden">Chi tiết bài viết</h1>
         <!-- Post Card Presentation -->
         <div th:replace="~{post/_post-card :: postCard(post=${post})}"></div>
 

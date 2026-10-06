@@ -75,3 +75,10 @@
   --aloute-transition-fast: 150ms ease-in-out;
   --aloute-transition-normal: 250ms ease-in-out;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --aloute-transition-fast: 0ms;
+    --aloute-transition-normal: 0ms;
+  }
+}
