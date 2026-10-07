@@ -30,7 +30,7 @@ public class NotificationController {
     ) {
         Long currentUserId = currentUserProvider.requireUserId();
         Page<NotificationResponse> page = notificationService.getNotifications(currentUserId, filter, pageable);
-        return ApiResponse.success(page.getContent(), PageMeta.from(page));
+        return ApiResponse.page(page.getContent(), PageMeta.from(page));
     }
 
     @GetMapping("/unread-count")
