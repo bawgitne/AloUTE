@@ -1,0 +1,37 @@
+@startuml
+title ALOUTE - Sequence Xác thực Kết nối STOMP WebSocket (Bằng phụ trách)
+
+actor "Trình duyệt (Browser Client)" as Client
+boundary "SockJS / Native WebSocket" as WS
+control "Nginx Reverse Proxy" as Nginx
+control "StompAuthChannelInterceptor" as Interceptor
+control "JwtTokenProvider" as JWT
+control "CustomUserDetailsService" as UDS
+database "UserRepository" as UserRepo
+control "SimpleMessageBroker" as Broker
+
+Client -> WS: 1. Khởi tạo kết nối HTTP Upgrade tới /ws
+WS -> Nginx: GET /ws (Upgrade: websocket)
+Nginx -> WS: 101 Switching Protocols\n(Reverse Proxy pass qua Spring Boot)
+
+Client -> Interceptor: 2. Gửi STOMP CONNECT Frame\nHeaders: Authorization: Bearer <jwt> hoặc cookie aloute_access_token
+Interceptor -> JWT: parseUserId(token)
+
+alt Token hợp lệ và còn hạn
+    JWT --> Interceptor: userId
+    Interceptor -> UDS: loadById(userId)
+    UDS -> UserRepo: findById(userId)
+    UserRepo --> UDS: User entity
+    UDS --> Interceptor: UserPrincipal
+    
+    Interceptor -> Interceptor: Gán Authentication(UserPrincipal) vào StompHeaderAccessor.setUser()
+    Interceptor --> Broker: Cho phép CONNECT
+    Broker --> Client: STOMP CONNECTED Frame\n(session-id, heart-beat)
+    
+    note over Client, Broker: Client bắt đầu SUBSCRIBE các topic cá nhân:\n/user/queue/messages\n/user/queue/notifications
+else Token không hợp lệ / Hết hạn
+    JWT --> Interceptor: JwtException
+    Interceptor --> Client: STOMP ERROR Frame (401 Unauthorized)\nĐóng kết nối WebSocket
+end
+
+@enduml
