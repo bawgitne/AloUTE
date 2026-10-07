@@ -33,7 +33,7 @@ public class ConversationController {
     ) {
         Long currentUserId = currentUserProvider.requireUserId();
         Page<ConversationResponse> page = conversationService.getConversations(currentUserId, pageable);
-        return ApiResponse.success(page.getContent(), PageMeta.fromPage(page));
+        return ApiResponse.success(page.getContent(), PageMeta.from(page));
     }
 
     @PostMapping
@@ -61,7 +61,7 @@ public class ConversationController {
     ) {
         Long currentUserId = currentUserProvider.requireUserId();
         Page<MessageResponse> page = conversationService.getMessages(conversationId, currentUserId, pageable);
-        return ApiResponse.success(page.getContent(), PageMeta.fromPage(page));
+        return ApiResponse.success(page.getContent(), PageMeta.from(page));
     }
 
     @PostMapping("/{conversationId}/messages")
