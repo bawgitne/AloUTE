@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="836" viewBox="0 0 1400 836">
+<defs><marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#1e293b"/></marker></defs>
+<style>text{font-family:Arial,Helvetica,sans-serif;fill:#0f172a}.title{font-size:20px;font-weight:700}.p{font-size:13px;font-weight:600}.m{font-size:12px;fill:#1e293b}.box{fill:#f8fafc;stroke:#334155;stroke-width:1.5}.life{stroke:#94a3b8;stroke-dasharray:5 5}.arrow{stroke:#1e293b;stroke-width:1.4;marker-end:url(#arrow)}.return{stroke:#64748b;stroke-width:1.2;stroke-dasharray:4 4;marker-end:url(#arrow)}</style>
+<text class="title" x="700.0" y="42" text-anchor="middle">ALOUTE — Sequence Gửi tin nhắn & Realtime Chat (Bằng - Tuần 2)</text>
+<rect class="box" x="25.555555555555557" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="95.55555555555556" y="106" text-anchor="middle">User A (Sender)</text>
+<line class="life" x1="95.55555555555556" y1="122" x2="95.55555555555556" y2="806"/>
+<rect class="box" x="176.66666666666669" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="246.66666666666669" y="106" text-anchor="middle">UI A</text>
+<line class="life" x1="246.66666666666669" y1="122" x2="246.66666666666669" y2="806"/>
+<rect class="box" x="327.77777777777777" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="397.77777777777777" y="106" text-anchor="middle">ConvController</text>
+<line class="life" x1="397.77777777777777" y1="122" x2="397.77777777777777" y2="806"/>
+<rect class="box" x="478.8888888888889" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="548.8888888888889" y="106" text-anchor="middle">CurrentUser</text>
+<line class="life" x1="548.8888888888889" y1="122" x2="548.8888888888889" y2="806"/>
+<rect class="box" x="630.0" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="700.0" y="106" text-anchor="middle">ConvService</text>
+<line class="life" x1="700.0" y1="122" x2="700.0" y2="806"/>
+<rect class="box" x="781.1111111111111" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="851.1111111111111" y="106" text-anchor="middle">MemberRepo</text>
+<line class="life" x1="851.1111111111111" y1="122" x2="851.1111111111111" y2="806"/>
+<rect class="box" x="932.2222222222223" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="1002.2222222222223" y="106" text-anchor="middle">MessageRepo / DB</text>
+<line class="life" x1="1002.2222222222223" y1="122" x2="1002.2222222222223" y2="806"/>
+<rect class="box" x="1083.3333333333335" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="1153.3333333333335" y="106" text-anchor="middle">STOMP Broker</text>
+<line class="life" x1="1153.3333333333335" y1="122" x2="1153.3333333333335" y2="806"/>
+<rect class="box" x="1234.4444444444446" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="1304.4444444444446" y="106" text-anchor="middle">UI B (Recipient)</text>
+<line class="life" x1="1304.4444444444446" y1="122" x2="1304.4444444444446" y2="806"/>
+<line class="arrow" x1="95.55555555555556" y1="160" x2="246.66666666666669" y2="160"/>
+<text class="m" x="171.11111111111111" y="153" text-anchor="middle">1. Nhập tin nhắn, nhấn Gửi</text>
+<line class="arrow" x1="246.66666666666669" y1="204" x2="397.77777777777777" y2="204"/>
+<text class="m" x="322.22222222222223" y="197" text-anchor="middle">2. POST /api/conversations/{id}/messages</text>
+<line class="arrow" x1="397.77777777777777" y1="248" x2="548.8888888888889" y2="248"/>
+<text class="m" x="473.33333333333337" y="241" text-anchor="middle">3. requireUserId()</text>
+<line class="return" x1="548.8888888888889" y1="292" x2="397.77777777777777" y2="292"/>
+<text class="m" x="473.33333333333337" y="285" text-anchor="middle">4. senderId (hoặc 401 Unauthorized)</text>
+<line class="arrow" x1="397.77777777777777" y1="336" x2="700.0" y2="336"/>
+<text class="m" x="548.8888888888889" y="329" text-anchor="middle">5. sendMessage(convId, senderId, request)</text>
+<line class="arrow" x1="700.0" y1="380" x2="851.1111111111111" y2="380"/>
+<text class="m" x="775.5555555555555" y="373" text-anchor="middle">6. existsByConversationIdAndUserId() -> kiểm tra tư cách thành viên</text>
+<line class="return" x1="851.1111111111111" y1="424" x2="700.0" y2="424"/>
+<text class="m" x="775.5555555555555" y="417" text-anchor="middle">7. true (hợp lệ) / 403 Forbidden (nếu không phải member)</text>
+<line class="arrow" x1="700.0" y1="468" x2="1002.2222222222223" y2="468"/>
+<text class="m" x="851.1111111111111" y="461" text-anchor="middle">8. [Persist-Before-Publish] save(Message [conv_id, sender_id, content])</text>
+<line class="return" x1="1002.2222222222223" y1="512" x2="700.0" y2="512"/>
+<text class="m" x="851.1111111111111" y="505" text-anchor="middle">9. Message entity persisted (id, createdAt)</text>
+<line class="arrow" x1="700.0" y1="556" x2="1153.3333333333335" y2="556"/>
+<text class="m" x="926.6666666666667" y="549" text-anchor="middle">10. convertAndSendToUser(recipientId, "/queue/messages", MessageResponse)</text>
+<line class="arrow" x1="1153.3333333333335" y1="600" x2="1304.4444444444446" y2="600"/>
+<text class="m" x="1228.8888888888891" y="593" text-anchor="middle">11. STOMP MESSAGE /user/queue/messages</text>
+<line class="return" x1="700.0" y1="644" x2="397.77777777777777" y2="644"/>
+<text class="m" x="548.8888888888889" y="637" text-anchor="middle">12. MessageResponse DTO</text>
+<line class="return" x1="397.77777777777777" y1="688" x2="246.66666666666669" y2="688"/>
+<text class="m" x="322.22222222222223" y="681" text-anchor="middle">13. 201 Created + ApiResponse<MessageResponse></text>
+<line class="return" x1="246.66666666666669" y1="732" x2="95.55555555555556" y2="732"/>
+<text class="m" x="171.11111111111111" y="725" text-anchor="middle">14. Hiển thị tin nhắn gửi thành công</text>
+</svg>
