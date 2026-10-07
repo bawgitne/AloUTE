@@ -1,0 +1,53 @@
+@startuml
+title ALOUTE - Sequence Gửi tin nhắn & Realtime Chat (Tuần 2 - Bằng phụ trách)
+
+actor "Người gửi (Sender)" as UserA
+boundary "Messaging UI" as UI_A
+control "ConversationController" as Controller
+control "CurrentUserProvider" as AuthProvider
+control "ConversationService" as ConvService
+database "ConversationMemberRepo" as MemberRepo
+database "MessageRepo / DB" as MessageRepo
+control "SimpMessagingTemplate" as Broker
+actor "Người nhận (Recipient)" as UserB
+boundary "Recipient UI" as UI_B
+
+UserA -> UI_A: Nhập tin nhắn, nhấn "Gửi"
+UI_A -> Controller: POST /api/conversations/{id}/messages\n(SendMessageRequest [content])
+
+Controller -> AuthProvider: requireUserId()
+alt Chưa xác thực
+    AuthProvider --> Controller: 401 Unauthorized
+    Controller --> UI_A: 401 ErrorEnvelope
+else Đã xác thực
+    AuthProvider --> Controller: senderId
+    Controller -> ConvService: sendMessage(conversationId, senderId, request)
+    
+    ConvService -> MemberRepo: existsByConversationIdAndUserId(convId, senderId)
+    alt Không phải thành viên cuộc trò chuyện
+        MemberRepo --> ConvService: false
+        ConvService --> Controller: 403 FORBIDDEN
+        Controller --> UI_A: 403 ErrorEnvelope
+    else Hợp lệ
+        MemberRepo --> ConvService: true
+        
+        note over ConvService, MessageRepo: Nguyên tắc "Persist-Before-Publish":\nLưu vào CSDL trước khi gửi qua WebSocket
+        ConvService -> MessageRepo: save(Message [conversation_id, sender_id, content])
+        MessageRepo --> ConvService: Message entity (id, createdAt)
+        
+        ConvService -> MemberRepo: findMemberUserIds(conversationId)
+        MemberRepo --> ConvService: List<recipientId>
+        
+        loop Với từng thành viên trong cuộc trò chuyện (khác sender)
+            ConvService -> Broker: convertAndSendToUser(\n  recipientId,\n  "/queue/messages",\n  MessageResponse\n)
+            Broker -> UI_B: STOMP MESSAGE /user/queue/messages
+            UI_B -> UserB: Hiển thị tin nhắn realtime + âm báo
+        end
+        
+        ConvService --> Controller: MessageResponse
+        Controller --> UI_A: 201 Created + ApiResponse<MessageResponse>
+        UI_A --> UserA: Hiển thị tin nhắn đã gửi thành công
+    end
+end
+
+@enduml

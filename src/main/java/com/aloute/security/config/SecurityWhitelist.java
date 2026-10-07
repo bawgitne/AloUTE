@@ -42,6 +42,8 @@ public final class SecurityWhitelist {
             "/favicon.ico",
             "/error",
             "/khoi-test",
-            "/khoi-test/**"
+            "/khoi-test/**",
+            "/ws",
+            "/ws/**"
     };
 }

@@ -1,0 +1,39 @@
+@startuml
+title ALOUTE - Sequence Thông báo thời gian thực & Đánh dấu đã đọc (Tuần 2 - Bằng phụ trách)
+
+actor "Tác nhân (Actor)" as Actor
+control "Domain Service\n(PostService/SocialService)" as DomainService
+control "NotificationService" as NotifService
+database "NotificationRepo / DB" as NotifRepo
+control "SimpMessagingTemplate" as Broker
+boundary "Notification UI" as UI
+actor "Người nhận (Recipient)" as Recipient
+
+== 1. Phát sinh thông báo tự động (Ví dụ: Thích bài viết, Bình luận, Follow) ==
+
+Actor -> DomainService: Tương tác (Like, Reply, Follow)
+DomainService -> NotifService: createNotification(\n  recipientId, actorId, type, targetType, targetId, preview\n)
+
+alt recipientId == actorId (Tự tương tác với chính mình)
+    NotifService -> NotifService: Bỏ qua, không tạo thông báo trùng
+else recipientId != actorId
+    note over NotifService, NotifRepo: Persist-Before-Publish
+    NotifService -> NotifRepo: save(Notification [is_read=false])
+    NotifRepo --> NotifService: Notification persisted (id, createdAt)
+    
+    NotifService -> Broker: convertAndSendToUser(\n  recipientId,\n  "/queue/notifications",\n  NotificationResponse\n)
+    Broker -> UI: STOMP MESSAGE /user/queue/notifications
+    UI -> Recipient: Toast thông báo + Tăng badge số lượng chưa đọc (+1)
+end
+
+== 2. Đánh dấu thông báo đã đọc ==
+
+Recipient -> UI: Click vào thông báo hoặc nhấn "Đánh dấu tất cả đã đọc"
+UI -> NotifService: PATCH /api/notifications/{id}/read
+NotifService -> NotifRepo: findByIdAndRecipientId(id, recipientId)
+NotifRepo --> NotifService: Notification
+NotifService -> NotifRepo: update is_read = true
+NotifService --> UI: 200 OK + ApiResponse<NotificationResponse>
+UI -> Recipient: Giảm badge số thông báo chưa đọc (-1)
+
+@enduml
