@@ -71,6 +71,91 @@
         }
     }
 
+    // Safely translate stable backend error codes/messages to Vietnamese
+    function translateError(error, defaultMsg) {
+        if (!error) return defaultMsg || 'Đã xảy ra lỗi.';
+        if (window.console && typeof window.console.warn === 'function') {
+            window.console.warn('[AloUTE] Backend error diagnostic:', error);
+        }
+        const code = error.code;
+        const message = error.message;
+
+        if (code === 'AUTH_INVALID_CREDENTIALS') return 'Email hoặc mật khẩu không chính xác.';
+        if (code === 'AUTH_FORBIDDEN') return 'Bạn không có quyền thực hiện thao tác này.';
+        if (code === 'AUTH_TOKEN_EXPIRED') return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+        if (code === 'USER_NOT_FOUND') return 'Không tìm thấy thông tin người dùng.';
+        if (code === 'USER_INACTIVE') return 'Tài khoản người dùng đã bị khóa hoặc chưa kích hoạt.';
+        if (code === 'USER_USERNAME_ALREADY_EXISTS') return 'Tên người dùng đã tồn tại.';
+        if (code === 'USER_EMAIL_ALREADY_EXISTS') return 'Địa chỉ email đã được sử dụng.';
+        if (code === 'VALIDATION_FAILED') return 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.';
+        if (code === 'INTERNAL_SERVER_ERROR') return 'Hệ thống đang gặp sự cố. Vui lòng thử lại sau.';
+        if (code === 'ACCESS_DENIED') return 'Bạn không có quyền thực hiện thao tác này.';
+
+        // Safe translations for known English messages
+        if (message === 'Invalid email or password' || message === 'Invalid credentials' || message === 'Bad credentials') {
+            return 'Email hoặc mật khẩu không chính xác.';
+        }
+        if (message === 'Operation is not permitted' || message === 'Access is denied' || message === 'Access Denied') {
+            return 'Bạn không có quyền thực hiện thao tác này.';
+        }
+        if (message === 'User not found') {
+            return 'Không tìm thấy thông tin người dùng.';
+        }
+        if (message === 'Username already exists') {
+            return 'Tên người dùng đã tồn tại.';
+        }
+        if (message === 'Email already exists') {
+            return 'Địa chỉ email đã được sử dụng.';
+        }
+        if (message === 'Validation failed') {
+            return 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.';
+        }
+
+        // Generic Vietnamese status fallback, suppressing raw unknown English/technical messages
+        return defaultMsg || 'Đã xảy ra lỗi không xác định. Vui lòng thử lại sau.';
+    }
+
+    // Safely translate raw backend field errors to Vietnamese with generic fallbacks
+    function translateFieldError(field, rawMsgs) {
+        if (window.console && typeof window.console.warn === 'function') {
+            window.console.warn('[AloUTE] Field validation error diagnostic:', field, rawMsgs);
+        }
+        const text = (Array.isArray(rawMsgs) ? rawMsgs.join(' ') : String(rawMsgs || '')).toLowerCase();
+
+        // Pattern matching for standard Spring / Hibernate validator messages
+        if (text.includes('blank') || text.includes('empty') || text.includes('không được để trống') || text.includes('required')) {
+            if (field === 'email') return 'Vui lòng nhập email.';
+            if (field === 'password') return 'Vui lòng nhập mật khẩu.';
+            if (field === 'username') return 'Vui lòng nhập tên người dùng.';
+            if (field === 'confirmPassword') return 'Vui lòng nhập lại mật khẩu.';
+            return 'Trường này không được để trống.';
+        }
+
+        if (text.includes('email') || text.includes('định dạng') || text.includes('format')) {
+            return 'Email không đúng định dạng.';
+        }
+
+        if (text.includes('size') || text.includes('length') || text.includes('ký tự')) {
+            if (field === 'username') return 'Tên người dùng phải từ 3 đến 50 ký tự (có thể chứa dấu cách).';
+            if (field === 'password') return 'Mật khẩu phải có từ 8 đến 128 ký tự.';
+            return 'Độ dài trường dữ liệu không hợp lệ.';
+        }
+
+        if (text.includes('match') || text.includes('khớp')) {
+            return 'Mật khẩu xác nhận không khớp.';
+        }
+
+        // Generic Vietnamese field fallbacks
+        const genericFallbacks = {
+            'email': 'Email không hợp lệ.',
+            'password': 'Mật khẩu không hợp lệ.',
+            'username': 'Tên người dùng không hợp lệ.',
+            'confirmPassword': 'Mật khẩu xác nhận không hợp lệ.'
+        };
+
+        return genericFallbacks[field] || 'Dữ liệu không hợp lệ.';
+    }
+
     function setSubmitting(btn, isSubmitting, loadingText, defaultText, iconId, spinnerId) {
         if (!btn) return;
         btn.disabled = isSubmitting;
@@ -146,22 +231,25 @@
             setSubmitting(submitBtn, false, 'Đang đăng nhập...', 'Đăng nhập', 'login-icon', 'login-spinner');
 
             if (response.status === 401) {
-                const msg = (body && body.error && body.error.message) || 'Email hoặc mật khẩu không chính xác.';
+                const msg = translateError(body && body.error, 'Email hoặc mật khẩu không chính xác.');
                 statusBox(msg, 'danger');
                 if (passwordInput) {
                     passwordInput.value = '';
                     passwordInput.focus();
                 }
+            } else if (response.status === 403) {
+                const msg = translateError(body && body.error, 'Bạn không có quyền thực hiện thao tác này.');
+                statusBox(msg, 'danger');
             } else if (response.status === 422) {
                 if (body && body.error && body.error.fieldErrors) {
                     for (const [field, msgs] of Object.entries(body.error.fieldErrors)) {
-                        setFieldError(field, Array.isArray(msgs) ? msgs.join(', ') : String(msgs));
+                        setFieldError(field, translateFieldError(field, msgs));
                     }
                 }
-                const msg = (body && body.error && body.error.message) || 'Thông tin đăng nhập không hợp lệ.';
+                const msg = translateError(body && body.error, 'Thông tin đăng nhập không hợp lệ.');
                 statusBox(msg, 'danger');
             } else {
-                const msg = (body && body.error && body.error.message) || ('Đăng nhập thất bại (HTTP ' + response.status + ').');
+                const msg = translateError(body && body.error, 'Đăng nhập thất bại (HTTP ' + response.status + ').');
                 statusBox(msg, 'danger');
             }
         } catch (error) {
@@ -190,7 +278,7 @@
             setFieldError('username', 'Vui lòng nhập tên người dùng.');
             hasError = true;
         } else if (username.length < 3 || username.length > 50) {
-            setFieldError('username', 'Tên người dùng phải có từ 3 đến 50 ký tự.');
+            setFieldError('username', 'Tên người dùng phải có từ 3 đến 50 ký tự (có thể chứa dấu cách).');
             hasError = true;
         }
 
@@ -257,23 +345,26 @@
 
             if (response.status === 409) {
                 const code = body && body.error && body.error.code;
-                const msg = (body && body.error && body.error.message) || 'Tài khoản hoặc email đã tồn tại.';
+                const msg = translateError(body && body.error, 'Tài khoản hoặc email đã tồn tại.');
                 if (code === 'USER_USERNAME_ALREADY_EXISTS') {
                     setFieldError('username', msg);
                 } else if (code === 'USER_EMAIL_ALREADY_EXISTS') {
                     setFieldError('email', msg);
                 }
                 statusBox(msg, 'danger');
+            } else if (response.status === 403) {
+                const msg = translateError(body && body.error, 'Bạn không có quyền thực hiện thao tác này.');
+                statusBox(msg, 'danger');
             } else if (response.status === 422) {
                 if (body && body.error && body.error.fieldErrors) {
                     for (const [field, msgs] of Object.entries(body.error.fieldErrors)) {
-                        setFieldError(field, Array.isArray(msgs) ? msgs.join(', ') : String(msgs));
+                        setFieldError(field, translateFieldError(field, msgs));
                     }
                 }
-                const msg = (body && body.error && body.error.message) || 'Dữ liệu đăng ký không hợp lệ.';
+                const msg = translateError(body && body.error, 'Dữ liệu đăng ký không hợp lệ.');
                 statusBox(msg, 'danger');
             } else {
-                const msg = (body && body.error && body.error.message) || ('Đăng ký thất bại (HTTP ' + response.status + ').');
+                const msg = translateError(body && body.error, 'Đăng ký thất bại (HTTP ' + response.status + ').');
                 statusBox(msg, 'danger');
             }
         } catch (error) {

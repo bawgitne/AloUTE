@@ -29,6 +29,17 @@
         </div>
     </div>
 
+    <!-- Mobile Primary Navigation Offcanvas (Accessible drawer for <= 767px) -->
+    <div class="offcanvas offcanvas-start d-md-none" tabindex="-1" id="mobileNavOffcanvas" aria-labelledby="mobileNavOffcanvasLabel">
+        <div class="offcanvas-header border-bottom">
+            <span class="offcanvas-title fw-bold fs-5" id="mobileNavOffcanvasLabel">Alo<span class="text-primary">UTE</span> <span class="badge-brand">Campus</span></span>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Đóng menu điều hướng"></button>
+        </div>
+        <div class="offcanvas-body">
+            <div th:replace="~{fragments/sidebar :: sidebar}"></div>
+        </div>
+    </div>
+
     <!-- Page Actions & Global Interactivity JS -->
     <script th:src="@{/js/page-actions.js}" src="/js/page-actions.js" defer></script>
 </body>
