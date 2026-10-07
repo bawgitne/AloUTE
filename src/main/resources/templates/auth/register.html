@@ -3,9 +3,12 @@
       th:replace="~{layouts/auth :: layout(title='Đăng ký tài khoản', content=~{::#register-content})}">
 <body>
 <div id="register-content">
-    <!-- Registration Form (Neutralized presentational form hook; pending backend registration action) -->
-    <form action="#" onsubmit="return false;" data-action="register" class="needs-validation" novalidate>
-        <!-- Form-Level Error Feedback if any -->
+    <!-- Semantic Registration Form -->
+    <form id="register-form" data-action="register" class="needs-validation" novalidate>
+        <!-- Accessible Status Feedback Region -->
+        <div id="auth-status" class="alert d-none py-2 small mb-3" role="status" aria-live="polite"></div>
+
+        <!-- Server-rendered registration error if any -->
         <div th:if="${registrationError != null}" class="alert alert-danger py-2 small mb-3" role="alert">
             <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>
             <span th:text="${registrationError}">Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.</span>
@@ -23,13 +26,11 @@
                    minlength="3"
                    maxlength="50"
                    autocomplete="username"
+                   aria-describedby="username-help username-feedback"
+                   aria-invalid="false"
                    required>
-            <div class="form-text">Tên người dùng viết liền không dấu, chỉ gồm chữ cái và số.</div>
-            <div th:if="${fieldErrors != null and fieldErrors.username != null}"
-                 class="invalid-feedback d-block"
-                 th:text="${fieldErrors.username}">
-                Tên người dùng không hợp lệ.
-            </div>
+            <div id="username-help" class="form-text">Tên người dùng viết liền không dấu, từ 3 đến 50 ký tự.</div>
+            <div class="invalid-feedback d-none" id="username-feedback">Tên người dùng từ 3 đến 50 ký tự.</div>
         </div>
 
         <!-- Email Field -->
@@ -43,12 +44,10 @@
                    placeholder="user@student.hcmute.edu.vn"
                    maxlength="254"
                    autocomplete="email"
+                   aria-describedby="email-feedback"
+                   aria-invalid="false"
                    required>
-            <div th:if="${fieldErrors != null and fieldErrors.email != null}"
-                 class="invalid-feedback d-block"
-                 th:text="${fieldErrors.email}">
-                Email không hợp lệ hoặc đã tồn tại.
-            </div>
+            <div class="invalid-feedback d-none" id="email-feedback">Email không hợp lệ hoặc đã tồn tại.</div>
         </div>
 
         <!-- Password Field -->
@@ -62,12 +61,11 @@
                    minlength="8"
                    maxlength="128"
                    autocomplete="new-password"
+                   aria-describedby="password-help password-feedback"
+                   aria-invalid="false"
                    required>
-            <div th:if="${fieldErrors != null and fieldErrors.password != null}"
-                 class="invalid-feedback d-block"
-                 th:text="${fieldErrors.password}">
-                Mật khẩu phải có ít nhất 8 ký tự.
-            </div>
+            <div id="password-help" class="form-text">Mật khẩu từ 8 đến 128 ký tự.</div>
+            <div class="invalid-feedback d-none" id="password-feedback">Mật khẩu phải từ 8 đến 128 ký tự.</div>
         </div>
 
         <!-- Confirm Password Field -->
@@ -81,22 +79,26 @@
                    minlength="8"
                    maxlength="128"
                    autocomplete="new-password"
+                   aria-describedby="confirmPassword-feedback"
+                   aria-invalid="false"
                    required>
+            <div class="invalid-feedback d-none" id="confirmPassword-feedback">Mật khẩu xác nhận không khớp.</div>
         </div>
 
         <!-- Submit Button -->
         <div class="d-grid mb-3">
-            <button type="button" class="btn btn-primary py-2 fw-semibold" data-action="register">
-                <i class="bi bi-person-plus me-1" aria-hidden="true"></i>
-                <span>Tạo tài khoản</span>
+            <button type="submit" class="btn btn-primary py-2 fw-semibold" id="register-submit-btn" data-action="register">
+                <span class="spinner-border spinner-border-sm d-none me-1" id="register-spinner" role="status" aria-hidden="true"></span>
+                <i class="bi bi-person-plus me-1" id="register-icon" aria-hidden="true"></i>
+                <span id="register-btn-text">Tạo tài khoản</span>
             </button>
         </div>
 
-        <!-- Switch to Login Link (Presentational hook) -->
+        <!-- Switch to Login Link -->
         <div class="text-center pt-2 border-top border-secondary-subtle">
             <p class="small text-secondary mb-0">
                 Đã có tài khoản AloUTE?
-                <a href="#" data-page="auth-login" data-action="navigate-login" class="fw-semibold text-primary">Đăng nhập</a>
+                <a th:href="@{/login}" href="/login" data-page="auth-login" data-action="navigate-login" class="fw-semibold text-primary">Đăng nhập</a>
             </p>
         </div>
     </form>
