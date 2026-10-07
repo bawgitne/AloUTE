@@ -1,0 +1,44 @@
+@startuml
+title ALOUTE - Sequence Thuật toán Xếp hạng & Gợi ý Bài viết (Feed Recommendation - Bằng phụ trách)
+
+actor "Người dùng" as User
+boundary "Feed UI" as UI
+control "FeedController" as Controller
+control "CurrentUserProvider" as AuthProvider
+control "FeedRecommendationService" as RecService
+database "PostRepository" as PostRepo
+database "FollowRepository" as FollowRepo
+database "UserTopicRepository" as TopicRepo
+
+User -> UI: Mở trang chủ Feed
+UI -> Controller: GET /api/feed/home?page=0&size=20
+
+Controller -> AuthProvider: requireUserId()
+AuthProvider --> Controller: currentUserId
+
+Controller -> RecService: getPersonalizedFeed(currentUserId, pageable)
+
+== 1. Lọc danh sách ứng viên (Candidate Generation) ==
+RecService -> PostRepo: findRecentActiveCandidates(limit=100)
+PostRepo --> RecService: List<PostCandidate>
+
+== 2. Tính toán các tín hiệu xếp hạng (Signal Computation) ==
+RecService -> FollowRepo: findFollowingUserIds(currentUserId)
+FollowRepo --> RecService: Set<authorId> (Social Signal)
+
+RecService -> TopicRepo: findFollowedTopicIds(currentUserId)
+TopicRepo --> RecService: Set<topicId> (Topic Affinity Signal)
+
+== 3. Chấm điểm đa chiều (Multi-Criteria Scoring) ==
+loop Với từng bài viết ứng viên P
+    RecService -> RecService: 1. Tính RecencyScore(P) theo Exponential Decay\n2. Tính SocialScore(P, U) (Following / Mutual / Community)\n3. Tính TopicAffinity(P, U) theo Cosine Similarity\n4. Tính EngagementScore(P) (Like, Reply, Repost)\n5. Tổng hợp Score(P, U) = w_r*R + w_s*S + w_t*T + w_e*E
+end
+
+== 4. Xếp hạng và Đa dạng hóa (Ranking & Diversity) ==
+RecService -> RecService: Sắp xếp giảm dần theo Score\nÁp dụng Rule tránh trùng lặp cùng tác giả liên tiếp
+RecService --> Controller: Page<PostResponse>
+
+Controller --> UI: 200 OK + ApiResponse<List<PostResponse>>
+UI --> User: Hiển thị bảng tin cá nhân hóa mượt mà
+
+@enduml
