@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="880" viewBox="0 0 1400 880">
+<defs><marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#1e293b"/></marker></defs>
+<style>text{font-family:Arial,Helvetica,sans-serif;fill:#0f172a}.title{font-size:20px;font-weight:700}.p{font-size:13px;font-weight:600}.m{font-size:12px;fill:#1e293b}.box{fill:#f8fafc;stroke:#334155;stroke-width:1.5}.life{stroke:#94a3b8;stroke-dasharray:5 5}.arrow{stroke:#1e293b;stroke-width:1.4;marker-end:url(#arrow)}.return{stroke:#64748b;stroke-width:1.2;stroke-dasharray:4 4;marker-end:url(#arrow)}</style>
+<text class="title" x="700.0" y="42" text-anchor="middle">ALOUTE — Sequence Thích bài viết (Bằng)</text>
+<rect class="box" x="35.0" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="105.0" y="106" text-anchor="middle">User</text>
+<line class="life" x1="105.0" y1="122" x2="105.0" y2="850"/>
+<rect class="box" x="205.0" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="275.0" y="106" text-anchor="middle">PostCard UI</text>
+<line class="life" x1="275.0" y1="122" x2="275.0" y2="850"/>
+<rect class="box" x="375.0" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="445.0" y="106" text-anchor="middle">PostController</text>
+<line class="life" x1="445.0" y1="122" x2="445.0" y2="850"/>
+<rect class="box" x="545.0" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="615.0" y="106" text-anchor="middle">CurrentUser</text>
+<line class="life" x1="615.0" y1="122" x2="615.0" y2="850"/>
+<rect class="box" x="715.0" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="785.0" y="106" text-anchor="middle">PostService</text>
+<line class="life" x1="785.0" y1="122" x2="785.0" y2="850"/>
+<rect class="box" x="885.0" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="955.0" y="106" text-anchor="middle">PostRepo</text>
+<line class="life" x1="955.0" y1="122" x2="955.0" y2="850"/>
+<rect class="box" x="1055.0" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="1125.0" y="106" text-anchor="middle">PostLikeRepo / DB</text>
+<line class="life" x1="1125.0" y1="122" x2="1125.0" y2="850"/>
+<rect class="box" x="1225.0" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="1295.0" y="106" text-anchor="middle">NotifService</text>
+<line class="life" x1="1295.0" y1="122" x2="1295.0" y2="850"/>
+<line class="arrow" x1="105.0" y1="160" x2="275.0" y2="160"/>
+<text class="m" x="190.0" y="153" text-anchor="middle">1. Click icon Tim (Like)</text>
+<line class="arrow" x1="275.0" y1="204" x2="445.0" y2="204"/>
+<text class="m" x="360.0" y="197" text-anchor="middle">2. PUT /api/posts/{id}/like</text>
+<line class="arrow" x1="445.0" y1="248" x2="615.0" y2="248"/>
+<text class="m" x="530.0" y="241" text-anchor="middle">3. requireUserId()</text>
+<line class="return" x1="615.0" y1="292" x2="445.0" y2="292"/>
+<text class="m" x="530.0" y="285" text-anchor="middle">4. currentUserId (hoặc 401 Unauthorized)</text>
+<line class="arrow" x1="445.0" y1="336" x2="785.0" y2="336"/>
+<text class="m" x="615.0" y="329" text-anchor="middle">5. likePost(postId, currentUserId)</text>
+<line class="arrow" x1="785.0" y1="380" x2="955.0" y2="380"/>
+<text class="m" x="870.0" y="373" text-anchor="middle">6. findById(postId) -> kiểm tra tồn tại / soft delete</text>
+<line class="return" x1="955.0" y1="424" x2="785.0" y2="424"/>
+<text class="m" x="870.0" y="417" text-anchor="middle">7. Post entity</text>
+<line class="arrow" x1="785.0" y1="468" x2="1125.0" y2="468"/>
+<text class="m" x="955.0" y="461" text-anchor="middle">8. existsByPostIdAndUserId(postId, currentUserId)</text>
+<line class="return" x1="1125.0" y1="512" x2="785.0" y2="512"/>
+<text class="m" x="955.0" y="505" text-anchor="middle">9. false (chưa like)</text>
+<line class="arrow" x1="785.0" y1="556" x2="1125.0" y2="556"/>
+<text class="m" x="955.0" y="549" text-anchor="middle">10. save(PostLike [post_id, user_id])</text>
+<line class="arrow" x1="785.0" y1="600" x2="955.0" y2="600"/>
+<text class="m" x="870.0" y="593" text-anchor="middle">11. incrementLikeCount(postId)</text>
+<line class="arrow" x1="785.0" y1="644" x2="1295.0" y2="644"/>
+<text class="m" x="1040.0" y="637" text-anchor="middle">12. createNotification(type=POST_LIKE, recipient=authorId)</text>
+<line class="return" x1="785.0" y1="688" x2="445.0" y2="688"/>
+<text class="m" x="615.0" y="681" text-anchor="middle">13. PostInteractionResponse [liked=true, likeCount+1]</text>
+<line class="return" x1="445.0" y1="732" x2="275.0" y2="732"/>
+<text class="m" x="360.0" y="725" text-anchor="middle">14. 200 OK + ApiResponse<PostInteractionResponse></text>
+<line class="return" x1="275.0" y1="776" x2="105.0" y2="776"/>
+<text class="m" x="190.0" y="769" text-anchor="middle">15. Cập nhật icon Tim đỏ + Tăng số lượt thích</text>
+</svg>

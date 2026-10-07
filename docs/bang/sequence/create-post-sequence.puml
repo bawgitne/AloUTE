@@ -1,0 +1,52 @@
+@startuml
+title ALOUTE - Sequence Tạo bài viết (Phần Bằng phụ trách)
+
+actor "Người dùng (Author)" as User
+boundary "CreatePost UI" as UI
+control "PostController" as Controller
+control "CurrentUserProvider" as AuthProvider
+control "PostService" as Service
+control "CommunityService" as CommService
+database "PostRepository / DB" as DB
+control "NotificationService" as NotifService
+
+User -> UI: Nhập nội dung, chọn media, topic/community, visibility
+UI -> Controller: POST /api/posts\n(CreatePostRequest)
+
+Controller -> AuthProvider: requireUserId()
+alt Chưa xác thực (Anonymous)
+    AuthProvider --> Controller: 401 Unauthorized
+    Controller --> UI: 401 ErrorEnvelope
+else Đã xác thực thành công
+    AuthProvider --> Controller: currentUserId
+    Controller -> Service: createPost(currentUserId, request)
+    
+    opt Đăng bài vào Community
+        Service -> CommService: validatePostingPermission(communityId, currentUserId)
+        alt Không phải thành viên hoặc bị cấm
+            CommService --> Service: 403 Forbidden
+            Service --> Controller: 403 COMMUNITY_ACCESS_DENIED
+            Controller --> UI: 403 ErrorEnvelope
+        end
+    end
+    
+    Service -> Service: validateContentAndVisibility(request)
+    alt Nội dung rỗng hoặc quá 500 ký tự
+        Service --> Controller: 422 VALIDATION_FAILED
+        Controller --> UI: 422 ErrorEnvelope
+    else Hợp lệ
+        Service -> DB: save(Post)\n[status=ACTIVE, author_id, content, visibility]
+        DB --> Service: Post (id, createdAt)
+        
+        opt Có đính kèm Media / Poll / Topics
+            Service -> DB: savePostMedia() / savePoll() / savePostTopics()
+            DB --> Service: Entities persisted
+        end
+        
+        Service --> Controller: PostResponse
+        Controller --> UI: 201 Created + ApiResponse<PostResponse>
+        UI --> User: Hiển thị bài viết mới trên Feed
+    end
+end
+
+@enduml

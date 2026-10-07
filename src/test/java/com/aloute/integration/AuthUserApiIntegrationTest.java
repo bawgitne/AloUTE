@@ -55,15 +55,19 @@ class AuthUserApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.username").value("friend_it"));
 
-        String setCookie = mockMvc.perform(post("/api/auth/login")
+        var loginResponse = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"khoi_it@example.com","password":"12345678"}
                                 """))
                 .andExpect(status().isOk())
-                .andReturn().getResponse().getHeader("Set-Cookie");
+                .andReturn().getResponse();
 
-        String token = setCookie.substring(setCookie.indexOf('=') + 1, setCookie.indexOf(';'));
+        String token = loginResponse.getHeaders("Set-Cookie").stream()
+                .filter(c -> c.startsWith("aloute_access_token="))
+                .findFirst()
+                .map(c -> c.substring("aloute_access_token=".length(), c.indexOf(';')))
+                .orElseThrow(() -> new IllegalStateException("Missing aloute_access_token cookie"));
 
         mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())

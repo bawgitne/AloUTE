@@ -1,0 +1,53 @@
+@startuml
+title ALOUTE - Sequence Bình luận / Trả lời bài viết (Phần Bằng phụ trách)
+
+actor "Người dùng" as User
+boundary "PostDetail UI" as UI
+control "PostController" as Controller
+control "CurrentUserProvider" as AuthProvider
+control "PostService" as Service
+database "PostRepository / DB" as PostRepo
+control "NotificationService" as NotifService
+
+User -> UI: Nhập nội dung bình luận, nhấn "Gửi"
+UI -> Controller: POST /api/posts/{id}/replies\n(CreateReplyRequest [content, mediaAssetIds])
+
+Controller -> AuthProvider: requireUserId()
+alt Chưa xác thực
+    AuthProvider --> Controller: 401 Unauthorized
+    Controller --> UI: 401 ErrorEnvelope
+else Đã xác thực
+    AuthProvider --> Controller: currentUserId
+    Controller -> Service: createReply(postId, currentUserId, request)
+    
+    Service -> PostRepo: findById(postId)
+    alt Không tìm thấy bài viết gốc
+        PostRepo --> Service: empty
+        Service --> Controller: 404 POST_NOT_FOUND
+        Controller --> UI: 404 ErrorEnvelope
+    else Bài viết tồn tại
+        PostRepo --> Service: Parent Post [author_id, reply_control, root_id]
+        
+        Service -> Service: checkReplyPermission(parentPost, currentUserId)
+        alt Không có quyền bình luận (ví dụ: chỉ người theo dõi được reply)
+            Service --> Controller: 403 REPLY_NOT_ALLOWED
+            Controller --> UI: 403 ErrorEnvelope
+        else Có quyền bình luận
+            Service -> PostRepo: save(ReplyPost [\n  content,\n  author_id=currentUserId,\n  parent_id=postId,\n  root_id=(parent.root_id ?: postId)\n])
+            PostRepo --> Service: ReplyPost (id, createdAt)
+            
+            Service -> PostRepo: incrementReplyCount(postId)
+            PostRepo --> Service: updated
+            
+            opt Người bình luận khác tác giả bài viết
+                Service -> NotifService: createNotification(\n  recipient=parentPost.authorId,\n  actor=currentUserId,\n  type=POST_REPLY,\n  targetId=replyPost.id\n)
+            end
+            
+            Service --> Controller: ReplyPostResponse
+            Controller --> UI: 201 Created + ApiResponse<PostResponse>
+            UI --> User: Hiển thị bình luận mới vào luồng thảo luận
+        end
+    end
+end
+
+@enduml
