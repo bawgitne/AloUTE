@@ -299,6 +299,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .sidebar-user-info {
   min-width: 0;
+  min-inline-size: 0;
   overflow: hidden;
 }
 
@@ -700,6 +701,10 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: var(--aloute-shadow-lg);
 }
 
+.auth-card .btn {
+  min-height: 44px;
+}
+
 .auth-brand {
   text-align: center;
   margin-bottom: var(--aloute-space-lg);
@@ -772,6 +777,7 @@ h1, h2, h3, h4, h5, h6 {
   align-items: flex-end;
   gap: var(--aloute-space-md);
   min-width: 0;
+  min-inline-size: 0;
 }
 
 .profile-actions {
@@ -782,7 +788,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .profile-actions .btn {
-  min-height: 38px;
+  min-height: 44px;
+  min-width: 120px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1123,6 +1130,22 @@ h1, h2, h3, h4, h5, h6 {
     overflow-wrap: break-word;
     word-break: break-word;
   }
+}
+
+/* Stable Action & Follow Button Touch Targets (>= 44px WCAG Target) */
+.aloute-follow-btn,
+.aloute-action-btn {
+  min-height: 44px;
+  min-width: 120px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Smallest project-owned semantic utility for flex shrink & truncation */
+.aloute-min-w-0 {
+  min-width: 0;
+  min-inline-size: 0;
 }
 
 /* ==========================================================================

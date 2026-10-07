@@ -1,103 +1,113 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layouts/default :: layout(title=${profile != null ? (profile.displayName != null ? profile.displayName : profile.username) : 'Hồ sơ người dùng'}, content=~{::#profile-content})}">
+      th:replace="~{layouts/default :: layout(title=${profile != null ? (profile.displayName != null and !profile.displayName.isEmpty() ? profile.displayName : profile.username) : 'Hồ sơ người dùng'}, content=~{::#profile-content})}">
 <body>
 <div id="profile-content">
     <!-- User Profile Header Card -->
     <header class="profile-header-card" aria-label="Thông tin hồ sơ cá nhân">
-        <!-- Profile Cover Banner (3:1 aspect ratio UI presentation placeholder) -->
+        <!-- Profile Cover Banner -->
         <div class="profile-cover" aria-hidden="true">
             <div class="profile-cover-placeholder"></div>
         </div>
 
         <div class="profile-header-body">
             <div class="profile-avatar-row">
-                <div class="profile-identity d-flex align-items-end gap-3 min-w-0">
+                <div class="profile-identity d-flex align-items-end gap-3 aloute-min-w-0">
                     <img th:src="${profile != null and profile.avatarUrl != null and !profile.avatarUrl.isEmpty()} ? ${profile.avatarUrl} : 'https://placehold.co/96x96/e2e8f0/475569?text=U'"
                          alt="Ảnh đại diện"
                          class="avatar-img profile-avatar rounded-circle flex-shrink-0"
                          width="88"
                          height="88">
-                    <div class="min-w-0 flex-grow-1">
+                    <div class="aloute-min-w-0 flex-grow-1">
                         <div class="d-flex align-items-center gap-2 flex-wrap">
                             <h1 class="fs-4 fw-bold mb-0 text-truncate"
+                                id="profile-display-name"
                                 th:text="${profile?.displayName ?: (profile?.username ?: 'Sinh viên AloUTE')}">
                                 Tên người dùng
                             </h1>
                             <i th:if="${profile != null and profile.isVerified}"
-                               class="bi bi-patch-check-fill text-primary flex-shrink-0"
-                               title="Tài khoản đã xác minh"
-                               aria-label="Tài khoản đã xác minh"></i>
+                                class="bi bi-patch-check-fill text-primary flex-shrink-0"
+                                title="Tài khoản đã xác minh"
+                                aria-label="Tài khoản đã xác minh"></i>
+                            <span th:if="${profile != null and profile.isPrivate}"
+                                  id="profile-private-badge"
+                                  class="badge bg-warning-subtle text-warning border border-warning-subtle small py-1 px-2">
+                                <i class="bi bi-lock-fill me-1" aria-hidden="true"></i>Riêng tư
+                            </span>
                         </div>
-                        <p class="text-muted mb-1 small text-truncate" th:text="'@' + ${profile?.username ?: 'sinhvien'}">@sinhvien</p>
+                        <p class="text-muted mb-1 small text-truncate"
+                           id="profile-username"
+                           th:text="'@' + ${profile?.username ?: 'sinhvien'}">@sinhvien</p>
                         <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle small py-1 px-2">Sinh viên HCMUTE</span>
                     </div>
                 </div>
 
-                <!-- Profile Actions based on capabilities (Presentational hooks) -->
-                <div class="profile-actions d-flex gap-2 flex-wrap">
-                    <!-- Edit Profile (if owner / canEdit capability or preview default) -->
-                    <button th:if="${profile == null or (profile.capabilities != null and profile.capabilities.canEdit)}"
+                <!-- Profile Actions: Derived from actual currentUser.id and profile.id -->
+                <div class="profile-actions d-flex gap-2 flex-wrap align-items-center">
+                    <!-- Edit Profile (Owner only: currentUser.id == profile.id) -->
+                    <button th:if="${currentUser != null and profile != null and currentUser.id == profile.id}"
                             type="button"
-                            class="btn btn-sm btn-outline-secondary"
-                            data-action="edit-profile">
+                            class="btn btn-sm btn-outline-secondary aloute-action-btn"
+                            id="btn-edit-profile"
+                            data-action="edit-profile"
+                            data-bs-toggle="modal"
+                            data-bs-target="#editProfileModal">
                         <i class="bi bi-pencil me-1" aria-hidden="true"></i>
                         <span>Chỉnh sửa hồ sơ</span>
                     </button>
 
-                    <!-- Follow / Action Button (if viewing another user) -->
-                    <button th:if="${profile != null and profile.capabilities != null and profile.capabilities.canFollow}"
+                    <!-- Follow Button (Other user: currentUser.id != profile.id; stable >=44px touch target) -->
+                    <button th:if="${currentUser != null and profile != null and currentUser.id != profile.id}"
                             type="button"
-                            class="btn btn-sm btn-primary"
-                            th:attr="data-action='follow',data-user-id=${profile.id != null ? profile.id : ''}">
-                        <i class="bi bi-person-plus me-1" aria-hidden="true"></i>
-                        <span>Theo dõi</span>
-                    </button>
-
-                    <!-- Message Button (canonical profile.capabilities.canMessage capability) -->
-                    <button th:if="${profile != null and profile.capabilities != null and profile.capabilities.canMessage}"
-                            type="button"
-                            class="btn btn-sm btn-secondary"
-                            data-action="message"
-                            th:attr="data-user-id=${profile.id != null ? profile.id : ''}">
-                        <i class="bi bi-chat-dots me-1" aria-hidden="true"></i>
-                        <span>Nhắn tin</span>
+                            class="btn btn-sm btn-primary aloute-follow-btn"
+                            id="btn-follow"
+                            data-action="toggle-follow"
+                            th:attr="data-user-id=${profile.id}, data-current-user-id=${currentUser.id}"
+                            aria-pressed="false"
+                            disabled>
+                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        <span>Đang tải...</span>
                     </button>
                 </div>
             </div>
 
-            <!-- Bio & Links -->
+            <!-- Bio & Links: Always present in DOM for in-place edit updates; hidden via d-none when empty -->
             <div class="profile-bio mb-3">
-                <p class="text-secondary mb-2 small text-break"
-                   th:if="${profile != null and profile.bio != null and !profile.bio.isEmpty()}"
-                   th:text="${profile.bio}">
-                    Sinh viên Đại học Sư phạm Kỹ thuật TP.HCM. Quan tâm đến Công nghệ thông tin và AI.
-                </p>
-                <div th:if="${profile != null and profile.website != null and !profile.website.isEmpty()}" class="small text-truncate">
+                <p id="profile-bio-text"
+                   class="text-secondary mb-2 small text-break"
+                   th:classappend="${profile == null or profile.bio == null or profile.bio.isEmpty()} ? 'd-none' : ''"
+                   th:text="${profile?.bio}"></p>
+                <div id="profile-website-container"
+                     class="small text-truncate"
+                     th:classappend="${profile == null or profile.website == null or profile.website.isEmpty()} ? 'd-none' : ''">
                     <i class="bi bi-link-45deg text-primary me-1" aria-hidden="true"></i>
-                    <a th:href="${profile.website}" target="_blank" rel="noopener noreferrer"
-                       class="text-secondary" th:text="${profile.website}">https://example.com</a>
+                    <a id="profile-website-link"
+                       th:href="${profile?.website}"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       class="text-secondary"
+                       th:text="${profile?.website}"></a>
                 </div>
             </div>
 
-            <!-- Counters & Stats Row (Supplied by ViewModel) -->
+            <!-- Counters & Stats Row (Supplied by ViewModel / ProfileResponse) -->
             <div class="profile-stats-row">
                 <div class="profile-stat-item">
-                    <span class="profile-stat-number" th:text="${profile != null and profile.postsCount != null ? profile.postsCount : 0}">0</span>
+                    <span id="profile-posts-count" class="profile-stat-number" th:text="${profile != null and profile.postsCount != null ? profile.postsCount : 0}">0</span>
                     <span class="profile-stat-label">Bài viết</span>
                 </div>
                 <div class="profile-stat-item">
-                    <span class="profile-stat-number" th:text="${profile != null and profile.followersCount != null ? profile.followersCount : 0}">0</span>
+                    <span id="profile-followers-count" class="profile-stat-number" th:text="${profile != null and profile.followersCount != null ? profile.followersCount : 0}">0</span>
                     <span class="profile-stat-label">Người theo dõi</span>
                 </div>
                 <div class="profile-stat-item">
-                    <span class="profile-stat-number" th:text="${profile != null and profile.followingCount != null ? profile.followingCount : 0}">0</span>
+                    <span id="profile-following-count" class="profile-stat-number" th:text="${profile != null and profile.followingCount != null ? profile.followingCount : 0}">0</span>
                     <span class="profile-stat-label">Đang theo dõi</span>
                 </div>
             </div>
         </div>
 
-        <!-- Profile Tabs (Presentational Navigation) -->
+        <!-- Profile Tabs -->
         <nav class="profile-nav-tabs" aria-label="Phân loại nội dung hồ sơ">
             <ul class="nav nav-tabs px-3 px-md-4" role="tablist">
                 <li class="nav-item" role="presentation">
@@ -145,18 +155,111 @@
             <p class="empty-state-desc">Người dùng này chưa đăng bài viết nào trên hệ thống AloUTE.</p>
         </div>
 
-        <!-- Render User's Post Cards -->
+        <!-- Render User's Post Cards if available -->
         <div th:if="${profilePosts != null and !#lists.isEmpty(profilePosts)}">
             <div th:each="postItem : ${profilePosts}">
                 <div th:replace="~{post/_post-card :: postCard(post=${postItem})}"></div>
             </div>
 
-            <!-- Profile Pagination using canonical /users/{id} when available -->
             <div th:if="${pageMeta != null}">
                 <div th:replace="~{fragments/pagination :: pagination(pageMeta=${pageMeta}, baseUrl=${profile != null and profile.id != null ? '/users/' + profile.id : '#'})}"></div>
             </div>
         </div>
     </section>
+
+    <!-- Edit Profile Modal (Rendered only for profile owner) -->
+    <div th:if="${currentUser != null and profile != null and currentUser.id == profile.id}"
+         class="modal fade"
+         id="editProfileModal"
+         tabindex="-1"
+         aria-labelledby="editProfileModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="editProfileModalLabel">Chỉnh sửa hồ sơ cá nhân</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <form id="edit-profile-form" novalidate>
+                    <div class="modal-body">
+                        <!-- Alert status for modal -->
+                        <div id="edit-profile-status" class="alert d-none py-2 small mb-3" role="alert" aria-live="polite"></div>
+
+                        <!-- Display Name -->
+                        <div class="mb-3">
+                            <label for="edit-display-name" class="form-label fw-semibold small">Tên hiển thị</label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="edit-display-name"
+                                   name="displayName"
+                                   maxlength="100"
+                                   th:value="${profile?.displayName}"
+                                   placeholder="Nhập tên hiển thị (tối đa 100 ký tự)"
+                                   aria-describedby="edit-displayName-error"
+                                   aria-invalid="false"
+                                   required>
+                            <div class="invalid-feedback d-none" id="edit-displayName-error">Tên hiển thị không được để trống khi gửi.</div>
+                        </div>
+
+                        <!-- Bio -->
+                        <div class="mb-3">
+                            <label for="edit-bio" class="form-label fw-semibold small">Giới thiệu ngắn (Bio)</label>
+                            <textarea class="form-control"
+                                      id="edit-bio"
+                                      name="bio"
+                                      rows="3"
+                                      maxlength="500"
+                                      placeholder="Viết vài dòng giới thiệu về bạn..."
+                                      th:text="${profile?.bio}"
+                                      aria-describedby="edit-bio-help edit-bio-error"
+                                      aria-invalid="false"></textarea>
+                            <div id="edit-bio-help" class="d-flex justify-content-between form-text small text-muted">
+                                <span>Tối đa 500 ký tự</span>
+                                <span><span id="bio-char-count">0</span>/500</span>
+                            </div>
+                            <div class="invalid-feedback d-none" id="edit-bio-error"></div>
+                        </div>
+
+                        <!-- Website -->
+                        <div class="mb-3">
+                            <label for="edit-website" class="form-label fw-semibold small">Website / Trang cá nhân</label>
+                            <input type="url"
+                                   class="form-control"
+                                   id="edit-website"
+                                   name="website"
+                                   placeholder="https://example.com"
+                                   th:value="${profile?.website}"
+                                   aria-describedby="edit-website-help edit-website-error"
+                                   aria-invalid="false">
+                            <div id="edit-website-help" class="form-text small text-muted">URL hợp lệ bắt đầu bằng http:// hoặc https://</div>
+                            <div class="invalid-feedback d-none" id="edit-website-error">Website phải là URL hợp lệ.</div>
+                        </div>
+
+                        <!-- Private Account Switch -->
+                        <div class="form-check form-switch mt-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   role="switch"
+                                   id="edit-is-private"
+                                   name="isPrivate"
+                                   th:checked="${profile?.isPrivate}">
+                            <label class="form-check-label fw-semibold small" for="edit-is-private">
+                                Tài khoản riêng tư
+                            </label>
+                            <div class="form-text small text-muted">Khi bật, chỉ những người được chấp thuận mới theo dõi bạn được.</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-primary btn-sm fw-semibold" id="btn-save-profile">
+                            <span class="spinner-border spinner-border-sm d-none me-1" id="save-profile-spinner" role="status" aria-hidden="true"></span>
+                            <span id="save-profile-btn-text">Lưu thay đổi</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 </body>
 </html>
