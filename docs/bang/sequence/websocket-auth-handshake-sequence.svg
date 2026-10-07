@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="748" viewBox="0 0 1400 748">
+<defs><marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#1e293b"/></marker></defs>
+<style>text{font-family:Arial,Helvetica,sans-serif;fill:#0f172a}.title{font-size:20px;font-weight:700}.p{font-size:13px;font-weight:600}.m{font-size:12px;fill:#1e293b}.box{fill:#f8fafc;stroke:#334155;stroke-width:1.5}.life{stroke:#94a3b8;stroke-dasharray:5 5}.arrow{stroke:#1e293b;stroke-width:1.4;marker-end:url(#arrow)}.return{stroke:#64748b;stroke-width:1.2;stroke-dasharray:4 4;marker-end:url(#arrow)}</style>
+<text class="title" x="700.0" y="42" text-anchor="middle">ALOUTE — Sequence Xác thực Kết nối WebSocket STOMP (Bằng - Tuần 3)</text>
+<rect class="box" x="47.14285714285714" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="117.14285714285714" y="106" text-anchor="middle">Browser Client</text>
+<line class="life" x1="117.14285714285714" y1="122" x2="117.14285714285714" y2="718"/>
+<rect class="box" x="241.42857142857144" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="311.42857142857144" y="106" text-anchor="middle">WebSocket / SockJS</text>
+<line class="life" x1="311.42857142857144" y1="122" x2="311.42857142857144" y2="718"/>
+<rect class="box" x="435.71428571428567" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="505.71428571428567" y="106" text-anchor="middle">Nginx Proxy</text>
+<line class="life" x1="505.71428571428567" y1="122" x2="505.71428571428567" y2="718"/>
+<rect class="box" x="630.0" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="700.0" y="106" text-anchor="middle">StompAuthInterceptor</text>
+<line class="life" x1="700.0" y1="122" x2="700.0" y2="718"/>
+<rect class="box" x="824.2857142857142" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="894.2857142857142" y="106" text-anchor="middle">JwtTokenProvider</text>
+<line class="life" x1="894.2857142857142" y1="122" x2="894.2857142857142" y2="718"/>
+<rect class="box" x="1018.5714285714284" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="1088.5714285714284" y="106" text-anchor="middle">UserDetailsService</text>
+<line class="life" x1="1088.5714285714284" y1="122" x2="1088.5714285714284" y2="718"/>
+<rect class="box" x="1212.857142857143" y="80" width="140" height="42" rx="6"/>
+<text class="p" x="1282.857142857143" y="106" text-anchor="middle">STOMP Broker</text>
+<line class="life" x1="1282.857142857143" y1="122" x2="1282.857142857143" y2="718"/>
+<line class="arrow" x1="117.14285714285714" y1="160" x2="311.42857142857144" y2="160"/>
+<text class="m" x="214.28571428571428" y="153" text-anchor="middle">1. Khởi tạo HTTP Upgrade tới /ws</text>
+<line class="arrow" x1="311.42857142857144" y1="204" x2="505.71428571428567" y2="204"/>
+<text class="m" x="408.57142857142856" y="197" text-anchor="middle">2. GET /ws (Upgrade: websocket)</text>
+<line class="return" x1="505.71428571428567" y1="248" x2="311.42857142857144" y2="248"/>
+<text class="m" x="408.57142857142856" y="241" text-anchor="middle">3. 101 Switching Protocols (Proxy pass)</text>
+<line class="arrow" x1="117.14285714285714" y1="292" x2="700.0" y2="292"/>
+<text class="m" x="408.57142857142856" y="285" text-anchor="middle">4. STOMP CONNECT Frame [Authorization: Bearer <token>]</text>
+<line class="arrow" x1="700.0" y1="336" x2="894.2857142857142" y2="336"/>
+<text class="m" x="797.1428571428571" y="329" text-anchor="middle">5. parseUserId(token)</text>
+<line class="return" x1="894.2857142857142" y1="380" x2="700.0" y2="380"/>
+<text class="m" x="797.1428571428571" y="373" text-anchor="middle">6. userId hợp lệ</text>
+<line class="arrow" x1="700.0" y1="424" x2="1088.5714285714284" y2="424"/>
+<text class="m" x="894.2857142857142" y="417" text-anchor="middle">7. loadById(userId)</text>
+<line class="return" x1="1088.5714285714284" y1="468" x2="700.0" y2="468"/>
+<text class="m" x="894.2857142857142" y="461" text-anchor="middle">8. UserPrincipal</text>
+<line class="arrow" x1="700.0" y1="512" x2="700.0" y2="512"/>
+<text class="m" x="700.0" y="505" text-anchor="middle">9. accessor.setUser(UsernamePasswordAuthenticationToken)</text>
+<line class="arrow" x1="700.0" y1="556" x2="1282.857142857143" y2="556"/>
+<text class="m" x="991.4285714285714" y="549" text-anchor="middle">10. Cho phép kết nối STOMP</text>
+<line class="return" x1="1282.857142857143" y1="600" x2="117.14285714285714" y2="600"/>
+<text class="m" x="700.0" y="593" text-anchor="middle">11. STOMP CONNECTED Frame [heart-beat, session-id]</text>
+<line class="arrow" x1="117.14285714285714" y1="644" x2="1282.857142857143" y2="644"/>
+<text class="m" x="700.0" y="637" text-anchor="middle">12. SUBSCRIBE /user/queue/messages & /user/queue/notifications</text>
+</svg>
