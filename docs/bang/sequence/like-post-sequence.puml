@@ -1,0 +1,56 @@
+@startuml
+title ALOUTE - Sequence Thích bài viết (Phần Bằng phụ trách)
+
+actor "Người dùng" as User
+boundary "PostCard UI" as UI
+control "PostController" as Controller
+control "CurrentUserProvider" as AuthProvider
+control "PostService" as Service
+database "PostRepository" as PostRepo
+database "PostLikeRepository / DB" as LikeRepo
+control "NotificationService" as NotifService
+
+User -> UI: Click nút Like trên Post Card
+UI -> Controller: PUT /api/posts/{id}/like
+
+Controller -> AuthProvider: requireUserId()
+alt Chưa xác thực
+    AuthProvider --> Controller: 401 Unauthorized
+    Controller --> UI: 401 ErrorEnvelope
+else Đã xác thực
+    AuthProvider --> Controller: currentUserId
+    Controller -> Service: likePost(postId, currentUserId)
+    
+    Service -> PostRepo: findById(postId)
+    alt Không tìm thấy bài viết hoặc bài đã bị xóa
+        PostRepo --> Service: empty
+        Service --> Controller: 404 POST_NOT_FOUND
+        Controller --> UI: 404 ErrorEnvelope
+    else Bài viết tồn tại
+        PostRepo --> Service: Post [author_id, isDeleted=false]
+        
+        Service -> LikeRepo: existsByPostIdAndUserId(postId, currentUserId)
+        alt Đã like trước đó (Idempotent)
+            LikeRepo --> Service: true
+            Service --> Controller: PostInteractionResponse [liked=true, likeCount]
+            Controller --> UI: 200 OK + ApiResponse<PostInteractionResponse>
+        else Chưa like
+            LikeRepo --> Service: false
+            Service -> LikeRepo: save(PostLike [postId, userId])
+            LikeRepo --> Service: PostLike saved
+            
+            Service -> PostRepo: incrementLikeCount(postId)
+            PostRepo --> Service: updated
+            
+            opt Người like khác tác giả bài viết (currentUserId != authorId)
+                Service -> NotifService: createNotification(\n  recipient=authorId,\n  actor=currentUserId,\n  type=POST_LIKE,\n  targetId=postId\n)
+            end
+            
+            Service --> Controller: PostInteractionResponse [liked=true, likeCount+1]
+            Controller --> UI: 200 OK + ApiResponse<PostInteractionResponse>
+            UI --> User: Cập nhật icon Tim đỏ + Tăng số lượt thích
+        end
+    end
+end
+
+@enduml
