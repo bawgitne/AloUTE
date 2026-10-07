@@ -12,13 +12,13 @@
 
         <div class="profile-header-body">
             <div class="profile-avatar-row">
-                <div class="profile-identity d-flex align-items-end gap-3 aloute-min-w-0">
+                <div class="profile-identity d-flex align-items-start gap-3 aloute-min-w-0">
                     <img th:src="${profile != null and profile.avatarUrl != null and !profile.avatarUrl.isEmpty()} ? ${profile.avatarUrl} : 'https://placehold.co/96x96/e2e8f0/475569?text=U'"
                          alt="Ảnh đại diện"
                          class="avatar-img profile-avatar rounded-circle flex-shrink-0"
                          width="88"
                          height="88">
-                    <div class="aloute-min-w-0 flex-grow-1">
+                    <div class="aloute-min-w-0 flex-grow-1 pt-2">
                         <div class="d-flex align-items-center gap-2 flex-wrap">
                             <h1 class="fs-4 fw-bold mb-0 text-truncate"
                                 id="profile-display-name"
@@ -109,28 +109,56 @@
 
         <!-- Profile Tabs -->
         <nav class="profile-nav-tabs" aria-label="Phân loại nội dung hồ sơ">
-            <ul class="nav nav-tabs px-3 px-md-4" role="tablist">
+            <ul class="nav nav-tabs px-3 px-md-4" id="profileTabList" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="tab-posts" type="button" role="tab" aria-selected="true">
+                    <button class="nav-link active"
+                            id="tab-posts"
+                            data-bs-toggle="tab"
+                            data-bs-target="#pane-posts"
+                            type="button"
+                            role="tab"
+                            aria-controls="pane-posts"
+                            aria-selected="true">
                         <i class="bi bi-file-text me-1" aria-hidden="true"></i>
                         <span>Bài viết</span>
                         <span class="badge bg-secondary-subtle text-secondary ms-1 small" th:text="${profile != null and profile.postsCount != null ? profile.postsCount : 0}">0</span>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="tab-replies" type="button" role="tab" aria-selected="false">
+                    <button class="nav-link"
+                            id="tab-replies"
+                            data-bs-toggle="tab"
+                            data-bs-target="#pane-replies"
+                            type="button"
+                            role="tab"
+                            aria-controls="pane-replies"
+                            aria-selected="false">
                         <i class="bi bi-chat-left-text me-1" aria-hidden="true"></i>
                         <span>Phản hồi</span>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="tab-media" type="button" role="tab" aria-selected="false">
+                    <button class="nav-link"
+                            id="tab-media"
+                            data-bs-toggle="tab"
+                            data-bs-target="#pane-media"
+                            type="button"
+                            role="tab"
+                            aria-controls="pane-media"
+                            aria-selected="false">
                         <i class="bi bi-images me-1" aria-hidden="true"></i>
                         <span>Ảnh/Media</span>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="tab-saved" type="button" role="tab" aria-selected="false">
+                    <button class="nav-link"
+                            id="tab-saved"
+                            data-bs-toggle="tab"
+                            data-bs-target="#pane-saved"
+                            type="button"
+                            role="tab"
+                            aria-controls="pane-saved"
+                            aria-selected="false">
                         <i class="bi bi-bookmark me-1" aria-hidden="true"></i>
                         <span>Đã lưu</span>
                     </button>
@@ -139,33 +167,80 @@
         </nav>
     </header>
 
-    <!-- User Posts Stream -->
-    <section aria-label="Bài viết của người dùng" class="profile-posts-section">
-        <h2 class="fs-6 fw-bold mb-3 d-flex align-items-center gap-2">
-            <i class="bi bi-file-text text-primary" aria-hidden="true"></i>
-            <span>Bài viết đã đăng</span>
-        </h2>
+    <!-- Profile Tab Content Panes -->
+    <div class="tab-content" id="profileTabContent">
+        <!-- Pane 1: User Posts Stream -->
+        <div class="tab-pane fade show active" id="pane-posts" role="tabpanel" aria-labelledby="tab-posts" tabindex="0">
+            <section aria-label="Bài viết của người dùng" class="profile-posts-section">
+                <h2 class="fs-6 fw-bold mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-file-text text-primary" aria-hidden="true"></i>
+                    <span>Bài viết đã đăng</span>
+                </h2>
 
-        <!-- Empty State for Profile Posts -->
-        <div th:if="${profilePosts == null or #lists.isEmpty(profilePosts)}" class="empty-state">
-            <div class="empty-state-icon">
-                <i class="bi bi-journal-x" aria-hidden="true"></i>
-            </div>
-            <h3 class="empty-state-title">Chưa có bài viết nào</h3>
-            <p class="empty-state-desc">Người dùng này chưa đăng bài viết nào trên hệ thống AloUTE.</p>
+                <!-- Empty State for Profile Posts -->
+                <div th:if="${profilePosts == null or #lists.isEmpty(profilePosts)}" class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="bi bi-journal-x" aria-hidden="true"></i>
+                    </div>
+                    <h3 class="empty-state-title">Chưa có bài viết nào</h3>
+                    <p class="empty-state-desc">Người dùng này chưa đăng bài viết nào trên hệ thống AloUTE.</p>
+                </div>
+
+                <!-- Render User's Post Cards if available -->
+                <div th:if="${profilePosts != null and !#lists.isEmpty(profilePosts)}">
+                    <div th:each="postItem : ${profilePosts}">
+                        <div th:replace="~{post/_post-card :: postCard(post=${postItem})}"></div>
+                    </div>
+
+                    <div th:if="${pageMeta != null}">
+                        <div th:replace="~{fragments/pagination :: pagination(pageMeta=${pageMeta}, baseUrl=${profile != null and profile.id != null ? '/users/' + profile.id : '#'})}"></div>
+                    </div>
+                </div>
+            </section>
         </div>
 
-        <!-- Render User's Post Cards if available -->
-        <div th:if="${profilePosts != null and !#lists.isEmpty(profilePosts)}">
-            <div th:each="postItem : ${profilePosts}">
-                <div th:replace="~{post/_post-card :: postCard(post=${postItem})}"></div>
-            </div>
-
-            <div th:if="${pageMeta != null}">
-                <div th:replace="~{fragments/pagination :: pagination(pageMeta=${pageMeta}, baseUrl=${profile != null and profile.id != null ? '/users/' + profile.id : '#'})}"></div>
-            </div>
+        <!-- Pane 2: User Replies -->
+        <div class="tab-pane fade" id="pane-replies" role="tabpanel" aria-labelledby="tab-replies" tabindex="0">
+            <section aria-label="Phản hồi của người dùng" class="profile-posts-section">
+                <h2 class="visually-hidden">Phản hồi của người dùng</h2>
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="bi bi-chat-left-dots" aria-hidden="true"></i>
+                    </div>
+                    <h3 class="empty-state-title">Chưa có phản hồi nào</h3>
+                    <p class="empty-state-desc">Tính năng phản hồi và thảo luận đang được hoàn thiện.</p>
+                </div>
+            </section>
         </div>
-    </section>
+
+        <!-- Pane 3: User Media -->
+        <div class="tab-pane fade" id="pane-media" role="tabpanel" aria-labelledby="tab-media" tabindex="0">
+            <section aria-label="Ảnh và media của người dùng" class="profile-posts-section">
+                <h2 class="visually-hidden">Ảnh và media của người dùng</h2>
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="bi bi-images" aria-hidden="true"></i>
+                    </div>
+                    <h3 class="empty-state-title">Chưa có ảnh hoặc media</h3>
+                    <p class="empty-state-desc">Các bài viết có chứa hình ảnh hoặc tệp media sẽ xuất hiện tại đây.</p>
+                </div>
+            </section>
+        </div>
+
+        <!-- Pane 4: Saved Posts -->
+        <div class="tab-pane fade" id="pane-saved" role="tabpanel" aria-labelledby="tab-saved" tabindex="0">
+            <section aria-label="Bài viết đã lưu" class="profile-posts-section">
+                <h2 class="visually-hidden">Bài viết đã lưu</h2>
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="bi bi-bookmark" aria-hidden="true"></i>
+                    </div>
+                    <h3 class="empty-state-title">Chưa có bài viết đã lưu</h3>
+                    <p class="empty-state-desc">Danh sách bài viết được đánh dấu lưu trữ sẽ xuất hiện tại đây.</p>
+                </div>
+            </section>
+        </div>
+    </div>
 
     <!-- Edit Profile Modal (Rendered only for profile owner) -->
     <div th:if="${currentUser != null and profile != null and currentUser.id == profile.id}"
@@ -250,8 +325,8 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
-                        <button type="submit" class="btn btn-primary btn-sm fw-semibold" id="btn-save-profile">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-primary fw-semibold" id="btn-save-profile">
                             <span class="spinner-border spinner-border-sm d-none me-1" id="save-profile-spinner" role="status" aria-hidden="true"></span>
                             <span id="save-profile-btn-text">Lưu thay đổi</span>
                         </button>

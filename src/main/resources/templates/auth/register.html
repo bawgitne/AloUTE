@@ -22,15 +22,15 @@
                    id="username"
                    name="username"
                    th:value="${param.username}"
-                   placeholder="nguyenvana (3-50 ký tự)"
+                   placeholder="Nhập tên người dùng (3-50 ký tự, có thể chứa dấu cách)"
                    minlength="3"
                    maxlength="50"
                    autocomplete="username"
                    aria-describedby="username-help username-feedback"
                    aria-invalid="false"
                    required>
-            <div id="username-help" class="form-text">Tên người dùng viết liền không dấu, từ 3 đến 50 ký tự.</div>
-            <div class="invalid-feedback d-none" id="username-feedback">Tên người dùng từ 3 đến 50 ký tự.</div>
+            <div id="username-help" class="form-text">Tên người dùng từ 3 đến 50 ký tự, có thể chứa dấu cách.</div>
+            <div class="invalid-feedback d-none" id="username-feedback">Tên người dùng phải từ 3 đến 50 ký tự (có thể chứa dấu cách).</div>
         </div>
 
         <!-- Email Field -->
