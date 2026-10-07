@@ -83,14 +83,11 @@
             </div>
         </div>
 
-        <!-- Post Topics / Tags (UI placeholder / neutral action hook) -->
+        <!-- Post Topics / Tags (Non-interactive reference tags) -->
         <div th:if="${post.topics != null and !post.topics.isEmpty()}" class="post-topics">
-            <button th:each="topic : ${post.topics}"
-                    type="button"
-                    class="post-topic-tag"
-                    data-action="topic"
-                    th:attr="data-topic-id=${topic.id != null ? topic.id : ''}"
-                    th:text="'#' + ${topic.name}">#hoc-tap</button>
+            <span th:each="topic : ${post.topics}"
+                  class="badge bg-light text-secondary border rounded-pill py-1 px-2"
+                  th:text="'#' + ${topic.name}">#hoc-tap</span>
         </div>
 
         <!-- Post Interaction Controls Fragment -->

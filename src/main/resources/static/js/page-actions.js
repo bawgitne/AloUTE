@@ -56,6 +56,81 @@
         }
     }
 
+    // Safely translate stable backend error codes/messages to Vietnamese
+    function translateError(error, defaultMsg) {
+        if (!error) return defaultMsg || 'Đã xảy ra lỗi.';
+        if (window.console && typeof window.console.warn === 'function') {
+            window.console.warn('[AloUTE] Backend error diagnostic:', error);
+        }
+        const code = error.code;
+        const message = error.message;
+
+        if (code === 'AUTH_INVALID_CREDENTIALS') return 'Email hoặc mật khẩu không chính xác.';
+        if (code === 'AUTH_FORBIDDEN') return 'Bạn không có quyền thực hiện thao tác này.';
+        if (code === 'AUTH_TOKEN_EXPIRED') return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+        if (code === 'USER_NOT_FOUND') return 'Không tìm thấy thông tin người dùng.';
+        if (code === 'USER_INACTIVE') return 'Tài khoản người dùng đã bị khóa hoặc chưa kích hoạt.';
+        if (code === 'USER_USERNAME_ALREADY_EXISTS') return 'Tên người dùng đã tồn tại.';
+        if (code === 'USER_EMAIL_ALREADY_EXISTS') return 'Địa chỉ email đã được sử dụng.';
+        if (code === 'VALIDATION_FAILED') return 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.';
+        if (code === 'PRIVATE_FOLLOW_REQUEST_NOT_IMPLEMENTED') return 'Chức năng gửi yêu cầu theo dõi tài khoản riêng tư chưa được hỗ trợ.';
+        if (code === 'FOLLOW_ALREADY_EXISTS' || code === 'SOCIAL_FOLLOW_ALREADY_EXISTS') return 'Bạn đã theo dõi người dùng này rồi.';
+        if (code === 'FOLLOW_SELF_NOT_ALLOWED' || code === 'SOCIAL_FOLLOW_SELF_NOT_ALLOWED') return 'Bạn không thể tự theo dõi chính mình.';
+        if (code === 'INTERNAL_SERVER_ERROR') return 'Hệ thống đang gặp sự cố. Vui lòng thử lại sau.';
+        if (code === 'ACCESS_DENIED') return 'Bạn không có quyền thực hiện thao tác này.';
+
+        // Safe translations for known English messages
+        if (message === 'Invalid email or password' || message === 'Invalid credentials' || message === 'Bad credentials') {
+            return 'Email hoặc mật khẩu không chính xác.';
+        }
+        if (message === 'Operation is not permitted' || message === 'Access is denied' || message === 'Access Denied') {
+            return 'Bạn không có quyền thực hiện thao tác này.';
+        }
+        if (message === 'User not found') {
+            return 'Không tìm thấy thông tin người dùng.';
+        }
+        if (message === 'Validation failed') {
+            return 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.';
+        }
+
+        // Generic Vietnamese status fallback, suppressing raw unknown English/technical messages
+        return defaultMsg || 'Đã xảy ra lỗi không xác định. Vui lòng thử lại sau.';
+    }
+
+    // Safely translate raw profile field errors to Vietnamese with generic fallbacks
+    function translateProfileFieldError(field, rawMsgs) {
+        if (window.console && typeof window.console.warn === 'function') {
+            window.console.warn('[AloUTE] Profile validation error diagnostic:', field, rawMsgs);
+        }
+        const text = (Array.isArray(rawMsgs) ? rawMsgs.join(' ') : String(rawMsgs || '')).toLowerCase();
+
+        // Pattern matching for standard Spring / Hibernate validator messages
+        if (text.includes('blank') || text.includes('empty') || text.includes('không được để trống') || text.includes('required')) {
+            if (field === 'displayName') return 'Tên hiển thị không được để trống.';
+            return 'Trường này không được để trống.';
+        }
+
+        if (text.includes('size') || text.includes('length') || text.includes('ký tự')) {
+            if (field === 'displayName') return 'Tên hiển thị tối đa 100 ký tự.';
+            if (field === 'bio') return 'Giới thiệu ngắn tối đa 500 ký tự.';
+            return 'Độ dài trường dữ liệu không hợp lệ.';
+        }
+
+        if (text.includes('url') || text.includes('http') || text.includes('protocol')) {
+            if (field === 'website') return 'Website phải là một URL hợp lệ bắt đầu bằng http:// hoặc https://';
+        }
+
+        // Generic Vietnamese field fallbacks
+        const genericFallbacks = {
+            'displayName': 'Tên hiển thị không hợp lệ.',
+            'bio': 'Giới thiệu ngắn không hợp lệ.',
+            'website': 'Địa chỉ website không hợp lệ.',
+            'isPrivate': 'Cài đặt riêng tư không hợp lệ.'
+        };
+
+        return genericFallbacks[field] || 'Dữ liệu không hợp lệ.';
+    }
+
     // =========================================================================
     // 1. LOGOUT FLOW
     // =========================================================================
@@ -83,7 +158,7 @@
             trigger.classList.remove('disabled');
             trigger.innerHTML = originalHtml;
             const body = await readJson(response);
-            const msg = (body && body.error && body.error.message) || ('Đăng xuất không thành công (HTTP ' + response.status + ').');
+            const msg = translateError(body && body.error, 'Đăng xuất không thành công (HTTP ' + response.status + ').');
             notice(msg, 'danger');
         } catch (error) {
             trigger.removeAttribute('disabled');
@@ -317,17 +392,17 @@
                         }
                         const feedback = document.getElementById('edit-' + field + '-error');
                         if (feedback) {
-                            feedback.textContent = Array.isArray(msgs) ? msgs.join(', ') : String(msgs);
+                            feedback.textContent = translateProfileFieldError(field, msgs);
                             feedback.classList.remove('d-none');
                         }
                     }
                     if (statusBox) {
                         statusBox.className = 'alert alert-danger py-2 small mb-3';
-                        statusBox.textContent = body.error.message || 'Dữ liệu chỉnh sửa không hợp lệ.';
+                        statusBox.textContent = translateError(body.error, 'Dữ liệu chỉnh sửa không hợp lệ.');
                         statusBox.classList.remove('d-none');
                     }
                 } else {
-                    const msg = (body && body.error && body.error.message) || ('Cập nhật thất bại (HTTP ' + response.status + ').');
+                    const msg = translateError(body && body.error, 'Cập nhật thất bại (HTTP ' + response.status + ').');
                     if (statusBox) {
                         statusBox.className = 'alert alert-danger py-2 small mb-3';
                         statusBox.textContent = msg;
@@ -467,7 +542,7 @@
 
                 const body = await readJson(response);
                 renderFollowState(btn, true);
-                const msg = (body && body.error && body.error.message) || ('Hủy theo dõi thất bại (HTTP ' + response.status + ').');
+                const msg = translateError(body && body.error, 'Hủy theo dõi thất bại (HTTP ' + response.status + ').');
                 notice(msg, 'danger');
             } catch (error) {
                 renderFollowState(btn, true);
@@ -499,23 +574,23 @@
 
                 if (response.status === 409) {
                     const code = body && body.error && body.error.code;
-                    const msg = (body && body.error && body.error.message) || '';
                     if (code === 'PRIVATE_FOLLOW_REQUEST_NOT_IMPLEMENTED') {
                         renderFollowState(btn, false);
                         notice('Tài khoản này là riêng tư. Chức năng gửi yêu cầu theo dõi tài khoản riêng tư chưa được hỗ trợ.', 'warning');
-                    } else if (code === 'FOLLOW_ALREADY_EXISTS') {
+                    } else if (code === 'FOLLOW_ALREADY_EXISTS' || code === 'SOCIAL_FOLLOW_ALREADY_EXISTS') {
                         renderFollowState(btn, true);
                         notice('Bạn đã theo dõi người dùng này rồi.', 'info');
-                    } else if (code === 'FOLLOW_SELF_NOT_ALLOWED') {
+                    } else if (code === 'FOLLOW_SELF_NOT_ALLOWED' || code === 'SOCIAL_FOLLOW_SELF_NOT_ALLOWED') {
                         btn.style.display = 'none';
                         notice('Bạn không thể tự theo dõi chính mình.', 'warning');
                     } else {
                         renderFollowState(btn, false);
-                        notice(msg || 'Không thể theo dõi người dùng này.', 'danger');
+                        const msg = translateError(body && body.error, 'Không thể theo dõi người dùng này.');
+                        notice(msg, 'danger');
                     }
                 } else {
                     renderFollowState(btn, false);
-                    const msg = (body && body.error && body.error.message) || ('Theo dõi thất bại (HTTP ' + response.status + ').');
+                    const msg = translateError(body && body.error, 'Theo dõi thất bại (HTTP ' + response.status + ').');
                     notice(msg, 'danger');
                 }
             } catch (error) {
@@ -531,6 +606,15 @@
     document.addEventListener('click', async function (event) {
         const target = event.target.closest('[data-action]');
         if (!target) return;
+
+        // Do not intercept natural link navigation if the clicked element is an anchor without data-action
+        const closestAnchor = event.target.closest('a');
+        if (closestAnchor && !closestAnchor.dataset.action) {
+            const href = closestAnchor.getAttribute('href');
+            if (href && href !== '#' && !href.startsWith('javascript:')) {
+                return;
+            }
+        }
 
         const action = target.dataset.action;
 

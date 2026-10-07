@@ -121,6 +121,21 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--aloute-text-muted);
 }
 
+.aloute-search-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.75;
+  background-color: var(--aloute-bg-surface-hover);
+}
+
+.aloute-nav-toggle-btn,
+.aloute-btn-icon-mobile {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .aloute-search-icon {
   position: absolute;
   left: 0.75rem;
@@ -751,15 +766,16 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .profile-header-body {
+  position: relative;
   padding: 0 var(--aloute-space-lg) var(--aloute-space-md) var(--aloute-space-lg);
 }
 
 .profile-avatar-row {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--aloute-space-md);
-  margin-top: -44px;
+  margin-top: 0;
   margin-bottom: var(--aloute-space-md);
   flex-wrap: wrap;
 }
@@ -768,13 +784,13 @@ h1, h2, h3, h4, h5, h6 {
   border: 4px solid var(--aloute-bg-surface);
   box-shadow: var(--aloute-shadow-sm);
   background-color: var(--aloute-bg-surface);
+  margin-top: -44px;
   position: relative;
-  z-index: 2;
 }
 
 .profile-identity {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: var(--aloute-space-md);
   min-width: 0;
   min-inline-size: 0;
@@ -1056,6 +1072,17 @@ h1, h2, h3, h4, h5, h6 {
     padding: var(--aloute-space-sm);
   }
 
+  .aloute-layout-container > .row {
+    --bs-gutter-x: 0;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .aloute-layout-container > .row > [class*="col"] {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
   .aloute-left-panel {
     display: none;
   }
@@ -1078,15 +1105,19 @@ h1, h2, h3, h4, h5, h6 {
   }
 
   .profile-avatar-row {
-    margin-top: -36px;
+    margin-top: 0;
     flex-direction: column;
     align-items: stretch;
     gap: var(--aloute-space-sm);
   }
 
+  .profile-avatar {
+    margin-top: -36px;
+  }
+
   .profile-identity {
     width: 100%;
-    align-items: flex-end;
+    align-items: flex-start;
   }
 
   .profile-actions {
@@ -1110,8 +1141,19 @@ h1, h2, h3, h4, h5, h6 {
     min-height: 44px;
   }
 
+  /* Accessible touch targets on mobile */
+  .dropdown-item {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 0.625rem 1rem;
+  }
+
   .profile-nav-tabs .nav-link {
-    padding: 0.625rem 0.75rem;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.625rem 0.875rem;
     font-size: 0.8125rem;
   }
 
@@ -1140,6 +1182,53 @@ h1, h2, h3, h4, h5, h6 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+/* User Account Dropdown Trigger Touch Target (>= 44x44px hit area) */
+.aloute-user-dropdown-btn {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.5rem;
+  border-radius: var(--aloute-radius-full);
+}
+
+.aloute-user-dropdown-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--aloute-focus-ring);
+}
+
+/* Edit Profile Modal Interactive Touch Targets (approx. 44px) */
+#editProfileModal .btn-close {
+  min-width: 44px;
+  min-height: 44px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  margin: -0.5rem -0.5rem -0.5rem auto;
+}
+
+#editProfileModal .modal-footer .btn {
+  min-height: 44px;
+  min-width: 80px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.25rem;
+}
+
+/* Feed Composer Shortcuts: Non-breaking compact wrapping */
+.aloute-composer-shortcut {
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  padding: 0.25rem 0.5rem;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
 }
 
 /* Smallest project-owned semantic utility for flex shrink & truncation */
