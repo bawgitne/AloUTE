@@ -68,6 +68,17 @@
                         <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
                         <span>Đang tải...</span>
                     </button>
+
+                    <!-- Direct Message Button (Other user: currentUser.id != profile.id; initiates direct conversation via REST) -->
+                    <button th:if="${currentUser != null and profile != null and currentUser.id != profile.id}"
+                            type="button"
+                            class="btn btn-sm btn-outline-primary aloute-action-btn"
+                            id="btn-direct-message"
+                            data-action="create-direct-conversation"
+                            th:attr="data-target-user-id=${profile.id}, data-username=${profile.username}">
+                        <i class="bi bi-chat-dots me-1" aria-hidden="true"></i>
+                        <span>Nhắn tin</span>
+                    </button>
                 </div>
             </div>
 

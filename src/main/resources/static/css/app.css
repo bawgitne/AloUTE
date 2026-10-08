@@ -1238,6 +1238,317 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ==========================================================================
+   Messaging Feature (Two-Pane Layout, Bubbles, Responsive, Accessibility)
+   ========================================================================== */
+
+.aloute-messaging-wrapper {
+  width: 100%;
+}
+
+.aloute-messaging-card {
+  background-color: var(--aloute-bg-surface);
+  border: 1px solid var(--aloute-border-color);
+  border-radius: var(--aloute-radius-lg);
+  box-shadow: var(--aloute-shadow-sm);
+  display: flex;
+  height: 680px;
+  max-height: calc(100vh - 140px);
+  overflow: hidden;
+}
+
+.aloute-conversation-pane {
+  width: 320px;
+  min-width: 280px;
+  border-right: 1px solid var(--aloute-border-color);
+  display: flex;
+  flex-direction: column;
+  background-color: var(--aloute-bg-surface);
+  flex-shrink: 0;
+}
+
+.aloute-conversation-header {
+  padding: var(--aloute-space-md);
+  border-bottom: 1px solid var(--aloute-border-color);
+  background-color: var(--aloute-bg-surface);
+}
+
+.aloute-conversation-list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.aloute-conversation-item {
+  display: flex;
+  align-items: center;
+  gap: var(--aloute-space-sm);
+  padding: var(--aloute-space-md);
+  border-bottom: 1px solid var(--aloute-border-subtle);
+  cursor: pointer;
+  transition: background-color var(--aloute-transition-fast);
+  text-decoration: none;
+  color: inherit;
+}
+
+.aloute-conversation-item:hover,
+.aloute-conversation-item:focus-visible {
+  background-color: var(--aloute-bg-surface-hover);
+  outline: none;
+}
+
+.aloute-conversation-item.active {
+  background-color: var(--aloute-accent-subtle);
+  border-left: 3px solid var(--aloute-accent);
+}
+
+.aloute-chat-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--aloute-bg-body);
+  min-width: 0;
+}
+
+.aloute-chat-header {
+  padding: var(--aloute-space-md);
+  background-color: var(--aloute-bg-surface);
+  border-bottom: 1px solid var(--aloute-border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.aloute-chat-history {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--aloute-space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--aloute-space-sm);
+}
+
+.aloute-message-bubble {
+  max-width: 75%;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--aloute-radius-md);
+  word-break: break-word;
+  position: relative;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.aloute-message-bubble.incoming {
+  align-self: flex-start;
+  background-color: var(--aloute-bg-surface);
+  color: var(--aloute-text-primary);
+  border: 1px solid var(--aloute-border-color);
+  border-bottom-left-radius: var(--aloute-radius-sm);
+}
+
+.aloute-message-bubble.outgoing {
+  align-self: flex-end;
+  background-color: var(--aloute-accent);
+  color: var(--aloute-accent-contrast);
+  border-bottom-right-radius: var(--aloute-radius-sm);
+}
+
+.aloute-message-time {
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  display: block;
+  opacity: 0.75;
+}
+
+.aloute-message-bubble.incoming .aloute-message-time {
+  color: var(--aloute-text-muted);
+}
+
+.aloute-message-bubble.outgoing .aloute-message-time {
+  color: var(--aloute-accent-contrast);
+  text-align: right;
+}
+
+.aloute-chat-composer {
+  padding: var(--aloute-space-md);
+  background-color: var(--aloute-bg-surface);
+  border-top: 1px solid var(--aloute-border-color);
+}
+
+/* Mobile Responsive Switching for Messaging */
+@media (max-width: 767.98px) {
+  .aloute-messaging-card {
+    height: calc(100vh - 120px);
+  }
+
+  .aloute-conversation-pane {
+    width: 100%;
+    border-right: none;
+  }
+
+  .aloute-chat-pane {
+    width: 100%;
+  }
+
+  .aloute-messaging-card.show-chat .aloute-conversation-pane {
+    display: none !important;
+  }
+
+  .aloute-messaging-card:not(.show-chat) .aloute-chat-pane {
+    display: none !important;
+  }
+}
+
+/* ==========================================================================
+   Notification Feature (List, Badges, Tabs, Responsive, Unread States)
+   ========================================================================== */
+
+.aloute-notifications-wrapper {
+  width: 100%;
+}
+
+.aloute-notification-card {
+  background-color: var(--aloute-bg-surface);
+  border: 1px solid var(--aloute-border-color);
+  border-radius: var(--aloute-radius-lg);
+  box-shadow: var(--aloute-shadow-sm);
+  overflow: hidden;
+}
+
+.aloute-notification-header {
+  padding: var(--aloute-space-md);
+  border-bottom: 1px solid var(--aloute-border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--aloute-space-sm);
+}
+
+.aloute-notification-tabs {
+  padding: 0 var(--aloute-space-md);
+  border-bottom: 1px solid var(--aloute-border-color);
+  background-color: var(--aloute-bg-surface);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.aloute-notification-tabs .nav-link {
+  color: var(--aloute-text-secondary);
+  font-weight: 500;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  border-radius: 0;
+}
+
+.aloute-notification-tabs .nav-link.active {
+  color: var(--aloute-accent);
+  border-bottom-color: var(--aloute-accent);
+  background: none;
+}
+
+.aloute-notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--aloute-space-md);
+  padding: var(--aloute-space-md);
+  border-bottom: 1px solid var(--aloute-border-subtle);
+  background-color: var(--aloute-bg-surface);
+  transition: background-color var(--aloute-transition-fast);
+  position: relative;
+}
+
+.aloute-notification-item:hover {
+  background-color: var(--aloute-bg-surface-hover);
+}
+
+.aloute-notification-item.unread {
+  background-color: var(--aloute-accent-subtle);
+  border-left: 3px solid var(--aloute-accent);
+}
+
+.aloute-notification-item-dot {
+  width: 8px;
+  height: 8px;
+  background-color: var(--aloute-accent);
+  border-radius: var(--aloute-radius-full);
+  display: inline-block;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.aloute-notification-actor-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--aloute-radius-full);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.aloute-notification-icon-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--aloute-radius-full);
+  background-color: var(--aloute-bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6875rem;
+  box-shadow: var(--aloute-shadow-sm);
+}
+
+/* ==========================================================================
+   Accessibility: Touch Targets (>= 44px) for Messaging & Notifications
+   ========================================================================== */
+
+#btn-back-to-conversations,
+#btn-refresh-messages,
+#btn-refresh-notifications,
+#btn-send-message {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#btn-mark-all-read,
+#btn-load-more-notifications,
+#btn-retry-notifications,
+#btn-retry-conversations,
+#btn-load-more-conversations,
+#btn-load-older-messages,
+#btn-retry-messages,
+#btn-retry-send,
+#btn-direct-message {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.aloute-notification-tabs .nav-link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.aloute-notification-item .btn-mark-read,
+.aloute-notification-item .btn-delete-notif {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ==========================================================================
    Accessibility: Reduced Motion
    ========================================================================== */
 

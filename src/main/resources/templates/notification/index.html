@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/default :: layout(title='Thông báo — AloUTE', content=~{::#notifications-content})}">
+<body>
+<div id="notifications-content"
+     class="aloute-notifications-wrapper"
+     th:attr="data-current-user-id=${currentUser != null ? currentUser.id : ''}">
+
+    <h1 class="visually-hidden">Thông báo AloUTE</h1>
+
+    <div class="aloute-notification-card">
+        <!-- Notification Header -->
+        <header class="aloute-notification-header">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-bell-fill text-primary fs-5" aria-hidden="true"></i>
+                <h2 class="fs-5 fw-bold mb-0">Trung tâm Thông báo</h2>
+                <span class="badge bg-danger rounded-pill d-none" id="unread-count-badge" aria-label="Số thông báo chưa đọc">0</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button"
+                        class="btn btn-sm btn-outline-primary"
+                        id="btn-mark-all-read"
+                        aria-label="Đánh dấu tất cả thông báo đã đọc">
+                    <i class="bi bi-check2-all me-1" aria-hidden="true"></i>Đã đọc tất cả
+                </button>
+                <button type="button"
+                        class="btn btn-sm btn-outline-secondary"
+                        id="btn-refresh-notifications"
+                        aria-label="Làm mới danh sách thông báo"
+                        title="Làm mới">
+                    <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Exact Supported Filters Tabs from Backend (ALL, LIKE, REPLY, MENTION, FOLLOW) -->
+        <nav class="aloute-notification-tabs" aria-label="Bộ lọc thông báo">
+            <ul class="nav nav-tabs border-0 flex-nowrap" id="notificationFilterTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active"
+                            type="button"
+                            role="tab"
+                            data-filter="ALL"
+                            aria-selected="true">
+                        Tất cả
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link"
+                            type="button"
+                            role="tab"
+                            data-filter="LIKE"
+                            aria-selected="false">
+                        <i class="bi bi-heart text-danger me-1" aria-hidden="true"></i>Lượt thích
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link"
+                            type="button"
+                            role="tab"
+                            data-filter="REPLY"
+                            aria-selected="false">
+                        <i class="bi bi-chat-left-dots text-primary me-1" aria-hidden="true"></i>Bình luận
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link"
+                            type="button"
+                            role="tab"
+                            data-filter="MENTION"
+                            aria-selected="false">
+                        <i class="bi bi-at text-info me-1" aria-hidden="true"></i>Nhắc đến
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link"
+                            type="button"
+                            role="tab"
+                            data-filter="FOLLOW"
+                            aria-selected="false">
+                        <i class="bi bi-person-plus text-success me-1" aria-hidden="true"></i>Theo dõi
+                    </button>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Notifications Feedback Area (Alert / Toast) -->
+        <div class="px-3 pt-2 d-none" id="notification-feedback-area">
+            <div class="alert alert-info alert-dismissible py-2 mb-0 small" role="alert" id="notification-feedback-text">
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div class="p-4 text-center d-none" id="notifications-loading">
+            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                <span class="visually-hidden">Đang tải thông báo...</span>
+            </div>
+            <p class="small text-muted mt-2 mb-0">Đang tải thông báo...</p>
+        </div>
+
+        <!-- Error State -->
+        <div class="p-4 text-center d-none" id="notifications-error">
+            <i class="bi bi-exclamation-triangle text-danger fs-3" aria-hidden="true"></i>
+            <p class="text-danger mt-2 mb-2" id="notifications-error-msg">Không thể tải thông báo.</p>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-retry-notifications">
+                <i class="bi bi-arrow-clockwise me-1"></i>Thử lại
+            </button>
+        </div>
+
+        <!-- Empty State -->
+        <div class="p-5 text-center text-muted d-none" id="notifications-empty">
+            <i class="bi bi-bell-slash text-secondary fs-1" aria-hidden="true"></i>
+            <h3 class="fs-6 fw-bold text-secondary mt-3 mb-1">Không có thông báo</h3>
+            <p class="small text-muted mb-0">Bạn chưa có thông báo nào trong mục này.</p>
+        </div>
+
+        <!-- Notification List -->
+        <div class="aloute-notification-list" id="notifications-list" role="feed" aria-label="Luồng thông báo">
+            <!-- Dynamically populated via REST -->
+        </div>
+
+        <!-- Pagination Load More -->
+        <div class="p-3 border-top text-center d-none" id="notifications-load-more-wrap">
+            <button type="button" class="btn btn-sm btn-outline-primary px-4 rounded-pill" id="btn-load-more-notifications">
+                Tải thêm thông báo
+            </button>
+        </div>
+    </div>
+
+    <!-- Page Specific Feature Script -->
+    <script th:src="@{/js/features/notification/notification.js}" src="/js/features/notification/notification.js" defer></script>
+</div>
+</body>
+</html>
