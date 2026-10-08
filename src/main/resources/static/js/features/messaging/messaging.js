@@ -256,6 +256,10 @@
             const lastSnippet = conv.lastMessage ? escapeHtml(conv.lastMessage.content) : 'Chưa có tin nhắn';
             const timeStr = conv.lastMessage ? formatTime(conv.lastMessage.createdAt) : formatTime(conv.updatedAt || conv.createdAt);
 
+            const unreadBadge = (conv.unreadCount && conv.unreadCount > 0)
+                ? `<span class="badge rounded-pill bg-primary ms-auto flex-shrink-0" style="font-size: 0.7rem;">${conv.unreadCount > 99 ? '99+' : conv.unreadCount}</span>`
+                : '';
+
             li.innerHTML = `
                 <img src="${escapeHtml(avatarUrl)}" alt="Avatar" class="avatar-img avatar-sm rounded-circle flex-shrink-0" width="40" height="40">
                 <div class="aloute-min-w-0 flex-grow-1">
@@ -263,7 +267,10 @@
                         <span class="fw-semibold small text-truncate text-dark">${escapeHtml(displayName)}</span>
                         <span class="small text-muted flex-shrink-0" style="font-size: 0.75rem;">${timeStr}</span>
                     </div>
-                    <div class="small text-muted text-truncate">${lastSnippet}</div>
+                    <div class="d-flex align-items-center justify-content-between gap-1">
+                        <div class="small text-muted text-truncate">${lastSnippet}</div>
+                        ${unreadBadge}
+                    </div>
                 </div>
             `;
 
@@ -391,10 +398,21 @@
         if (found) {
             state.activeConversationData = found;
             updateChatHeader(found);
+            if (found.unreadCount > 0) {
+                found.unreadCount = 0;
+                renderConversationsList();
+            }
         } else {
             // Fetch conversation details from GET /api/conversations/{id}
             fetchConversationDetails(conversationId);
         }
+
+        // Send read receipt to backend
+        fetch(`/api/conversations/${conversationId}/read`, {
+            method: 'POST',
+            headers: csrfHeaders(),
+            credentials: 'include'
+        }).catch(err => console.debug('Failed to send read receipt:', err));
 
         // Abort in-flight messages request and start new generation
         if (messagesAbortController) {

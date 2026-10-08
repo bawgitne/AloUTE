@@ -73,4 +73,11 @@ public class ConversationController {
         MessageResponse response = conversationService.sendMessage(conversationId, currentUserId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
+
+    @PostMapping("/{conversationId}/read")
+    public ApiResponse<Void> markAsRead(@PathVariable Long conversationId) {
+        Long currentUserId = currentUserProvider.requireUserId();
+        conversationService.markAsRead(conversationId, currentUserId);
+        return ApiResponse.success(null);
+    }
 }
