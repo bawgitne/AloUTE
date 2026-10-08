@@ -15,11 +15,20 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+  sql:
+    init:
+      mode: never
 
   thymeleaf:
     cache: false
     mode: HTML
     encoding: UTF-8
+
+aloute:
+  firebase:
+    enabled: false
+    bucket: ${ALOUTE_FIREBASE_BUCKET:}
+    credentials-path: ${ALOUTE_FIREBASE_CREDENTIALS_PATH:}
 
 # Local development/test only. Production/VPS must override both values via environment variables.
 ALOUTE_JWT_SECRET: YWxvdXRlLWRldi1qd3Qtc2VjcmV0LWtleS0zMi1ieXRlcyEh
