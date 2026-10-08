@@ -1,0 +1,23 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: aloute-mysql-dev
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_DATABASE: aloutedb
+      MYSQL_USER: aloute_user
+      MYSQL_PASSWORD: aloute_secure_pass
+      MYSQL_ROOT_PASSWORD: aloute_root_pass
+    volumes:
+      - mysql_dev_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-paloute_root_pass"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql_dev_data:

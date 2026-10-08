@@ -32,4 +32,10 @@ public class ConversationMember {
     @CreationTimestamp
     @Column(name = "joined_at", nullable = false, updatable = false)
     private Instant joinedAt;
+
+    @Column(name = "last_read_message_id")
+    private Long lastReadMessageId;
+
+    @Column(name = "last_read_at")
+    private Instant lastReadAt;
 }

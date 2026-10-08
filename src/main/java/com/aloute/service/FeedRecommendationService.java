@@ -39,10 +39,11 @@ public class FeedRecommendationService {
         private boolean isMutualConnection;
         private boolean isSameCommunity;
         private double topicSimilarity; // 0.0 -> 1.0 (Cosine similarity)
-        private int likeCount;
-        private int replyCount;
-        private int repostCount;
-        private int bookmarkCount;
+        private long likeCount;
+        private long replyCount;
+        private long repostCount;
+        private long quoteCount;
+        private long bookmarkCount;
 
         // Điểm tính toán
         private double score;
@@ -71,11 +72,11 @@ public class FeedRecommendationService {
     /**
      * Tính điểm tương tác cộng đồng theo hàm logarit.
      */
-    public double calculateEngagementScore(int likes, int replies, int reposts, int bookmarks) {
+    public double calculateEngagementScore(long likes, long replies, long reposts, long quotes) {
         double rawEngagement = 1.0 * Math.max(0, likes)
                 + 2.0 * Math.max(0, replies)
                 + 3.0 * Math.max(0, reposts)
-                + 2.0 * Math.max(0, bookmarks);
+                + 2.0 * Math.max(0, quotes);
         // Logarithmic scaling, chuẩn hóa với cơ số 10
         double logScore = Math.log10(1.0 + rawEngagement);
         return Math.min(1.0, logScore / 3.0); // 1000 tương tác quy đổi đạt max 1.0
@@ -92,7 +93,7 @@ public class FeedRecommendationService {
                 candidate.getLikeCount(),
                 candidate.getReplyCount(),
                 candidate.getRepostCount(),
-                candidate.getBookmarkCount()
+                candidate.getQuoteCount()
         );
 
         double totalScore = (WEIGHT_RECENCY * recency)

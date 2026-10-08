@@ -20,22 +20,27 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         config.setUserDestinationPrefix("/user");
     }
 
+    private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
+    private final JwtHandshakeInterceptor jwtHandshakeInterceptor;
+
+    public WebSocketConfig(StompAuthChannelInterceptor stompAuthChannelInterceptor,
+                           JwtHandshakeInterceptor jwtHandshakeInterceptor) {
+        this.stompAuthChannelInterceptor = stompAuthChannelInterceptor;
+        this.jwtHandshakeInterceptor = jwtHandshakeInterceptor;
+    }
+
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Standard STOMP over WebSocket with SockJS fallback
         registry.addEndpoint("/ws")
                 .setAllowedOriginPatterns("*")
+                .addInterceptors(jwtHandshakeInterceptor)
                 .withSockJS();
 
         // Raw WebSocket endpoint without SockJS
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*");
-    }
-
-    private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
-
-    public WebSocketConfig(StompAuthChannelInterceptor stompAuthChannelInterceptor) {
-        this.stompAuthChannelInterceptor = stompAuthChannelInterceptor;
+                .setAllowedOriginPatterns("*")
+                .addInterceptors(jwtHandshakeInterceptor);
     }
 
     @Override
