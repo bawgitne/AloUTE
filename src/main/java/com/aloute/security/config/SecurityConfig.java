@@ -19,6 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
 @Configuration
@@ -36,12 +37,17 @@ public class SecurityConfig {
             CsrfCookieFilter csrfCookieFilter, AuthenticationFailureHandler authFailure,
             AccessDeniedHandler accessDenied) throws Exception {
         CookieCsrfTokenRepository csrf=CookieCsrfTokenRepository.withHttpOnlyFalse(); csrf.setCookiePath("/");
+        CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
+        requestHandler.setCsrfRequestAttributeName(null);
         RequestMatcher bearerRequest = request -> {
             String value = request.getHeader(HttpHeaders.AUTHORIZATION);
             return value != null && value.regionMatches(true, 0, "Bearer ", 0, 7);
         };
         http.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .csrf(c -> c.csrfTokenRepository(csrf).ignoringRequestMatchers(bearerRequest).ignoringRequestMatchers(SecurityWhitelist.PUBLIC_POST))
+                .csrf(c -> c.csrfTokenRepository(csrf)
+                        .csrfTokenRequestHandler(requestHandler)
+                        .ignoringRequestMatchers(bearerRequest)
+                        .ignoringRequestMatchers(SecurityWhitelist.PUBLIC_POST))
                 .headers(h -> h.frameOptions(f -> f.sameOrigin()))
                 .exceptionHandling(e -> e.authenticationEntryPoint(authFailure).accessDeniedHandler(accessDenied))
                 .authorizeHttpRequests(a -> a
