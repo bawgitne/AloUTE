@@ -76,7 +76,8 @@
                 <!-- Render Comments Loop -->
                 <div th:if="${comments != null and !#lists.isEmpty(comments)}" class="d-flex flex-column gap-3">
                     <article th:each="comment : ${comments}" class="comment-card">
-                        <img th:src="${comment.author != null and comment.author.avatarUrl != null and !comment.author.avatarUrl.isEmpty()} ? ${comment.author.avatarUrl} : 'https://placehold.co/36x36/e2e8f0/475569?text=U'"
+                        <img th:src="${comment.author != null and comment.author.avatarUrl != null and !comment.author.avatarUrl.isEmpty()} ? ${comment.author.avatarUrl} : @{/images/avatar-fallback.svg}"
+                             src="/images/avatar-fallback.svg"
                              alt="Avatar người bình luận"
                              class="avatar-img avatar-sm"
                              width="36"

@@ -8,7 +8,8 @@
            data-page="user-profile"
            data-action="navigate-profile"
            class="d-flex align-items-center gap-3 text-decoration-none text-reset">
-            <img th:src="${currentUser.avatarUrl != null and !currentUser.avatarUrl.isEmpty()} ? ${currentUser.avatarUrl} : 'https://placehold.co/60x60/e2e8f0/475569?text=U'"
+            <img th:src="${currentUser.avatarUrl != null and !currentUser.avatarUrl.isEmpty()} ? ${currentUser.avatarUrl} : @{/images/avatar-fallback.svg}"
+                 src="/images/avatar-fallback.svg"
                  alt="Avatar người dùng"
                  class="avatar-img avatar-lg rounded-circle"
                  width="54"
