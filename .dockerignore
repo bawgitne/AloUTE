@@ -1,0 +1,11 @@
+.git
+.github
+.idea
+.vscode
+target
+*.log
+.env
+.env.*
+node_modules
+checkpoints
+docs
