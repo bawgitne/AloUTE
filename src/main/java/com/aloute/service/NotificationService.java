@@ -76,7 +76,9 @@ public class NotificationService {
 
     @Transactional
     public void deleteNotification(Long notificationId, Long recipientId) {
-        notificationRepository.deleteByIdAndRecipientId(notificationId, recipientId);
+        Notification n = notificationRepository.findByIdAndRecipientId(notificationId, recipientId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOTIFICATION_NOT_FOUND", "Notification not found or access denied"));
+        notificationRepository.delete(n);
     }
 
     @Transactional

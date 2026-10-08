@@ -28,7 +28,8 @@ public final class SecurityWhitelist {
             "/api/communities",
             "/api/communities/*",
             "/api/communities/*/posts",
-            "/api/feed/explore"
+            "/api/feed/explore",
+            "/api/feed/recommended"
     };
 
     public static final String[] PUBLIC_WEB = {
