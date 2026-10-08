@@ -142,7 +142,11 @@ public class ConversationService {
 
         Message replyTo = null;
         if (request.getReplyToMessageId() != null) {
-            replyTo = messageRepository.findById(request.getReplyToMessageId()).orElse(null);
+            replyTo = messageRepository.findById(request.getReplyToMessageId())
+                    .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "REPLY_MESSAGE_NOT_FOUND", "Target reply message not found"));
+            if (!replyTo.getConversation().getId().equals(conversationId)) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_REPLY_CONVERSATION", "Target reply message belongs to a different conversation");
+            }
         }
 
         Message msg = Message.builder()
@@ -155,6 +159,15 @@ public class ConversationService {
         msg = messageRepository.save(msg);
         conv.setUpdatedAt(Instant.now());
         conversationRepository.save(conv);
+
+        // Update sender's last read pointer so own unread count stays 0
+        final Long sentMsgId = msg.getId();
+        conversationMemberRepository.findByConversationIdAndUserId(conversationId, currentUserId)
+                .ifPresent(m -> {
+                    m.setLastReadMessageId(sentMsgId);
+                    m.setLastReadAt(Instant.now());
+                    conversationMemberRepository.save(m);
+                });
 
         MessageResponse response = mapToMessageResponse(msg);
 
@@ -186,6 +199,20 @@ public class ConversationService {
         }
     }
 
+    @Transactional
+    public void markAsRead(Long conversationId, Long currentUserId) {
+        validateMembership(conversationId, currentUserId);
+        ConversationMember member = conversationMemberRepository.findByConversationIdAndUserId(conversationId, currentUserId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "Conversation member not found"));
+
+        messageRepository.findTopByConversationIdOrderByCreatedAtDesc(conversationId)
+                .ifPresent(lastMsg -> {
+                    member.setLastReadMessageId(lastMsg.getId());
+                    member.setLastReadAt(Instant.now());
+                    conversationMemberRepository.save(member);
+                });
+    }
+
     public ConversationResponse mapToConversationResponse(Conversation conv, Long currentUserId) {
         List<UserSummary> members = conv.getMembers().stream()
                 .map(m -> toUserSummary(m.getUser()))
@@ -200,6 +227,21 @@ public class ConversationService {
                 .findFirst()
                 .orElse(null);
 
+        int unreadCount = 0;
+        if (currentUserId != null && conv.getMembers() != null) {
+            ConversationMember myMember = conv.getMembers().stream()
+                    .filter(m -> m.getUser() != null && m.getUser().getId().equals(currentUserId))
+                    .findFirst()
+                    .orElse(null);
+            if (myMember != null) {
+                if (myMember.getLastReadMessageId() != null) {
+                    unreadCount = (int) messageRepository.countByConversationIdAndIdGreaterThan(conv.getId(), myMember.getLastReadMessageId());
+                } else {
+                    unreadCount = (int) messageRepository.countByConversationId(conv.getId());
+                }
+            }
+        }
+
         return ConversationResponse.builder()
                 .id(conv.getId())
                 .type(conv.getType())
@@ -209,7 +251,7 @@ public class ConversationService {
                 .participant(otherParticipant)
                 .otherParticipant(otherParticipant)
                 .lastMessage(lastMessage)
-                .unreadCount(0)
+                .unreadCount(unreadCount)
                 .createdAt(conv.getCreatedAt())
                 .updatedAt(conv.getUpdatedAt() != null ? conv.getUpdatedAt() : conv.getCreatedAt())
                 .build();

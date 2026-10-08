@@ -11,4 +11,13 @@ public interface SocialService {
     void unfollow(Long currentUserId, Long targetUserId);
     ApiResponse<List<UserSummary>> followers(Long userId, Pageable pageable);
     ApiResponse<List<UserSummary>> following(Long userId, Pageable pageable);
+
+    SocialRelationResponse block(Long currentUserId, Long targetUserId);
+    void unblock(Long currentUserId, Long targetUserId);
+
+    SocialRelationResponse mute(Long currentUserId, Long targetUserId);
+    void unmute(Long currentUserId, Long targetUserId);
+
+    SocialRelationResponse restrict(Long currentUserId, Long targetUserId);
+    void unrestrict(Long currentUserId, Long targetUserId);
 }

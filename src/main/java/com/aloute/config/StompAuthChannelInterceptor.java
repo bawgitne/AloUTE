@@ -39,11 +39,19 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
                 }
             }
 
-            // 2. Fallback to aloute_access_token header or cookie if present
+            // 2. Fallback to aloute_access_token native header if present
             if (token == null) {
                 List<String> cookieHeaders = accessor.getNativeHeader("aloute_access_token");
                 if (cookieHeaders != null && !cookieHeaders.isEmpty()) {
                     token = cookieHeaders.get(0).trim();
+                }
+            }
+
+            // 3. Fallback to session attributes captured during HTTP handshake (HttpOnly cookie)
+            if (token == null && accessor.getSessionAttributes() != null) {
+                Object sessionToken = accessor.getSessionAttributes().get("aloute_access_token");
+                if (sessionToken != null) {
+                    token = sessionToken.toString().trim();
                 }
             }
 

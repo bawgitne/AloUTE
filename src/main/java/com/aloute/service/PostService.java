@@ -8,6 +8,7 @@ import java.util.List;
 
 public interface PostService {
     ApiResponse<List<PostResponse>> listPublic(int page, int size, Long viewerId);
+    ApiResponse<List<PostResponse>> getRecommendedFeed(Long viewerId, int page, int size);
     PostResponse get(Long postId, Long viewerId);
     PostResponse create(Long userId, CreatePostRequest request, Long communityId, Long parentPostId, Long quotedPostId);
     PostResponse update(Long userId, Long postId, UpdatePostRequest request);

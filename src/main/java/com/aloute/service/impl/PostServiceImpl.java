@@ -8,8 +8,11 @@ import com.aloute.dto.request.UpdatePostRequest;
 import com.aloute.dto.response.*;
 import com.aloute.entity.*;
 import com.aloute.repository.*;
+import com.aloute.service.FeedRecommendationService;
+import com.aloute.service.NotificationService;
 import com.aloute.service.PostService;
 import jakarta.persistence.EntityManager;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +29,15 @@ public class PostServiceImpl implements PostService {
     private final TopicRepository topicRepository;
     private final CommunityMemberRepository communityMemberRepository;
     private final EntityManager entityManager;
+
+    @Autowired(required = false)
+    private NotificationService notificationService;
+
+    @Autowired(required = false)
+    private FeedRecommendationService feedRecommendationService;
+
+    @Autowired(required = false)
+    private FollowRepository followRepository;
 
     public PostServiceImpl(PostRepository postRepository, ProfileRepository profileRepository,
                            PostMediaRepository postMediaRepository, PostTopicRepository postTopicRepository,
@@ -48,6 +60,40 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override @Transactional(readOnly = true)
+    public ApiResponse<List<PostResponse>> getRecommendedFeed(Long viewerId, int page, int size) {
+        List<Post> posts = postRepository.listPublicPostsFromSp(offset(page, size), size);
+        if (viewerId == null || feedRecommendationService == null) {
+            return listPublic(page, size, viewerId);
+        }
+        List<FeedRecommendationService.PostCandidate> candidates = posts.stream().map(p -> {
+            boolean isFollowing = false;
+            if (followRepository != null && p.getUser() != null) {
+                isFollowing = followRepository.existsById(new FollowId(viewerId, p.getUser().getId()));
+            }
+            return FeedRecommendationService.PostCandidate.builder()
+                    .postId(p.getId())
+                    .authorId(p.getUser() != null ? p.getUser().getId() : null)
+                    .createdAt(p.getCreatedAt())
+                    .likeCount(p.getLikeCount())
+                    .replyCount(p.getReplyCount())
+                    .repostCount(p.getRepostCount())
+                    .quoteCount(p.getQuoteCount())
+                    .isFollowingAuthor(isFollowing)
+                    .build();
+        }).collect(java.util.stream.Collectors.toList());
+
+        List<FeedRecommendationService.PostCandidate> ranked = feedRecommendationService.rankCandidates(candidates, java.time.Instant.now());
+        java.util.Map<Long, Post> postMap = posts.stream().collect(java.util.stream.Collectors.toMap(Post::getId, p -> p, (a, b) -> a));
+        List<PostResponse> responses = ranked.stream()
+                .map(c -> postMap.get(c.getPostId()))
+                .filter(Objects::nonNull)
+                .map(p -> toResponse(p, viewerId))
+                .toList();
+
+        return ApiResponse.page(responses, meta(page, size, postRepository.countPublicPostsFromSp()));
+    }
+
+    @Override @Transactional(readOnly = true)
     public PostResponse get(Long postId, Long viewerId) {
         return toResponse(requireVisiblePost(postId, viewerId), viewerId);
     }
@@ -67,6 +113,14 @@ public class PostServiceImpl implements PostService {
                 flag(request.allowReply()), flag(request.allowQuote()), parentPostId, quotedPostId, communityId,
                 csv(request.mediaIds()), csv(request.topicIds()));
         flushAndClear();
+        if (notificationService != null && parentPostId != null) {
+            try {
+                Post parent = requireVisiblePost(parentPostId, userId);
+                if (parent != null && parent.getUser() != null) {
+                    notificationService.createNotification(parent.getUser().getId(), userId, "POST_REPLY", "POST", id, request.content());
+                }
+            } catch (Exception ignored) {}
+        }
         return get(id, userId);
     }
 
@@ -111,6 +165,14 @@ public class PostServiceImpl implements PostService {
     public PostResponse like(Long userId, Long postId) {
         postRepository.likePostFromSp(postId, userId);
         flushAndClear();
+        if (notificationService != null) {
+            try {
+                Post post = requireVisiblePost(postId, userId);
+                if (post != null && post.getUser() != null) {
+                    notificationService.createNotification(post.getUser().getId(), userId, "POST_LIKE", "POST", postId, post.getContent());
+                }
+            } catch (Exception ignored) {}
+        }
         return get(postId, userId);
     }
 

@@ -17,6 +17,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import com.aloute.service.NotificationService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -26,12 +28,24 @@ public class SocialServiceImpl implements SocialService {
     private final FollowRepository followRepository;
     private final UserRepository userRepository;
     private final ProfileRepository profileRepository;
+    private final com.aloute.repository.BlockRepository blockRepository;
+    private final com.aloute.repository.MuteRepository muteRepository;
+    private final com.aloute.repository.RestrictionRepository restrictionRepository;
+
+    @Autowired(required = false)
+    private NotificationService notificationService;
 
     public SocialServiceImpl(FollowRepository followRepository, UserRepository userRepository,
-                             ProfileRepository profileRepository) {
+                             ProfileRepository profileRepository,
+                             com.aloute.repository.BlockRepository blockRepository,
+                             com.aloute.repository.MuteRepository muteRepository,
+                             com.aloute.repository.RestrictionRepository restrictionRepository) {
         this.followRepository = followRepository;
         this.userRepository = userRepository;
         this.profileRepository = profileRepository;
+        this.blockRepository = blockRepository;
+        this.muteRepository = muteRepository;
+        this.restrictionRepository = restrictionRepository;
     }
 
     @Override @Transactional
@@ -51,6 +65,11 @@ public class SocialServiceImpl implements SocialService {
         // Counters are kept here for local/H2 use; Ngọc's DB trigger can later become the canonical updater.
         Profile fp=requireProfile(currentUserId), tp=requireProfile(targetUserId);
         fp.setFollowingCount(fp.getFollowingCount()+1); tp.setFollowersCount(tp.getFollowersCount()+1);
+        if (notificationService != null) {
+            try {
+                notificationService.createNotification(targetUserId, currentUserId, "FOLLOW", "USER", currentUserId, follower.getUsername() + " started following you");
+            } catch (Exception ignored) {}
+        }
         return new SocialRelationResponse(targetUserId, true);
     }
 
@@ -76,6 +95,106 @@ public class SocialServiceImpl implements SocialService {
         requireUser(userId); Page<Follow> p=followRepository.findByFollower_Id(userId,pageable);
         return ApiResponse.page(p.getContent().stream().map(Follow::getFollowing).map(this::summary).toList(), PageMeta.from(p));
     }
+    @Override @Transactional
+    public SocialRelationResponse block(Long currentUserId, Long targetUserId) {
+        if (currentUserId.equals(targetUserId)) {
+            throw new ApiException(HttpStatus.CONFLICT, "BLOCK_SELF_NOT_ALLOWED", "A user cannot block themself");
+        }
+        User blocker = requireUser(currentUserId);
+        User blocked = requireUser(targetUserId);
+
+        if (blockRepository.existsByBlockerIdAndBlockedId(currentUserId, targetUserId)) {
+            throw new ApiException(HttpStatus.CONFLICT, "BLOCK_ALREADY_EXISTS", "Block relationship already exists");
+        }
+
+        // Sever mutual follow relationships if present
+        followRepository.findById(new FollowId(currentUserId, targetUserId)).ifPresent(f -> {
+            followRepository.delete(f);
+            Profile fp = requireProfile(currentUserId);
+            Profile tp = requireProfile(targetUserId);
+            fp.setFollowingCount(Math.max(0, fp.getFollowingCount() - 1));
+            tp.setFollowersCount(Math.max(0, tp.getFollowersCount() - 1));
+        });
+        followRepository.findById(new FollowId(targetUserId, currentUserId)).ifPresent(f -> {
+            followRepository.delete(f);
+            Profile tp = requireProfile(targetUserId);
+            Profile fp = requireProfile(currentUserId);
+            tp.setFollowingCount(Math.max(0, tp.getFollowingCount() - 1));
+            fp.setFollowersCount(Math.max(0, fp.getFollowersCount() - 1));
+        });
+
+        com.aloute.entity.Block block = com.aloute.entity.Block.builder()
+                .blocker(blocker)
+                .blocked(blocked)
+                .build();
+        blockRepository.save(block);
+        return new SocialRelationResponse(targetUserId, true);
+    }
+
+    @Override @Transactional
+    public void unblock(Long currentUserId, Long targetUserId) {
+        requireUser(targetUserId);
+        com.aloute.entity.Block b = blockRepository.findByBlockerIdAndBlockedId(currentUserId, targetUserId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "BLOCK_NOT_FOUND", "Block relationship not found"));
+        blockRepository.delete(b);
+    }
+
+    @Override @Transactional
+    public SocialRelationResponse mute(Long currentUserId, Long targetUserId) {
+        if (currentUserId.equals(targetUserId)) {
+            throw new ApiException(HttpStatus.CONFLICT, "MUTE_SELF_NOT_ALLOWED", "A user cannot mute themself");
+        }
+        User muter = requireUser(currentUserId);
+        User muted = requireUser(targetUserId);
+
+        if (muteRepository.existsByMuterIdAndMutedId(currentUserId, targetUserId)) {
+            throw new ApiException(HttpStatus.CONFLICT, "MUTE_ALREADY_EXISTS", "Mute relationship already exists");
+        }
+
+        com.aloute.entity.Mute mute = com.aloute.entity.Mute.builder()
+                .muter(muter)
+                .muted(muted)
+                .build();
+        muteRepository.save(mute);
+        return new SocialRelationResponse(targetUserId, true);
+    }
+
+    @Override @Transactional
+    public void unmute(Long currentUserId, Long targetUserId) {
+        requireUser(targetUserId);
+        com.aloute.entity.Mute m = muteRepository.findByMuterIdAndMutedId(currentUserId, targetUserId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "MUTE_NOT_FOUND", "Mute relationship not found"));
+        muteRepository.delete(m);
+    }
+
+    @Override @Transactional
+    public SocialRelationResponse restrict(Long currentUserId, Long targetUserId) {
+        if (currentUserId.equals(targetUserId)) {
+            throw new ApiException(HttpStatus.CONFLICT, "RESTRICT_SELF_NOT_ALLOWED", "A user cannot restrict themself");
+        }
+        User restricter = requireUser(currentUserId);
+        User restricted = requireUser(targetUserId);
+
+        if (restrictionRepository.existsByRestricterIdAndRestrictedId(currentUserId, targetUserId)) {
+            throw new ApiException(HttpStatus.CONFLICT, "RESTRICTION_ALREADY_EXISTS", "Restriction already exists");
+        }
+
+        com.aloute.entity.Restriction r = com.aloute.entity.Restriction.builder()
+                .restricter(restricter)
+                .restricted(restricted)
+                .build();
+        restrictionRepository.save(r);
+        return new SocialRelationResponse(targetUserId, true);
+    }
+
+    @Override @Transactional
+    public void unrestrict(Long currentUserId, Long targetUserId) {
+        requireUser(targetUserId);
+        com.aloute.entity.Restriction r = restrictionRepository.findByRestricterIdAndRestrictedId(currentUserId, targetUserId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "RESTRICTION_NOT_FOUND", "Restriction not found"));
+        restrictionRepository.delete(r);
+    }
+
     private UserSummary summary(User u) { Profile p=requireProfile(u.getId()); return new UserSummary(u.getId(),u.getUsername(),p.getDisplayName(),p.getAvatarUrl(),u.isVerified()); }
     private User requireUser(Long id) { return userRepository.findById(id).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,"USER_NOT_FOUND","User not found")); }
     private Profile requireProfile(Long id) { return profileRepository.findById(id).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,"USER_NOT_FOUND","User profile not found")); }

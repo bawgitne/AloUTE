@@ -32,7 +32,15 @@ public class PostController {
     @GetMapping("/feed/explore")
     public ApiResponse<List<PostResponse>> explore(@RequestParam(defaultValue = "0") @Min(0) int page,
                                                    @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return postService.listPublic(page, size, null);
+        Long viewerId = currentUserProvider.getCurrentUserId().orElse(null);
+        return postService.listPublic(page, size, viewerId);
+    }
+
+    @GetMapping("/feed/recommended")
+    public ApiResponse<List<PostResponse>> recommended(@RequestParam(defaultValue = "0") @Min(0) int page,
+                                                       @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        Long viewerId = currentUserProvider.getCurrentUserId().orElse(null);
+        return postService.getRecommendedFeed(viewerId, page, size);
     }
 
     @PostMapping("/posts")
@@ -43,7 +51,8 @@ public class PostController {
 
     @GetMapping("/posts/{postId}")
     public ApiResponse<PostResponse> get(@PathVariable @Positive Long postId) {
-        return ApiResponse.success(postService.get(postId, null));
+        Long viewerId = currentUserProvider.getCurrentUserId().orElse(null);
+        return ApiResponse.success(postService.get(postId, viewerId));
     }
 
     @PatchMapping("/posts/{postId}")
@@ -62,7 +71,8 @@ public class PostController {
     public ApiResponse<List<PostResponse>> replies(@PathVariable @Positive Long postId,
                                                    @RequestParam(defaultValue = "0") @Min(0) int page,
                                                    @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return postService.replies(postId, page, size, null);
+        Long viewerId = currentUserProvider.getCurrentUserId().orElse(null);
+        return postService.replies(postId, page, size, viewerId);
     }
 
     @PostMapping("/posts/{postId}/replies")
