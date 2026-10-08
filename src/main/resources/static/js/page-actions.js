@@ -656,6 +656,41 @@
             return;
         }
 
+        if (action === 'create-direct-conversation') {
+            event.preventDefault();
+            const targetUserId = target.dataset.targetUserId;
+            const username = target.dataset.username;
+            if (!targetUserId) return;
+            const originalHtml = target.innerHTML;
+            target.setAttribute('disabled', 'true');
+            target.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span><span>Đang kết nối...</span>';
+            try {
+                const response = await fetch('/api/conversations', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: csrfHeaders({ 'Content-Type': 'application/json', 'Accept': 'application/json' }),
+                    body: JSON.stringify({
+                        type: 'DIRECT',
+                        targetUserId: Number(targetUserId)
+                    })
+                });
+                target.removeAttribute('disabled');
+                target.innerHTML = originalHtml;
+                const body = await readJson(response);
+                if (response.ok && (response.status === 200 || response.status === 201)) {
+                    notice('Đã tạo cuộc trò chuyện với @' + (username || targetUserId) + '. (Tuyến đường /messages đang chờ kết nối Page Controller).', 'success');
+                } else {
+                    const msg = translateError(body && body.error, 'Không thể tạo cuộc trò chuyện.');
+                    notice(msg, 'danger');
+                }
+            } catch (_) {
+                target.removeAttribute('disabled');
+                target.innerHTML = originalHtml;
+                notice('Lỗi kết nối máy chủ khi tạo cuộc trò chuyện.', 'danger');
+            }
+            return;
+        }
+
         // Edit profile button is wired via Bootstrap data-bs-toggle="modal", handled natively
         if (action === 'edit-profile') {
             return;

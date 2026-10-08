@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/default :: layout(title='Tin nhắn — AloUTE', content=~{::#messaging-content})}">
+<body>
+<div id="messaging-content"
+     class="aloute-messaging-wrapper"
+     th:attr="data-current-user-id=${currentUser != null ? currentUser.id : ''}, data-current-username=${currentUser != null ? currentUser.username : ''}">
+
+    <h1 class="visually-hidden">Tin nhắn AloUTE</h1>
+
+    <!-- Messaging Two-Pane Card Container -->
+    <div class="aloute-messaging-card" id="messaging-card">
+
+        <!-- Left Pane: Conversations List -->
+        <section class="aloute-conversation-pane" id="conversation-pane" aria-label="Danh sách cuộc trò chuyện">
+            <div class="aloute-conversation-header">
+                <h2 class="fs-6 fw-bold mb-0 text-truncate">
+                    <i class="bi bi-chat-dots-fill text-primary me-2" aria-hidden="true"></i>Cuộc trò chuyện
+                </h2>
+            </div>
+
+            <!-- Conversation Search / Filter Input -->
+            <div class="px-3 pt-2 pb-2 border-bottom border-subtle">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white border-end-0 text-muted" id="search-conv-addon">
+                        <i class="bi bi-search" aria-hidden="true"></i>
+                    </span>
+                    <input type="text"
+                           class="form-control border-start-0 ps-0"
+                           id="search-conversations-input"
+                           placeholder="Lọc danh sách..."
+                           aria-label="Lọc danh sách cuộc trò chuyện"
+                           aria-describedby="search-conv-addon">
+                </div>
+            </div>
+
+            <!-- Loading State for Conversations -->
+            <div class="p-4 text-center d-none" id="conversations-loading">
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Đang tải cuộc trò chuyện...</span>
+                </div>
+                <p class="small text-muted mt-2 mb-0">Đang tải danh sách...</p>
+            </div>
+
+            <!-- Error State for Conversations -->
+            <div class="p-3 text-center d-none" id="conversations-error">
+                <i class="bi bi-exclamation-triangle text-danger fs-4" aria-hidden="true"></i>
+                <p class="small text-danger mt-1 mb-2" id="conversations-error-msg">Không thể tải cuộc trò chuyện.</p>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-retry-conversations">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Thử lại
+                </button>
+            </div>
+
+            <!-- Empty State for Conversations -->
+            <div class="p-4 text-center d-none" id="conversations-empty">
+                <i class="bi bi-chat-square-text text-muted fs-2" aria-hidden="true"></i>
+                <p class="small text-secondary mt-2 mb-0">Chưa có cuộc trò chuyện nào. Bạn có thể bắt đầu nhắn tin từ trang hồ sơ của sinh viên khác.</p>
+            </div>
+
+            <!-- Conversations List Items Container -->
+            <ul class="aloute-conversation-list" id="conversations-list" role="listbox" aria-label="Danh sách hội thoại">
+                <!-- Dynamically populated via REST -->
+            </ul>
+
+            <!-- Pagination Load More Footer -->
+            <div class="p-2 border-top text-center d-none" id="conversations-load-more-wrap">
+                <button type="button" class="btn btn-sm btn-link text-decoration-none" id="btn-load-more-conversations">
+                    Tải thêm cuộc trò chuyện
+                </button>
+            </div>
+        </section>
+
+        <!-- Right Pane: Active Chat Window -->
+        <section class="aloute-chat-pane" id="chat-pane" aria-label="Nội dung cuộc trò chuyện">
+
+            <!-- Chat Empty / Select Prompt State (When no conversation is open) -->
+            <div class="d-flex flex-column align-items-center justify-content-center h-100 p-4 text-center text-muted" id="chat-unselected-state">
+                <i class="bi bi-chat-heart text-secondary fs-1 mb-2" aria-hidden="true"></i>
+                <h2 class="fs-6 fw-bold text-secondary mb-1">Tin nhắn riêng AloUTE</h2>
+                <p class="small text-muted mb-0" style="max-width: 320px;">
+                    Chọn một cuộc trò chuyện từ danh sách bên trái để xem nội dung và gửi tin nhắn.
+                </p>
+            </div>
+
+            <!-- Active Chat Interface Container -->
+            <div class="d-none flex-column h-100" id="chat-active-container">
+
+                <!-- Chat Header -->
+                <header class="aloute-chat-header" id="chat-header">
+                    <div class="d-flex align-items-center gap-2 aloute-min-w-0">
+                        <!-- Mobile Back to List Button -->
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary d-md-none me-1"
+                                id="btn-back-to-conversations"
+                                aria-label="Quay lại danh sách cuộc trò chuyện">
+                            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                        </button>
+
+                        <img src="https://placehold.co/40x40/e2e8f0/475569?text=U"
+                             alt="Ảnh đại diện"
+                             class="avatar-img avatar-sm rounded-circle flex-shrink-0"
+                             id="chat-header-avatar"
+                             width="40"
+                             height="40">
+                        <div class="aloute-min-w-0">
+                            <h2 class="fs-6 fw-bold mb-0 text-truncate" id="chat-header-title">Người dùng</h2>
+                            <p class="small text-muted mb-0 text-truncate" id="chat-header-subtitle">@username</p>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-1">
+                        <button type="button"
+                                class="btn btn-sm btn-link text-muted"
+                                id="btn-refresh-messages"
+                                aria-label="Làm mới tin nhắn"
+                                title="Làm mới tin nhắn">
+                            <i class="bi bi-arrow-clockwise fs-6" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Load Older Messages Affordance (Pagination) -->
+                <div class="text-center py-2 border-bottom border-subtle d-none" id="load-older-messages-wrap">
+                    <button type="button" class="btn btn-sm btn-link text-decoration-none small" id="btn-load-older-messages">
+                        <i class="bi bi-arrow-up-circle me-1"></i>Tải tin nhắn cũ hơn
+                    </button>
+                </div>
+
+                <!-- Messages History Loading State -->
+                <div class="p-4 text-center d-none" id="messages-loading">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                        <span class="visually-hidden">Đang nạp tin nhắn...</span>
+                    </div>
+                </div>
+
+                <!-- Messages History Error State -->
+                <div class="p-3 text-center d-none" id="messages-error">
+                    <i class="bi bi-exclamation-triangle text-danger" aria-hidden="true"></i>
+                    <span class="small text-danger ms-1" id="messages-error-msg">Không thể tải tin nhắn.</span>
+                    <button type="button" class="btn btn-sm btn-link" id="btn-retry-messages">Thử lại</button>
+                </div>
+
+                <!-- Messages History Empty State -->
+                <div class="p-4 text-center my-auto text-muted d-none" id="messages-empty">
+                    <i class="bi bi-chat-text text-secondary fs-3" aria-hidden="true"></i>
+                    <p class="small text-muted mt-2 mb-0">Chưa có tin nhắn nào. Hãy gửi lời chào đầu tiên!</p>
+                </div>
+
+                <!-- Messages Stream / History Scroll Area -->
+                <div class="aloute-chat-history flex-grow-1"
+                     id="chat-history"
+                     role="log"
+                     aria-live="polite"
+                     aria-label="Lịch sử tin nhắn">
+                    <!-- Messages bubbles rendered chronologically -->
+                </div>
+
+                <!-- Inline Send Error / Retry Feedback -->
+                <div class="px-3 py-1 bg-danger-subtle text-danger small d-none d-flex align-items-center justify-content-between" id="send-error-bar">
+                    <span id="send-error-text">Không thể gửi tin nhắn.</span>
+                    <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-2" id="btn-retry-send">Thử lại</button>
+                </div>
+
+                <!-- Chat Composer / Input Area -->
+                <footer class="aloute-chat-composer" id="chat-composer">
+                    <form id="message-send-form" autocomplete="off">
+                        <div class="d-flex align-items-end gap-2">
+                            <div class="flex-grow-1">
+                                <label for="message-input" class="visually-hidden">Nội dung tin nhắn</label>
+                                <textarea class="form-control"
+                                          id="message-input"
+                                          rows="1"
+                                          maxlength="2000"
+                                          placeholder="Nhập tin nhắn (Enter để gửi)..."
+                                          required></textarea>
+                            </div>
+                            <button type="submit"
+                                    class="btn btn-primary rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0"
+                                    style="width: 44px; height: 44px;"
+                                    id="btn-send-message"
+                                    aria-label="Gửi tin nhắn">
+                                <i class="bi bi-send-fill" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </form>
+                </footer>
+            </div>
+        </section>
+    </div>
+
+    <!-- Page Specific Feature Script -->
+    <script th:src="@{/js/features/messaging/messaging.js}" src="/js/features/messaging/messaging.js" defer></script>
+</div>
+</body>
+</html>
