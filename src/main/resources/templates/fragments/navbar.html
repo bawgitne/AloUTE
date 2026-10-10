@@ -35,12 +35,12 @@
 
         <!-- Right: Actions & User Controls -->
         <div class="d-flex align-items-center gap-2">
-            <!-- Create Post quick action (Presentational hook) -->
-            <a href="#" data-page="post-create" data-action="navigate-create-post" class="btn btn-sm btn-primary d-none d-sm-inline-flex">
+            <!-- Create Post quick action -->
+            <a th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" class="btn btn-sm btn-primary d-none d-sm-inline-flex">
                 <i class="bi bi-pencil-square" aria-hidden="true"></i>
                 <span>Tạo bài viết</span>
             </a>
-            <a href="#" data-page="post-create" data-action="navigate-create-post" class="btn btn-sm btn-primary d-inline-flex d-sm-none aloute-btn-icon-mobile" aria-label="Tạo bài viết mới">
+            <a th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" class="btn btn-sm btn-primary d-inline-flex d-sm-none aloute-btn-icon-mobile" aria-label="Tạo bài viết mới">
                 <i class="bi bi-pencil-square" aria-hidden="true"></i>
             </a>
 
@@ -94,7 +94,7 @@
                         </a>
                     </li>
                     <li>
-                        <a class="dropdown-item d-flex align-items-center gap-2" href="#" data-page="post-create" data-action="navigate-create-post">
+                        <a class="dropdown-item d-flex align-items-center gap-2" th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post">
                             <i class="bi bi-plus-circle text-secondary" aria-hidden="true"></i>
                             <span>Tạo bài viết mới</span>
                         </a>

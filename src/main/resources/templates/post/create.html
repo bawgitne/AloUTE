@@ -16,8 +16,11 @@
             </a>
         </header>
 
-        <!-- Create Post Form (Presentational form; pending backend post action) -->
+        <!-- Create Post Form -->
         <form id="create-post-form" class="needs-validation" novalidate>
+            <!-- Status Alert for feedback -->
+            <div id="create-post-status" class="alert d-none mb-3" role="status" aria-live="polite"></div>
+
             <!-- Content Field -->
             <div class="mb-3">
                 <label for="postContent" class="form-label">Nội dung bài viết <span class="text-danger">*</span></label>
@@ -36,6 +39,9 @@
                 <div th:if="${fieldErrors != null and fieldErrors.content != null}"
                      class="invalid-feedback d-block"
                      th:text="${fieldErrors.content}">
+                    Nội dung không được để trống.
+                </div>
+                <div id="post-content-error" class="invalid-feedback d-none">
                     Nội dung không được để trống.
                 </div>
             </div>
@@ -71,13 +77,14 @@
             <div class="d-flex align-items-center justify-content-end gap-2 pt-2 border-top border-secondary-subtle">
                 <!-- Canonical /feed route -->
                 <a th:href="@{/feed}" href="/feed" class="btn btn-secondary">Hủy bỏ</a>
-                <button type="button" class="btn btn-primary px-4 fw-semibold" data-action="create-post">
+                <button type="submit" id="btn-create-post" class="btn btn-primary px-4 fw-semibold" data-action="create-post">
                     <i class="bi bi-send me-1" aria-hidden="true"></i>
                     <span>Đăng bài</span>
                 </button>
             </div>
         </form>
     </div>
+    <script th:src="@{/js/features/post/post-composer.js}" defer></script>
 </div>
 </body>
 </html>

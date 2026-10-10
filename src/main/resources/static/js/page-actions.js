@@ -642,6 +642,14 @@
             }
             return;
         }
+        if (action === 'view-comments') {
+            const postId = target.dataset.postId;
+            if (postId) {
+                event.preventDefault();
+                window.location.href = '/posts/' + encodeURIComponent(postId);
+            }
+            return;
+        }
 
         // Authenticated actions
         if (action === 'logout') {
@@ -696,11 +704,14 @@
             return;
         }
 
+        // Post creation and reply submissions are handled by post-composer.js
+        if (action === 'create-post' || action === 'submit-reply') {
+            return;
+        }
+
         // Preserved inert non-scope actions
         event.preventDefault();
         const nonScopeLabels = {
-            'create-post': 'API tạo bài viết thuộc module Post chưa được ghép.',
-            'submit-reply': 'API Reply thuộc module Post chưa được ghép.',
             'edit-post': 'API sửa bài viết chưa được ghép.',
             'delete-post': 'API xóa bài viết chưa được ghép.',
             'topic': 'Topic/Community thuộc module Ngọc chưa được ghép.'

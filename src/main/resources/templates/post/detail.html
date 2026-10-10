@@ -33,12 +33,14 @@
         <section class="aloute-card p-3 p-md-4 mt-3" aria-label="Bình luận và thảo luận">
             <h2 class="fs-6 fw-bold mb-3 d-flex align-items-center gap-2">
                 <i class="bi bi-chat-text text-primary" aria-hidden="true"></i>
-                <span>Bình luận (<span th:text="${post.replyCount != null ? post.replyCount : 0}">0</span>)</span>
+                <span>Bình luận (<span id="post-replies-count" th:text="${post.replyCount != null ? post.replyCount : 0}">0</span>)</span>
             </h2>
 
-            <!-- Comment Composer Form (Neutralized presentational form hook; pending backend reply API) -->
+            <!-- Comment Composer Form -->
             <div th:if="${post.allowReply != false and (post.capabilities == null or post.capabilities.canReply != false)}" class="mb-4">
-                <form action="#" onsubmit="return false;" th:attr="data-post-id=${post.id != null ? post.id : ''}" data-action="submit-reply">
+                <form id="reply-form" novalidate th:attr="data-post-id=${post.id != null ? post.id : ''}">
+                    <!-- Reply status alert for feedback -->
+                    <div id="reply-status" class="alert d-none mb-2" role="status" aria-live="polite"></div>
                     <div class="mb-2">
                         <label for="commentContent" class="visually-hidden">Nội dung bình luận</label>
                         <textarea class="form-control"
@@ -48,9 +50,16 @@
                                   placeholder="Viết bình luận văn minh, tôn trọng người khác..."
                                   required
                                   maxlength="1000"></textarea>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <div class="form-text">Tối đa 1000 ký tự.</div>
+                            <div class="text-muted small" id="reply-char-count">0 / 1000</div>
+                        </div>
+                        <div id="reply-content-error" class="invalid-feedback d-none">
+                            Nội dung bình luận không được để trống.
+                        </div>
                     </div>
                     <div class="d-flex justify-content-end">
-                        <button type="button" class="btn btn-sm btn-primary" data-action="submit-reply">
+                        <button type="submit" id="btn-submit-reply" class="btn btn-sm btn-primary" data-action="submit-reply">
                             <i class="bi bi-send me-1" aria-hidden="true"></i>
                             <span>Gửi bình luận</span>
                         </button>
@@ -65,18 +74,18 @@
                 <span>Tác giả đã tắt tính năng bình luận cho bài viết này.</span>
             </div>
 
-            <!-- Comments List -->
+            <!-- Replies List -->
             <div class="comments-list">
-                <!-- Empty Comments State -->
-                <div th:if="${comments == null or #lists.isEmpty(comments)}" class="text-center py-4 text-muted small">
+                <!-- Empty Replies State -->
+                <div id="replies-empty" th:if="${replies == null or #lists.isEmpty(replies)}" class="text-center py-4 text-muted small">
                     <i class="bi bi-chat-dots fs-3 d-block mb-2 opacity-50" aria-hidden="true"></i>
                     <span>Chưa có bình luận nào. Hãy là người đầu tiên chia sẻ suy nghĩ!</span>
                 </div>
 
-                <!-- Render Comments Loop -->
-                <div th:if="${comments != null and !#lists.isEmpty(comments)}" class="d-flex flex-column gap-3">
-                    <article th:each="comment : ${comments}" class="comment-card">
-                        <img th:src="${comment.author != null and comment.author.avatarUrl != null and !comment.author.avatarUrl.isEmpty()} ? ${comment.author.avatarUrl} : @{/images/avatar-fallback.svg}"
+                <!-- Render Replies Loop -->
+                <div id="replies-list" class="d-flex flex-column gap-3" th:classappend="${replies == null or #lists.isEmpty(replies)} ? 'd-none' : ''">
+                    <article th:each="reply : ${replies}" class="comment-card" th:attr="data-reply-id=${reply.id}">
+                        <img th:src="${reply.author != null and reply.author.avatarUrl != null and !reply.author.avatarUrl.isEmpty()} ? ${reply.author.avatarUrl} : @{/images/avatar-fallback.svg}"
                              src="/images/avatar-fallback.svg"
                              alt="Avatar người bình luận"
                              class="avatar-img avatar-sm"
@@ -85,24 +94,25 @@
                         <div class="comment-body">
                             <div class="d-flex align-items-center justify-content-between mb-1">
                                 <span class="comment-author-name"
-                                      th:text="${comment.author != null ? (comment.author.displayName != null ? comment.author.displayName : comment.author.username) : 'Sinh viên AloUTE'}">
+                                      th:text="${reply.author != null ? (reply.author.displayName != null ? reply.author.displayName : reply.author.username) : 'Sinh viên AloUTE'}">
                                     Tên người bình luận
                                 </span>
-                                <span class="text-muted small" th:text="${comment.createdAt != null ? comment.createdAt : 'Vừa xong'}">5 phút trước</span>
+                                <span class="text-muted small" th:text="${reply.createdAt != null ? reply.createdAt : 'Vừa xong'}">5 phút trước</span>
                             </div>
-                            <div class="comment-text" th:text="${comment.content}">
+                            <div class="comment-text" th:text="${reply.content}">
                                 Nội dung bình luận mẫu hiển thị an toàn.
                             </div>
                         </div>
                     </article>
                 </div>
 
-                <!-- Comments Pagination if supplied (Presentational hook) -->
-                <div th:if="${commentsPageMeta != null}">
-                    <div th:replace="~{fragments/pagination :: pagination(pageMeta=${commentsPageMeta}, baseUrl='#')}"></div>
+                <!-- Comments/Replies Pagination if supplied (Presentational hook) -->
+                <div th:if="${repliesPageMeta != null or commentsPageMeta != null}">
+                    <div th:replace="~{fragments/pagination :: pagination(pageMeta=${repliesPageMeta ?: commentsPageMeta}, baseUrl='#')}"></div>
                 </div>
             </div>
         </section>
+        <script th:src="@{/js/features/post/post-composer.js}" defer></script>
     </div>
 </div>
 </body>

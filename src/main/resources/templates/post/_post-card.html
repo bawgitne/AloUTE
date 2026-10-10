@@ -6,34 +6,45 @@
     <div th:if="${post != null}">
         <!-- Post Header: Author info, timestamp, capabilities dropdown -->
         <header class="post-card-header">
-            <div class="post-author-meta">
+            <div class="post-author-meta d-flex align-items-center gap-2">
                 <!-- Canonical /users/{id} route if author present, else fallback hook -->
                 <a th:href="${post.author != null and post.author.id != null} ? @{/users/{id}(id=${post.author.id})} : '#'"
                    data-page="user-profile"
                    data-action="navigate-profile"
-                   class="d-flex align-items-center gap-2 text-decoration-none">
+                   class="text-decoration-none">
                     <img th:src="${post.author != null and post.author.avatarUrl != null and !post.author.avatarUrl.isEmpty()} ? ${post.author.avatarUrl} : @{/images/avatar-fallback.svg}"
                          src="/images/avatar-fallback.svg"
                          alt="Avatar người đăng"
                          class="avatar-img avatar-sm"
                          width="40"
                          height="40">
-                    <div>
-                        <div class="d-flex align-items-center gap-1">
+                </a>
+                <div>
+                    <div class="d-flex align-items-center gap-1">
+                        <a th:href="${post.author != null and post.author.id != null} ? @{/users/{id}(id=${post.author.id})} : '#'"
+                           data-page="user-profile"
+                           data-action="navigate-profile"
+                           class="text-decoration-none text-reset">
                             <span class="post-author-name"
                                   th:text="${post.author != null ? (post.author.displayName != null ? post.author.displayName : post.author.username) : 'Sinh viên AloUTE'}">
                                 Nguyễn Văn A
                             </span>
-                            <i th:if="${post.author != null and post.author.isVerified}"
-                               class="bi bi-patch-check-fill text-primary small"
-                               aria-label="Tài khoản đã xác minh"></i>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="post-timestamp" th:text="${post.createdAt != null ? post.createdAt : 'Vừa xong'}">10 phút trước</span>
-                            <span th:if="${post.visibility != null}" class="post-badge" th:text="${post.visibility}">PUBLIC</span>
-                        </div>
+                        </a>
+                        <i th:if="${post.author != null and post.author.isVerified}"
+                           class="bi bi-patch-check-fill text-primary small"
+                           aria-label="Tài khoản đã xác minh"></i>
                     </div>
-                </a>
+                    <div class="d-flex align-items-center gap-2">
+                        <a th:if="${post.id != null}"
+                           th:href="@{/posts/{postId}(postId=${post.id})}"
+                           class="post-timestamp text-muted text-decoration-none"
+                           th:text="${post.createdAt != null ? post.createdAt : 'Vừa xong'}">10 phút trước</a>
+                        <span th:if="${post.id == null}"
+                              class="post-timestamp"
+                              th:text="${post.createdAt != null ? post.createdAt : 'Vừa xong'}">10 phút trước</span>
+                        <span th:if="${post.visibility != null}" class="post-badge" th:text="${post.visibility}">PUBLIC</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Capabilities Actions Dropdown (Edit/Delete presentational hooks) -->
