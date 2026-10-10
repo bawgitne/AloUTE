@@ -709,6 +709,11 @@
             return;
         }
 
+        // Post interactions (like, bookmark, repost) are handled by dedicated post-like script
+        if (action === 'like' || action === 'bookmark' || action === 'repost') {
+            return;
+        }
+
         // Preserved inert non-scope actions
         event.preventDefault();
         const nonScopeLabels = {

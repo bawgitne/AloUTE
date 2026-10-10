@@ -1,144 +1,314 @@
 /**
- * ALOUTE — Post Interactions (Like, Bookmark, Repost)
+ * AloUTE — Post Interactions (Like, Bookmark, Repost)
+ *
+ * Dedicated owner for post interaction actions:
+ * - Like: PUT / DELETE /api/posts/{id}/likes/me
+ * - Bookmark: PUT / DELETE /api/posts/{id}/bookmarks/me
+ * - Repost: PUT / DELETE /api/posts/{id}/reposts/me
+ *
+ * Conforms to frontend_rule.md section 14 (shared HTTP transport via window.alouteHttp)
+ * and ALOUTE_SYSTEM_ARCHITECTURE.md (ApiResponse envelope validation).
  */
+(function () {
+    'use strict';
 
-document.addEventListener('DOMContentLoaded', () => {
-  // Use event delegation for dynamically loaded posts or static posts
-  document.body.addEventListener('click', async (event) => {
-    // 1. Like Button
-    const likeBtn = event.target.closest('.btn-like');
-    if (likeBtn) {
-      event.preventDefault();
-      const postId = likeBtn.getAttribute('data-post-id');
-      const countEl = likeBtn.querySelector('.like-count');
-      const iconEl = likeBtn.querySelector('i');
-      
-      const isLiked = likeBtn.classList.contains('liked');
-      let count = parseInt(countEl?.textContent || '0', 10);
+    // Idempotent initialization guard
+    if (typeof window !== 'undefined' && window.__aloutePostInteractionsInitialized) return;
+    if (typeof window !== 'undefined') window.__aloutePostInteractionsInitialized = true;
 
-      // Optimistic UI update
-      likeBtn.classList.toggle('liked', !isLiked);
-      if (iconEl) {
-        iconEl.className = !isLiked ? 'fa-solid fa-heart text-danger' : 'fa-regular fa-heart';
-      }
-      if (countEl) {
-        countEl.textContent = !isLiked ? count + 1 : Math.max(0, count - 1);
-      }
+    // Concurrency lock: set of active "postId:action" strings
+    const inFlight = new Set();
 
-      try {
-        const res = await window.httpClient.post(`/api/posts/${postId}/like`);
-        if (res) {
-          likeBtn.classList.toggle('liked', res.liked);
-          if (iconEl) {
-            iconEl.className = res.liked ? 'fa-solid fa-heart text-danger' : 'fa-regular fa-heart';
-          }
-          if (countEl && typeof res.likeCount === 'number') {
-            countEl.textContent = res.likeCount;
-          }
+    // Accessible floating notice / announcer (safe textContent, role="status", aria-live="polite")
+    function announce(message, type) {
+        if (!message || typeof document === 'undefined') return;
+        let box = document.getElementById('aloute-toast-notice');
+        if (!box) {
+            box = document.createElement('div');
+            box.id = 'aloute-toast-notice';
+            box.className = 'position-fixed bottom-0 end-0 m-3 alert shadow';
+            box.style.zIndex = '2050';
+            box.setAttribute('role', 'status');
+            box.setAttribute('aria-live', 'polite');
+            if (document.body) {
+                document.body.appendChild(box);
+            }
         }
-      } catch (err) {
-        // Rollback optimistic update
-        likeBtn.classList.toggle('liked', isLiked);
-        if (iconEl) {
-          iconEl.className = isLiked ? 'fa-solid fa-heart text-danger' : 'fa-regular fa-heart';
+        box.className = 'position-fixed bottom-0 end-0 m-3 alert alert-' + (type || 'info') + ' shadow';
+        box.textContent = message;
+        box.hidden = false;
+        if (typeof window !== 'undefined') {
+            clearTimeout(window.__aloutePostInteractionNoticeTimer);
+            window.__aloutePostInteractionNoticeTimer = setTimeout(function () {
+                box.hidden = true;
+            }, 3500);
         }
-        if (countEl) countEl.textContent = count;
-        
-        if (err.status === 401) {
-          window.Aloute.toast.show('Vui lòng đăng nhập để thích bài viết', 'warning');
-        } else {
-          window.Aloute.toast.show(err.message || 'Không thể thao tác', 'danger');
-        }
-      }
-      return;
     }
 
-    // 2. Bookmark Button
-    const bookmarkBtn = event.target.closest('.btn-bookmark');
-    if (bookmarkBtn) {
-      event.preventDefault();
-      const postId = bookmarkBtn.getAttribute('data-post-id');
-      const iconEl = bookmarkBtn.querySelector('i');
-      const isBookmarked = bookmarkBtn.classList.contains('bookmarked');
-
-      // Optimistic update
-      bookmarkBtn.classList.toggle('bookmarked', !isBookmarked);
-      if (iconEl) {
-        iconEl.className = !isBookmarked ? 'fa-solid fa-bookmark text-warning' : 'fa-regular fa-bookmark';
-      }
-
-      try {
-        if (!isBookmarked) {
-          await window.httpClient.put(`/api/posts/${postId}/bookmarks/me`);
-          window.Aloute.toast.show('Đã lưu bài viết', 'success');
-        } else {
-          await window.httpClient.delete(`/api/posts/${postId}/bookmarks/me`);
-          window.Aloute.toast.show('Đã bỏ lưu bài viết', 'info');
+    // Map HTTP error status codes to clean user-friendly Vietnamese messages
+    function translateErrorStatus(status, body) {
+        if (status === 401) {
+            return 'Vui lòng đăng nhập để thực hiện thao tác này.';
         }
-      } catch (err) {
-        bookmarkBtn.classList.toggle('bookmarked', isBookmarked);
-        if (iconEl) {
-          iconEl.className = isBookmarked ? 'fa-solid fa-bookmark text-warning' : 'fa-regular fa-bookmark';
+        if (status === 403) {
+            return 'Bạn không có quyền thực hiện thao tác này.';
         }
-        if (err.status === 401) {
-          window.Aloute.toast.show('Vui lòng đăng nhập để lưu bài viết', 'warning');
-        } else {
-          window.Aloute.toast.show(err.message || 'Không thể thao tác', 'danger');
+        if (status === 404) {
+            return 'Bài viết không tồn tại hoặc đã bị xóa.';
         }
-      }
-      return;
+        if (body && body.error && typeof body.error.message === 'string') {
+            const msg = body.error.message;
+            if (msg === 'Access is denied' || msg === 'Access Denied') {
+                return 'Bạn không có quyền thực hiện thao tác này.';
+            }
+            if (msg === 'Post not found') {
+                return 'Bài viết không tồn tại hoặc đã bị xóa.';
+            }
+        }
+        return 'Không thể thực hiện thao tác lúc này. Vui lòng thử lại sau.';
     }
 
-    // 3. Repost Button
-    const repostBtn = event.target.closest('.btn-repost');
-    if (repostBtn) {
-      event.preventDefault();
-      const postId = repostBtn.getAttribute('data-post-id');
-      const countEl = repostBtn.querySelector('.repost-count');
-      const isReposted = repostBtn.classList.contains('reposted');
-      let count = parseInt(countEl?.textContent || '0', 10);
-
-      repostBtn.classList.toggle('reposted', !isReposted);
-      if (countEl) countEl.textContent = !isReposted ? count + 1 : Math.max(0, count - 1);
-
-      try {
-        const res = await window.httpClient.post(`/api/posts/${postId}/repost`);
-        if (res && countEl && typeof res.repostCount === 'number') {
-          countEl.textContent = res.repostCount;
-        }
-        window.Aloute.toast.show(!isReposted ? 'Đã đăng lại bài viết' : 'Đã hủy đăng lại', 'success');
-      } catch (err) {
-        repostBtn.classList.toggle('reposted', isReposted);
-        if (countEl) countEl.textContent = count;
-        if (err.status === 401) {
-          window.Aloute.toast.show('Vui lòng đăng nhập để đăng lại', 'warning');
-        } else {
-          window.Aloute.toast.show(err.message || 'Không thể đăng lại', 'danger');
-        }
-      }
-      return;
+    // Query all matching interaction buttons in document for the same postId and action
+    function getMatchingButtons(action, postId) {
+        if (typeof document === 'undefined') return [];
+        return Array.from(document.querySelectorAll('[data-action="' + action + '"][data-post-id="' + postId + '"]'));
     }
 
-    // 4. Delete Post Option
-    const deleteBtn = event.target.closest('.btn-delete-post');
-    if (deleteBtn) {
-      event.preventDefault();
-      const postId = deleteBtn.getAttribute('data-post-id');
-      if (confirm('Bạn có chắc chắn muốn xóa bài viết này không?')) {
+    // Apply interactive state to a list of buttons
+    function applyState(buttons, action, active, countVal) {
+        buttons.forEach(btn => {
+            btn.classList.toggle('is-active', active);
+            btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+
+            const icon = btn.querySelector('i');
+            if (action === 'like') {
+                btn.setAttribute('aria-label', active ? 'Bỏ thích bài viết' : 'Thích bài viết');
+                if (icon) {
+                    icon.classList.remove(active ? 'bi-heart' : 'bi-heart-fill');
+                    icon.classList.add(active ? 'bi-heart-fill' : 'bi-heart');
+                }
+            } else if (action === 'bookmark') {
+                btn.setAttribute('aria-label', active ? 'Bỏ lưu bài viết' : 'Lưu bài viết');
+                if (icon) {
+                    icon.classList.remove(active ? 'bi-bookmark' : 'bi-bookmark-fill');
+                    icon.classList.add(active ? 'bi-bookmark-fill' : 'bi-bookmark');
+                }
+            } else if (action === 'repost') {
+                btn.setAttribute('aria-label', active ? 'Hủy chia sẻ lại bài viết' : 'Chia sẻ lại bài viết');
+                if (icon) {
+                    if (!icon.classList.contains('bi-arrow-repeat')) {
+                        icon.className = 'bi bi-arrow-repeat';
+                    }
+                }
+            }
+
+            // Only update counter if countVal is provided as finite number (like, repost)
+            if (typeof countVal === 'number' && Number.isFinite(countVal)) {
+                const countEl = btn.querySelector('.interaction-count, .count, [data-role="count"]');
+                if (countEl) {
+                    countEl.textContent = Math.max(0, countVal).toString();
+                }
+            }
+        });
+    }
+
+    // Set or unset busy/disabled state on matching buttons
+    function setBusy(buttons, busy) {
+        buttons.forEach(btn => {
+            if (busy) {
+                btn.setAttribute('aria-busy', 'true');
+                btn.disabled = true;
+            } else {
+                btn.removeAttribute('aria-busy');
+                btn.disabled = false;
+            }
+        });
+    }
+
+    // Main action handler
+    async function handleInteraction(targetBtn) {
+        const action = targetBtn.getAttribute('data-action');
+        const postId = targetBtn.getAttribute('data-post-id');
+        if (!postId || !action) return;
+
+        // Verify valid action
+        if (action !== 'like' && action !== 'bookmark' && action !== 'repost') return;
+
+        const lockKey = postId + ':' + action;
+        if (inFlight.has(lockKey)) {
+            // Drop duplicate click while request is in flight
+            return;
+        }
+
+        // Determine current state from clicked button
+        const wasActive = targetBtn.classList.contains('is-active') || targetBtn.getAttribute('aria-pressed') === 'true';
+        const targetActive = !wasActive;
+
+        let buttons = getMatchingButtons(action, postId);
+        if (buttons.length === 0) return;
+
+        // Read current counter if present (like, repost)
+        let currentCount = null;
+        if (action === 'like' || action === 'repost') {
+            for (const b of buttons) {
+                const cntEl = b.querySelector('.interaction-count, .count, [data-role="count"]');
+                if (cntEl) {
+                    const parsed = parseInt(cntEl.textContent.trim(), 10);
+                    if (!isNaN(parsed) && Number.isFinite(parsed)) {
+                        currentCount = Math.max(0, parsed);
+                        break;
+                    }
+                }
+            }
+            if (currentCount === null) currentCount = 0;
+        }
+
+        // Compute optimistic counter
+        let optimisticCount = null;
+        if (currentCount !== null) {
+            optimisticCount = targetActive ? currentCount + 1 : Math.max(0, currentCount - 1);
+        }
+
+        // Acquire lock and apply busy state across all matching buttons
+        inFlight.add(lockKey);
+        setBusy(buttons, true);
+
+        // Apply optimistic update immediately
+        applyState(buttons, action, targetActive, optimisticCount);
+
+        // Verify shared transport client is present; if missing, rollback immediately with safe notice
+        if (typeof window === 'undefined' || !window.alouteHttp || typeof window.alouteHttp.request !== 'function' || typeof window.alouteHttp.readJson !== 'function') {
+            inFlight.delete(lockKey);
+            buttons = getMatchingButtons(action, postId);
+            applyState(buttons, action, wasActive, currentCount);
+            setBusy(buttons, false);
+            announce('Không thể thực hiện thao tác lúc này. Vui lòng thử lại sau.', 'danger');
+            return;
+        }
+
+        const http = window.alouteHttp;
+        const endpointSegments = {
+            'like': 'likes',
+            'bookmark': 'bookmarks',
+            'repost': 'reposts'
+        };
+        const segment = endpointSegments[action];
+        const url = '/api/posts/' + encodeURIComponent(postId) + '/' + segment + '/me';
+        const method = targetActive ? 'PUT' : 'DELETE';
+
         try {
-          await window.httpClient.delete(`/api/posts/${postId}`);
-          window.Aloute.toast.show('Đã xóa bài viết thành công', 'success');
-          const postCard = document.getElementById(`post-card-${postId}`);
-          if (postCard) {
-            postCard.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-            postCard.style.opacity = '0';
-            postCard.style.transform = 'scale(0.95)';
-            setTimeout(() => postCard.remove(), 300);
-          }
-        } catch (err) {
-          window.Aloute.toast.show(err.message || 'Không thể xóa bài viết', 'danger');
+            const response = await http.request(url, { method: method });
+
+            if (response.status === 204) {
+                // HTTP 204 No Content is valid ONLY for expected DELETE mutations; never turn a PUT into false
+                if (method !== 'DELETE') {
+                    throw new Error('UNEXPECTED_204_FOR_PUT');
+                }
+
+                const finalActive = false;
+                let finalCount = null;
+                if (action === 'like' || action === 'repost') {
+                    if (currentCount !== null) {
+                        finalCount = wasActive ? Math.max(0, currentCount - 1) : currentCount;
+                    }
+                }
+
+                // Re-query matching buttons immediately before applying final state
+                buttons = getMatchingButtons(action, postId);
+                applyState(buttons, action, finalActive, finalCount);
+            } else if (response.ok && response.status === 200) {
+                const body = await http.readJson(response);
+
+                // Reject malformed, empty or noncanonical envelopes
+                if (!body || typeof body !== 'object' || body.success !== true || !body.data || typeof body.data !== 'object') {
+                    throw new Error('MALFORMED_OR_NONCANONICAL_ENVELOPE');
+                }
+
+                const payload = body.data;
+
+                // Both canonical DTO shapes require post identity: reject missing, null, or mismatched identity
+                const rawRespId = payload.id !== undefined ? payload.id : payload.postId;
+                if (rawRespId === null || rawRespId === undefined || String(rawRespId).trim() !== String(postId).trim()) {
+                    throw new Error('MISSING_OR_MISMATCHED_POST_IDENTITY');
+                }
+
+                // Per-action boolean validation
+                let finalActive = null;
+                if (payload.viewerState && typeof payload.viewerState === 'object') {
+                    if (action === 'like' && typeof payload.viewerState.liked === 'boolean') {
+                        finalActive = payload.viewerState.liked;
+                    } else if (action === 'bookmark' && typeof payload.viewerState.bookmarked === 'boolean') {
+                        finalActive = payload.viewerState.bookmarked;
+                    } else if (action === 'repost' && typeof payload.viewerState.reposted === 'boolean') {
+                        finalActive = payload.viewerState.reposted;
+                    }
+                } else if (typeof payload.active === 'boolean') {
+                    finalActive = payload.active;
+                }
+
+                if (typeof finalActive !== 'boolean') {
+                    throw new Error('MISSING_OR_INVALID_ACTION_STATE');
+                }
+
+                // Reconcile relevant counter: authoritative count if provided,
+                // otherwise calculate from prior count/state vs final state
+                let authoritativeCount = null;
+                if (action === 'like' && typeof payload.likeCount === 'number' && Number.isFinite(payload.likeCount)) {
+                    authoritativeCount = Math.max(0, payload.likeCount);
+                } else if (action === 'repost' && typeof payload.repostCount === 'number' && Number.isFinite(payload.repostCount)) {
+                    authoritativeCount = Math.max(0, payload.repostCount);
+                }
+
+                let finalCount = null;
+                if (action === 'like' || action === 'repost') {
+                    if (authoritativeCount !== null) {
+                        finalCount = authoritativeCount;
+                    } else if (currentCount !== null) {
+                        if (finalActive === wasActive) {
+                            // Disagreement or unchanged: preserve prior count
+                            finalCount = currentCount;
+                        } else if (finalActive) {
+                            finalCount = currentCount + 1;
+                        } else {
+                            finalCount = Math.max(0, currentCount - 1);
+                        }
+                    }
+                }
+
+                // Re-query matching buttons immediately before applying final state
+                buttons = getMatchingButtons(action, postId);
+                applyState(buttons, action, finalActive, finalCount);
+            } else {
+                // Non-2xx response: rollback optimistic update
+                let errorBody = null;
+                try {
+                    errorBody = await http.readJson(response);
+                } catch (_) {}
+
+                buttons = getMatchingButtons(action, postId);
+                applyState(buttons, action, wasActive, currentCount);
+                const msg = translateErrorStatus(response.status, errorBody);
+                announce(msg, 'danger');
+            }
+        } catch (_) {
+            // Network failure, malformed response or envelope validation failure: rollback optimistic update
+            buttons = getMatchingButtons(action, postId);
+            applyState(buttons, action, wasActive, currentCount);
+            announce('Không thể thực hiện thao tác lúc này. Vui lòng thử lại sau.', 'danger');
+        } finally {
+            inFlight.delete(lockKey);
+            buttons = getMatchingButtons(action, postId);
+            setBusy(buttons, false);
         }
-      }
     }
-  });
-});
+
+    // Global click listener using event delegation
+    if (typeof document !== 'undefined') {
+        document.addEventListener('click', function (event) {
+            const targetBtn = event.target.closest('[data-action="like"], [data-action="bookmark"], [data-action="repost"]');
+            if (!targetBtn) return;
+            event.preventDefault();
+            handleInteraction(targetBtn);
+        });
+    }
+})();
