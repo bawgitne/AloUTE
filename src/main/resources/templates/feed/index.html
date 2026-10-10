@@ -38,8 +38,20 @@
 
     <!-- Activity Stream / Posts List -->
     <section aria-label="Danh sách bài viết" class="feed-posts-list">
+        <!-- Feed Error State -->
+        <div th:if="${feedError == true}" id="feed-error-state" class="alert alert-danger d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2 p-3 my-3" role="alert">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-exclamation-triangle-fill fs-5 text-danger" aria-hidden="true"></i>
+                <span id="feed-error-message">Không thể tải bảng tin lúc này. Vui lòng thử lại sau.</span>
+            </div>
+            <a th:href="@{/feed}" href="/feed" class="btn btn-sm btn-outline-danger" id="btn-retry-feed">
+                <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>
+                <span>Thử lại</span>
+            </a>
+        </div>
+
         <!-- Feed Empty State -->
-        <div th:if="${posts == null or #lists.isEmpty(posts)}" class="empty-state">
+        <div th:if="${(feedError == null or !feedError) and (posts == null or #lists.isEmpty(posts))}" class="empty-state">
             <div class="empty-state-icon">
                 <i class="bi bi-chat-square-dots" aria-hidden="true"></i>
             </div>
@@ -54,7 +66,7 @@
         </div>
 
         <!-- Render Post Cards -->
-        <div th:if="${posts != null and !#lists.isEmpty(posts)}">
+        <div th:if="${(feedError == null or !feedError) and posts != null and !#lists.isEmpty(posts)}">
             <div th:each="postItem : ${posts}">
                 <div th:replace="~{post/_post-card :: postCard(post=${postItem})}"></div>
             </div>
