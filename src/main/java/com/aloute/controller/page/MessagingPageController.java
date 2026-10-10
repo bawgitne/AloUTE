@@ -1,10 +1,10 @@
 package com.aloute.controller.page;
 
 import com.aloute.dto.response.ConversationResponse;
-import com.aloute.dto.response.UserResponse;
+import com.aloute.dto.response.ProfileResponse;
 import com.aloute.security.currentuser.CurrentUserProvider;
-import com.aloute.service.AuthService;
 import com.aloute.service.ConversationService;
+import com.aloute.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 public class MessagingPageController {
 
     private final ConversationService conversationService;
-    private final AuthService authService;
+    private final UserService userService;
     private final CurrentUserProvider currentUserProvider;
 
     @GetMapping("/messages")
@@ -34,9 +34,9 @@ public class MessagingPageController {
             return "redirect:/login";
         }
 
-        UserResponse currentUser = null;
+        ProfileResponse currentUser = null;
         try {
-            currentUser = authService.getCurrentUser(currentUserId);
+            currentUser = userService.getProfile(currentUserId);
         } catch (Exception e) {
             log.warn("Could not retrieve current user profile for id {}", currentUserId);
         }
@@ -62,9 +62,9 @@ public class MessagingPageController {
             return "redirect:/login";
         }
 
-        UserResponse currentUser = null;
+        ProfileResponse currentUser = null;
         try {
-            currentUser = authService.getCurrentUser(currentUserId);
+            currentUser = userService.getProfile(currentUserId);
         } catch (Exception e) {
             log.warn("Could not retrieve current user profile for id {}", currentUserId);
         }

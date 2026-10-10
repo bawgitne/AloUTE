@@ -1,10 +1,10 @@
 package com.aloute.controller.page;
 
 import com.aloute.dto.response.NotificationResponse;
-import com.aloute.dto.response.UserResponse;
+import com.aloute.dto.response.ProfileResponse;
 import com.aloute.security.currentuser.CurrentUserProvider;
-import com.aloute.service.AuthService;
 import com.aloute.service.NotificationService;
+import com.aloute.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class NotificationPageController {
 
     private final NotificationService notificationService;
-    private final AuthService authService;
+    private final UserService userService;
     private final CurrentUserProvider currentUserProvider;
 
     @GetMapping("/notifications")
@@ -35,9 +35,9 @@ public class NotificationPageController {
             return "redirect:/login";
         }
 
-        UserResponse currentUser = null;
+        ProfileResponse currentUser = null;
         try {
-            currentUser = authService.getCurrentUser(currentUserId);
+            currentUser = userService.getProfile(currentUserId);
         } catch (Exception e) {
             log.warn("Could not retrieve current user profile for id {}", currentUserId);
         }
