@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" aria-label="Avatar mặc định">
+  <!-- Background Surface -->
+  <circle cx="32" cy="32" r="32" fill="#F1F5F9"/>
+  <circle cx="32" cy="32" r="31" fill="none" stroke="#CBD5E1" stroke-width="1"/>
+  <!-- User Silhouette -->
+  <circle cx="32" cy="24" r="10.5" fill="#64748B"/>
+  <path d="M14 51 C14 41 21.5 37 32 37 C42.5 37 50 41 50 51 C50 53 48.5 54 46.5 54 H17.5 C15.5 54 14 53 14 51 Z" fill="#64748B"/>
+</svg>

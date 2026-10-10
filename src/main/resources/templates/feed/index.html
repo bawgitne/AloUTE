@@ -8,7 +8,8 @@
     <!-- Quick Composer / Create Post Affordance (Presentational hook) -->
     <section class="composer-box" aria-label="Tạo bài viết nhanh">
         <div class="d-flex align-items-center gap-3">
-            <img th:src="${currentUser != null and currentUser.avatarUrl != null and !currentUser.avatarUrl.isEmpty()} ? ${currentUser.avatarUrl} : 'https://placehold.co/44x44/e2e8f0/475569?text=U'"
+            <img th:src="${currentUser != null and currentUser.avatarUrl != null and !currentUser.avatarUrl.isEmpty()} ? ${currentUser.avatarUrl} : @{/images/avatar-fallback.svg}"
+                 src="/images/avatar-fallback.svg"
                  alt="Avatar của bạn"
                  class="avatar-img avatar-sm"
                  width="40"

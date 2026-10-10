@@ -19,13 +19,39 @@
   --aloute-border-focus: #2563eb;
   --aloute-focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.25);
 
+  /* Typography / Font Stacks (Vietnamese-friendly modern system fonts) */
+  --aloute-font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /* Modular Type Scale */
+  --aloute-font-size-sm: 0.8125rem;  /* 13px - secondary text, helper notes */
+  --aloute-font-size-base: 0.9375rem;/* 15px - standard reading body */
+  --aloute-font-size-md: 1rem;       /* 16px - inputs, card titles, h4 */
+  --aloute-font-size-lg: 1.125rem;   /* 18px - h3, modal titles */
+  --aloute-font-size-xl: 1.375rem;   /* 22px - h2, section headings */
+  --aloute-font-size-2xl: 1.75rem;   /* 28px - h1, display page titles */
+
+  /* Line Heights (Tuned for Vietnamese diacritic breathing room) */
+  --aloute-line-height-tight: 1.3;
+  --aloute-line-height-heading: 1.35;
+  --aloute-line-height-base: 1.55;
+
+  /* Font Weights */
+  --aloute-font-weight-normal: 400;
+  --aloute-font-weight-medium: 500;
+  --aloute-font-weight-semibold: 600;
+  --aloute-font-weight-bold: 700;
+
+  /* Letter Spacing */
+  --aloute-letter-spacing-tight: -0.015em;
+  --aloute-letter-spacing-normal: 0;
+
   /* Typography / Text Colors */
   --aloute-text-primary: #0f172a;
   --aloute-text-secondary: #475569;
   --aloute-text-muted: #64748b;
   --aloute-text-inverse: #ffffff;
 
-  /* Accent Colors (Academic Blue) */
+  /* Accent Colors (HCMUTE Academic Blue) */
   --aloute-accent: #2563eb;
   --aloute-accent-hover: #1d4ed8;
   --aloute-accent-active: #1e40af;
@@ -66,10 +92,10 @@
   --aloute-radius-lg: 14px;
   --aloute-radius-full: 9999px;
 
-  /* Light Elevation & Shadows */
-  --aloute-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --aloute-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --aloute-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  /* Refined Elevation & Shadows (Tinted with brand slate neutral) */
+  --aloute-shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+  --aloute-shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+  --aloute-shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
 
   /* Transitions */
   --aloute-transition-fast: 150ms ease-in-out;

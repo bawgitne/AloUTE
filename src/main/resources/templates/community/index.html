@@ -22,7 +22,10 @@
                         </a>
                         <th:block th:each="comm : ${communities}">
                             <a th:href="@{'/c/' + ${comm.slug}}" class="filter-pill comm-pill">
-                                <img th:src="${comm.avatarUrl != null ? comm.avatarUrl : 'https://ui-avatars.com/api/?name=' + comm.name + '&background=50b5ff&color=fff'}" class="pill-avatar" alt="avatar" />
+                                <img th:src="${comm.avatarUrl != null and !comm.avatarUrl.isEmpty()} ? ${comm.avatarUrl} : @{/images/avatar-fallback.svg}"
+                                     src="/images/avatar-fallback.svg"
+                                     class="pill-avatar"
+                                     alt="avatar" />
                                 <span th:text="'c/' + ${comm.slug}">c/slug</span>
                             </a>
                         </th:block>
@@ -38,7 +41,8 @@
                     <th:block th:each="comm : ${communities}">
                         <div class="card-social community-card-box" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; transition: transform 0.2s, box-shadow 0.2s;">
                             <div style="display: flex; align-items: center; gap: 12px; cursor: pointer;" th:onclick="'window.location.href=\'/c/' + ${comm.slug} + '\''">
-                                <img th:src="${comm.avatarUrl != null ? comm.avatarUrl : 'https://ui-avatars.com/api/?name=' + comm.name + '&background=50b5ff&color=fff'}" 
+                                <img th:src="${comm.avatarUrl != null and !comm.avatarUrl.isEmpty()} ? ${comm.avatarUrl} : @{/images/avatar-fallback.svg}"
+                                     src="/images/avatar-fallback.svg"
                                      class="avatar avatar-lg" 
                                      style="border-radius: var(--radius-md);" 
                                      alt="Avatar" />
