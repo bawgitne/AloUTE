@@ -222,7 +222,7 @@
         div.setAttribute('aria-label', (!item.isRead ? 'Chưa đọc: ' : '') + 'Thông báo từ ' + (item.actor ? item.actor.displayName : 'Người dùng'));
 
         const meta = getNotificationTypeMeta(item.type);
-        const avatarUrl = item.actor && item.actor.avatarUrl ? item.actor.avatarUrl : 'https://placehold.co/44x44/e2e8f0/475569?text=U';
+        const avatarUrl = item.actor && item.actor.avatarUrl ? item.actor.avatarUrl : '/images/avatar-fallback.svg';
         const actorName = item.actor ? (item.actor.displayName || item.actor.username || 'Sinh viên') : 'Sinh viên';
         const actorUsername = item.actor ? item.actor.username : '';
         const timeStr = formatTime(item.createdAt);
