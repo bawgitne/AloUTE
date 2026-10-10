@@ -13,7 +13,8 @@
         <div class="profile-header-body">
             <div class="profile-avatar-row">
                 <div class="profile-identity d-flex align-items-start gap-3 aloute-min-w-0">
-                    <img th:src="${profile != null and profile.avatarUrl != null and !profile.avatarUrl.isEmpty()} ? ${profile.avatarUrl} : 'https://placehold.co/96x96/e2e8f0/475569?text=U'"
+                    <img th:src="${profile != null and profile.avatarUrl != null and !profile.avatarUrl.isEmpty()} ? ${profile.avatarUrl} : @{/images/avatar-fallback.svg}"
+                         src="/images/avatar-fallback.svg"
                          alt="Ảnh đại diện"
                          class="avatar-img profile-avatar rounded-circle flex-shrink-0"
                          width="88"

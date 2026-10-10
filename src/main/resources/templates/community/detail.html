@@ -22,7 +22,8 @@
                 </div>
                 <div class="detail-header-body" style="padding: 16px 24px 20px;">
                     <div class="detail-avatar-row" style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: -50px; margin-bottom: 16px;">
-                        <img th:src="${community.avatarUrl != null && !community.avatarUrl.isEmpty() ? community.avatarUrl : 'https://ui-avatars.com/api/?name=' + community.name + '&background=50b5ff&color=fff'}" 
+                        <img th:src="${community.avatarUrl != null and !community.avatarUrl.isEmpty()} ? ${community.avatarUrl} : @{/images/avatar-fallback.svg}"
+                             src="/images/avatar-fallback.svg"
                              class="avatar avatar-xl detail-avatar" 
                              style="width: 90px; height: 90px; border-radius: var(--radius-lg); border: 4px solid var(--bg-card); background: var(--bg-card);" 
                              alt="Avatar" />

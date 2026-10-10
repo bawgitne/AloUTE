@@ -12,7 +12,8 @@
                    data-page="user-profile"
                    data-action="navigate-profile"
                    class="d-flex align-items-center gap-2 text-decoration-none">
-                    <img th:src="${post.author != null and post.author.avatarUrl != null and !post.author.avatarUrl.isEmpty()} ? ${post.author.avatarUrl} : 'https://placehold.co/44x44/e2e8f0/475569?text=U'"
+                    <img th:src="${post.author != null and post.author.avatarUrl != null and !post.author.avatarUrl.isEmpty()} ? ${post.author.avatarUrl} : @{/images/avatar-fallback.svg}"
+                         src="/images/avatar-fallback.svg"
                          alt="Avatar người đăng"
                          class="avatar-img avatar-sm"
                          width="40"
