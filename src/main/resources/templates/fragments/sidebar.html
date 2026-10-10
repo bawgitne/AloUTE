@@ -78,8 +78,8 @@
                     </a>
                 </li>
                 <li>
-                    <!-- Presentational hook for post/create -->
-                    <a href="#" data-page="post-create" data-action="navigate-create-post" class="sidebar-nav-link" th:classappend="${activeNav == 'create-post'} ? 'active' : ''">
+                    <!-- Link for post/create -->
+                    <a th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" class="sidebar-nav-link" th:classappend="${activeNav == 'create-post'} ? 'active' : ''">
                         <i class="bi bi-plus-square-fill sidebar-nav-icon" aria-hidden="true"></i>
                         <span>Tạo bài viết mới</span>
                     </a>

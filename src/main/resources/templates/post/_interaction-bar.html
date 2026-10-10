@@ -14,10 +14,20 @@
         <span class="visually-hidden">lượt thích</span>
     </button>
 
-    <!-- Reply / Comment Action Button (Presentational hook: view-comments) -->
-    <button type="button"
+    <!-- Reply / Comment Action Button (Canonical link to post detail) -->
+    <a th:if="${post.id != null}"
+       th:href="@{/posts/{postId}(postId=${post.id})}"
+       class="interaction-btn text-decoration-none"
+       th:attr="data-action='view-comments',data-post-id=${post.id}"
+       aria-label="Bình luận và xem phản hồi">
+        <i class="bi bi-chat" aria-hidden="true"></i>
+        <span class="interaction-count" th:text="${post.replyCount != null ? post.replyCount : 0}">0</span>
+        <span class="visually-hidden">bình luận</span>
+    </a>
+    <button th:if="${post.id == null}"
+            type="button"
             class="interaction-btn"
-            th:attr="data-action='view-comments',data-post-id=${post.id != null ? post.id : ''}"
+            data-action="view-comments"
             aria-label="Bình luận và xem phản hồi">
         <i class="bi bi-chat" aria-hidden="true"></i>
         <span class="interaction-count" th:text="${post.replyCount != null ? post.replyCount : 0}">0</span>
