@@ -1202,6 +1202,11 @@ p {
     min-height: 44px;
   }
 
+  #btn-create-post {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
 
   /* Profile categories remain fully visible on narrow screens. */
   .profile-nav-tabs .nav-tabs {
