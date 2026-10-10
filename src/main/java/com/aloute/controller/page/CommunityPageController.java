@@ -2,11 +2,11 @@ package com.aloute.controller.page;
 
 import com.aloute.dto.response.CommunityResponse;
 import com.aloute.dto.response.PostResponse;
-import com.aloute.dto.response.UserResponse;
+import com.aloute.dto.response.ProfileResponse;
 import com.aloute.security.currentuser.CurrentUserProvider;
-import com.aloute.service.AuthService;
 import com.aloute.service.CommunityService;
 import com.aloute.service.PostService;
+import com.aloute.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
@@ -24,7 +24,7 @@ public class CommunityPageController {
 
     private final CommunityService communityService;
     private final PostService postService;
-    private final AuthService authService;
+    private final UserService userService;
     private final CurrentUserProvider currentUserProvider;
 
     @GetMapping("/communities")
@@ -35,11 +35,13 @@ public class CommunityPageController {
             Model model
     ) {
         Long currentUserId = currentUserProvider.getCurrentUserId().orElse(null);
-        UserResponse currentUser = null;
+        ProfileResponse currentUser = null;
         if (currentUserId != null) {
             try {
-                currentUser = authService.getCurrentUser(currentUserId);
-            } catch (Exception ignored) {}
+                currentUser = userService.getProfile(currentUserId);
+            } catch (Exception e) {
+                log.warn("Could not retrieve current user profile for id {}", currentUserId);
+            }
         }
 
         var res = communityService.list(q, page, size, currentUserId);
@@ -59,11 +61,13 @@ public class CommunityPageController {
             Model model
     ) {
         Long currentUserId = currentUserProvider.getCurrentUserId().orElse(null);
-        UserResponse currentUser = null;
+        ProfileResponse currentUser = null;
         if (currentUserId != null) {
             try {
-                currentUser = authService.getCurrentUser(currentUserId);
-            } catch (Exception ignored) {}
+                currentUser = userService.getProfile(currentUserId);
+            } catch (Exception e) {
+                log.warn("Could not retrieve current user profile for id {}", currentUserId);
+            }
         }
 
         CommunityResponse community = null;
