@@ -210,7 +210,7 @@
             const others = conv.members.filter(m => state.currentUserId == null || m.id !== state.currentUserId);
             if (others.length > 0 && others[0].avatarUrl) return others[0].avatarUrl;
         }
-        return 'https://placehold.co/44x44/e2e8f0/475569?text=U';
+        return '/images/avatar-fallback.svg';
     }
 
     function getConversationSubtitle(conv) {
