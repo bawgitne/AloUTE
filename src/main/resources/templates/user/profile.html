@@ -189,8 +189,17 @@
                     <span>Bài viết đã đăng</span>
                 </h2>
 
-                <!-- Empty State for Profile Posts -->
-                <div th:if="${profilePosts == null or #lists.isEmpty(profilePosts)}" class="empty-state">
+                <!-- Unavailable State when service not wired from backend -->
+                <div th:if="${profilePosts == null}" class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="bi bi-clock-history text-secondary" aria-hidden="true"></i>
+                    </div>
+                    <h3 class="empty-state-title">Danh sách bài viết chưa khả dụng</h3>
+                    <p class="empty-state-desc">Tính năng hiển thị danh sách bài viết theo tác giả hiện đang được hoàn thiện và sẽ sớm khả dụng.</p>
+                </div>
+
+                <!-- Empty State for Profile Posts when list is empty -->
+                <div th:if="${profilePosts != null and #lists.isEmpty(profilePosts)}" class="empty-state">
                     <div class="empty-state-icon">
                         <i class="bi bi-journal-x" aria-hidden="true"></i>
                     </div>

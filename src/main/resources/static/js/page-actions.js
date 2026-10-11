@@ -56,6 +56,17 @@
         }
     }
 
+    // Validate that a conversation ID is a positive safe integer
+    function isValidConversationId(id) {
+        if (typeof id === 'number') {
+            return Number.isSafeInteger(id) && id > 0;
+        }
+        if (typeof id === 'string') {
+            return /^[1-9]\d*$/.test(id) && Number.isSafeInteger(Number(id));
+        }
+        return false;
+    }
+
     // Safely translate stable backend error codes/messages to Vietnamese
     function translateError(error, defaultMsg) {
         if (!error) return defaultMsg || 'Đã xảy ra lỗi.';
@@ -685,12 +696,15 @@
                 target.removeAttribute('disabled');
                 target.innerHTML = originalHtml;
                 const body = await readJson(response);
-                if (response.ok && (response.status === 200 || response.status === 201)) {
-                    notice('Đã tạo cuộc trò chuyện với @' + (username || targetUserId) + '. (Tuyến đường /messages đang chờ kết nối Page Controller).', 'success');
-                } else {
-                    const msg = translateError(body && body.error, 'Không thể tạo cuộc trò chuyện.');
-                    notice(msg, 'danger');
+                if (response.ok && (response.status === 200 || response.status === 201) && body && body.success === true && body.data) {
+                    const convId = body.data.id;
+                    if (isValidConversationId(convId)) {
+                        window.location.href = '/messages/' + encodeURIComponent(String(convId));
+                        return;
+                    }
                 }
+                const msg = translateError(body && body.error, 'Dữ liệu phản hồi cuộc trò chuyện không hợp lệ.');
+                notice(msg, 'danger');
             } catch (_) {
                 target.removeAttribute('disabled');
                 target.innerHTML = originalHtml;
