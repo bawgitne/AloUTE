@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="postModals">
+    <!-- Accessible Bootstrap 5 Edit Post Modal -->
+    <div class="modal fade"
+         id="editPostModal"
+         tabindex="-1"
+         aria-labelledby="editPostModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="editPostModalLabel">Chỉnh sửa bài viết</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <form id="edit-post-form" novalidate>
+                    <div class="modal-body">
+                        <!-- Alert status for modal -->
+                        <div id="edit-post-status" class="alert d-none py-2 small mb-3" role="alert" aria-live="polite"></div>
+
+                        <!-- Post Content Textarea -->
+                        <div class="mb-3">
+                            <label for="edit-post-content" class="form-label fw-semibold small">Nội dung bài viết</label>
+                            <textarea class="form-control"
+                                      id="edit-post-content"
+                                      name="content"
+                                      rows="4"
+                                      maxlength="4000"
+                                      placeholder="Nhập nội dung bài viết..."
+                                      aria-describedby="edit-post-help edit-post-error"></textarea>
+                            <div id="edit-post-help" class="d-flex justify-content-between form-text small text-muted mt-1">
+                                <span>Tối đa 4000 ký tự</span>
+                                <span><span id="edit-post-char-count">0</span> / 4000</span>
+                            </div>
+                            <div class="invalid-feedback d-none" id="edit-post-error"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="btn-cancel-edit-post">Hủy</button>
+                        <button type="submit" class="btn btn-primary" id="btn-save-post">
+                            <span id="save-post-spinner" class="spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true"></span>
+                            <span id="save-post-btn-text">Lưu thay đổi</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Accessible Bootstrap 5 Delete Post Confirmation Modal -->
+    <div class="modal fade"
+         id="deletePostModal"
+         tabindex="-1"
+         aria-labelledby="deletePostModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="deletePostModalLabel">Xác nhận xóa bài viết</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Bạn có chắc chắn muốn xóa bài viết này không? Thao tác này không thể hoàn tác.</p>
+                    <div id="delete-post-status" class="alert d-none py-2 small mt-3 mb-0" role="alert" aria-live="polite"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="btn-cancel-delete-post">Hủy</button>
+                    <button type="button" class="btn btn-danger" id="btn-confirm-delete-post">
+                        <span id="delete-post-spinner" class="spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true"></span>
+                        <span id="delete-post-btn-text">Xóa bài viết</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
