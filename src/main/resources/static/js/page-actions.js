@@ -714,11 +714,14 @@
             return;
         }
 
+        // Post edit and delete actions are handled by dedicated post-edit-delete script
+        if (action === 'edit-post' || action === 'delete-post') {
+            return;
+        }
+
         // Preserved inert non-scope actions
         event.preventDefault();
         const nonScopeLabels = {
-            'edit-post': 'API sửa bài viết chưa được ghép.',
-            'delete-post': 'API xóa bài viết chưa được ghép.',
             'topic': 'Topic/Community thuộc module Ngọc chưa được ghép.'
         };
         notice(nonScopeLabels[action] || ('Nút hoạt động. Chức năng "' + action + '" chưa được ghép trong phạm vi hiện tại.'));

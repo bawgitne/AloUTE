@@ -2,7 +2,7 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <body>
 <!-- Reusable Post Card Fragment -->
-<article th:fragment="postCard(post)" class="post-card" th:attr="data-post-id=${post != null ? post.id : ''}">
+<article th:fragment="postCard(post)" class="post-card" th:attr="data-post-id=${post != null ? post.id : ''},data-can-edit=${post != null and post.capabilities != null and post.capabilities.canEdit},data-can-delete=${post != null and post.capabilities != null and post.capabilities.canDelete}">
     <div th:if="${post != null}">
         <!-- Post Header: Author info, timestamp, capabilities dropdown -->
         <header class="post-card-header">
