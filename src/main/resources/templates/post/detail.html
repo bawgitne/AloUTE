@@ -97,7 +97,7 @@
                                       th:text="${reply.author != null ? (reply.author.displayName != null ? reply.author.displayName : reply.author.username) : 'Sinh viên AloUTE'}">
                                     Tên người bình luận
                                 </span>
-                                <span class="text-muted small" th:text="${reply.createdAt != null ? reply.createdAt : 'Vừa xong'}">5 phút trước</span>
+                                <span class="text-muted small" th:text="${reply.createdAt != null ? #temporals.format(reply.createdAt.atZone(T(java.time.ZoneId).of('Asia/Ho_Chi_Minh')), 'dd/MM/yyyy HH:mm') : 'Vừa xong'}">5 phút trước</span>
                             </div>
                             <div class="comment-text" th:text="${reply.content}">
                                 Nội dung bình luận mẫu hiển thị an toàn.

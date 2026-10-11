@@ -127,6 +127,7 @@
     // DOM Elements
     // -------------------------------------------------------------------------
 
+    let elWrapper;
     let elCard, elList, elLoading, elError, elErrorMsg, elEmpty;
     let elLoadMoreWrap, btnLoadMoreConv, searchInput, btnRetryConv;
     let elUnselectedState, elActiveContainer;
@@ -139,6 +140,7 @@
     function initDomElements() {
         const root = document.getElementById('messaging-content');
         if (!root) return false;
+        elWrapper = root;
 
         // Current user ID from Thymeleaf attribute if available
         const uidAttr = root.getAttribute('data-current-user-id');
@@ -211,6 +213,32 @@
             if (others.length > 0 && others[0].avatarUrl) return others[0].avatarUrl;
         }
         return '/images/avatar-fallback.svg';
+    }
+
+    function getTargetConversationId() {
+        const wrapper = elWrapper || (typeof document !== 'undefined' ? document.getElementById('messaging-content') : null);
+        if (wrapper && wrapper.dataset && wrapper.dataset.initialConversationId) {
+            const id = parseInt(wrapper.dataset.initialConversationId, 10);
+            if (!isNaN(id) && id > 0) return id;
+        }
+        if (typeof window !== 'undefined' && window.location) {
+            if (window.location.pathname) {
+                const match = window.location.pathname.match(/\/messages\/(\d+)/);
+                if (match) {
+                    const id = parseInt(match[1], 10);
+                    if (!isNaN(id) && id > 0) return id;
+                }
+            }
+            if (window.location.search) {
+                const urlParams = new URLSearchParams(window.location.search);
+                const q = urlParams.get('conversationId');
+                if (q) {
+                    const id = parseInt(q, 10);
+                    if (!isNaN(id) && id > 0) return id;
+                }
+            }
+        }
+        return null;
     }
 
     function getConversationSubtitle(conv) {
@@ -345,8 +373,11 @@
                 }
             }
 
-            // Auto-select first conversation on desktop if none active
-            if (window.innerWidth >= 768 && !state.activeConversationId && state.conversations.length > 0) {
+            // Auto-select resolved target conversation, or fallback to first on desktop if none active
+            const targetId = getTargetConversationId();
+            if (targetId && !state.activeConversationId) {
+                selectConversation(targetId);
+            } else if (window.innerWidth >= 768 && !state.activeConversationId && state.conversations.length > 0) {
                 selectConversation(state.conversations[0].id);
             }
         } catch (err) {
@@ -630,7 +661,7 @@
 
         const content = messageInput ? messageInput.value.trim() : '';
         if (!content) {
-            if (messageInput) messageInput.focus();
+            if (messageInput) messageInput.focus({ preventScroll: true });
             return;
         }
 
@@ -674,7 +705,7 @@
             if (targetConvId === state.activeConversationId) {
                 if (messageInput) {
                     messageInput.value = '';
-                    messageInput.focus();
+                    messageInput.focus({ preventScroll: true });
                 }
 
                 if (!state.messages.some(m => m.id === sentMsg.id)) {
@@ -802,12 +833,9 @@
             });
         }
 
-        // URL parameters check: auto open ?conversationId=123 only
-        const urlParams = new URLSearchParams(window.location.search);
-        const qConvId = urlParams.get('conversationId');
-
-        if (qConvId && !isNaN(parseInt(qConvId, 10))) {
-            const targetId = parseInt(qConvId, 10);
+        // Auto open initial conversation if target resolved from URL, path, or dataset
+        const targetId = getTargetConversationId();
+        if (targetId) {
             selectConversation(targetId);
         }
     }

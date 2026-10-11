@@ -38,10 +38,10 @@
                         <a th:if="${post.id != null}"
                            th:href="@{/posts/{postId}(postId=${post.id})}"
                            class="post-timestamp text-muted text-decoration-none"
-                           th:text="${post.createdAt != null ? post.createdAt : 'Vừa xong'}">10 phút trước</a>
+                           th:text="${post.createdAt != null ? #temporals.format(post.createdAt.atZone(T(java.time.ZoneId).of('Asia/Ho_Chi_Minh')), 'dd/MM/yyyy HH:mm') : 'Vừa xong'}">10 phút trước</a>
                         <span th:if="${post.id == null}"
                               class="post-timestamp"
-                              th:text="${post.createdAt != null ? post.createdAt : 'Vừa xong'}">10 phút trước</span>
+                              th:text="${post.createdAt != null ? #temporals.format(post.createdAt.atZone(T(java.time.ZoneId).of('Asia/Ho_Chi_Minh')), 'dd/MM/yyyy HH:mm') : 'Vừa xong'}">10 phút trước</span>
                         <span th:if="${post.visibility != null}" class="post-badge" th:text="${post.visibility}">PUBLIC</span>
                     </div>
                 </div>

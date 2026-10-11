@@ -4,7 +4,7 @@
 <body>
 <div id="messaging-content"
      class="aloute-messaging-wrapper"
-     th:attr="data-current-user-id=${currentUser != null ? currentUser.id : ''}, data-current-username=${currentUser != null ? currentUser.username : ''}">
+     th:attr="data-current-user-id=${currentUser != null ? currentUser.id : ''}, data-current-username=${currentUser != null ? currentUser.username : ''}, data-initial-conversation-id=${currentConversation != null ? currentConversation.id : ''}">
 
     <h1 class="visually-hidden">Tin nhắn AloUTE</h1>
 

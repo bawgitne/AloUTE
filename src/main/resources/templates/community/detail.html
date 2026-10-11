@@ -1,58 +1,59 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layouts/default :: layout(
-        title=${community != null ? community.name + ' — AloUTE' : 'Chi tiết Cộng đồng — AloUTE'},
-        content=~{::#community-detail-content},
-        extraHead=~{::#community-detail-head},
-        extraScripts=~{::#community-detail-scripts},
-        activeTab='communities'
-      )}">
-<head id="community-detail-head">
-</head>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/default :: layout(title=${community != null ? community.name + ' — AloUTE' : 'Chi tiết Cộng đồng — AloUTE'}, content=~{::#community-detail-content})}">
 <body>
     <div id="community-detail-content">
-        <div th:if="${community != null}" class="community-detail-view">
-            <!-- Header Banner -->
-            <div class="card-social detail-header-card">
-                <div class="detail-cover-wrapper" style="height: 180px; overflow: hidden; border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: linear-gradient(135deg, #1e293b, #0f172a);">
-                    <img th:src="${community.coverUrl != null && !community.coverUrl.isEmpty() ? community.coverUrl : 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1200'}" 
-                         class="detail-cover" 
-                         style="width: 100%; height: 100%; object-fit: cover;" 
-                         alt="Cover" />
+        <!-- Community Present View -->
+        <div th:if="${community != null}" class="community-detail-wrapper">
+            <!-- Header Card with Cover and Profile Information -->
+            <div class="aloute-card p-0 mb-3 overflow-hidden">
+                <!-- Cover Image / Brand Gradient Banner -->
+                <div class="community-cover-box" style="height: 160px; background: linear-gradient(135deg, var(--aloute-accent, #2563eb), #0f172a); position: relative;">
+                    <img th:if="${community.coverUrl != null and !community.coverUrl.isEmpty()}"
+                         th:src="${community.coverUrl}"
+                         class="w-100 h-100"
+                         style="object-fit: cover;"
+                         alt="Ảnh bìa cộng đồng" />
                 </div>
-                <div class="detail-header-body" style="padding: 16px 24px 20px;">
-                    <div class="detail-avatar-row" style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: -50px; margin-bottom: 16px;">
+
+                <!-- Detail Body with Avatar, Name, Counters -->
+                <div class="p-3 pt-0">
+                    <div class="d-flex justify-content-between align-items-end flex-wrap gap-2" style="margin-top: -40px; margin-bottom: 12px;">
                         <img th:src="${community.avatarUrl != null and !community.avatarUrl.isEmpty()} ? ${community.avatarUrl} : @{/images/avatar-fallback.svg}"
                              src="/images/avatar-fallback.svg"
-                             class="avatar avatar-xl detail-avatar" 
-                             style="width: 90px; height: 90px; border-radius: var(--radius-lg); border: 4px solid var(--bg-card); background: var(--bg-card);" 
-                             alt="Avatar" />
-                        <div class="detail-action-buttons" style="display: flex; gap: 10px;">
-                            <button type="button" 
-                                    class="btn-primary" 
-                                    style="padding: 8px 20px; font-size: 13px; font-weight: 700; border-radius: var(--radius-pill);"
-                                    data-bs-toggle="modal" 
-                                    data-bs-target="#createPostModal">
-                                <i class="fa-solid fa-plus"></i> Đăng bài
-                            </button>
+                             class="avatar-img rounded-3 border border-4 border-white shadow-sm flex-shrink-0 bg-white"
+                             width="80"
+                             height="80"
+                             style="object-fit: cover;"
+                             alt="Avatar cộng đồng" />
+                        <div class="d-flex gap-2 align-items-center">
+                            <a th:href="@{/communities}" class="btn btn-sm btn-outline-secondary rounded-pill">
+                                <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Tất cả cộng đồng
+                            </a>
+                            <a th:href="@{/post/create}" href="/post/create" class="btn btn-sm btn-primary rounded-pill">
+                                <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Đăng bài
+                            </a>
                         </div>
                     </div>
 
-                    <div class="detail-title-group">
-                        <h2 style="font-size: 22px; font-weight: 800; margin: 0 0 4px; color: var(--text-main);" th:text="${community.name}">Community Name</h2>
-                        <span class="community-slug" style="font-size: 13px; font-weight: 600; color: var(--primary-color);" th:text="'c/' + ${community.slug}">c/slug</span>
-                        <p class="community-description" style="font-size: 14px; color: var(--text-secondary); margin: 8px 0 0;" th:text="${community.description != null ? community.description : 'Không có mô tả cho cộng đồng này.'}">
+                    <div class="mb-3">
+                        <h1 class="fs-4 fw-bold mb-1 text-dark" th:text="${community.name}">Tên cộng đồng</h1>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill py-1 px-2" th:text="'c/' + ${community.slug}">c/slug</span>
+                        <p class="small text-secondary mt-2 mb-0"
+                           th:text="${community.description != null ? community.description : 'Không có mô tả cho cộng đồng này.'}">
                             Mô tả cộng đồng
                         </p>
                     </div>
 
-                    <div class="detail-meta-counters" style="display: flex; gap: 20px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border-color); font-size: 13px; color: var(--text-muted);">
-                        <div class="counter-item">
-                            <strong style="color: var(--text-main);" th:text="${community.membersCount != null ? community.membersCount : (community.memberCount != null ? community.memberCount : 0)}">0</strong>
+                    <div class="d-flex gap-3 pt-2 border-top border-subtle small text-muted">
+                        <div>
+                            <i class="bi bi-people me-1 text-primary" aria-hidden="true"></i>
+                            <strong class="text-dark" th:text="${community.memberCount != null ? community.memberCount : 0}">0</strong>
                             <span>Thành viên</span>
                         </div>
-                        <div class="counter-item">
-                            <strong style="color: var(--text-main);" th:text="${community.postsCount != null ? community.postsCount : (community.postCount != null ? community.postCount : 0)}">0</strong>
+                        <div>
+                            <i class="bi bi-file-text me-1 text-primary" aria-hidden="true"></i>
+                            <strong class="text-dark" th:text="${community.postCount != null ? community.postCount : 0}">0</strong>
                             <span>Bài viết</span>
                         </div>
                     </div>
@@ -60,25 +61,38 @@
             </div>
 
             <!-- Posts Stream inside Community -->
-            <div class="community-feed-column" style="margin-top: 16px;">
-                <div class="posts-stream">
-                    <th:block th:if="${posts != null && !posts.isEmpty()}">
-                        <div th:each="post : ${posts}" th:replace="~{post/_post-card :: postCard(post=${post})}"></div>
-                    </th:block>
-
-                    <!-- Empty Posts in Community -->
-                    <div th:if="${posts == null || posts.isEmpty()}" class="card-social empty-box text-center p-8" style="padding: 40px; text-align: center;">
-                        <i class="fa-regular fa-comments font-32 text-muted" style="font-size: 36px; color: var(--text-muted); margin-bottom: 12px; display: block;"></i>
-                        <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">Chưa có bài viết nào</h3>
-                        <p style="color: var(--text-muted); font-size: 13px;">Hãy là người đầu tiên chia sẻ bài viết trong cộng đồng này!</p>
-                        <button type="button" class="btn-primary" style="margin-top: 14px; padding: 8px 20px; font-size: 13px; font-weight: 700; border-radius: var(--radius-pill);" data-bs-toggle="modal" data-bs-target="#createPostModal">
-                            <i class="fa-solid fa-pen-to-square"></i> Tạo bài viết ngay
-                        </button>
+            <section aria-label="Bài viết trong cộng đồng" class="community-posts-stream">
+                <div th:if="${posts != null and !posts.isEmpty()}">
+                    <div th:each="post : ${posts}">
+                        <div th:replace="~{post/_post-card :: postCard(post=${post})}"></div>
                     </div>
                 </div>
+
+                <!-- Empty Posts in Community -->
+                <div th:if="${posts == null or posts.isEmpty()}" class="aloute-card text-center p-4 my-3">
+                    <div class="mb-2">
+                        <i class="bi bi-chat-square-dots fs-1 text-muted" aria-hidden="true"></i>
+                    </div>
+                    <h2 class="fs-6 fw-bold mb-1">Chưa có bài viết nào</h2>
+                    <p class="small text-secondary mb-3">Hãy là người đầu tiên chia sẻ bài viết hoặc câu hỏi trong cộng đồng này!</p>
+                    <a th:href="@{/post/create}" href="/post/create" class="btn btn-sm btn-primary rounded-pill px-3">
+                        <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Tạo bài viết ngay
+                    </a>
+                </div>
+            </section>
+        </div>
+
+        <!-- Community Not Found State -->
+        <div th:if="${community == null}" class="aloute-card text-center p-4 my-3">
+            <div class="mb-3">
+                <i class="bi bi-exclamation-circle fs-1 text-warning" aria-hidden="true"></i>
             </div>
+            <h1 class="fs-5 fw-bold mb-1">Không tìm thấy cộng đồng</h1>
+            <p class="small text-secondary mb-3">Cộng đồng bạn yêu cầu không tồn tại, đã bị xóa hoặc bạn không có quyền truy cập.</p>
+            <a th:href="@{/communities}" class="btn btn-sm btn-primary rounded-pill px-3">
+                <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Quay lại danh sách cộng đồng
+            </a>
         </div>
     </div>
-    <div id="community-detail-scripts"></div>
 </body>
 </html>
