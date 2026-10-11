@@ -546,4 +546,3 @@ class ThymeleafViewRenderIntegrationTest {
                 .replace("href=\"/images/", "href=\"/src/main/resources/static/images/");
     }
 }
-
