@@ -9,10 +9,11 @@ import com.aloute.dto.request.UpdatePostRequest;
 import com.aloute.dto.response.*;
 import com.aloute.entity.*;
 import com.aloute.repository.*;
+import com.aloute.event.NotificationEvent;
 import com.aloute.service.FeedRecommendationService;
-import com.aloute.service.NotificationService;
 import com.aloute.service.PostService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -50,8 +51,7 @@ public class PostServiceImpl implements PostService {
     @Autowired(required = false)
     private PollVoteRepository pollVoteRepository;
 
-    @Autowired(required = false)
-    private NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Autowired(required = false)
     private FeedRecommendationService feedRecommendationService;
@@ -182,16 +182,31 @@ public class PostServiceImpl implements PostService {
         if (parentPost != null) {
             parentPost.setReplyCount(parentPost.getReplyCount() + 1);
             postRepository.save(parentPost);
-            if (notificationService != null && parentPost.getUser() != null) {
-                try {
-                    notificationService.createNotification(parentPost.getUser().getId(), userId, "POST_REPLY", "POST", savedPost.getId(), request.content());
-                } catch (Exception ignored) {}
+            if (parentPost.getUser() != null) {
+                eventPublisher.publishEvent(NotificationEvent.of(
+                        parentPost.getUser().getId(),
+                        userId,
+                        "POST_REPLY",
+                        "POST",
+                        savedPost.getId(),
+                        request.content()
+                ));
             }
         }
 
         if (quotedPost != null) {
             quotedPost.setQuoteCount(quotedPost.getQuoteCount() + 1);
             postRepository.save(quotedPost);
+            if (quotedPost.getUser() != null) {
+                eventPublisher.publishEvent(NotificationEvent.of(
+                        quotedPost.getUser().getId(),
+                        userId,
+                        "POST_QUOTE",
+                        "POST",
+                        savedPost.getId(),
+                        request.content()
+                ));
+            }
         }
 
         if (community != null) {
@@ -328,10 +343,15 @@ public class PostServiceImpl implements PostService {
             post.setLikeCount(post.getLikeCount() + 1);
             postRepository.save(post);
 
-            if (notificationService != null && post.getUser() != null) {
-                try {
-                    notificationService.createNotification(post.getUser().getId(), userId, "POST_LIKE", "POST", postId, post.getContent());
-                } catch (Exception ignored) {}
+            if (post.getUser() != null) {
+                eventPublisher.publishEvent(NotificationEvent.of(
+                        post.getUser().getId(),
+                        userId,
+                        "POST_LIKE",
+                        "POST",
+                        postId,
+                        post.getContent()
+                ));
             }
         }
         return get(postId, userId);
@@ -378,6 +398,17 @@ public class PostServiceImpl implements PostService {
             repostRepository.save(new Repost(user, post));
             post.setRepostCount(post.getRepostCount() + 1);
             postRepository.save(post);
+
+            if (post.getUser() != null) {
+                eventPublisher.publishEvent(NotificationEvent.of(
+                        post.getUser().getId(),
+                        userId,
+                        "POST_REPOST",
+                        "POST",
+                        postId,
+                        post.getContent()
+                ));
+            }
         }
         return get(postId, userId);
     }
