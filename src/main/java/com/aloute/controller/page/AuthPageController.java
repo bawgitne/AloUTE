@@ -15,7 +15,10 @@ public class AuthPageController {
     private final CurrentUserProvider currentUserProvider;
 
     @GetMapping("/")
-    public String root() {
+    public String rootPage() {
+        if (currentUserProvider.getCurrentUserId().isPresent()) {
+            return "redirect:/feed";
+        }
         return "redirect:/login";
     }
 

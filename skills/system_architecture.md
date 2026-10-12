@@ -566,33 +566,85 @@ Format:
 <DOMAIN>_<REASON>
 ```
 
-Ví dụ:
+### 12.1. Canonical ErrorCode Catalog
 
-```text
-VALIDATION_FAILED
-
-AUTH_INVALID_CREDENTIALS
-AUTH_TOKEN_EXPIRED
-
-USER_NOT_FOUND
-USER_INACTIVE
-
-POST_NOT_FOUND
-POST_ALREADY_DELETED
-POST_REPLY_NOT_ALLOWED
-
-COMMUNITY_NOT_FOUND
-COMMUNITY_MEMBERSHIP_REQUIRED
-COMMUNITY_ALREADY_JOINED
-
-CONVERSATION_NOT_FOUND
-CONVERSATION_MEMBERSHIP_REQUIRED
-
-POLL_ALREADY_VOTED
-POLL_CLOSED
-
-INTERNAL_ERROR
-```
+| Domain | ErrorCode | HTTP Status | Ý nghĩa chuẩn |
+| :--- | :--- | :--- | :--- |
+| **COMMON** | `VALIDATION_FAILED` | 422 Unprocessable Entity | Dữ liệu request không thỏa mãn validation nghiệp vụ hoặc form |
+| | `BAD_REQUEST` | 400 Bad Request | Payload malformed hoặc tham số request không hợp lệ |
+| | `RESOURCE_NOT_FOUND` | 404 Not Found | Resource yêu cầu không tồn tại |
+| | `METHOD_NOT_ALLOWED` | 405 Method Not Allowed | Phương thức HTTP không được hỗ trợ trên endpoint |
+| | `UNSUPPORTED_MEDIA_TYPE` | 415 Unsupported Media Type | Định dạng Content-Type không được hỗ trợ |
+| | `FORBIDDEN` | 403 Forbidden | Quyền truy cập bị từ chối |
+| | `CONFLICT` | 409 Conflict | Trùng lặp hoặc xung đột với trạng thái hiện tại |
+| | `RATE_LIMIT_EXCEEDED` | 429 Too Many Requests | Vượt quá giới hạn số lượt request cho phép |
+| | `INTERNAL_ERROR` | 500 Internal Server Error | Lỗi hệ thống bất ngờ chưa được phân loại |
+| | `SERVICE_UNAVAILABLE` | 503 Service Unavailable | Dịch vụ bên ngoài hoặc phụ thuộc tạm thời gián đoạn |
+| **AUTH** | `AUTH_INVALID_CREDENTIALS` | 401 Unauthorized | Email hoặc mật khẩu không chính xác |
+| | `AUTH_UNAUTHENTICATED` | 401 Unauthorized | Yêu cầu xác thực nhưng token thiếu hoặc không hợp lệ |
+| | `AUTH_TOKEN_EXPIRED` | 401 Unauthorized | Token xác thực đã hết hạn |
+| | `AUTH_FORBIDDEN` | 403 Forbidden | Đã xác thực nhưng tài khoản không có quyền thực hiện hành động |
+| | `AUTH_ACCOUNT_LOCKED` | 403 Forbidden | Tài khoản bị tạm khóa hoặc đình chỉ hoạt động |
+| **USER** | `USER_NOT_FOUND` | 404 Not Found | Người dùng không tồn tại |
+| | `USER_INACTIVE` | 403 Forbidden | Tài khoản người dùng đang bị vô hiệu hóa |
+| | `USER_USERNAME_ALREADY_EXISTS` | 409 Conflict | Username đã được sử dụng |
+| | `USER_EMAIL_ALREADY_EXISTS` | 409 Conflict | Email đã được sử dụng |
+| | `USER_SELF_ACTION_NOT_ALLOWED` | 409 Conflict | Không được phép tự thực hiện hành động này lên chính mình |
+| **SOCIAL** | `FOLLOW_SELF_NOT_ALLOWED` | 409 Conflict | Không được phép tự follow chính mình |
+| | `FOLLOW_ALREADY_EXISTS` | 409 Conflict | Quan hệ follow đã tồn tại |
+| | `FOLLOW_NOT_FOUND` | 404 Not Found | Không tìm thấy quan hệ follow để hủy |
+| | `FOLLOW_PRIVATE_ACCOUNT` | 409 Conflict | Tài khoản đích đặt chế độ riêng tư |
+| | `BLOCK_SELF_NOT_ALLOWED` | 409 Conflict | Không thể tự block chính mình |
+| | `BLOCK_ALREADY_EXISTS` | 409 Conflict | Quan hệ block đã tồn tại |
+| | `BLOCK_NOT_FOUND` | 404 Not Found | Không tìm thấy quan hệ block |
+| | `MUTE_SELF_NOT_ALLOWED` | 409 Conflict | Không thể tự mute chính mình |
+| | `MUTE_ALREADY_EXISTS` | 409 Conflict | Quan hệ mute đã tồn tại |
+| | `MUTE_NOT_FOUND` | 404 Not Found | Không tìm thấy quan hệ mute |
+| | `RESTRICT_SELF_NOT_ALLOWED` | 409 Conflict | Không thể tự hạn chế chính mình |
+| | `RESTRICTION_ALREADY_EXISTS` | 409 Conflict | Quan hệ hạn chế đã tồn tại |
+| | `RESTRICTION_NOT_FOUND` | 404 Not Found | Không tìm thấy quan hệ hạn chế |
+| **POST** | `POST_NOT_FOUND` | 404 Not Found | Bài viết không tồn tại hoặc đã bị xóa |
+| | `POST_ALREADY_DELETED` | 409 Conflict | Bài viết đã bị xóa trước đó |
+| | `POST_REPLY_NOT_ALLOWED` | 403 Forbidden | Bài viết tắt tính năng trả lời/bình luận |
+| | `POST_QUOTE_NOT_ALLOWED` | 403 Forbidden | Bài viết tắt tính năng quote/trích dẫn |
+| | `POST_OWNER_REQUIRED` | 403 Forbidden | Chỉ chủ bài viết mới có quyền chỉnh sửa hoặc xóa |
+| | `POST_ACCESS_DENIED` | 403 Forbidden | Không có quyền xem bài viết (do giới hạn đối tượng) |
+| **POLL** | `POLL_NOT_FOUND` | 404 Not Found | Cuộc bình chọn không tồn tại |
+| | `POLL_CLOSED` | 400 Bad Request | Cuộc bình chọn đã kết thúc |
+| | `POLL_ALREADY_VOTED` | 409 Conflict | Người dùng đã bình chọn trước đó |
+| | `POLL_NOT_MULTIPLE_CHOICE` | 400 Bad Request | Bình chọn chỉ cho phép chọn 1 phương án duy nhất |
+| | `POLL_OPTION_NOT_FOUND` | 404 Not Found | Phương án bình chọn không tồn tại hoặc không thuộc poll |
+| **COMMUNITY** | `COMMUNITY_NOT_FOUND` | 404 Not Found | Cộng đồng không tồn tại |
+| | `COMMUNITY_SLUG_EXISTS` | 409 Conflict | Đường dẫn slug của cộng đồng đã bị trùng |
+| | `COMMUNITY_MEMBERSHIP_REQUIRED` | 403 Forbidden | Cần là thành viên cộng đồng để thực hiện |
+| | `COMMUNITY_MEMBER_NOT_FOUND` | 404 Not Found | Không tìm thấy thành viên trong cộng đồng |
+| | `COMMUNITY_ALREADY_JOINED` | 409 Conflict | Đã tham gia cộng đồng này |
+| | `COMMUNITY_ACCESS_DENIED` | 403 Forbidden | Không có quyền truy cập cộng đồng riêng tư |
+| | `COMMUNITY_ADMIN_REQUIRED` | 403 Forbidden | Yêu cầu quyền Quản trị viên cộng đồng |
+| | `COMMUNITY_OWNER_REQUIRED` | 403 Forbidden | Yêu cầu quyền Trưởng nhóm / Owner |
+| | `COMMUNITY_OWNER_CANNOT_LEAVE` | 409 Conflict | Owner không thể rời nhóm khi chưa chuyển giao quyền |
+| **CONVERSATION** | `CONVERSATION_NOT_FOUND` | 404 Not Found | Hội thoại không tồn tại |
+| | `CONVERSATION_MEMBERSHIP_REQUIRED` | 403 Forbidden | Bạn không phải thành viên của hội thoại |
+| | `CONVERSATION_MEMBER_NOT_FOUND` | 404 Not Found | Không tìm thấy thành viên hội thoại |
+| | `CONVERSATION_SELF_DIRECT_NOT_ALLOWED` | 400 Bad Request | Không thể tạo hội thoại 1-1 với chính mình |
+| | `CONVERSATION_PARTICIPANTS_REQUIRED` | 400 Bad Request | Cần ít nhất một thành viên tham gia |
+| | `MESSAGE_NOT_FOUND` | 404 Not Found | Tin nhắn không tồn tại |
+| | `INVALID_REPLY_CONVERSATION` | 400 Bad Request | Tin nhắn được trả lời thuộc hội thoại khác |
+| **MEDIA** | `MEDIA_NOT_FOUND` | 404 Not Found | Tệp đa phương tiện không tồn tại |
+| | `MEDIA_FILE_REQUIRED` | 422 Unprocessable Entity | Yêu cầu đính kèm tệp tin |
+| | `MEDIA_TOO_LARGE` | 422 Unprocessable Entity | Kích thước tệp vượt quá giới hạn cấu hình |
+| | `MEDIA_QUOTA_EXCEEDED` | 409 Conflict | Vượt quá hạn mức dung lượng media của người dùng |
+| | `MEDIA_ALREADY_ATTACHED` | 409 Conflict | Media đã được đính kèm, không thể xóa trực tiếp |
+| | `MEDIA_TYPE_UNSUPPORTED` | 422 Unprocessable Entity | Định dạng tệp tin không được hỗ trợ |
+| | `MEDIA_STORAGE_UNAVAILABLE` | 503 Service Unavailable | Dịch vụ lưu trữ media tạm thời không khả dụng |
+| | `MEDIA_UPLOAD_FAILED` | 503 Service Unavailable | Không thể tải tệp tin lên dịch vụ lưu trữ |
+| **TOPIC** | `TOPIC_NOT_FOUND` | 404 Not Found | Chủ đề không tồn tại |
+| **REPORT** | `REPORT_NOT_FOUND` | 404 Not Found | Báo cáo vi phạm không tồn tại |
+| | `REPORT_TARGET_REQUIRED` | 422 Unprocessable Entity | Yêu cầu chỉ định đúng một đối tượng vi phạm (User hoặc Post) |
+| | `REPORT_SELF_NOT_ALLOWED` | 409 Conflict | Không thể tự báo cáo chính mình |
+| **FEED** | `FEED_NOT_FOUND` | 404 Not Found | Danh sách bảng tin tùy chỉnh không tồn tại |
+| | `FEED_ACCESS_DENIED` | 403 Forbidden | Không có quyền truy cập bảng tin riêng tư |
+| **NOTIFICATION** | `NOTIFICATION_NOT_FOUND` | 404 Not Found | Thông báo không tồn tại |
 
 Rule:
 
@@ -812,48 +864,55 @@ Vendor-specific query chỉ dùng khi có lý do và phải được cô lập �
 
 # 20. FIREBASE BOUNDARY
 
-Trong architecture hiện tại, Firebase được coi là **external media/object-storage integration**.
+Trong architecture ALOUTE, Firebase được coi là **external integration boundary** cho 2 vai trò cụ thể:
+
+1. **Media/Object Storage (Firebase Cloud Storage)**:
+   - Lưu trữ nhị phân ảnh, video bài viết, avatar, cover.
+   - Nằm sau `MediaStoragePort` -> `FirebaseMediaStorageAdapter`.
+
+2. **Web Push Notification (Firebase Cloud Messaging - FCM)**:
+   - Đẩy thông báo trình duyệt ngầm khi người dùng không active trên tab web (background web push).
+   - Nằm sau `FcmNotificationService` điều phối qua Firebase Admin SDK (`FirebaseMessaging.getInstance().send(...)`).
+   - Client đăng ký device token qua endpoint `POST /api/notifications/fcm-token` và nhận tin qua `firebase-messaging-sw.js`.
 
 ```text
-Business Service
-   ↓
-MediaStoragePort
-   ↓
-FirebaseMediaStorageAdapter
-   ↓
-Firebase
+Business Service (NotificationServiceImpl)
+   ├── SimpMessagingTemplate ──► Spring WebSocket STOMP (/ws) [Foreground / In-app]
+   └── FcmNotificationService ──► Firebase Admin SDK (FCM) ──► Service Worker [Background / Web Push]
 ```
 
 Không gọi Firebase SDK trực tiếp từ:
+- Controller
+- Entity
+- Thymeleaf template
 
-```text
-Controller
-Entity
-Thymeleaf template
-```
-
-Relational DB lưu business metadata/reference cần thiết.
-
-Firebase giữ binary/object theo scope đã định.
-
-Nếu sau này project dùng thêm Firebase service khác, phải cập nhật architecture boundary trước; không tự tiện dùng Firestore/Firebase Auth/FCM trong feature.
+Relational DB lưu business metadata, token và quan hệ cần thiết.
+Firebase chỉ giữ binary storage và gateway push notification.
+Các dịch vụ khác của Firebase (Firestore, Firebase Auth) không được tự tiện thêm vào nếu không có ADR.
 
 ---
 
 # 21. WEBSOCKET BOUNDARY
 
-WebSocket chỉ dùng cho realtime.
+WebSocket chỉ dùng cho realtime in-app.
 
 Phù hợp:
-
-```text
-chat delivery
-live notification
-presence nếu project triển khai
-realtime event cần thiết
-```
+- chat delivery
+- live in-app notification
+- presence nếu project triển khai
+- realtime event cần thiết
 
 Không phù hợp để thay toàn bộ CRUD HTTP.
+
+## 21.1. Dual-Dispatch Notification Architecture
+Hệ thống áp dụng cơ chế điều phối thông báo song song:
+1. **In-app Foreground (Đang mở tab web ALOUTE)**:
+   - Sử dụng **Spring WebSocket (STOMP Protocol qua `/ws`)**.
+   - Destination: `/user/{recipientId}/queue/notifications`.
+   - Độ trễ tức thời, cập nhật badge chuông và toast UI mượt mà.
+2. **Background / Offline (Thu nhỏ trình duyệt hoặc tắt tab)**:
+   - Sử dụng **FCM Web Push Notification**.
+   - Bắt qua Service Worker `firebase-messaging-sw.js` hiển thị system popup trên OS/trình duyệt.
 
 Rule:
 

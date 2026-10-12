@@ -17,9 +17,9 @@ import com.aloute.service.SocialService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
-import com.aloute.service.NotificationService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.aloute.event.NotificationEvent;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -33,9 +33,7 @@ public class SocialServiceImpl implements SocialService {
     private final com.aloute.repository.BlockRepository blockRepository;
     private final com.aloute.repository.MuteRepository muteRepository;
     private final com.aloute.repository.RestrictionRepository restrictionRepository;
-
-    @Autowired(required = false)
-    private NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override @Transactional
     public SocialRelationResponse follow(Long currentUserId, Long targetUserId) {
@@ -51,14 +49,18 @@ public class SocialServiceImpl implements SocialService {
                 "FOLLOW_ALREADY_EXISTS", "Follow relationship already exists");
         Follow follow = new Follow(); follow.setId(id); follow.setFollower(follower); follow.setFollowing(following);
         followRepository.save(follow);
-        // Counters are kept here for local/H2 use; Ngọc's DB trigger can later become the canonical updater.
         Profile fp=requireProfile(currentUserId), tp=requireProfile(targetUserId);
         fp.setFollowingCount(fp.getFollowingCount()+1); tp.setFollowersCount(tp.getFollowersCount()+1);
-        if (notificationService != null) {
-            try {
-                notificationService.createNotification(targetUserId, currentUserId, "FOLLOW", "USER", currentUserId, follower.getUsername() + " started following you");
-            } catch (Exception ignored) {}
-        }
+        
+        eventPublisher.publishEvent(NotificationEvent.of(
+                targetUserId,
+                currentUserId,
+                "FOLLOW",
+                "USER",
+                currentUserId,
+                follower.getUsername() + " started following you"
+        ));
+
         return new SocialRelationResponse(targetUserId, true);
     }
 
