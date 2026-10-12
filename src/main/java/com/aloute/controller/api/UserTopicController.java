@@ -1,5 +1,6 @@
 package com.aloute.controller.api;
 
+import lombok.RequiredArgsConstructor;
 import com.aloute.common.api.ApiResponse;
 import com.aloute.dto.response.TopicResponse;
 import com.aloute.security.currentuser.CurrentUserProvider;
@@ -11,15 +12,11 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/users/me/topics")
+@RequiredArgsConstructor
 @Validated
 public class UserTopicController {
     private final TopicService topicService;
     private final CurrentUserProvider currentUserProvider;
-
-    public UserTopicController(TopicService topicService, CurrentUserProvider currentUserProvider) {
-        this.topicService = topicService;
-        this.currentUserProvider = currentUserProvider;
-    }
 
     @PutMapping("/{topicId}")
     public ApiResponse<TopicResponse> follow(@PathVariable @Positive Long topicId) {

@@ -1,10 +1,14 @@
 package com.aloute.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 import java.time.Instant;
 
 @Entity
 @Table(name = "posts")
+@Getter
+@Setter
 public class Post {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -48,36 +52,4 @@ public class Post {
 
     @PrePersist void prePersist() { Instant now = Instant.now(); createdAt = now; updatedAt = now; }
     @PreUpdate void preUpdate() { updatedAt = Instant.now(); }
-
-    public Long getId() { return id; }
-    public User getUser() { return user; }
-    public void setUser(User user) { this.user = user; }
-    public String getContent() { return content; }
-    public void setContent(String content) { this.content = content; }
-    public Post getParentPost() { return parentPost; }
-    public void setParentPost(Post parentPost) { this.parentPost = parentPost; }
-    public Post getQuotedPost() { return quotedPost; }
-    public void setQuotedPost(Post quotedPost) { this.quotedPost = quotedPost; }
-    public Community getCommunity() { return community; }
-    public void setCommunity(Community community) { this.community = community; }
-    public PostVisibility getVisibility() { return visibility; }
-    public void setVisibility(PostVisibility visibility) { this.visibility = visibility; }
-    public boolean isAllowReply() { return allowReply; }
-    public void setAllowReply(boolean allowReply) { this.allowReply = allowReply; }
-    public boolean isAllowQuote() { return allowQuote; }
-    public void setAllowQuote(boolean allowQuote) { this.allowQuote = allowQuote; }
-    public long getLikeCount() { return likeCount; }
-    public void setLikeCount(long likeCount) { this.likeCount = likeCount; }
-    public long getReplyCount() { return replyCount; }
-    public void setReplyCount(long replyCount) { this.replyCount = replyCount; }
-    public long getRepostCount() { return repostCount; }
-    public void setRepostCount(long repostCount) { this.repostCount = repostCount; }
-    public long getQuoteCount() { return quoteCount; }
-    public void setQuoteCount(long quoteCount) { this.quoteCount = quoteCount; }
-    public long getViewCount() { return viewCount; }
-    public void setViewCount(long viewCount) { this.viewCount = viewCount; }
-    public Instant getCreatedAt() { return createdAt; }
-    public Instant getUpdatedAt() { return updatedAt; }
-    public Instant getDeletedAt() { return deletedAt; }
-    public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
 }

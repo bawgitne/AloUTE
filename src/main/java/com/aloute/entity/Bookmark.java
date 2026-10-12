@@ -1,12 +1,18 @@
 package com.aloute.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import java.time.Instant;
 
 @Entity
 @Table(name = "bookmarks", uniqueConstraints = {
         @UniqueConstraint(name = "uk_bookmarks_user_post", columnNames = {"user_id", "post_id"})
 })
+@Getter
+@Setter
+@NoArgsConstructor
 public class Bookmark {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -17,5 +23,9 @@ public class Bookmark {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
     @PrePersist void prePersist() { createdAt = Instant.now(); }
-    public Long getId() { return id; }
+
+    public Bookmark(User user, Post post) {
+        this.user = user;
+        this.post = post;
+    }
 }

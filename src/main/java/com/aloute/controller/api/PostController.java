@@ -1,5 +1,6 @@
 package com.aloute.controller.api;
 
+import lombok.RequiredArgsConstructor;
 import com.aloute.common.api.ApiResponse;
 import com.aloute.dto.request.CreatePostRequest;
 import com.aloute.dto.request.UpdatePostRequest;
@@ -19,28 +20,28 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api")
+@RequiredArgsConstructor
 @Validated
 public class PostController {
     private final PostService postService;
     private final CurrentUserProvider currentUserProvider;
 
-    public PostController(PostService postService, CurrentUserProvider currentUserProvider) {
-        this.postService = postService;
-        this.currentUserProvider = currentUserProvider;
-    }
-
-    @GetMapping("/feed/explore")
-    public ApiResponse<List<PostResponse>> explore(@RequestParam(defaultValue = "0") @Min(0) int page,
-                                                   @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+    @GetMapping("/posts")
+    public ApiResponse<List<PostResponse>> list(@RequestParam(required = false) String q,
+                                                @RequestParam(defaultValue = "0") @Min(0) int page,
+                                                @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
         Long viewerId = currentUserProvider.getCurrentUserId().orElse(null);
+        if (q != null && !q.trim().isEmpty()) {
+            return postService.searchPosts(q.trim(), page, size, viewerId);
+        }
         return postService.listPublic(page, size, viewerId);
     }
 
-    @GetMapping("/feed/recommended")
-    public ApiResponse<List<PostResponse>> recommended(@RequestParam(defaultValue = "0") @Min(0) int page,
-                                                       @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        Long viewerId = currentUserProvider.getCurrentUserId().orElse(null);
-        return postService.getRecommendedFeed(viewerId, page, size);
+    @GetMapping("/posts/bookmarks")
+    public ApiResponse<List<PostResponse>> bookmarkedPosts(@RequestParam(defaultValue = "0") @Min(0) int page,
+                                                           @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        Long userId = currentUserProvider.requireUserId();
+        return postService.bookmarkedPosts(userId, page, size);
     }
 
     @PostMapping("/posts")

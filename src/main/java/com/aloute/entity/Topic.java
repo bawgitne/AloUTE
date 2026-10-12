@@ -1,6 +1,8 @@
 package com.aloute.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 import java.time.Instant;
 
 @Entity
@@ -8,6 +10,8 @@ import java.time.Instant;
         @UniqueConstraint(name = "uk_topics_name", columnNames = "name"),
         @UniqueConstraint(name = "uk_topics_slug", columnNames = "slug")
 })
+@Getter
+@Setter
 public class Topic {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -19,11 +23,4 @@ public class Topic {
     private Instant createdAt;
 
     @PrePersist void prePersist() { createdAt = Instant.now(); }
-
-    public Long getId() { return id; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-    public String getSlug() { return slug; }
-    public void setSlug(String slug) { this.slug = slug; }
-    public Instant getCreatedAt() { return createdAt; }
 }

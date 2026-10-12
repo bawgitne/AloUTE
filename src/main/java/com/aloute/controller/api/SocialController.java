@@ -1,5 +1,6 @@
 package com.aloute.controller.api;
 
+import lombok.RequiredArgsConstructor;
 import com.aloute.common.api.ApiResponse;
 import com.aloute.dto.response.SocialRelationResponse;
 import com.aloute.security.currentuser.CurrentUserProvider;
@@ -11,11 +12,11 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/social")
+@RequiredArgsConstructor
 @Validated
 public class SocialController {
     private final SocialService socialService;
     private final CurrentUserProvider currentUserProvider;
-    public SocialController(SocialService socialService, CurrentUserProvider currentUserProvider) { this.socialService=socialService; this.currentUserProvider=currentUserProvider; }
     @PutMapping("/follows/{userId}")
     public ApiResponse<SocialRelationResponse> follow(@PathVariable @Positive Long userId) {
         return ApiResponse.success(socialService.follow(currentUserProvider.requireUserId(), userId));

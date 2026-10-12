@@ -11,6 +11,7 @@ import java.util.List;
 public interface CommunityService {
     ApiResponse<List<CommunityResponse>> list(String q, int page, int size, Long viewerId);
     CommunityResponse get(Long communityId, Long viewerId);
+    CommunityResponse getBySlug(String slug, Long viewerId);
     CommunityResponse create(Long ownerId, CreateCommunityRequest request);
     CommunityResponse update(Long userId, Long communityId, UpdateCommunityRequest request);
     void delete(Long userId, Long communityId);

@@ -1,10 +1,14 @@
 package com.aloute.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 import java.time.Instant;
 
 @Entity
 @Table(name = "media_assets")
+@Getter
+@Setter
 public class MediaAsset {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -39,31 +43,4 @@ public class MediaAsset {
     private Instant createdAt;
 
     @PrePersist void prePersist() { createdAt = Instant.now(); }
-
-    public Long getId() { return id; }
-    public User getOwner() { return owner; }
-    public void setOwner(User owner) { this.owner = owner; }
-    public MediaType getType() { return type; }
-    public void setType(MediaType type) { this.type = type; }
-    public MediaPurpose getPurpose() { return purpose; }
-    public void setPurpose(MediaPurpose purpose) { this.purpose = purpose; }
-    public String getUrl() { return url; }
-    public void setUrl(String url) { this.url = url; }
-    public String getStoragePath() { return storagePath; }
-    public void setStoragePath(String storagePath) { this.storagePath = storagePath; }
-    public String getMimeType() { return mimeType; }
-    public void setMimeType(String mimeType) { this.mimeType = mimeType; }
-    public long getFileSize() { return fileSize; }
-    public void setFileSize(long fileSize) { this.fileSize = fileSize; }
-    public Integer getWidth() { return width; }
-    public void setWidth(Integer width) { this.width = width; }
-    public Integer getHeight() { return height; }
-    public void setHeight(Integer height) { this.height = height; }
-    public Double getDurationSeconds() { return durationSeconds; }
-    public void setDurationSeconds(Double durationSeconds) { this.durationSeconds = durationSeconds; }
-    public Instant getAttachedAt() { return attachedAt; }
-    public void setAttachedAt(Instant attachedAt) { this.attachedAt = attachedAt; }
-    public Instant getDeletedAt() { return deletedAt; }
-    public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
-    public Instant getCreatedAt() { return createdAt; }
 }

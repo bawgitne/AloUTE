@@ -42,8 +42,8 @@ public class Notification {
     @Column(name = "content_preview", length = 500)
     private String contentPreview;
 
-    @Column(name = "is_read", nullable = false)
     @Builder.Default
+    @Column(name = "is_read", nullable = false)
     private boolean isRead = false;
 
     @CreationTimestamp

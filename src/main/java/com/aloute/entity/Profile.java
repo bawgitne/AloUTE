@@ -1,9 +1,13 @@
 package com.aloute.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "profiles")
+@Getter
+@Setter
 public class Profile {
     @Id @Column(name = "user_id")
     private Long userId;
@@ -24,22 +28,4 @@ public class Profile {
     private long followingCount;
     @Column(name = "posts_count", nullable = false)
     private long postsCount;
-
-    public Long getUserId() { return userId; }
-    public User getUser() { return user; }
-    public void setUser(User user) { this.user = user; }
-    public String getDisplayName() { return displayName; }
-    public void setDisplayName(String displayName) { this.displayName = displayName; }
-    public String getBio() { return bio; }
-    public void setBio(String bio) { this.bio = bio; }
-    public String getAvatarUrl() { return avatarUrl; }
-    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
-    public String getWebsite() { return website; }
-    public void setWebsite(String website) { this.website = website; }
-    public long getFollowersCount() { return followersCount; }
-    public void setFollowersCount(long followersCount) { this.followersCount = followersCount; }
-    public long getFollowingCount() { return followingCount; }
-    public void setFollowingCount(long followingCount) { this.followingCount = followingCount; }
-    public long getPostsCount() { return postsCount; }
-    public void setPostsCount(long postsCount) { this.postsCount = postsCount; }
 }

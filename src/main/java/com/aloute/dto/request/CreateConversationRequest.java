@@ -13,14 +13,9 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateConversationRequest {
-
     private ConversationType type;
-
     private List<Long> memberIds;
-
     private Long targetUserId;
-
     private String username;
-
     private String name;
 }
