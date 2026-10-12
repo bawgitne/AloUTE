@@ -1,5 +1,8 @@
 package com.aloute.controller.page;
 
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import com.aloute.dto.response.CommunityResponse;
 import com.aloute.dto.response.PostResponse;
 import com.aloute.dto.response.ProfileResponse;
@@ -7,8 +10,6 @@ import com.aloute.security.currentuser.CurrentUserProvider;
 import com.aloute.service.CommunityService;
 import com.aloute.service.PostService;
 import com.aloute.service.UserService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,9 +18,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
+@RequiredArgsConstructor
 @Slf4j
 @Controller
-@RequiredArgsConstructor
 public class CommunityPageController {
 
     private final CommunityService communityService;
@@ -53,9 +54,9 @@ public class CommunityPageController {
         return "community/index";
     }
 
-    @GetMapping("/communities/{communityId}")
+    @GetMapping({"/c/{slug}", "/communities/{slug}"})
     public String showCommunityDetail(
-            @PathVariable Long communityId,
+            @PathVariable String slug,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             Model model
@@ -72,10 +73,15 @@ public class CommunityPageController {
 
         CommunityResponse community = null;
         try {
-            community = communityService.get(communityId, currentUserId);
+            if (slug.matches("\\d+")) {
+                community = communityService.get(Long.parseLong(slug), currentUserId);
+            } else {
+                community = communityService.getBySlug(slug, currentUserId);
+            }
         } catch (Exception ignored) {}
 
-        var postsRes = postService.communityPosts(communityId, page, size, currentUserId);
+        Long communityId = community != null ? community.id() : (slug.matches("\\d+") ? Long.parseLong(slug) : null);
+        var postsRes = communityId != null ? postService.communityPosts(communityId, page, size, currentUserId) : null;
 
         model.addAttribute("community", community);
         model.addAttribute("posts", postsRes != null ? postsRes.getData() : List.of());

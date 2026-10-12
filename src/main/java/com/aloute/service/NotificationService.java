@@ -1,5 +1,8 @@
 package com.aloute.service;
 
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import com.aloute.common.exception.ApiException;
 import com.aloute.dto.response.NotificationResponse;
 import com.aloute.dto.response.UnreadCountResponse;
@@ -10,8 +13,6 @@ import com.aloute.entity.User;
 import com.aloute.repository.NotificationRepository;
 import com.aloute.repository.ProfileRepository;
 import com.aloute.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,9 +23,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@RequiredArgsConstructor
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;

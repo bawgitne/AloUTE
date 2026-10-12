@@ -1,5 +1,6 @@
 package com.aloute.service.impl;
 
+import lombok.RequiredArgsConstructor;
 import com.aloute.common.api.ApiResponse;
 import com.aloute.common.api.PageMeta;
 import com.aloute.common.exception.ApiException;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@RequiredArgsConstructor
 @Service
 public class SocialServiceImpl implements SocialService {
     private final FollowRepository followRepository;
@@ -34,19 +36,6 @@ public class SocialServiceImpl implements SocialService {
 
     @Autowired(required = false)
     private NotificationService notificationService;
-
-    public SocialServiceImpl(FollowRepository followRepository, UserRepository userRepository,
-                             ProfileRepository profileRepository,
-                             com.aloute.repository.BlockRepository blockRepository,
-                             com.aloute.repository.MuteRepository muteRepository,
-                             com.aloute.repository.RestrictionRepository restrictionRepository) {
-        this.followRepository = followRepository;
-        this.userRepository = userRepository;
-        this.profileRepository = profileRepository;
-        this.blockRepository = blockRepository;
-        this.muteRepository = muteRepository;
-        this.restrictionRepository = restrictionRepository;
-    }
 
     @Override @Transactional
     public SocialRelationResponse follow(Long currentUserId, Long targetUserId) {

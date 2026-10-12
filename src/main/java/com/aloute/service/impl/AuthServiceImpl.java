@@ -1,5 +1,6 @@
 package com.aloute.service.impl;
 
+import lombok.RequiredArgsConstructor;
 import com.aloute.common.exception.ApiException;
 import com.aloute.dto.request.LoginRequest;
 import com.aloute.dto.request.RegisterRequest;
@@ -20,20 +21,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@RequiredArgsConstructor
 @Service
 public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final ProfileRepository profileRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
-
-    public AuthServiceImpl(UserRepository userRepository, ProfileRepository profileRepository,
-                           PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager) {
-        this.userRepository = userRepository;
-        this.profileRepository = profileRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.authenticationManager = authenticationManager;
-    }
 
     @Override @Transactional
     public UserResponse register(RegisterRequest request) {

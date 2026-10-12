@@ -1,12 +1,13 @@
 package com.aloute.controller.page;
 
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import com.aloute.dto.response.NotificationResponse;
 import com.aloute.dto.response.ProfileResponse;
 import com.aloute.security.currentuser.CurrentUserProvider;
 import com.aloute.service.NotificationService;
 import com.aloute.service.UserService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -15,9 +16,9 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+@RequiredArgsConstructor
 @Slf4j
 @Controller
-@RequiredArgsConstructor
 public class NotificationPageController {
 
     private final NotificationService notificationService;

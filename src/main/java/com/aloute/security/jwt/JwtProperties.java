@@ -1,14 +1,15 @@
 package com.aloute.security.jwt;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class JwtProperties {
     private static final String SECRET="ALOUTE_JWT_SECRET";
     private static final String EXPIRATION="ALOUTE_JWT_EXPIRATION_SECONDS";
     private final Environment environment;
-    public JwtProperties(Environment environment) { this.environment=environment; }
     public String requireBase64Secret() {
         String v=environment.getProperty(SECRET); if (v==null||v.isBlank()) throw new IllegalStateException("Missing required configuration: "+SECRET); return v.trim();
     }

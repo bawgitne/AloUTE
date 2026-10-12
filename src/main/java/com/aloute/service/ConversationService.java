@@ -1,5 +1,8 @@
 package com.aloute.service;
 
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import com.aloute.common.exception.ApiException;
 import com.aloute.dto.request.CreateConversationRequest;
 import com.aloute.dto.request.SendMessageRequest;
@@ -17,8 +20,6 @@ import com.aloute.repository.ConversationRepository;
 import com.aloute.repository.MessageRepository;
 import com.aloute.repository.ProfileRepository;
 import com.aloute.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,9 +32,9 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@RequiredArgsConstructor
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ConversationService {
 
     private final ConversationRepository conversationRepository;

@@ -1,5 +1,6 @@
 package com.aloute.controller.api;
 
+import lombok.RequiredArgsConstructor;
 import com.aloute.common.api.ApiResponse;
 import com.aloute.dto.request.CreateCommunityRequest;
 import com.aloute.dto.request.CreatePostRequest;
@@ -24,24 +25,19 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/communities")
+@RequiredArgsConstructor
 @Validated
 public class CommunityController {
     private final CommunityService communityService;
     private final PostService postService;
     private final CurrentUserProvider currentUserProvider;
 
-    public CommunityController(CommunityService communityService, PostService postService,
-                               CurrentUserProvider currentUserProvider) {
-        this.communityService = communityService;
-        this.postService = postService;
-        this.currentUserProvider = currentUserProvider;
-    }
-
     @GetMapping
     public ApiResponse<List<CommunityResponse>> list(@RequestParam(required = false) String q,
                                                      @RequestParam(defaultValue = "0") @Min(0) int page,
                                                      @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return communityService.list(q, page, size, null);
+        Long viewerId = currentUserProvider.getCurrentUserId().orElse(null);
+        return communityService.list(q, page, size, viewerId);
     }
 
     @PostMapping
@@ -52,7 +48,8 @@ public class CommunityController {
 
     @GetMapping("/{communityId}")
     public ApiResponse<CommunityResponse> get(@PathVariable @Positive Long communityId) {
-        return ApiResponse.success(communityService.get(communityId, null));
+        Long viewerId = currentUserProvider.getCurrentUserId().orElse(null);
+        return ApiResponse.success(communityService.get(communityId, viewerId));
     }
 
     @PatchMapping("/{communityId}")
@@ -96,7 +93,8 @@ public class CommunityController {
     public ApiResponse<List<PostResponse>> posts(@PathVariable @Positive Long communityId,
                                                  @RequestParam(defaultValue = "0") @Min(0) int page,
                                                  @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return postService.communityPosts(communityId, page, size, null);
+        Long viewerId = currentUserProvider.getCurrentUserId().orElse(null);
+        return postService.communityPosts(communityId, page, size, viewerId);
     }
 
     @PostMapping("/{communityId}/posts")

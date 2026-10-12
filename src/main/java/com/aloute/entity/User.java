@@ -2,6 +2,8 @@ package com.aloute.entity;
 
 import com.aloute.security.authorization.Role;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 import java.time.Instant;
 
 @Entity
@@ -9,6 +11,8 @@ import java.time.Instant;
         @UniqueConstraint(name = "uk_users_username", columnNames = "username"),
         @UniqueConstraint(name = "uk_users_email", columnNames = "email")
 })
+@Getter
+@Setter
 public class User {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -34,22 +38,4 @@ public class User {
 
     @PrePersist void prePersist() { Instant now = Instant.now(); createdAt = now; updatedAt = now; if (role == null) role = Role.USER; }
     @PreUpdate void preUpdate() { updatedAt = Instant.now(); }
-
-    public Long getId() { return id; }
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-    public String getPasswordHash() { return passwordHash; }
-    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
-    public boolean isVerified() { return verified; }
-    public void setVerified(boolean verified) { this.verified = verified; }
-    public boolean isPrivateAccount() { return privateAccount; }
-    public void setPrivateAccount(boolean privateAccount) { this.privateAccount = privateAccount; }
-    public boolean isActive() { return active; }
-    public void setActive(boolean active) { this.active = active; }
-    public Role getRole() { return role; }
-    public void setRole(Role role) { this.role = role; }
-    public Instant getCreatedAt() { return createdAt; }
-    public Instant getUpdatedAt() { return updatedAt; }
 }

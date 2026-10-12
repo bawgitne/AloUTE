@@ -1,5 +1,6 @@
 package com.aloute.controller.page;
 
+import lombok.RequiredArgsConstructor;
 import com.aloute.security.currentuser.CurrentUserProvider;
 import com.aloute.service.PostService;
 import com.aloute.service.UserService;
@@ -10,17 +11,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.List;
 
+@RequiredArgsConstructor
 @Controller
 public class PostPageController {
     private final CurrentUserProvider currentUserProvider;
     private final UserService userService;
     private final PostService postService;
-
-    public PostPageController(CurrentUserProvider currentUserProvider, UserService userService, PostService postService) {
-        this.currentUserProvider = currentUserProvider;
-        this.userService = userService;
-        this.postService = postService;
-    }
 
     @GetMapping("/post/create")
     public String create(Model model) {
@@ -30,7 +26,7 @@ public class PostPageController {
         return "post/create";
     }
 
-    @GetMapping("/posts/{postId}")
+    @GetMapping({"/post/{postId}", "/posts/{postId}", "/p/{postId}"})
     public String detail(@PathVariable Long postId, Model model) {
         Long userId = currentUserProvider.getCurrentUserId().orElse(null);
         if (userId != null) {
