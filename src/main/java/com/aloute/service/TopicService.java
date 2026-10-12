@@ -7,6 +7,7 @@ import java.util.List;
 public interface TopicService {
     ApiResponse<List<TopicResponse>> list(String q, int page, int size);
     TopicResponse get(Long topicId);
+    TopicResponse getByName(String name);
     TopicResponse follow(Long userId, Long topicId);
     void unfollow(Long userId, Long topicId);
 }

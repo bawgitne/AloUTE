@@ -51,6 +51,7 @@ public class SecurityConfig {
                 .headers(h -> h.frameOptions(f -> f.sameOrigin()))
                 .exceptionHandling(e -> e.authenticationEntryPoint(authFailure).accessDeniedHandler(accessDenied))
                 .authorizeHttpRequests(a -> a
+                        .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.FORWARD, jakarta.servlet.DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.POST, SecurityWhitelist.PUBLIC_POST).permitAll()
                         .requestMatchers(HttpMethod.GET, SecurityWhitelist.PUBLIC_GET).permitAll()
                         .requestMatchers(SecurityWhitelist.PUBLIC_WEB).permitAll()

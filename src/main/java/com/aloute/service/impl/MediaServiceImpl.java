@@ -1,5 +1,6 @@
 package com.aloute.service.impl;
 
+import lombok.RequiredArgsConstructor;
 import com.aloute.common.exception.ApiException;
 import com.aloute.dto.response.MediaQuotaResponse;
 import com.aloute.dto.response.MediaResponse;
@@ -15,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 
+@RequiredArgsConstructor
 @Service
 public class MediaServiceImpl implements MediaService {
     private static final long USER_QUOTA_BYTES = 150L * 1024L * 1024L;
@@ -23,12 +25,6 @@ public class MediaServiceImpl implements MediaService {
     private final MediaAssetRepository mediaRepository;
     private final UserRepository userRepository;
     private final MediaStoragePort storagePort;
-
-    public MediaServiceImpl(MediaAssetRepository mediaRepository, UserRepository userRepository, MediaStoragePort storagePort) {
-        this.mediaRepository = mediaRepository;
-        this.userRepository = userRepository;
-        this.storagePort = storagePort;
-    }
 
     @Override @Transactional
     public MediaResponse upload(Long userId, MultipartFile file, MediaPurpose purpose) {

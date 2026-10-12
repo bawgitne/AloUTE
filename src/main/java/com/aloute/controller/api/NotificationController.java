@@ -1,12 +1,12 @@
 package com.aloute.controller.api;
 
+import lombok.RequiredArgsConstructor;
 import com.aloute.common.api.ApiResponse;
 import com.aloute.common.api.PageMeta;
 import com.aloute.dto.response.NotificationResponse;
 import com.aloute.dto.response.UnreadCountResponse;
 import com.aloute.security.currentuser.CurrentUserProvider;
 import com.aloute.service.NotificationService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;

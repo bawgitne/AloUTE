@@ -32,8 +32,8 @@ public class Conversation {
     @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
 
-    @OneToMany(mappedBy = "conversation", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
+    @OneToMany(mappedBy = "conversation", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ConversationMember> members = new ArrayList<>();
 
     @CreationTimestamp

@@ -1,7 +1,10 @@
 package com.aloute.service;
 
+
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -31,6 +34,8 @@ public class FeedRecommendationService {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class PostCandidate {
         private Long postId;
         private Long authorId;
@@ -38,14 +43,12 @@ public class FeedRecommendationService {
         private boolean isFollowingAuthor;
         private boolean isMutualConnection;
         private boolean isSameCommunity;
-        private double topicSimilarity; // 0.0 -> 1.0 (Cosine similarity)
+        private double topicSimilarity;
         private long likeCount;
         private long replyCount;
         private long repostCount;
         private long quoteCount;
         private long bookmarkCount;
-
-        // Điểm tính toán
         private double score;
     }
 

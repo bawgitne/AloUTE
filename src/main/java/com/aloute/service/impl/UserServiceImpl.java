@@ -1,5 +1,6 @@
 package com.aloute.service.impl;
 
+import lombok.RequiredArgsConstructor;
 import com.aloute.common.exception.ApiException;
 import com.aloute.common.exception.RequestValidationException;
 import com.aloute.dto.request.UpdateProfileRequest;
@@ -18,15 +19,11 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 
+@RequiredArgsConstructor
 @Service
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final ProfileRepository profileRepository;
-
-    public UserServiceImpl(UserRepository userRepository, ProfileRepository profileRepository) {
-        this.userRepository = userRepository;
-        this.profileRepository = profileRepository;
-    }
 
     @Override @Transactional(readOnly = true)
     public ProfileResponse getProfile(Long userId) {

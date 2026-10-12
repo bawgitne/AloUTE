@@ -1,9 +1,13 @@
 package com.aloute.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "follows")
+@Getter
+@Setter
 public class Follow {
     @EmbeddedId
     private FollowId id;
@@ -13,11 +17,4 @@ public class Follow {
     @MapsId("followingId") @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "following_id", nullable = false, foreignKey = @ForeignKey(name = "fk_follows_following"))
     private User following;
-
-    public FollowId getId() { return id; }
-    public void setId(FollowId id) { this.id = id; }
-    public User getFollower() { return follower; }
-    public void setFollower(User follower) { this.follower = follower; }
-    public User getFollowing() { return following; }
-    public void setFollowing(User following) { this.following = following; }
 }

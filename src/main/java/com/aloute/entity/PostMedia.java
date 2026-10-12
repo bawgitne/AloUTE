@@ -1,11 +1,17 @@
 package com.aloute.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "post_media", uniqueConstraints = {
         @UniqueConstraint(name = "uk_post_media_media", columnNames = "media_id")
 })
+@Getter
+@Setter
+@NoArgsConstructor
 public class PostMedia {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -18,11 +24,9 @@ public class PostMedia {
     @Column(nullable = false)
     private int position;
 
-    public Long getId() { return id; }
-    public Post getPost() { return post; }
-    public void setPost(Post post) { this.post = post; }
-    public MediaAsset getMedia() { return media; }
-    public void setMedia(MediaAsset media) { this.media = media; }
-    public int getPosition() { return position; }
-    public void setPosition(int position) { this.position = position; }
+    public PostMedia(Post post, MediaAsset media, int position) {
+        this.post = post;
+        this.media = media;
+        this.position = position;
+    }
 }
