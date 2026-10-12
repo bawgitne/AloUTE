@@ -1051,6 +1051,25 @@ User có quyền quản lý notification của chính mình (`user_id == current
 3. **Mark All as Read**: Đánh dấu toàn bộ notification của user là đã đọc trong 1 transaction.
 4. **Delete Notification**: Xóa 1 notification cá nhân.
 
+## 33.2. Web Push Device Tokens (FCM Tokens)
+
+Để hỗ trợ nhận thông báo nền (background/offline notification) khi trình duyệt đóng hoặc không active trên tab web:
+- Mỗi user có thể đăng ký nhiều thiết bị/trình duyệt thông qua bảng `user_fcm_tokens`.
+- **Ownership Invariant**: Một token FCM chỉ được gán cho 1 user tại một thời điểm (Unique constraint trên `token`). Khi người dùng đăng nhập trên cùng thiết bị/trình duyệt với tài khoản mới, token được re-assign sang `userId` mới.
+- **Deregistration**: Khi user đăng xuất hoặc thu hồi quyền thông báo, token tương ứng được xóa khỏi hệ thống qua `DELETE /api/notifications/fcm-token`.
+- **Data Model**:
+  ```text
+  Table: user_fcm_tokens
+  ├── id (BIGINT / BIGSERIAL, PK)
+  ├── user_id (BIGINT, FK -> users.id, NOT NULL)
+  ├── token (VARCHAR(500), UNIQUE, NOT NULL)
+  ├── created_at (TIMESTAMP WITH TIME ZONE, NOT NULL)
+  └── updated_at (TIMESTAMP WITH TIME ZONE, NOT NULL)
+  Indexes:
+  ├── idx_user_fcm_tokens_user_id (user_id)
+  └── uq_user_fcm_tokens_token (token, UNIQUE)
+  ```
+
 ---
 
 # 34. NOTIFICATION SIDE EFFECTS
@@ -1793,6 +1812,7 @@ Technical cache/queue/search-engine decisions không nằm trong domain file nà
 - `idx_posts_feed`: `(visibility, created_at DESC)` cho Home Feed và Explore Feed.
 - `idx_follows_lookup`: `(follower_id, followed_id)` và `(followed_id, follower_id)` kiểm tra quan hệ mạng xã hội.
 - `idx_notifications_user_read`: `(user_id, is_read, created_at DESC)` cho thông báo.
+- `idx_user_fcm_tokens_user_id`: `(user_id)` phục vụ truy vấn danh sách token gửi Web Push khi có sự kiện thông báo.
 - `idx_messages_conversation`: `(conversation_id, created_at DESC)` cho tin nhắn.
 
 ---

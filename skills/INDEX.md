@@ -32,8 +32,8 @@ Controller / Service / Repository / JPA
 JWT / refresh / authorization
 → SPRING_SECURITY_CONVENTION.md
 
-Firebase upload / storage key
-→ ALOUTE_MEDIA_STORAGE_CONVENTION.md
+Firebase upload / storage key / FCM Web Push
+→ ALOUTE_MEDIA_STORAGE_CONVENTION.md & ALOUTE_SYSTEM_ARCHITECTURE.md
 
 STOMP destination / realtime event
 → ALOUTE_REALTIME_WEBSOCKET_CONVENTION.md
@@ -66,7 +66,7 @@ Theo kế hoạch thực hiện 3 tuần chính thức nộp GVHD Th.S Nguyễn 
 
 | Thành viên & MSSV | Vai trò chính | Phạm vi nhiệm vụ cụ thể | File/Module sở hữu chính |
 | :--- | :--- | :--- | :--- |
-| **Ngô Anh Bằng**<br>*(24110166 — Nhóm trưởng)* | **Realtime, Communication & Lead** | - Lựa chọn Use Case chính, lập ma trận Use Case – API – DB – UI.<br>- Vẽ Sequence Diagram: Tạo bài viết, Like/Reply bài viết.<br>- Xây dựng Messaging (Direct/Group), Notification, Spring WebSocket (STOMP).<br>- Lập và hoàn thiện test case cho các luồng Messaging/Notification.<br>- Nghiên cứu và đề xuất hướng áp dụng thuật toán gợi ý bài viết cho Feed. | `service/ConversationService`, `MessageService`, `NotificationService`, WebSocket config, STOMP handlers |
+| **Ngô Anh Bằng**<br>*(24110166 — Nhóm trưởng)* | **Realtime, Communication & Lead** | - Lựa chọn Use Case chính, lập ma trận Use Case – API – DB – UI.<br>- Vẽ Sequence Diagram: Tạo bài viết, Like/Reply bài viết.<br>- Xây dựng Messaging (Direct/Group), Notification (WebSocket STOMP + FCM Web Push nền).<br>- Lập và hoàn thiện test case cho các luồng Messaging/Notification.<br>- Nghiên cứu và đề xuất hướng áp dụng thuật toán gợi ý bài viết cho Feed. | `service/ConversationService`, `MessageService`, `NotificationService`, `FcmNotificationService`, `controller/api/FcmTokenController`, WebSocket config, STOMP handlers |
 | **Nguyễn Đoàn Minh Khôi**<br>*(24110259)* | **Security, Identity, Social & Deploy** | - Khởi tạo Spring Boot skeleton, Spring Security + JWT (HttpOnly Cookie & Bearer fallback).<br>- Cài đặt API Auth, User, Profile, quan hệ Follow/Unfollow, phân quyền.<br>- Vẽ Sequence Diagram: Đăng nhập, Cập nhật hồ sơ.<br>- Xây dựng API Report/Moderation và kiểm soát quyền quản trị nội dung.<br>- Kiểm thử API Auth/User, setup DNS/domain, Nginx reverse proxy, deploy VPS. | `security/*`, `controller/api/AuthController`, `UserController`, `SocialController`, `ReportController`, `service/AuthService`, `UserService`, `SocialService` |
 | **Nguyễn Duy Ngọc**<br>*(22110381)* | **Database, Content & DevOps** | - Rà soát CSDL/ERD, tạo schema, PK/FK, quan hệ 1-N, N-N, self-ref, soft delete.<br>- **BẮT BUỘC: Viết Trigger, Stored Procedure, Index** và tối ưu Spring Data JPA.<br>- Cài đặt module Post, Reaction (Like, Comment, Repost/Quote, Bookmark), Topic, Community.<br>- Tích hợp Firebase Cloud Storage lưu trữ media (ảnh/video).<br>- Đóng gói hệ thống bằng Docker/Docker Compose, Linux network, CI/CD, backup/rollback CSDL. | `db/migration/*.sql` (Triggers, Stored Procedures, DDL), `entity/*`, `repository/*`, `service/PostService`, `CommunityService`, `MediaService`, `Dockerfile`, `docker-compose.yml` |
 | **Phạm Minh Quân**<br>*(24110311)* | **Frontend, UI/UX & E2E Testing** | - Thiết kế 10 wireframes/mockup SVG hoàn chỉnh (`docs/ui/wireframes/`).<br>- Hiện thực hóa **giao diện chính bằng Thymeleaf + Bootstrap 5** (Layout, Fragments, Responsive mobile/tablet/desktop).<br>- Tích hợp giao diện Thymeleaf với backend Spring Boot và CSDL.<br>- Kiểm tra responsive, CSS tokens (`tokens.css`), form validation UI, error/empty/loading states.<br>- Thực hiện kiểm thử end-to-end theo checklist, sửa lỗi frontend phát sinh và chuẩn bị demo. | `resources/templates/*` (layouts, fragments, auth, user, post, community, messaging...), `resources/static/*` (css, js, images), `docs/ui/wireframes/*` |
@@ -811,11 +811,14 @@ Domain/Service bảo vệ meaning.
 Current Firebase scope:
 
 ```text
-Firebase Storage
-→ binary media
+1. Firebase Storage
+→ binary media (ảnh, video)
+
+2. Firebase Cloud Messaging (FCM)
+→ background / offline web push notifications
 ```
 
-Không lưu User/Post/Community/Message/Permission vào Firebase chỉ vì project đã tích hợp Firebase.
+Không lưu User/Post/Community/Message/Permission vào Firebase chỉ vì project đã tích hợp Firebase. Relational DB (PostgreSQL / MySQL) vẫn là Single Source of Truth cho toàn bộ nghiệp vụ và dữ liệu quan hệ.
 
 ---
 
