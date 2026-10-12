@@ -1,8 +1,10 @@
 package com.aloute.controller.api;
 
+import lombok.RequiredArgsConstructor;
 import com.aloute.common.api.ApiResponse;
 import com.aloute.dto.response.PostResponse;
 import com.aloute.dto.response.TopicResponse;
+import com.aloute.security.currentuser.CurrentUserProvider;
 import com.aloute.service.PostService;
 import com.aloute.service.TopicService;
 import jakarta.validation.constraints.Max;
@@ -15,15 +17,12 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/topics")
+@RequiredArgsConstructor
 @Validated
 public class TopicController {
     private final TopicService topicService;
     private final PostService postService;
-
-    public TopicController(TopicService topicService, PostService postService) {
-        this.topicService = topicService;
-        this.postService = postService;
-    }
+    private final CurrentUserProvider currentUserProvider;
 
     @GetMapping
     public ApiResponse<List<TopicResponse>> list(@RequestParam(required = false) String q,
@@ -41,6 +40,7 @@ public class TopicController {
     public ApiResponse<List<PostResponse>> posts(@PathVariable @Positive Long topicId,
                                                  @RequestParam(defaultValue = "0") @Min(0) int page,
                                                  @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return postService.topicPosts(topicId, page, size, null);
+        Long viewerId = currentUserProvider.getCurrentUserId().orElse(null);
+        return postService.topicPosts(topicId, page, size, viewerId);
     }
 }
