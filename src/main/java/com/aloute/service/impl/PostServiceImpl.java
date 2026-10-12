@@ -1,5 +1,6 @@
 package com.aloute.service.impl;
 
+import lombok.RequiredArgsConstructor;
 import com.aloute.common.api.ApiResponse;
 import com.aloute.common.api.PageMeta;
 import com.aloute.common.exception.ApiException;
@@ -11,24 +12,43 @@ import com.aloute.repository.*;
 import com.aloute.service.FeedRecommendationService;
 import com.aloute.service.NotificationService;
 import com.aloute.service.PostService;
-import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
+@RequiredArgsConstructor
 @Service
 public class PostServiceImpl implements PostService {
     private final PostRepository postRepository;
+    private final UserRepository userRepository;
     private final ProfileRepository profileRepository;
     private final PostMediaRepository postMediaRepository;
     private final PostTopicRepository postTopicRepository;
     private final TopicRepository topicRepository;
     private final CommunityMemberRepository communityMemberRepository;
-    private final EntityManager entityManager;
+    private final CommunityRepository communityRepository;
+    private final PostLikeRepository postLikeRepository;
+    private final BookmarkRepository bookmarkRepository;
+    private final RepostRepository repostRepository;
+    private final MediaAssetRepository mediaAssetRepository;
+
+    @Autowired(required = false)
+    private PollRepository pollRepository;
+
+    @Autowired(required = false)
+    private PollOptionRepository pollOptionRepository;
+
+    @Autowired(required = false)
+    private PollVoteRepository pollVoteRepository;
 
     @Autowired(required = false)
     private NotificationService notificationService;
@@ -39,32 +59,27 @@ public class PostServiceImpl implements PostService {
     @Autowired(required = false)
     private FollowRepository followRepository;
 
-    public PostServiceImpl(PostRepository postRepository, ProfileRepository profileRepository,
-                           PostMediaRepository postMediaRepository, PostTopicRepository postTopicRepository,
-                           TopicRepository topicRepository, CommunityMemberRepository communityMemberRepository,
-                           EntityManager entityManager) {
-        this.postRepository = postRepository;
-        this.profileRepository = profileRepository;
-        this.postMediaRepository = postMediaRepository;
-        this.postTopicRepository = postTopicRepository;
-        this.topicRepository = topicRepository;
-        this.communityMemberRepository = communityMemberRepository;
-        this.entityManager = entityManager;
-    }
-
-    @Override @Transactional(readOnly = true)
+    @Override
+    @Transactional(readOnly = true)
     public ApiResponse<List<PostResponse>> listPublic(int page, int size, Long viewerId) {
-        List<Post> posts = postRepository.listPublicPostsFromSp(offset(page, size), size);
-        return ApiResponse.page(posts.stream().map(post -> toResponse(post, viewerId)).toList(),
-                meta(page, size, postRepository.countPublicPostsFromSp()));
+        Page<Post> postPage = postRepository.findByParentPostIsNullAndDeletedAtIsNullOrderByCreatedAtDesc(
+                PageRequest.of(Math.max(0, page), Math.max(1, size)));
+        List<PostResponse> list = postPage.getContent().stream()
+                .map(post -> toResponse(post, viewerId))
+                .toList();
+        return ApiResponse.page(list, PageMeta.from(postPage));
     }
 
-    @Override @Transactional(readOnly = true)
+    @Override
+    @Transactional(readOnly = true)
     public ApiResponse<List<PostResponse>> getRecommendedFeed(Long viewerId, int page, int size) {
-        List<Post> posts = postRepository.listPublicPostsFromSp(offset(page, size), size);
+        Page<Post> postPage = postRepository.findByParentPostIsNullAndDeletedAtIsNullOrderByCreatedAtDesc(
+                PageRequest.of(Math.max(0, page), Math.max(1, size)));
+        List<Post> posts = postPage.getContent();
         if (viewerId == null || feedRecommendationService == null) {
             return listPublic(page, size, viewerId);
         }
+
         List<FeedRecommendationService.PostCandidate> candidates = posts.stream().map(p -> {
             boolean isFollowing = false;
             if (followRepository != null && p.getUser() != null) {
@@ -80,158 +95,361 @@ public class PostServiceImpl implements PostService {
                     .quoteCount(p.getQuoteCount())
                     .isFollowingAuthor(isFollowing)
                     .build();
-        }).collect(java.util.stream.Collectors.toList());
+        }).collect(Collectors.toList());
 
-        List<FeedRecommendationService.PostCandidate> ranked = feedRecommendationService.rankCandidates(candidates, java.time.Instant.now());
-        java.util.Map<Long, Post> postMap = posts.stream().collect(java.util.stream.Collectors.toMap(Post::getId, p -> p, (a, b) -> a));
+        List<FeedRecommendationService.PostCandidate> ranked = feedRecommendationService.rankCandidates(candidates, Instant.now());
+        Map<Long, Post> postMap = posts.stream().collect(Collectors.toMap(Post::getId, p -> p, (a, b) -> a));
         List<PostResponse> responses = ranked.stream()
                 .map(c -> postMap.get(c.getPostId()))
                 .filter(Objects::nonNull)
                 .map(p -> toResponse(p, viewerId))
                 .toList();
 
-        return ApiResponse.page(responses, meta(page, size, postRepository.countPublicPostsFromSp()));
+        return ApiResponse.page(responses, PageMeta.from(postPage));
     }
 
-    @Override @Transactional(readOnly = true)
+    @Override
+    @Transactional(readOnly = true)
     public PostResponse get(Long postId, Long viewerId) {
         return toResponse(requireVisiblePost(postId, viewerId), viewerId);
     }
 
-    @Override @Transactional
+    @Override
+    @Transactional
     public PostResponse create(Long userId, CreatePostRequest request, Long communityId, Long parentPostId, Long quotedPostId) {
-        if (parentPostId != null && !requireVisiblePost(parentPostId, userId).isAllowReply()) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "REPLY_NOT_ALLOWED", "Reply is disabled for this post");
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> notFound("USER_NOT_FOUND", "User not found"));
+
+        Post parentPost = null;
+        if (parentPostId != null) {
+            parentPost = requireVisiblePost(parentPostId, userId);
+            if (!parentPost.isAllowReply()) {
+                throw new ApiException(HttpStatus.FORBIDDEN, "REPLY_NOT_ALLOWED", "Reply is disabled for this post");
+            }
         }
-        if (quotedPostId != null && !requireVisiblePost(quotedPostId, userId).isAllowQuote()) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "QUOTE_NOT_ALLOWED", "Quote is disabled for this post");
+
+        Post quotedPost = null;
+        if (quotedPostId != null) {
+            quotedPost = requireVisiblePost(quotedPostId, userId);
+            if (!quotedPost.isAllowQuote()) {
+                throw new ApiException(HttpStatus.FORBIDDEN, "QUOTE_NOT_ALLOWED", "Quote is disabled for this post");
+            }
         }
-        if (communityId != null && communityMemberRepository.getMembershipFromSp(communityId, userId).isEmpty()) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "COMMUNITY_MEMBERSHIP_REQUIRED", "Only community members can post there");
+
+        Community community = null;
+        if (communityId != null) {
+            community = communityRepository.findByIdAndDeletedAtIsNull(communityId)
+                    .orElseThrow(() -> notFound("COMMUNITY_NOT_FOUND", "Community not found"));
+            if (!communityMemberRepository.existsByCommunityIdAndUserId(communityId, userId)) {
+                throw new ApiException(HttpStatus.FORBIDDEN, "COMMUNITY_MEMBERSHIP_REQUIRED", "Only community members can post there");
+            }
         }
-        Long id = postRepository.createPostFromSp(userId, request.content(), request.visibility().name(),
-                flag(request.allowReply()), flag(request.allowQuote()), parentPostId, quotedPostId, communityId,
-                csv(request.mediaIds()), csv(request.topicIds()));
-        flushAndClear();
-        if (notificationService != null && parentPostId != null) {
-            try {
-                Post parent = requireVisiblePost(parentPostId, userId);
-                if (parent != null && parent.getUser() != null) {
-                    notificationService.createNotification(parent.getUser().getId(), userId, "POST_REPLY", "POST", id, request.content());
+
+        Post post = new Post();
+        post.setUser(user);
+        post.setContent(request.content());
+        post.setVisibility(request.visibility() != null ? request.visibility() : PostVisibility.PUBLIC);
+        post.setAllowReply(request.allowReply() == null || request.allowReply());
+        post.setAllowQuote(request.allowQuote() == null || request.allowQuote());
+        post.setParentPost(parentPost);
+        post.setQuotedPost(quotedPost);
+        post.setCommunity(community);
+
+        Post savedPost = postRepository.save(post);
+
+        // Save media attachments
+        if (request.mediaIds() != null && !request.mediaIds().isEmpty()) {
+            int pos = 0;
+            for (Long mediaId : request.mediaIds()) {
+                MediaAsset media = mediaAssetRepository.findById(mediaId).orElse(null);
+                if (media != null) {
+                    postMediaRepository.save(new PostMedia(savedPost, media, pos++));
                 }
-            } catch (Exception ignored) {}
+            }
         }
-        return get(id, userId);
+
+        // Save topic tags
+        if (request.topicIds() != null && !request.topicIds().isEmpty()) {
+            for (Long topicId : request.topicIds()) {
+                Topic topic = topicRepository.findById(topicId).orElse(null);
+                if (topic != null) {
+                    postTopicRepository.save(new PostTopic(savedPost, topic));
+                }
+            }
+        }
+
+        // Update counters
+        if (parentPost != null) {
+            parentPost.setReplyCount(parentPost.getReplyCount() + 1);
+            postRepository.save(parentPost);
+            if (notificationService != null && parentPost.getUser() != null) {
+                try {
+                    notificationService.createNotification(parentPost.getUser().getId(), userId, "POST_REPLY", "POST", savedPost.getId(), request.content());
+                } catch (Exception ignored) {}
+            }
+        }
+
+        if (quotedPost != null) {
+            quotedPost.setQuoteCount(quotedPost.getQuoteCount() + 1);
+            postRepository.save(quotedPost);
+        }
+
+        if (community != null) {
+            community.setPostCount(community.getPostCount() + 1);
+            communityRepository.save(community);
+        }
+
+        return get(savedPost.getId(), userId);
     }
 
-    @Override @Transactional
+    @Override
+    @Transactional
     public PostResponse update(Long userId, Long postId, UpdatePostRequest request) {
-        Long id = postRepository.updatePostFromSp(postId, userId, request.content(),
-                postRepository.visibilityValue(request.visibility()), request.allowReply(), request.allowQuote());
-        flushAndClear();
-        return get(id, userId);
+        Post post = requireVisiblePost(postId, userId);
+        if (!Objects.equals(post.getUser().getId(), userId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only post owner can edit the post");
+        }
+
+        if (request.content() != null) post.setContent(request.content());
+        if (request.visibility() != null) post.setVisibility(request.visibility());
+        if (request.allowReply() != null) post.setAllowReply(request.allowReply());
+        if (request.allowQuote() != null) post.setAllowQuote(request.allowQuote());
+
+        return get(postRepository.save(post).getId(), userId);
     }
 
-    @Override @Transactional
+    @Override
+    @Transactional
     public void delete(Long userId, Long postId) {
-        postRepository.softDeletePostFromSp(postId, userId);
-        flushAndClear();
+        Post post = requireVisiblePost(postId, userId);
+        if (!Objects.equals(post.getUser().getId(), userId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only post owner can delete the post");
+        }
+        post.setDeletedAt(Instant.now());
+        postRepository.save(post);
+
+        if (post.getParentPost() != null) {
+            Post parent = post.getParentPost();
+            parent.setReplyCount(Math.max(0, parent.getReplyCount() - 1));
+            postRepository.save(parent);
+        }
     }
 
-    @Override @Transactional(readOnly = true)
+    @Override
+    @Transactional(readOnly = true)
     public ApiResponse<List<PostResponse>> replies(Long postId, int page, int size, Long viewerId) {
         requireVisiblePost(postId, viewerId);
-        List<Post> posts = postRepository.listRepliesFromSp(postId, offset(page, size), size);
-        return ApiResponse.page(posts.stream().map(post -> toResponse(post, viewerId)).toList(),
-                meta(page, size, postRepository.countRepliesFromSp(postId)));
+        Page<Post> repliesPage = postRepository.findByParentPostIdAndDeletedAtIsNullOrderByCreatedAtAsc(
+                postId, PageRequest.of(Math.max(0, page), Math.max(1, size)));
+        List<PostResponse> list = repliesPage.getContent().stream()
+                .map(post -> toResponse(post, viewerId))
+                .toList();
+        return ApiResponse.page(list, PageMeta.from(repliesPage));
     }
 
-    @Override @Transactional(readOnly = true)
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<List<PostResponse>> quotes(Long postId, int page, int size, Long viewerId) {
+        requireVisiblePost(postId, viewerId);
+        Page<Post> quotesPage = postRepository.findByQuotedPostIdAndDeletedAtIsNullOrderByCreatedAtDesc(
+                postId, PageRequest.of(Math.max(0, page), Math.max(1, size)));
+        List<PostResponse> list = quotesPage.getContent().stream()
+                .map(post -> toResponse(post, viewerId))
+                .toList();
+        return ApiResponse.page(list, PageMeta.from(quotesPage));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public ApiResponse<List<PostResponse>> communityPosts(Long communityId, int page, int size, Long viewerId) {
-        List<Post> posts = postRepository.listCommunityPostsFromSp(communityId, offset(page, size), size);
-        return ApiResponse.page(posts.stream().map(post -> toResponse(post, viewerId)).toList(),
-                meta(page, size, postRepository.countCommunityPostsFromSp(communityId)));
+        Page<Post> postPage = postRepository.findByCommunityId(
+                communityId, PageRequest.of(Math.max(0, page), Math.max(1, size)));
+        List<PostResponse> list = postPage.getContent().stream()
+                .map(post -> toResponse(post, viewerId))
+                .toList();
+        return ApiResponse.page(list, PageMeta.from(postPage));
     }
 
-    @Override @Transactional(readOnly = true)
+    @Override
+    @Transactional(readOnly = true)
     public ApiResponse<List<PostResponse>> topicPosts(Long topicId, int page, int size, Long viewerId) {
-        topicRepository.getTopicFromSp(topicId).orElseThrow(() -> notFound("TOPIC_NOT_FOUND", "Topic not found"));
-        List<Post> posts = postRepository.listTopicPostsFromSp(topicId, offset(page, size), size);
-        return ApiResponse.page(posts.stream().map(post -> toResponse(post, viewerId)).toList(),
-                meta(page, size, postRepository.countTopicPostsFromSp(topicId)));
+        topicRepository.findById(topicId).orElseThrow(() -> notFound("TOPIC_NOT_FOUND", "Topic not found"));
+        Page<Post> postPage = postRepository.findByTopicId(
+                topicId, PageRequest.of(Math.max(0, page), Math.max(1, size)));
+        List<PostResponse> list = postPage.getContent().stream()
+                .map(post -> toResponse(post, viewerId))
+                .toList();
+        return ApiResponse.page(list, PageMeta.from(postPage));
     }
 
-    @Override @Transactional
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<List<PostResponse>> userPosts(Long userId, int page, int size, Long viewerId) {
+        Page<Post> postPage = postRepository.findByUserIdAndParentPostIsNullAndDeletedAtIsNullOrderByCreatedAtDesc(
+                userId, PageRequest.of(Math.max(0, page), Math.max(1, size)));
+        List<PostResponse> list = postPage.getContent().stream()
+                .map(post -> toResponse(post, viewerId))
+                .toList();
+        return ApiResponse.page(list, PageMeta.from(postPage));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<List<PostResponse>> searchPosts(String query, int page, int size, Long viewerId) {
+        Page<Post> postPage = postRepository.searchPosts(
+                query, PageRequest.of(Math.max(0, page), Math.max(1, size)));
+        List<PostResponse> list = postPage.getContent().stream()
+                .map(post -> toResponse(post, viewerId))
+                .toList();
+        return ApiResponse.page(list, PageMeta.from(postPage));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<List<PostResponse>> bookmarkedPosts(Long userId, int page, int size) {
+        Page<Bookmark> bookmarkPage = bookmarkRepository.findByUserIdOrderByCreatedAtDesc(
+                userId, PageRequest.of(Math.max(0, page), Math.max(1, size)));
+        List<PostResponse> list = bookmarkPage.getContent().stream()
+                .map(b -> toResponse(b.getPost(), userId))
+                .filter(Objects::nonNull)
+                .toList();
+        return ApiResponse.page(list, PageMeta.from(bookmarkPage));
+    }
+
+    @Override
+    @Transactional
     public PostResponse like(Long userId, Long postId) {
-        postRepository.likePostFromSp(postId, userId);
-        flushAndClear();
-        if (notificationService != null) {
-            try {
-                Post post = requireVisiblePost(postId, userId);
-                if (post != null && post.getUser() != null) {
+        Post post = requireVisiblePost(postId, userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> notFound("USER_NOT_FOUND", "User not found"));
+
+        if (!postLikeRepository.existsByPostIdAndUserId(postId, userId)) {
+            postLikeRepository.save(new PostLike(user, post));
+            post.setLikeCount(post.getLikeCount() + 1);
+            postRepository.save(post);
+
+            if (notificationService != null && post.getUser() != null) {
+                try {
                     notificationService.createNotification(post.getUser().getId(), userId, "POST_LIKE", "POST", postId, post.getContent());
-                }
-            } catch (Exception ignored) {}
+                } catch (Exception ignored) {}
+            }
         }
         return get(postId, userId);
     }
 
-    @Override @Transactional
+    @Override
+    @Transactional
     public void unlike(Long userId, Long postId) {
-        postRepository.unlikePostFromSp(postId, userId);
-        flushAndClear();
+        Post post = requireVisiblePost(postId, userId);
+        if (postLikeRepository.existsByPostIdAndUserId(postId, userId)) {
+            postLikeRepository.deleteByPostIdAndUserId(postId, userId);
+            post.setLikeCount(Math.max(0, post.getLikeCount() - 1));
+            postRepository.save(post);
+        }
     }
 
-    @Override @Transactional
+    @Override
+    @Transactional
     public PostResponse bookmark(Long userId, Long postId) {
-        postRepository.bookmarkPostFromSp(postId, userId);
-        flushAndClear();
+        Post post = requireVisiblePost(postId, userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> notFound("USER_NOT_FOUND", "User not found"));
+
+        if (!bookmarkRepository.existsByPostIdAndUserId(postId, userId)) {
+            bookmarkRepository.save(new Bookmark(user, post));
+        }
         return get(postId, userId);
     }
 
-    @Override @Transactional
+    @Override
+    @Transactional
     public void removeBookmark(Long userId, Long postId) {
-        postRepository.removeBookmarkFromSp(postId, userId);
-        flushAndClear();
+        bookmarkRepository.deleteByPostIdAndUserId(postId, userId);
     }
 
-    @Override @Transactional
+    @Override
+    @Transactional
     public PostResponse repost(Long userId, Long postId) {
-        postRepository.repostFromSp(postId, userId);
-        flushAndClear();
+        Post post = requireVisiblePost(postId, userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> notFound("USER_NOT_FOUND", "User not found"));
+
+        if (!repostRepository.existsByPostIdAndUserId(postId, userId)) {
+            repostRepository.save(new Repost(user, post));
+            post.setRepostCount(post.getRepostCount() + 1);
+            postRepository.save(post);
+        }
         return get(postId, userId);
     }
 
-    @Override @Transactional
+    @Override
+    @Transactional
     public void removeRepost(Long userId, Long postId) {
-        postRepository.removeRepostFromSp(postId, userId);
-        flushAndClear();
+        Post post = requireVisiblePost(postId, userId);
+        if (repostRepository.existsByPostIdAndUserId(postId, userId)) {
+            repostRepository.deleteByPostIdAndUserId(postId, userId);
+            post.setRepostCount(Math.max(0, post.getRepostCount() - 1));
+            postRepository.save(post);
+        }
     }
 
     private Post requireVisiblePost(Long postId, Long viewerId) {
-        return postRepository.getVisiblePostFromSp(postId, viewerId)
+        return postRepository.findByIdAndDeletedAtIsNull(postId)
                 .orElseThrow(() -> notFound("POST_NOT_FOUND", "Post not found"));
     }
 
-    private PostResponse toResponse(Post post, Long viewerId) {
-        boolean owner = viewerId != null && Objects.equals(post.getUser().getId(), viewerId);
-        UserSummary author = summary(post.getUser());
+    @Override
+    public PostResponse toResponse(Post post, Long viewerId) {
+        if (post == null) return null;
+        boolean owner = viewerId != null && post.getUser() != null && Objects.equals(post.getUser().getId(), viewerId);
+        UserSummary author = post.getUser() != null ? summary(post.getUser()) : null;
         List<MediaResponse> media = postMediaRepository.findByPost_IdOrderByPositionAsc(post.getId()).stream()
                 .map(PostMedia::getMedia).map(this::media).toList();
         List<TopicResponse> topics = postTopicRepository.findByPost_Id(post.getId()).stream()
                 .map(PostTopic::getTopic).map(this::topic).toList();
-        PostViewerStateResponse viewerState = viewerId == null
-                ? new PostViewerStateResponse(false, false, false)
-                : new PostViewerStateResponse(postRepository.hasLikedFromSp(post.getId(), viewerId),
-                        postRepository.hasBookmarkedFromSp(post.getId(), viewerId),
-                        postRepository.hasRepostedFromSp(post.getId(), viewerId));
+
+        boolean hasLiked = viewerId != null && postLikeRepository.existsByPostIdAndUserId(post.getId(), viewerId);
+        boolean hasBookmarked = viewerId != null && bookmarkRepository.existsByPostIdAndUserId(post.getId(), viewerId);
+        boolean hasReposted = viewerId != null && repostRepository.existsByPostIdAndUserId(post.getId(), viewerId);
+
+        PostViewerStateResponse viewerState = new PostViewerStateResponse(hasLiked, hasBookmarked, hasReposted);
         PostCapabilitiesResponse capabilities = new PostCapabilitiesResponse(owner, owner,
                 post.isAllowReply(), post.isAllowQuote());
+
+        PollResponse pollResp = null;
+        if (pollRepository != null) {
+            pollResp = pollRepository.findByPostId(post.getId())
+                    .map(p -> mapPoll(p, viewerId))
+                    .orElse(null);
+        }
+
         return new PostResponse(post.getId(), author, post.getContent(), id(post.getParentPost()),
                 id(post.getQuotedPost()), id(post.getCommunity()), post.getVisibility(), post.isAllowReply(),
-                post.isAllowQuote(), media, topics, null, post.getLikeCount(), post.getReplyCount(),
+                post.isAllowQuote(), media, topics, pollResp, post.getLikeCount(), post.getReplyCount(),
                 post.getRepostCount(), post.getQuoteCount(), post.getViewCount(), viewerState,
                 capabilities, post.getCreatedAt(), post.getUpdatedAt());
+    }
+
+    private PollResponse mapPoll(Poll poll, Long viewerId) {
+        List<PollOptionResponse> options = pollOptionRepository != null
+                ? pollOptionRepository.findByPollIdOrderByPositionAsc(poll.getId()).stream()
+                .map(opt -> {
+                    Boolean selected = viewerId != null && pollVoteRepository != null
+                            ? pollVoteRepository.existsByPollIdAndOptionIdAndUserId(poll.getId(), opt.getId(), viewerId)
+                            : null;
+                    return new PollOptionResponse(opt.getId(), opt.getOptionText(), opt.getVoteCount(), selected);
+                }).toList()
+                : List.of();
+
+        int totalVotes = options.stream().mapToInt(PollOptionResponse::getVoteCount).sum();
+        Long votedOptionId = options.stream()
+                .filter(o -> Boolean.TRUE.equals(o.getSelectedByCurrentUser()))
+                .map(PollOptionResponse::getId)
+                .findFirst()
+                .orElse(null);
+
+        return new PollResponse(poll.getId(), poll.getQuestion(), poll.isAllowMultiple(),
+                poll.getClosedAt(), poll.getClosedAt(), totalVotes, votedOptionId, options);
     }
 
     private UserSummary summary(User user) {
@@ -251,13 +469,5 @@ public class PostServiceImpl implements PostService {
 
     private Long id(Post post) { return post == null ? null : post.getId(); }
     private Long id(Community community) { return community == null ? null : community.getId(); }
-    private boolean flag(Boolean value) { return value == null || value; }
-    private int offset(int page, int size) { return page * size; }
-    private String csv(List<Long> ids) { return ids == null || ids.isEmpty() ? null : String.join(",", ids.stream().map(String::valueOf).toList()); }
-    private void flushAndClear() { entityManager.flush(); entityManager.clear(); }
-    private PageMeta meta(int page, int size, long total) {
-        int totalPages = total == 0 ? 0 : (int) Math.ceil((double) total / size);
-        return new PageMeta(page, size, total, totalPages, page + 1 < totalPages, page > 0);
-    }
     private ApiException notFound(String code, String message) { return new ApiException(HttpStatus.NOT_FOUND, code, message); }
 }

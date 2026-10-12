@@ -14,12 +14,18 @@ public interface PostService {
     PostResponse update(Long userId, Long postId, UpdatePostRequest request);
     void delete(Long userId, Long postId);
     ApiResponse<List<PostResponse>> replies(Long postId, int page, int size, Long viewerId);
+    ApiResponse<List<PostResponse>> quotes(Long postId, int page, int size, Long viewerId);
     ApiResponse<List<PostResponse>> communityPosts(Long communityId, int page, int size, Long viewerId);
     ApiResponse<List<PostResponse>> topicPosts(Long topicId, int page, int size, Long viewerId);
+    ApiResponse<List<PostResponse>> userPosts(Long userId, int page, int size, Long viewerId);
+    ApiResponse<List<PostResponse>> searchPosts(String query, int page, int size, Long viewerId);
+    ApiResponse<List<PostResponse>> bookmarkedPosts(Long userId, int page, int size);
     PostResponse like(Long userId, Long postId);
     void unlike(Long userId, Long postId);
     PostResponse bookmark(Long userId, Long postId);
     void removeBookmark(Long userId, Long postId);
     PostResponse repost(Long userId, Long postId);
     void removeRepost(Long userId, Long postId);
+    PostResponse toResponse(com.aloute.entity.Post post, Long viewerId);
 }
+
