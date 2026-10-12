@@ -80,6 +80,18 @@
                         <i class="bi bi-chat-dots me-1" aria-hidden="true"></i>
                         <span>Nhắn tin</span>
                     </button>
+
+                    <!-- Report User Button (Other user: currentUser.id != profile.id) -->
+                    <button th:if="${currentUser != null and profile != null and currentUser.id != profile.id}"
+                            type="button"
+                            class="btn btn-sm btn-outline-danger aloute-action-btn"
+                            id="btn-report-user"
+                            data-action="open-report-modal"
+                            data-report-type="user"
+                            th:attr="data-reported-id=${profile.id}, data-reported-name=${profile.displayName ?: profile.username}">
+                        <i class="bi bi-flag me-1" aria-hidden="true"></i>
+                        <span>Báo cáo</span>
+                    </button>
                 </div>
             </div>
 
@@ -162,7 +174,7 @@
                         <span>Ảnh/Media</span>
                     </button>
                 </li>
-                <li class="nav-item" role="presentation">
+                <li class="nav-item" role="presentation" th:if="${currentUser != null and profile != null and currentUser.id == profile.id}">
                     <button class="nav-link"
                             id="tab-saved"
                             data-bs-toggle="tab"
@@ -189,8 +201,14 @@
                     <span>Bài viết đã đăng</span>
                 </h2>
 
+                <!-- Service Error State for User Posts -->
+                <div th:if="${postsError == true}" class="alert alert-warning d-flex align-items-center gap-2 mb-3" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                    <span>Không thể tải danh sách bài viết vào lúc này. Vui lòng thử lại sau.</span>
+                </div>
+
                 <!-- Unavailable State when service not wired from backend -->
-                <div th:if="${profilePosts == null}" class="empty-state">
+                <div th:if="${postsError != true and profilePosts == null}" class="empty-state">
                     <div class="empty-state-icon">
                         <i class="bi bi-clock-history text-secondary" aria-hidden="true"></i>
                     </div>
@@ -199,7 +217,7 @@
                 </div>
 
                 <!-- Empty State for Profile Posts when list is empty -->
-                <div th:if="${profilePosts != null and #lists.isEmpty(profilePosts)}" class="empty-state">
+                <div th:if="${postsError != true and profilePosts != null and #lists.isEmpty(profilePosts)}" class="empty-state">
                     <div class="empty-state-icon">
                         <i class="bi bi-journal-x" aria-hidden="true"></i>
                     </div>
@@ -208,7 +226,7 @@
                 </div>
 
                 <!-- Render User's Post Cards if available -->
-                <div th:if="${profilePosts != null and !#lists.isEmpty(profilePosts)}">
+                <div th:if="${postsError != true and profilePosts != null and !#lists.isEmpty(profilePosts)}">
                     <div th:each="postItem : ${profilePosts}">
                         <div th:replace="~{post/_post-card :: postCard(post=${postItem})}"></div>
                     </div>
@@ -226,10 +244,10 @@
                 <h2 class="visually-hidden">Phản hồi của người dùng</h2>
                 <div class="empty-state">
                     <div class="empty-state-icon">
-                        <i class="bi bi-chat-left-dots" aria-hidden="true"></i>
+                        <i class="bi bi-clock-history text-secondary" aria-hidden="true"></i>
                     </div>
-                    <h3 class="empty-state-title">Chưa có phản hồi nào</h3>
-                    <p class="empty-state-desc">Tính năng phản hồi và thảo luận đang được hoàn thiện.</p>
+                    <h3 class="empty-state-title">Danh sách phản hồi chưa khả dụng</h3>
+                    <p class="empty-state-desc">Tính năng lọc và hiển thị danh sách phản hồi của người dùng hiện đang được phát triển.</p>
                 </div>
             </section>
         </div>
@@ -240,24 +258,53 @@
                 <h2 class="visually-hidden">Ảnh và media của người dùng</h2>
                 <div class="empty-state">
                     <div class="empty-state-icon">
-                        <i class="bi bi-images" aria-hidden="true"></i>
+                        <i class="bi bi-clock-history text-secondary" aria-hidden="true"></i>
                     </div>
-                    <h3 class="empty-state-title">Chưa có ảnh hoặc media</h3>
-                    <p class="empty-state-desc">Các bài viết có chứa hình ảnh hoặc tệp media sẽ xuất hiện tại đây.</p>
+                    <h3 class="empty-state-title">Danh sách đa phương tiện chưa khả dụng</h3>
+                    <p class="empty-state-desc">Tính năng lọc và hiển thị ảnh, video của người dùng hiện đang được phát triển.</p>
                 </div>
             </section>
         </div>
 
-        <!-- Pane 4: Saved Posts -->
-        <div class="tab-pane fade" id="pane-saved" role="tabpanel" aria-labelledby="tab-saved" tabindex="0">
+        <!-- Pane 4: Saved Posts (Owner only: currentUser.id == profile.id) -->
+        <div th:if="${currentUser != null and profile != null and currentUser.id == profile.id}" class="tab-pane fade" id="pane-saved" role="tabpanel" aria-labelledby="tab-saved" tabindex="0">
             <section aria-label="Bài viết đã lưu" class="profile-posts-section">
                 <h2 class="visually-hidden">Bài viết đã lưu</h2>
-                <div class="empty-state">
-                    <div class="empty-state-icon">
-                        <i class="bi bi-bookmark" aria-hidden="true"></i>
+                <!-- Error State when saved posts service fails -->
+                <div th:if="${savedPostsError == true}" class="alert alert-warning d-flex align-items-center gap-2 mb-3" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                    <span>Không thể tải danh sách bài viết đã lưu vào lúc này. Vui lòng thử lại sau.</span>
+                </div>
+
+                <!-- Render Saved Posts if available -->
+                <div th:if="${savedPostsError != true and savedPosts != null and !#lists.isEmpty(savedPosts)}">
+                    <div th:each="postItem : ${savedPosts}">
+                        <div th:replace="~{post/_post-card :: postCard(post=${postItem})}"></div>
                     </div>
-                    <h3 class="empty-state-title">Chưa có bài viết đã lưu</h3>
-                    <p class="empty-state-desc">Danh sách bài viết được đánh dấu lưu trữ sẽ xuất hiện tại đây.</p>
+                    <div class="text-center mt-3">
+                        <a th:href="@{/saved}" class="btn btn-sm btn-outline-primary rounded-pill">
+                            <i class="bi bi-bookmark me-1" aria-hidden="true"></i>Xem tất cả bài viết đã lưu
+                        </a>
+                    </div>
+                </div>
+                <!-- Unavailable state when savedPosts is null and no error -->
+                <div th:if="${savedPostsError != true and savedPosts == null}" class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="bi bi-clock-history text-secondary" aria-hidden="true"></i>
+                    </div>
+                    <h3 class="empty-state-title">Danh sách bài viết đã lưu chưa khả dụng</h3>
+                    <p class="empty-state-desc">Tính năng hiển thị bài viết đã lưu trực tiếp trên trang cá nhân hiện đang được phát triển.</p>
+                </div>
+                <!-- Empty state when savedPosts is non-null but empty and no error -->
+                <div th:if="${savedPostsError != true and savedPosts != null and #lists.isEmpty(savedPosts)}" class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="bi bi-bookmark text-secondary" aria-hidden="true"></i>
+                    </div>
+                    <h3 class="empty-state-title">Chưa có bài viết đã lưu nào</h3>
+                    <p class="empty-state-desc">Bấm vào biểu tượng bookmark trên bài viết bất kỳ để lưu lại tại đây.</p>
+                    <a th:href="@{/feed}" class="btn btn-sm btn-primary rounded-pill px-3 mt-2">
+                        <i class="bi bi-house-door me-1" aria-hidden="true"></i>Khám phá Bảng tin
+                    </a>
                 </div>
             </section>
         </div>
