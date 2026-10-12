@@ -20,6 +20,8 @@ out/
 *.log
 .env
 .env.local
+serviceAccountKey.json
+*.zip
 
 # OS
 .DS_Store

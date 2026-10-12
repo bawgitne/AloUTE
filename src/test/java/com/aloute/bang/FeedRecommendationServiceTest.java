@@ -2,6 +2,7 @@ package com.aloute.bang;
 
 import com.aloute.service.FeedRecommendationService;
 import com.aloute.service.FeedRecommendationService.PostCandidate;
+import com.aloute.service.impl.FeedRecommendationServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,7 @@ class FeedRecommendationServiceTest {
 
     @BeforeEach
     void setUp() {
-        feedRecommendationService = new FeedRecommendationService();
+        feedRecommendationService = new FeedRecommendationServiceImpl();
         now = Instant.parse("2026-10-07T10:00:00Z");
     }
 

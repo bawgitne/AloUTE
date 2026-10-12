@@ -738,6 +738,24 @@ SPRING_SECURITY_CONVENTION.md
 
 ---
 
+# 26.1. PUSH NOTIFICATION & SERVICE WORKER CLIENT (FCM)
+
+Ngoài realtime in-app bằng WebSocket, ALOUTE hỗ trợ background Web Push khi người dùng đóng tab hoặc chuyển sang ứng dụng khác:
+
+1. **Service Worker Root (`static/firebase-messaging-sw.js`)**:
+   - Chịu trách nhiệm background push event (`messaging.onBackgroundMessage(...)`).
+   - Hiển thị Web Notification popup thông qua browser Notification API.
+   - Bắt sự kiện `notificationclick` để focus hoặc mở tab `/notifications` hoặc chi tiết bài viết/tin nhắn.
+
+2. **Feature Client (`static/js/features/fcm-notification.js`)**:
+   - Yêu cầu cấp quyền `Notification.requestPermission()`.
+   - Lấy FCM Token qua `getToken(messaging, { vapidKey: ... })`.
+   - Đăng ký token lên backend qua `POST /api/notifications/fcm-token`.
+   - Lắng nghe foreground FCM push nếu socket tạm ngắt (`onMessage(messaging, ...)`).
+   - Huỷ đăng ký token qua `DELETE /api/notifications/fcm-token` khi người dùng đăng xuất.
+
+---
+
 # 27. CHAT UI
 
 Chat page có thể chia:
