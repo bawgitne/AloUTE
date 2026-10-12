@@ -1,11 +1,12 @@
 package com.aloute.controller.ws;
 
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import com.aloute.dto.request.SendMessageRequest;
 import com.aloute.entity.ConversationMember;
 import com.aloute.repository.ConversationMemberRepository;
 import com.aloute.service.ConversationService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -17,9 +18,9 @@ import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
+@RequiredArgsConstructor
 @Slf4j
 @Controller
-@RequiredArgsConstructor
 public class ChatWebSocketController {
 
     private final ConversationService conversationService;

@@ -1,10 +1,14 @@
 package com.aloute.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 import java.time.Instant;
 
 @Entity
 @Table(name = "reports")
+@Getter
+@Setter
 public class Report {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -26,18 +30,4 @@ public class Report {
     private Instant createdAt;
 
     @PrePersist void prePersist() { if (status == null) status = ReportStatus.PENDING; if (createdAt == null) createdAt = Instant.now(); }
-    public Long getId() { return id; }
-    public User getReporter() { return reporter; }
-    public void setReporter(User reporter) { this.reporter = reporter; }
-    public User getReportedUser() { return reportedUser; }
-    public void setReportedUser(User reportedUser) { this.reportedUser = reportedUser; }
-    public Long getReportedPostId() { return reportedPostId; }
-    public void setReportedPostId(Long reportedPostId) { this.reportedPostId = reportedPostId; }
-    public ReportReason getReason() { return reason; }
-    public void setReason(ReportReason reason) { this.reason = reason; }
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
-    public ReportStatus getStatus() { return status; }
-    public void setStatus(ReportStatus status) { this.status = status; }
-    public Instant getCreatedAt() { return createdAt; }
 }

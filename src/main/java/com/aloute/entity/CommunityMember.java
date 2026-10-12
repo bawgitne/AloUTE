@@ -1,12 +1,18 @@
 package com.aloute.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import java.time.Instant;
 
 @Entity
 @Table(name = "community_members", uniqueConstraints = {
         @UniqueConstraint(name = "uk_community_members_user", columnNames = {"community_id", "user_id"})
 })
+@Getter
+@Setter
+@NoArgsConstructor
 public class CommunityMember {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -24,12 +30,9 @@ public class CommunityMember {
 
     @PrePersist void prePersist() { joinedAt = Instant.now(); }
 
-    public Long getId() { return id; }
-    public Community getCommunity() { return community; }
-    public void setCommunity(Community community) { this.community = community; }
-    public User getUser() { return user; }
-    public void setUser(User user) { this.user = user; }
-    public CommunityRole getRole() { return role; }
-    public void setRole(CommunityRole role) { this.role = role; }
-    public Instant getJoinedAt() { return joinedAt; }
+    public CommunityMember(Community community, User user, CommunityRole role) {
+        this.community = community;
+        this.user = user;
+        this.role = role;
+    }
 }

@@ -1,5 +1,6 @@
 package com.aloute.controller.api;
 
+import lombok.RequiredArgsConstructor;
 import com.aloute.common.api.ApiResponse;
 import com.aloute.dto.request.LoginRequest;
 import com.aloute.dto.request.RegisterRequest;
@@ -20,14 +21,11 @@ import java.time.Duration;
 
 @RestController
 @RequestMapping("/api/auth")
+@RequiredArgsConstructor
 public class AuthController {
     private final AuthService authService;
     private final JwtTokenProvider tokenProvider;
     private final CurrentUserProvider currentUserProvider;
-
-    public AuthController(AuthService authService, JwtTokenProvider tokenProvider, CurrentUserProvider currentUserProvider) {
-        this.authService=authService; this.tokenProvider=tokenProvider; this.currentUserProvider=currentUserProvider;
-    }
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<UserResponse>> register(@Valid @RequestBody RegisterRequest request) {

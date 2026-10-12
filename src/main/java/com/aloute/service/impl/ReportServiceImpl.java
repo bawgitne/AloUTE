@@ -1,5 +1,6 @@
 package com.aloute.service.impl;
 
+import lombok.RequiredArgsConstructor;
 import com.aloute.common.exception.ApiException;
 import com.aloute.common.exception.RequestValidationException;
 import com.aloute.dto.request.CreateReportRequest;
@@ -16,15 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 
+@RequiredArgsConstructor
 @Service
 public class ReportServiceImpl implements ReportService {
     private final ReportRepository reportRepository;
     private final UserRepository userRepository;
-
-    public ReportServiceImpl(ReportRepository reportRepository, UserRepository userRepository) {
-        this.reportRepository = reportRepository;
-        this.userRepository = userRepository;
-    }
 
     @Override @Transactional
     public ReportResponse create(Long reporterId, CreateReportRequest request) {

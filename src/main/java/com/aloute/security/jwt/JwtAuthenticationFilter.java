@@ -12,17 +12,18 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
 @Component
+@RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     public static final String COOKIE_NAME="aloute_access_token";
     private final JwtTokenProvider tokenProvider;
     private final CustomUserDetailsService userDetailsService;
-    public JwtAuthenticationFilter(JwtTokenProvider tokenProvider, CustomUserDetailsService userDetailsService) { this.tokenProvider=tokenProvider; this.userDetailsService=userDetailsService; }
     @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
         String token=readCookie(request); if (token==null) token=readBearer(request);
         if (token!=null && SecurityContextHolder.getContext().getAuthentication()==null) {

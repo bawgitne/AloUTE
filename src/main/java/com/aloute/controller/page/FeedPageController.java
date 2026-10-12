@@ -3,6 +3,7 @@ package com.aloute.controller.page;
 import com.aloute.security.currentuser.CurrentUserProvider;
 import com.aloute.service.PostService;
 import com.aloute.service.UserService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -12,22 +13,19 @@ import java.util.List;
 
 @Slf4j
 @Controller
+@RequiredArgsConstructor
 public class FeedPageController {
     private final CurrentUserProvider currentUserProvider;
     private final UserService userService;
     private final PostService postService;
 
-    public FeedPageController(CurrentUserProvider currentUserProvider, UserService userService, PostService postService) {
-        this.currentUserProvider = currentUserProvider;
-        this.userService = userService;
-        this.postService = postService;
-    }
-
     @GetMapping("/feed")
     public String feed(Model model) {
         Long userId = currentUserProvider.getCurrentUserId().orElse(null);
         if (userId != null) {
-            model.addAttribute("currentUser", userService.getProfile(userId));
+            try {
+                model.addAttribute("currentUser", userService.getProfile(userId));
+            } catch (Exception ignored) {}
         }
         model.addAttribute("activeNav", "feed");
         try {

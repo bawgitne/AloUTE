@@ -1,8 +1,8 @@
 package com.aloute.security.config;
 
 /**
- * Whitelist bám các operation có security: [] trong skills/aloute-openapi.yaml.
- * Các pattern chỉ khai báo route public; endpoint chưa được module khác implement vẫn không tự sinh ra.
+ * Whitelist bám các operation có security: [] trong skills/aloute-openapi.yaml
+ * và các route Web Thymeleaf public.
  */
 public final class SecurityWhitelist {
     private SecurityWhitelist() {}
@@ -13,13 +13,16 @@ public final class SecurityWhitelist {
     };
 
     public static final String[] PUBLIC_GET = {
+            "/api/auth/me",
             "/api/users/*",
             "/api/users/by-username/*",
             "/api/users/*/posts",
             "/api/users/*/followers",
             "/api/users/*/following",
+            "/api/posts",
             "/api/posts/*",
             "/api/posts/*/replies",
+            "/api/posts/*/quotes",
             "/api/media/file/**",
             "/api/topics",
             "/api/topics/*",
@@ -27,20 +30,56 @@ public final class SecurityWhitelist {
             "/api/polls/*",
             "/api/communities",
             "/api/communities/*",
+            "/api/communities/*/members",
             "/api/communities/*/posts",
-            "/api/feed/explore",
-            "/api/feed/recommended"
+            "/api/feed",
+            "/api/feed/**",
+            "/api/feeds",
+            "/api/feeds/**"
     };
 
     public static final String[] PUBLIC_WEB = {
             "/",
+            "/feed",
             "/login",
             "/register",
+            "/explore",
+            "/post/**",
+            "/posts/**",
+            "/p/**",
+            "/profile",
+            "/profile/**",
+            "/@**",
+            "/u/**",
+            "/user/**",
+            "/users/**",
+            "/communities",
+            "/communities/**",
+            "/c/**",
+            "/t/**",
+            "/topic/**",
+            "/saved",
+            "/saved/**",
+            "/bookmarks",
+            "/bookmarks/**",
+            "/settings",
+            "/settings/**",
+            "/friends",
+            "/friends/**",
+            "/messages",
+            "/messages/**",
+            "/notifications",
+            "/notifications/**",
+            "/search",
+            "/search/**",
             "/css/**",
             "/js/**",
             "/images/**",
             "/webjars/**",
             "/favicon.ico",
+            "/*.png",
+            "/*.svg",
+            "/*.ico",
             "/error",
             "/khoi-test",
             "/khoi-test/**",
