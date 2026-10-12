@@ -1463,21 +1463,19 @@ thường thuộc Service/domain.
 
 # 49. EXCEPTION TYPES
 
-Có thể có base:
+Cây kế thừa Exception chính thức tại `common/exception/`:
 
 ```text
-BusinessException
-ResourceNotFoundException
-ConflictException
-ForbiddenOperationException
-```
+RuntimeException
+└── AppException (Base unchecked exception, bọc ErrorCode hoặc HttpStatus/code/message)
+    ├── ApiException (Tương thích REST API controllers & services)
+    ├── ResourceNotFoundException (HTTP 404 - RESOURCE_NOT_FOUND hoặc domain _NOT_FOUND)
+    ├── BadRequestException (HTTP 400 - BAD_REQUEST)
+    ├── ForbiddenException (HTTP 403 - FORBIDDEN hoặc domain permissions)
+    ├── UnauthorizedException (HTTP 401 - AUTH_UNAUTHENTICATED)
+    └── ConflictException (HTTP 409 - CONFLICT hoặc domain conflicts)
 
-Feature có thể có exception cụ thể khi có value:
-
-```text
-PostNotFoundException
-PollClosedException
-CommunityMembershipRequiredException
+RequestValidationException (Bọc Map<String, List<String>> fieldErrors -> HTTP 422 VALIDATION_FAILED)
 ```
 
 Không tạo class exception cho mọi một dòng validation nhỏ nếu ErrorCode đã đủ biểu đạt.
@@ -1511,45 +1509,43 @@ trừ trường hợp service đó thực sự là web adapter, không phải bu
 Cross-cutting handler đặt trong:
 
 ```text
-common/exception/
+common/exception/GlobalExceptionHandler.java
 ```
 
-Chịu trách nhiệm:
+Chịu trách nhiệm bao phủ toàn bộ:
 
-- Request validation exception.
-- Business exception.
-- Persistence conflict translation khi phù hợp.
-- Unexpected exception.
-- Logging.
-- Canonical API error mapping.
+- `AppException` (bao gồm `ApiException`, `ResourceNotFoundException`, `ForbiddenException`, `ConflictException`, v.v.)
+- `RequestValidationException` (HTTP 422 `VALIDATION_FAILED` kèm fieldErrors)
+- `MethodArgumentNotValidException` (Bean validation DTO `@Valid`)
+- `ConstraintViolationException` (Param/Entity validation)
+- `AccessDeniedException` (Spring Security authorization failure -> HTTP 403 `AUTH_FORBIDDEN`)
+- `AuthenticationException` (Spring Security authentication failure -> HTTP 401 `AUTH_UNAUTHENTICATED`)
+- `DataIntegrityViolationException` (Database unique/FK conflict -> HTTP 409 `CONFLICT`)
+- `HttpRequestMethodNotSupportedException` (HTTP 405 `METHOD_NOT_ALLOWED`)
+- `HttpMediaTypeNotSupportedException` (HTTP 415 `UNSUPPORTED_MEDIA_TYPE`)
+- `HttpMessageNotReadableException` / `MethodArgumentTypeMismatchException` (HTTP 400 `BAD_REQUEST`)
+- `NoResourceFoundException` (HTTP 404 `RESOURCE_NOT_FOUND`)
+- `MaxUploadSizeExceededException` (HTTP 422 `MEDIA_TOO_LARGE`)
+- `Exception` (Unexpected server failure -> HTTP 500 `INTERNAL_ERROR`)
+- Gán `traceId` chuẩn (từ header / attribute hoặc `UUID.randomUUID()`).
+- Logging theo level phù hợp (`log.warn` cho client/business error, `log.error` cho unexpected failure).
 
 Không chứa business decision.
-
 Không swallow exception rồi trả success.
 
 ---
 
 # 52. ERROR CODE USAGE
 
-Backend dùng canonical `ErrorCode` catalog thuộc architecture contract.
+Backend dùng canonical `ErrorCode` catalog (`com.aloute.common.exception.ErrorCode`) thuộc architecture contract (`ALOUTE_SYSTEM_ARCHITECTURE.md`).
 
-Có thể implement:
-
-```java
-public enum ErrorCode {
-    ...
-}
-```
-
-nhưng danh mục/meaning phải bám:
-
-```text
-ALOUTE_SYSTEM_ARCHITECTURE.md
-```
+Enum `ErrorCode` đóng gói:
+- `code`: chuỗi định danh dạng `<DOMAIN>_<REASON>` (ổn định cho client).
+- `status`: mã `HttpStatus` chuẩn RESTful.
+- `defaultMessage`: thông điệp mô tả lỗi thân thiện với người dùng.
 
 Không mỗi feature tạo format error code khác.
-
-Không duplicate HTTP status mapping ở nhiều handler.
+Không hardcode chuỗi mã lỗi tùy tiện không theo quy ước.
 
 ---
 

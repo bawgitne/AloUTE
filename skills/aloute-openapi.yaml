@@ -1427,6 +1427,53 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/notifications/fcm-token:
+    post:
+      tags: [Notifications]
+      summary: Register FCM registration token for background web push
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterFcmTokenRequest'
+      responses:
+        '200':
+          description: FCM token registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptySuccessEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      tags: [Notifications]
+      summary: Unregister FCM registration token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterFcmTokenRequest'
+      responses:
+        '200':
+          description: FCM token unregistered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptySuccessEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
   /api/reports:
     post:
       tags: [Reports]
@@ -2483,6 +2530,15 @@ components:
           maxLength: 2000
           nullable: true
 
+    RegisterFcmTokenRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: Firebase Cloud Messaging registration token
+          maxLength: 500
+
     UserEnvelope:
       type: object
       required: [success, data, meta]
@@ -2764,6 +2820,18 @@ components:
             $ref: '#/components/schemas/NotificationResponse'
         meta:
           $ref: '#/components/schemas/PageMeta'
+
+    EmptySuccessEnvelope:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: 'null'
+        meta:
+          type: 'null'
 
 security:
   - cookieAuth: []

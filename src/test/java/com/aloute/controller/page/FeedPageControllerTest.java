@@ -53,7 +53,7 @@ class FeedPageControllerTest {
 
     @BeforeEach
     void setUp() {
-        authPageController = new AuthPageController(environment);
+        authPageController = new AuthPageController(environment, currentUserProvider);
         feedPageController = new FeedPageController(currentUserProvider, userService, postService);
 
         // Registered together to test routing ambiguity and ownership

@@ -11,6 +11,8 @@ import com.aloute.entity.*;
 import com.aloute.repository.*;
 import com.aloute.service.ConversationService;
 import com.aloute.service.NotificationService;
+import com.aloute.service.impl.ConversationServiceImpl;
+import com.aloute.service.impl.NotificationServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,7 +47,7 @@ class MessagingAndNotificationServiceTest {
 
     @BeforeEach
     void setUp() {
-        conversationService = new ConversationService(
+        conversationService = new ConversationServiceImpl(
                 conversationRepository,
                 conversationMemberRepository,
                 messageRepository,
@@ -53,7 +55,7 @@ class MessagingAndNotificationServiceTest {
                 profileRepository
         );
 
-        notificationService = new NotificationService(
+        notificationService = new NotificationServiceImpl(
                 notificationRepository,
                 userRepository,
                 profileRepository
