@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org" th:fragment="layout(title, content)">
 <head th:replace="~{fragments/head :: head(${title})}"></head>
-<body class="aloute-body">
+<body class="aloute-body" th:attr="data-current-user-id=${currentUser != null and currentUser.id != null ? currentUser.id : ''}">
     <!-- Global Header / Navbar -->
     <header th:replace="~{fragments/navbar :: navbar}"></header>
 
@@ -43,10 +43,10 @@
     <!-- Global Modals (Post Edit / Delete) -->
     <div th:replace="~{fragments/modal :: postModals}"></div>
 
-    <!-- Page Actions & Global Interactivity JS -->
-    <script th:src="@{/js/page-actions.js}" src="/js/page-actions.js" defer></script>
     <!-- Core Shared HTTP Transport Client -->
     <script th:src="@{/js/core/http-client.js}" src="/js/core/http-client.js" defer></script>
+    <!-- Page Actions & Global Interactivity JS -->
+    <script th:src="@{/js/page-actions.js}" src="/js/page-actions.js" defer></script>
     <!-- Post Interactions (Like, Bookmark, Repost) JS -->
     <script th:src="@{/js/features/post/post-like.js}" src="/js/features/post/post-like.js" defer></script>
     <!-- Post Edit & Delete JS -->

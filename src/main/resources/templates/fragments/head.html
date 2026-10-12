@@ -3,7 +3,7 @@
 <head th:fragment="head(title)">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="${title != null and !title.isEmpty()} ? ${title} + ' — AloUTE' : 'AloUTE — University Social Network'">AloUTE — University Social Network</title>
+    <title th:text="${title != null and !title.isEmpty()} ? (${#strings.endsWith(title, 'AloUTE')} ? ${title} : ${title} + ' — AloUTE') : 'AloUTE — University Social Network'">AloUTE — University Social Network</title>
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" th:href="@{/images/favicon.svg}" href="/images/favicon.svg">

@@ -14,6 +14,11 @@ public class AuthPageController {
     private final Environment environment;
     private final CurrentUserProvider currentUserProvider;
 
+    @GetMapping("/")
+    public String root() {
+        return "redirect:/login";
+    }
+
     @GetMapping("/login")
     public String loginPage(Model model) {
         if (currentUserProvider.getCurrentUserId().isPresent()) {

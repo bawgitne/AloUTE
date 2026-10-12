@@ -1,80 +1,86 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org"
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{layouts/default :: layout(
-        title='Cài đặt — AloUTE',
-        content=~{::#settings-content},
-        extraHead=~{::#settings-head},
-        extraScripts=~{::#settings-scripts},
-        activeTab='settings'
+        title='Cài đặt tài khoản',
+        content=~{::#settings-content}
       )}">
-<head id="settings-head">
-</head>
 <body>
-    <div id="settings-content">
-        <div class="settings-view" style="max-width: 680px; margin: 0 auto; width: 100%;">
-            <div class="card-social settings-overview" style="padding: 24px;">
-                <div class="overview-header" style="margin-bottom: 24px;">
-                    <h2 style="font-size: 20px; font-weight: 800; margin: 0 0 6px; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
-                        <i class="fa-solid fa-gear" style="color: var(--primary-color);"></i> Cài đặt tài khoản
-                    </h2>
-                    <p style="font-size: 13px; color: var(--text-muted); margin: 0;">
-                        Quản lý hồ sơ cá nhân, giao diện và thiết lập bảo mật của bạn trên AloUTE.
-                    </p>
-                </div>
+<div id="settings-content">
+    <div class="aloute-card p-4 mb-3">
+        <div class="mb-4">
+            <h1 class="fs-5 fw-bold mb-1 text-dark d-flex align-items-center gap-2">
+                <i class="bi bi-gear-fill text-primary" aria-hidden="true"></i>
+                <span>Cài đặt tài khoản</span>
+            </h1>
+            <p class="small text-muted mb-0">Quản lý hồ sơ cá nhân, giao diện và thiết lập bảo mật của bạn trên AloUTE.</p>
+        </div>
 
-                <!-- Settings Cards Grid (Exact match to SettingsOverviewPage.vue) -->
-                <div class="settings-cards-grid" style="display: flex; flex-direction: column; gap: 12px;">
-                    <!-- Profile Setting Item -->
-                    <div class="card-social" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-radius: var(--radius-md);">
-                        <div style="display: flex; align-items: center; gap: 16px;">
-                            <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background: rgba(80, 181, 255, 0.12); color: var(--primary-color); display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                                <i class="fa-solid fa-id-card"></i>
-                            </div>
-                            <div>
-                                <h4 style="font-size: 15px; font-weight: 700; margin: 0 0 2px; color: var(--text-main);">Hồ sơ cá nhân</h4>
-                                <p style="font-size: 12px; color: var(--text-muted); margin: 0;">Cập nhật tên hiển thị, tiểu sử, ảnh đại diện và ảnh bìa</p>
-                            </div>
-                        </div>
-                        <a th:href="@{/profile}" class="btn-secondary" style="padding: 6px 14px; font-size: 12px; font-weight: 600; border-radius: var(--radius-pill); border: 1px solid var(--border-color); background: var(--bg-hover); color: var(--text-main); text-decoration: none;">
-                            Xem hồ sơ
-                        </a>
+        <div class="d-flex flex-column gap-3">
+            <!-- Profile Settings -->
+            <div class="border rounded-3 p-3 d-flex align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                        <i class="bi bi-person-badge fs-5" aria-hidden="true"></i>
                     </div>
-
-                    <!-- Theme Toggle Setting Item -->
-                    <div class="card-social" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-radius: var(--radius-md);">
-                        <div style="display: flex; align-items: center; gap: 16px;">
-                            <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background: rgba(236, 72, 153, 0.12); color: #ec4899; display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                                <i class="fa-solid fa-circle-half-stroke"></i>
-                            </div>
-                            <div>
-                                <h4 style="font-size: 15px; font-weight: 700; margin: 0 0 2px; color: var(--text-main);">Chế độ Giao diện</h4>
-                                <p style="font-size: 12px; color: var(--text-muted); margin: 0;">Chuyển đổi giữa giao diện Sáng (Light) và Tối (Dark)</p>
-                            </div>
-                        </div>
-                        <button type="button" class="btn-primary" onclick="document.getElementById('theme-toggle-btn').click()" style="padding: 6px 14px; font-size: 12px; font-weight: 600; border-radius: var(--radius-pill);">
-                            Đổi chủ đề
-                        </button>
-                    </div>
-
-                    <!-- Security & Logout Setting Item -->
-                    <div class="card-social" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-radius: var(--radius-md);">
-                        <div style="display: flex; align-items: center; gap: 16px;">
-                            <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background: rgba(239, 68, 68, 0.12); color: #ef4444; display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                                <i class="fa-solid fa-arrow-right-from-bracket"></i>
-                            </div>
-                            <div>
-                                <h4 style="font-size: 15px; font-weight: 700; margin: 0 0 2px; color: var(--text-main);">Đăng xuất</h4>
-                                <p style="font-size: 12px; color: var(--text-muted); margin: 0;">Đăng xuất khỏi phiên làm việc hiện tại trên thiết bị này</p>
-                            </div>
-                        </div>
-                        <button type="button" class="btn-secondary" onclick="logoutUser()" style="padding: 6px 14px; font-size: 12px; font-weight: 600; border-radius: var(--radius-pill); border: 1px solid var(--border-color); background: var(--bg-hover); color: #ef4444;">
-                            Đăng xuất
-                        </button>
+                    <div>
+                        <h2 class="fs-6 fw-bold mb-0 text-dark">Hồ sơ cá nhân</h2>
+                        <p class="small text-muted mb-0">Cập nhật tên hiển thị, tiểu sử, ảnh đại diện và liên kết cá nhân</p>
                     </div>
                 </div>
+                <a th:href="@{/profile}" class="btn btn-sm btn-outline-primary rounded-pill px-3 flex-shrink-0">
+                    Xem hồ sơ
+                </a>
+            </div>
+
+            <!-- Appearance Settings -->
+            <div class="border rounded-3 p-3 d-flex align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-info-subtle text-info d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                        <i class="bi bi-palette fs-5" aria-hidden="true"></i>
+                    </div>
+                    <div>
+                        <h2 class="fs-6 fw-bold mb-0 text-dark">Giao diện sinh viên</h2>
+                        <p class="small text-muted mb-0">AloUTE Light Campus — Giao diện chuẩn mực cho sinh viên HCMUTE</p>
+                    </div>
+                </div>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-2 flex-shrink-0">
+                    Light Campus
+                </span>
+            </div>
+
+            <!-- Notifications Settings -->
+            <div class="border rounded-3 p-3 d-flex align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-warning-subtle text-warning d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                        <i class="bi bi-bell fs-5" aria-hidden="true"></i>
+                    </div>
+                    <div>
+                        <h2 class="fs-6 fw-bold mb-0 text-dark">Thông báo</h2>
+                        <p class="small text-muted mb-0">Tùy chỉnh thông báo tương tác bài viết, phản hồi và tin nhắn</p>
+                    </div>
+                </div>
+                <a th:href="@{/notifications}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 flex-shrink-0">
+                    Xem thông báo
+                </a>
+            </div>
+
+            <!-- Security & Privacy -->
+            <div class="border rounded-3 p-3 d-flex align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                        <i class="bi bi-shield-lock fs-5" aria-hidden="true"></i>
+                    </div>
+                    <div>
+                        <h2 class="fs-6 fw-bold mb-0 text-dark">Bảo mật & Phiên đăng nhập</h2>
+                        <p class="small text-muted mb-0">Quản lý mật khẩu và đăng xuất khỏi thiết bị</p>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 flex-shrink-0" data-action="logout">
+                    Đăng xuất
+                </button>
             </div>
         </div>
     </div>
-    <div id="settings-scripts"></div>
+</div>
 </body>
 </html>

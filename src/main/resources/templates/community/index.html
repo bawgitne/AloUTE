@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layouts/default :: layout(title='Cộng đồng — AloUTE', content=~{::#communities-content})}">
+      th:replace="~{layouts/default :: layout(title='Cộng đồng', content=~{::#communities-content})}">
 <body>
     <div id="communities-content">
         <!-- Header & Action Bar -->
@@ -14,6 +14,14 @@
                     <p class="small text-secondary mb-0">Không gian học thuật, giao lưu và sinh hoạt chuyên đề sinh viên HCMUTE</p>
                 </div>
                 <div class="d-flex gap-2 align-items-center">
+                    <button th:if="${currentUser != null}"
+                            type="button"
+                            class="btn btn-sm btn-primary rounded-pill"
+                            data-bs-toggle="modal"
+                            data-bs-target="#createCommunityModal"
+                            id="btn-open-create-community">
+                        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Tạo cộng đồng
+                    </button>
                     <a th:href="@{/feed}" class="btn btn-sm btn-outline-secondary rounded-pill">
                         <i class="bi bi-house-door me-1" aria-hidden="true"></i>Về bảng tin
                     </a>

@@ -56,6 +56,20 @@
                 </select>
             </div>
 
+            <!-- Media Attachments (Supported via POST /api/media) -->
+            <div class="mb-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="form-label mb-0">Hình ảnh đính kèm</span>
+                    <button type="button" id="btn-select-media" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">
+                        <i class="bi bi-image" aria-hidden="true"></i>
+                        <span>Thêm hình ảnh</span>
+                    </button>
+                    <input type="file" id="post-media-input" accept="image/jpeg,image/png,image/gif,image/webp" multiple class="d-none">
+                </div>
+                <div id="media-preview-list" class="d-flex flex-wrap gap-2"></div>
+                <div id="media-upload-status" class="alert alert-danger py-1 px-2 small d-none mt-2" role="alert"></div>
+            </div>
+
             <!-- Interaction Permissions (allowReply, allowQuote) -->
             <div class="mb-4 p-3 rounded post-permissions-panel">
                 <div class="form-label mb-2">Quyền tương tác</div>

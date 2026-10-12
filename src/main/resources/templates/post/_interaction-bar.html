@@ -45,6 +45,18 @@
         <span class="visually-hidden">chia sẻ</span>
     </button>
 
+    <!-- Quote Action Button (P2-A: Quote Repost - Strictly fail-closed) -->
+    <button th:if="${post.allowQuote == true and post.capabilities != null and post.capabilities.canQuote == true}"
+            type="button"
+            class="interaction-btn interaction-btn-quote"
+            th:attr="data-action='open-quote-modal',data-post-id=${post.id != null ? post.id : ''},data-post-author=${post.author != null ? (post.author.displayName ?: post.author.username) : ''},data-post-username=${post.author != null ? post.author.username : ''},data-post-content=${post.content != null ? post.content : ''}"
+            aria-label="Trích dẫn bài viết"
+            title="Trích dẫn bài viết">
+        <i class="bi bi-quote" aria-hidden="true"></i>
+        <span class="interaction-count" th:text="${post.quoteCount != null ? post.quoteCount : 0}">0</span>
+        <span class="visually-hidden">lượt trích dẫn</span>
+    </button>
+
     <!-- Bookmark / Save Button -->
     <button type="button"
             class="interaction-btn"

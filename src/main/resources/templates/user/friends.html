@@ -1,86 +1,89 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org"
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{layouts/default :: layout(
-        title='Bạn bè & Kết nối — AloUTE',
-        content=~{::#friends-content},
-        extraHead=~{::#friends-head},
-        extraScripts=~{::#friends-scripts},
-        activeTab='friends'
+        title='Bạn bè & Kết nối',
+        content=~{::#friends-content}
       )}">
-<head id="friends-head">
-</head>
 <body>
-    <div id="friends-content">
-        <div class="friends-view" style="max-width: 680px; margin: 0 auto; width: 100%;">
-            <!-- Header Card -->
-            <div class="card-social friends-header-card" style="padding: 18px 20px; margin-bottom: 16px;">
-                <h2 style="font-size: 18px; font-weight: 800; margin: 0; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
-                    <i class="fa-solid fa-user-group text-primary"></i> Bạn bè & Kết nối
-                </h2>
-                <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 0;">
-                    Quản lý danh sách người bạn đang theo dõi và người theo dõi bạn.
-                </p>
+<div id="friends-content">
+    <!-- Header Card -->
+    <div class="aloute-card p-3 mb-3">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+            <div>
+                <h1 class="fs-5 fw-bold mb-1 text-dark d-flex align-items-center gap-2">
+                    <i class="bi bi-people-fill text-primary" aria-hidden="true"></i>
+                    <span>Bạn bè & Kết nối</span>
+                </h1>
+                <p class="small text-muted mb-0">Quản lý danh sách người bạn đang theo dõi và người theo dõi bạn.</p>
             </div>
+            <a th:href="@{/search(category='people')}" class="btn btn-sm btn-outline-primary rounded-pill">
+                <i class="bi bi-person-plus me-1" aria-hidden="true"></i>Tìm bạn mới
+            </a>
+        </div>
 
-            <!-- Filter Tabs -->
-            <div class="card-social tabs-card" style="padding: 4px 12px; margin-bottom: 16px;">
-                <div style="display: flex; gap: 8px;">
-                    <a th:href="@{/friends(tab='following')}" 
-                       class="tab-btn" 
-                       th:classappend="${currentTab == null || currentTab == 'following' ? 'active' : ''}"
-                       style="padding: 8px 16px; font-size: 13px; font-weight: 700; color: var(--text-secondary); text-decoration: none; border-bottom: 2px solid transparent;">
-                        Đang theo dõi
+        <!-- Filter Tabs -->
+        <nav aria-label="Phân loại kết nối">
+            <ul class="nav nav-pills gap-1" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <a th:href="@{/friends(tab='following')}"
+                       class="nav-link rounded-pill px-3 py-1 small"
+                       th:classappend="${currentTab == null or currentTab == 'following'} ? 'active' : ''"
+                       role="tab">
+                        <i class="bi bi-person-check me-1" aria-hidden="true"></i>Đang theo dõi
                     </a>
-                    <a th:href="@{/friends(tab='followers')}" 
-                       class="tab-btn" 
-                       th:classappend="${currentTab == 'followers' ? 'active' : ''}"
-                       style="padding: 8px 16px; font-size: 13px; font-weight: 700; color: var(--text-secondary); text-decoration: none; border-bottom: 2px solid transparent;">
-                        Người theo dõi
+                </li>
+                <li class="nav-item" role="presentation">
+                    <a th:href="@{/friends(tab='followers')}"
+                       class="nav-link rounded-pill px-3 py-1 small"
+                       th:classappend="${currentTab == 'followers'} ? 'active' : ''"
+                       role="tab">
+                        <i class="bi bi-person-heart me-1" aria-hidden="true"></i>Người theo dõi
                     </a>
-                    <a th:href="@{/friends(tab='suggested')}" 
-                       class="tab-btn" 
-                       th:classappend="${currentTab == 'suggested' ? 'active' : ''}"
-                       style="padding: 8px 16px; font-size: 13px; font-weight: 700; color: var(--text-secondary); text-decoration: none; border-bottom: 2px solid transparent;">
-                        Đề xuất
-                    </a>
-                </div>
-            </div>
+                </li>
+            </ul>
+        </nav>
+    </div>
 
-            <!-- Users Grid -->
-            <div class="friends-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px;">
-                <th:block th:if="${users != null && !users.isEmpty()}">
-                    <div th:each="u : ${users}" 
-                         class="card-social friend-card" 
-                         style="padding: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                        <div style="display: flex; align-items: center; gap: 12px; cursor: pointer; min-width: 0; flex: 1;" th:onclick="'window.location.href=\'/profile/' + ${u.username} + '\''">
-                            <img th:src="${u.avatarUrl != null && !u.avatarUrl.isEmpty() ? u.avatarUrl : '/default-avatar.png'}" 
-                                 class="avatar avatar-md" 
-                                 alt="Avatar"
-                                 onerror="this.src='https://ui-avatars.com/api/?name=User&background=50b5ff&color=fff'" />
-                            <div style="min-width: 0; flex: 1;">
-                                <strong style="display: block; font-size: 14px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                    <span th:text="${u.displayName != null ? u.displayName : u.username}">User</span>
-                                    <i th:if="${u.verified}" class="fa-solid fa-circle-check verified-icon" style="color: var(--primary-color); font-size: 12px; margin-left: 2px;"></i>
-                                </strong>
-                                <small style="color: var(--text-muted); font-size: 12px;" th:text="'@' + ${u.username}">@user</small>
-                            </div>
-                        </div>
-
-                        <a th:href="@{'/profile/' + ${u.username}}" class="btn-secondary" style="padding: 6px 14px; font-size: 12px; font-weight: 600; border-radius: var(--radius-pill); border: 1px solid var(--border-color); background: var(--bg-hover); color: var(--text-main); text-decoration: none; white-space: nowrap;">
-                            Xem hồ sơ
-                        </a>
+    <!-- Users Grid -->
+    <div th:if="${users != null and !users.isEmpty()}" class="d-flex flex-column gap-2 mb-3">
+        <div th:each="u : ${users}" class="aloute-card p-3 d-flex justify-content-between align-items-center gap-3">
+            <a th:href="@{'/users/' + ${u.id}}" class="d-flex align-items-center gap-3 text-decoration-none text-reset flex-grow-1 aloute-min-w-0">
+                <img th:src="${u.avatarUrl != null and !u.avatarUrl.isEmpty()} ? ${u.avatarUrl} : @{/images/avatar-fallback.svg}"
+                     src="/images/avatar-fallback.svg"
+                     class="avatar-img rounded-circle flex-shrink-0"
+                     width="48"
+                     height="48"
+                     alt="Avatar" />
+                <div class="aloute-min-w-0">
+                    <div class="d-flex align-items-center gap-1">
+                        <strong class="fs-6 text-dark text-truncate" th:text="${u.displayName ?: u.username}">User</strong>
+                        <i th:if="${u.isVerified}" class="bi bi-patch-check-fill text-primary small" aria-label="Đã xác minh"></i>
                     </div>
-                </th:block>
-
-                <!-- Empty State -->
-                <div th:if="${users == null || users.isEmpty()}" class="card-social empty-box text-center p-8" style="padding: 40px; text-align: center; grid-column: 1 / -1;">
-                    <i class="fa-solid fa-user-group font-32 text-muted" style="font-size: 36px; color: var(--text-muted); margin-bottom: 12px; display: block;"></i>
-                    <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 4px; color: var(--text-main);">Chưa có người dùng nào</h3>
-                    <p style="color: var(--text-muted); font-size: 13px; margin: 0;">Khám phá bảng tin và kết nối với các bạn sinh viên khác trên AloUTE.</p>
+                    <small class="text-muted d-block text-truncate" th:text="'@' + ${u.username}">@user</small>
+                    <p th:if="${u.bio != null and !u.bio.isEmpty()}" class="small text-secondary mb-0 text-truncate mt-1" th:text="${u.bio}">Bio</p>
                 </div>
+            </a>
+            <div class="flex-shrink-0 d-flex gap-2 align-items-center">
+                <a th:href="@{'/users/' + ${u.id}}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                    Xem hồ sơ
+                </a>
             </div>
         </div>
     </div>
-    <div id="friends-scripts"></div>
+
+    <!-- Empty State -->
+    <div th:if="${users == null or users.isEmpty()}" class="aloute-card text-center p-5 my-2">
+        <div class="mb-3">
+            <i class="bi bi-person-x fs-1 text-muted" aria-hidden="true"></i>
+        </div>
+        <h2 class="fs-6 fw-bold mb-1" th:text="${currentTab == 'followers'} ? 'Chưa có người theo dõi' : 'Chưa theo dõi người dùng nào'">Chưa có kết nối nào</h2>
+        <p class="small text-secondary mb-3" th:text="${currentTab == 'followers'} ? 'Khi có người khác theo dõi bạn, họ sẽ xuất hiện tại đây.' : 'Hãy khám phá các thành viên trong trường và theo dõi để cập nhật bài viết mới nhất.'">
+            Kết nối với bạn bè trên AloUTE để xem các chia sẻ thú vị.
+        </p>
+        <a th:href="@{/search(category='people')}" class="btn btn-sm btn-primary rounded-pill px-3">
+            <i class="bi bi-search me-1" aria-hidden="true"></i>Tìm kiếm sinh viên
+        </a>
+    </div>
+</div>
 </body>
 </html>

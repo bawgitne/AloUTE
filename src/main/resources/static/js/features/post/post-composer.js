@@ -85,6 +85,196 @@
         const statusBox = document.getElementById('create-post-status');
         const contentError = document.getElementById('post-content-error');
 
+        // Media attachment management
+        const mediaInput = document.getElementById('post-media-input');
+        const selectMediaBtn = document.getElementById('btn-select-media');
+        const mediaPreviewList = document.getElementById('media-preview-list');
+        const mediaStatusBox = document.getElementById('media-upload-status');
+        const attachedMedia = []; // Array of { id: number, element: HTMLElement }
+        let pendingUploadsCount = 0;
+        let pendingDeletionsCount = 0;
+
+        function freezeMediaControls() {
+            if (mediaInput) mediaInput.disabled = true;
+            if (selectMediaBtn) selectMediaBtn.disabled = true;
+            attachedMedia.forEach(function (m) {
+                const btn = m.element.querySelector('button[title="Xóa ảnh"]');
+                if (btn) btn.disabled = true;
+            });
+        }
+
+        function unfreezeMediaControls() {
+            if (mediaInput) mediaInput.disabled = false;
+            if (selectMediaBtn) selectMediaBtn.disabled = false;
+            attachedMedia.forEach(function (m) {
+                const btn = m.element.querySelector('button[title="Xóa ảnh"]');
+                if (btn) btn.disabled = false;
+            });
+        }
+
+        if (selectMediaBtn) {
+            selectMediaBtn.addEventListener('click', function () {
+                if (isSubmitting || selectMediaBtn.disabled) return;
+                if (mediaInput) mediaInput.click();
+            });
+        }
+
+        if (mediaInput) {
+            mediaInput.addEventListener('change', async function () {
+                if (isSubmitting || mediaInput.disabled) return;
+                if (mediaStatusBox) {
+                    mediaStatusBox.textContent = '';
+                    mediaStatusBox.classList.add('d-none');
+                }
+
+                const files = Array.from(mediaInput.files || []);
+                if (files.length === 0) return;
+
+                for (const file of files) {
+                    if (file.size > 5 * 1024 * 1024) {
+                        if (mediaStatusBox) {
+                            mediaStatusBox.textContent = 'Tệp "' + file.name + '" vượt quá giới hạn 5MB cho phép.';
+                            mediaStatusBox.classList.remove('d-none');
+                        }
+                        continue;
+                    }
+
+                    // Create preview card with loading state
+                    const previewCard = document.createElement('div');
+                    previewCard.className = 'position-relative border rounded overflow-hidden d-inline-block';
+                    previewCard.style.width = '96px';
+                    previewCard.style.height = '96px';
+
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(file);
+                    img.alt = file.name;
+                    img.className = 'w-100 h-100 object-fit-cover';
+                    previewCard.appendChild(img);
+
+                    const overlay = document.createElement('div');
+                    overlay.className = 'position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-50 text-white';
+                    overlay.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+                    previewCard.appendChild(overlay);
+
+                    if (mediaPreviewList) {
+                        mediaPreviewList.appendChild(previewCard);
+                    }
+
+                    pendingUploadsCount++;
+
+                    try {
+                        const fd = new FormData();
+                        fd.append('file', file);
+                        fd.append('purpose', new Blob([JSON.stringify('POST')], { type: 'application/json' }));
+
+                        const uploadRes = await fetch('/api/media', {
+                            method: 'POST',
+                            credentials: 'include',
+                            headers: csrfHeaders(),
+                            body: fd
+                        });
+
+                        if (uploadRes.status === 201) {
+                            const uploadBody = await readJson(uploadRes);
+                            const mediaData = uploadBody && uploadBody.data;
+                            const mediaId = (mediaData && typeof mediaData.id === 'number' && Number.isSafeInteger(mediaData.id) && mediaData.id > 0) ? mediaData.id : null;
+
+                            if (uploadBody && uploadBody.success === true && mediaId) {
+                                overlay.remove();
+                                const mediaItem = { id: mediaId, element: previewCard };
+                                attachedMedia.push(mediaItem);
+
+                                const removeBtn = document.createElement('button');
+                                removeBtn.type = 'button';
+                                removeBtn.className = 'btn btn-danger btn-sm position-absolute top-0 end-0 m-1 p-0 rounded-circle d-flex align-items-center justify-content-center';
+                                removeBtn.style.width = '22px';
+                                removeBtn.style.height = '22px';
+                                removeBtn.innerHTML = '<i class="bi bi-x small" aria-hidden="true"></i>';
+                                removeBtn.title = 'Xóa ảnh';
+
+                                removeBtn.addEventListener('click', async function (e) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (isSubmitting || removeBtn.disabled) return;
+
+                                    removeBtn.disabled = true;
+                                    removeBtn.innerHTML = '<span class="spinner-border spinner-border-sm text-white" style="width: 10px; height: 10px;" role="status"></span>';
+                                    pendingDeletionsCount++;
+
+                                    try {
+                                        const delRes = await fetch('/api/media/' + encodeURIComponent(mediaId), {
+                                            method: 'DELETE',
+                                            credentials: 'include',
+                                            headers: csrfHeaders()
+                                        });
+
+                                        if (delRes.status === 204) {
+                                            // Strict 204 confirmation: remove from DOM and state
+                                            previewCard.remove();
+                                            const idx = attachedMedia.findIndex(function (m) { return m.id === mediaId; });
+                                            if (idx !== -1) attachedMedia.splice(idx, 1);
+                                            if (mediaStatusBox) {
+                                                mediaStatusBox.textContent = '';
+                                                mediaStatusBox.classList.add('d-none');
+                                            }
+                                        } else {
+                                            // Removal failed: retain card, restore button, show retryable error
+                                            removeBtn.disabled = false;
+                                            removeBtn.innerHTML = '<i class="bi bi-x small" aria-hidden="true"></i>';
+                                            if (mediaStatusBox) {
+                                                mediaStatusBox.textContent = 'Không thể xóa ảnh (HTTP ' + delRes.status + '). Vui lòng thử lại.';
+                                                mediaStatusBox.classList.remove('d-none');
+                                            }
+                                        }
+                                    } catch (err) {
+                                        // Network error: retain card, restore button, show retryable error
+                                        removeBtn.disabled = false;
+                                        removeBtn.innerHTML = '<i class="bi bi-x small" aria-hidden="true"></i>';
+                                        if (mediaStatusBox) {
+                                            mediaStatusBox.textContent = 'Lỗi kết nối khi xóa ảnh. Vui lòng thử lại.';
+                                            mediaStatusBox.classList.remove('d-none');
+                                        }
+                                    } finally {
+                                        pendingDeletionsCount--;
+                                    }
+                                });
+
+                                previewCard.appendChild(removeBtn);
+                                continue;
+                            } else {
+                                // Malformed 201 response
+                                previewCard.remove();
+                                if (mediaStatusBox) {
+                                    mediaStatusBox.textContent = 'Phản hồi tải ảnh không hợp lệ từ máy chủ.';
+                                    mediaStatusBox.classList.remove('d-none');
+                                }
+                            }
+                        } else {
+                            // Non-201 response
+                            previewCard.remove();
+                            const errBody = await readJson(uploadRes);
+                            const errMsg = (errBody && errBody.error && errBody.error.message) || ('Không thể tải lên ảnh "' + file.name + '" (HTTP ' + uploadRes.status + ').');
+                            if (mediaStatusBox) {
+                                mediaStatusBox.textContent = errMsg;
+                                mediaStatusBox.classList.remove('d-none');
+                            }
+                        }
+                    } catch (err) {
+                        previewCard.remove();
+                        if (mediaStatusBox) {
+                            mediaStatusBox.textContent = 'Lỗi kết nối khi tải lên ảnh "' + file.name + '".';
+                            mediaStatusBox.classList.remove('d-none');
+                        }
+                    } finally {
+                        pendingUploadsCount--;
+                    }
+                }
+
+                // Reset file input
+                mediaInput.value = '';
+            });
+        }
+
         // Character counter
         function updateCharCount() {
             const length = contentInput ? contentInput.value.length : 0;
@@ -132,6 +322,16 @@
             if (contentError) contentError.classList.add('d-none');
             if (contentInput) contentInput.classList.remove('is-invalid');
 
+            // Guard against pending uploads and deletions
+            if (pendingUploadsCount > 0) {
+                setStatus(statusBox, 'Vui lòng đợi quá trình tải ảnh hoàn tất trước khi đăng bài.', 'warning');
+                return;
+            }
+            if (pendingDeletionsCount > 0) {
+                setStatus(statusBox, 'Đang xử lý ảnh, vui lòng đợi trong giây lát trước khi đăng bài.', 'warning');
+                return;
+            }
+
             const content = contentInput ? contentInput.value.trim() : '';
             if (!content || content.length === 0) {
                 if (contentInput) contentInput.classList.add('is-invalid');
@@ -155,6 +355,7 @@
             }
 
             isSubmitting = true;
+            freezeMediaControls();
 
             const visibility = (visibilitySelect && visibilitySelect.value) ? visibilitySelect.value : 'PUBLIC';
             const allowReply = allowReplyInput ? allowReplyInput.checked : true;
@@ -166,6 +367,10 @@
                 allowReply: allowReply,
                 allowQuote: allowQuote
             };
+
+            if (attachedMedia.length > 0) {
+                payload.mediaIds = attachedMedia.map(function (m) { return m.id; });
+            }
 
             // Loading state: disable button to prevent duplicate submissions
             const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
@@ -186,7 +391,7 @@
                 });
 
                 if (response.ok && (response.status === 200 || response.status === 201)) {
-                    isSubmitting = false;
+                    // Confirmed success: retain isSubmitting = true and keep media controls frozen through navigation
                     const body = await readJson(response);
                     setStatus(statusBox, 'Đăng bài viết thành công!', 'success');
                     const createdPost = body && body.data;
@@ -197,8 +402,9 @@
                     return;
                 }
 
-                // Non-2xx response: restore button and preserve user input
+                // Non-2xx response (genuine submission failure): restore button, unfreeze media controls and preserve user input
                 isSubmitting = false;
+                unfreezeMediaControls();
                 if (submitBtn) {
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalBtnHtml;
@@ -218,8 +424,9 @@
                 const errorMsg = translateError(body && body.error, 'Không thể tạo bài viết (HTTP ' + response.status + '). Vui lòng thử lại.');
                 setStatus(statusBox, errorMsg, 'danger');
             } catch (err) {
-                // Network / unexpected error: restore button and preserve user input
+                // Network / unexpected error (genuine submission failure): restore button, unfreeze media controls and preserve user input
                 isSubmitting = false;
+                unfreezeMediaControls();
                 if (submitBtn) {
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalBtnHtml;

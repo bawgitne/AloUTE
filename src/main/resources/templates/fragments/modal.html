@@ -74,6 +74,233 @@
             </div>
         </div>
     </div>
+
+    <!-- Accessible Bootstrap 5 Report Modal (P1-C: Posts and Users) -->
+    <div class="modal fade"
+         id="reportModal"
+         tabindex="-1"
+         aria-labelledby="reportModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="reportModalLabel">Báo cáo nội dung</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <form id="report-form" novalidate>
+                    <input type="hidden" id="report-target-type" value="post">
+                    <input type="hidden" id="report-target-id" value="">
+                    <div class="modal-body">
+                        <!-- Alert status for modal -->
+                        <div id="report-status" class="alert d-none py-2 small mb-3" role="alert" aria-live="polite"></div>
+
+                        <div class="mb-3">
+                            <span class="text-secondary small d-block mb-1">Đối tượng báo cáo:</span>
+                            <div class="p-2 bg-light border rounded small fw-medium" id="report-target-preview">
+                                Bài viết #...
+                            </div>
+                        </div>
+
+                        <!-- Report Reason Select -->
+                        <div class="mb-3">
+                            <label for="report-reason" class="form-label fw-semibold small">Lý do báo cáo <span class="text-danger">*</span></label>
+                            <select class="form-select" id="report-reason" name="reason" required>
+                                <option value="" selected disabled>-- Chọn lý do vi phạm --</option>
+                                <option value="SPAM">Spam / Tin rác</option>
+                                <option value="HARASSMENT">Quấy rối / Đe dọa</option>
+                                <option value="HATE">Ngôn từ thù địch</option>
+                                <option value="MISINFORMATION">Thông tin sai lệch</option>
+                                <option value="VIOLENCE">Bạo lực / Nguy hiểm</option>
+                                <option value="OTHER">Lý do khác</option>
+                            </select>
+                            <div class="invalid-feedback d-none" id="report-reason-error">Vui lòng chọn lý do báo cáo.</div>
+                        </div>
+
+                        <!-- Report Description Textarea -->
+                        <div class="mb-3">
+                            <label for="report-description" class="form-label fw-semibold small">Chi tiết bổ sung (tùy chọn)</label>
+                            <textarea class="form-control"
+                                      id="report-description"
+                                      name="description"
+                                      rows="3"
+                                      maxlength="2000"
+                                      placeholder="Mô tả cụ thể vi phạm giúp quản trị viên xử lý nhanh hơn..."></textarea>
+                            <div class="d-flex justify-content-between form-text small text-muted mt-1">
+                                <span>Tối đa 2000 ký tự</span>
+                                <span><span id="report-char-count">0</span> / 2000</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="btn-cancel-report">Hủy</button>
+                        <button type="submit" class="btn btn-danger" id="btn-submit-report">
+                            <span id="report-spinner" class="spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true"></span>
+                            <span id="report-btn-text">Gửi báo cáo</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Accessible Bootstrap 5 Quote Post Modal (P2-A: Quote Repost UI) -->
+    <div class="modal fade"
+         id="quotePostModal"
+         tabindex="-1"
+         aria-labelledby="quotePostModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="quotePostModalLabel">Trích dẫn bài viết</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <form id="quote-post-form" novalidate>
+                    <input type="hidden" id="quote-target-post-id" value="">
+                    <div class="modal-body">
+                        <!-- Alert status for modal -->
+                        <div id="quote-post-status" class="alert d-none py-2 small mb-3" role="alert" aria-live="polite"></div>
+
+                        <!-- Quote commentary content -->
+                        <div class="mb-3">
+                            <label for="quote-post-content" class="form-label fw-semibold small">Bình luận của bạn</label>
+                            <textarea class="form-control"
+                                      id="quote-post-content"
+                                      name="content"
+                                      rows="3"
+                                      maxlength="4000"
+                                      placeholder="Thêm suy nghĩ của bạn về bài viết này..."
+                                      required></textarea>
+                            <div class="d-flex justify-content-between form-text small text-muted mt-1">
+                                <span>Tối đa 4000 ký tự</span>
+                                <span><span id="quote-post-char-count">0</span> / 4000</span>
+                            </div>
+                            <div class="invalid-feedback d-none" id="quote-post-error">Vui lòng nhập nội dung trích dẫn.</div>
+                        </div>
+
+                        <!-- Quoted Post Preview Box -->
+                        <div class="mb-3">
+                            <span class="text-muted small d-block mb-1">Đang trích dẫn:</span>
+                            <div class="p-3 bg-light border rounded small" id="quoted-post-preview">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <strong id="quoted-preview-author">Tác giả</strong>
+                                    <span class="text-muted" id="quoted-preview-handle">@username</span>
+                                </div>
+                                <p class="mb-0 text-secondary text-truncate" id="quoted-preview-content">Nội dung bài viết được trích dẫn...</p>
+                            </div>
+                        </div>
+
+                        <!-- Visibility Select -->
+                        <div class="mb-2">
+                            <label for="quote-post-visibility" class="form-label fw-semibold small">Quyền xem</label>
+                            <select class="form-select form-select-sm" id="quote-post-visibility" name="visibility">
+                                <option value="PUBLIC" selected>Công khai (Mọi người)</option>
+                                <option value="FOLLOWERS">Chỉ người theo dõi</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="btn-cancel-quote">Hủy</button>
+                        <button type="submit" class="btn btn-primary" id="btn-submit-quote">
+                            <span id="quote-post-spinner" class="spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true"></span>
+                            <span id="quote-post-btn-text">Đăng trích dẫn</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Accessible Bootstrap 5 Create Community Modal (P1-B: Community Creation) -->
+    <div class="modal fade"
+         id="createCommunityModal"
+         tabindex="-1"
+         aria-labelledby="createCommunityModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="createCommunityModalLabel">Tạo cộng đồng mới</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <form id="create-community-form" novalidate>
+                    <div class="modal-body">
+                        <!-- Alert status for modal -->
+                        <div id="create-community-status" class="alert d-none py-2 small mb-3" role="alert" aria-live="polite"></div>
+
+                        <!-- Community Name -->
+                        <div class="mb-3">
+                            <label for="community-name-input" class="form-label fw-semibold small">Tên cộng đồng <span class="text-danger">*</span></label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="community-name-input"
+                                   name="name"
+                                   maxlength="100"
+                                   placeholder="Ví dụ: CLB Lập trình UTE"
+                                   required>
+                            <div class="invalid-feedback d-none" id="community-name-error">Tên cộng đồng không được để trống (tối đa 100 ký tự).</div>
+                        </div>
+
+                        <!-- Community Slug -->
+                        <div class="mb-3">
+                            <label for="community-slug-input" class="form-label fw-semibold small">Đường dẫn / Slug <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text small text-muted">c/</span>
+                                <input type="text"
+                                       class="form-control"
+                                       id="community-slug-input"
+                                       name="slug"
+                                       maxlength="100"
+                                       placeholder="lap-trinh-ute"
+                                       required>
+                            </div>
+                            <div class="form-text small text-muted">Chỉ chứa chữ thường không dấu, số và dấu gạch ngang (-).</div>
+                            <div class="invalid-feedback d-none" id="community-slug-error">Slug không hợp lệ hoặc để trống.</div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label for="community-description-input" class="form-label fw-semibold small">Mô tả cộng đồng</label>
+                            <textarea class="form-control"
+                                      id="community-description-input"
+                                      name="description"
+                                      rows="3"
+                                      maxlength="2000"
+                                      placeholder="Giới thiệu về mục đích, hoạt động của cộng đồng..."></textarea>
+                            <div class="d-flex justify-content-between form-text small text-muted mt-1">
+                                <span>Tối đa 2000 ký tự</span>
+                                <span><span id="community-desc-char-count">0</span> / 2000</span>
+                            </div>
+                        </div>
+
+                        <!-- Privacy Setting -->
+                        <div class="mb-2">
+                            <label class="form-label fw-semibold small d-block">Quyền riêng tư <span class="text-danger">*</span></label>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="isPrivate" id="comm-privacy-public" value="false" checked>
+                                <label class="form-check-label small" for="comm-privacy-public">
+                                    <strong>Công khai</strong> — Bất kỳ sinh viên nào cũng có thể xem và tham gia.
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="isPrivate" id="comm-privacy-private" value="true">
+                                <label class="form-check-label small" for="comm-privacy-private">
+                                    <strong>Riêng tư</strong> — Chỉ thành viên mới có thể xem nội dung.
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="btn-cancel-create-community">Hủy</button>
+                        <button type="submit" class="btn btn-primary" id="btn-submit-create-community">
+                            <span id="create-community-spinner" class="spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true"></span>
+                            <span id="create-community-btn-text">Tạo cộng đồng</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 </body>
 </html>

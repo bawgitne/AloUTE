@@ -1,12 +1,14 @@
 package com.aloute.controller.page;
 
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import com.aloute.common.api.ApiResponse;
+import com.aloute.common.api.PageMeta;
+import com.aloute.dto.response.PostResponse;
 import com.aloute.dto.response.ProfileResponse;
 import com.aloute.security.currentuser.CurrentUserProvider;
 import com.aloute.service.PostService;
 import com.aloute.service.UserService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -75,19 +77,55 @@ public class ProfilePageController {
             } catch (Exception ignored) {}
         }
 
-        var postsRes = (targetProfile != null)
-                ? postService.userPosts(targetProfile.id(), page, size, currentUserId)
-                : null;
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(100, size));
+
+        ApiResponse<List<PostResponse>> postsRes = null;
+        boolean postsError = false;
+        if (targetProfile != null) {
+            try {
+                postsRes = postService.userPosts(targetProfile.id(), safePage, safeSize, currentUserId);
+            } catch (Exception e) {
+                log.warn("Failed to load user posts for profile {}: {}", targetProfile.id(), e.getMessage());
+                postsError = true;
+            }
+        }
 
         boolean isSelf = (currentUserId != null && targetProfile != null && currentUserId.equals(targetProfile.id()));
+
+        List<PostResponse> userPosts = (postsRes != null && postsRes.getData() != null) ? postsRes.getData() : List.of();
+        PageMeta pageMeta = (postsRes != null && postsRes.meta() instanceof PageMeta pm) ? pm : null;
+
+        List<PostResponse> savedPosts = null;
+        boolean savedPostsError = false;
+        if (isSelf) {
+            try {
+                var savedRes = postService.bookmarkedPosts(currentUserId, 0, 20);
+                if (savedRes != null && savedRes.getData() != null) {
+                    savedPosts = savedRes.getData();
+                } else {
+                    savedPosts = List.of();
+                }
+            } catch (Exception e) {
+                log.warn("Failed to load saved posts for profile {}: {}", currentUserId, e.getMessage());
+                savedPostsError = true;
+            }
+        }
 
         model.addAttribute("profile", targetProfile);
         model.addAttribute("targetUser", targetProfile);
         model.addAttribute("currentUser", currentUser);
-        model.addAttribute("posts", postsRes != null ? postsRes.getData() : List.of());
+        model.addAttribute("title", targetProfile != null ? targetProfile.displayName() : "Hồ sơ");
+        model.addAttribute("posts", userPosts);
+        model.addAttribute("profilePosts", postsError ? null : userPosts);
+        model.addAttribute("postsError", postsError);
+        model.addAttribute("savedPosts", savedPosts);
+        model.addAttribute("savedPostsError", savedPostsError);
+        model.addAttribute("pageMeta", pageMeta);
         model.addAttribute("isSelf", isSelf);
         model.addAttribute("currentTab", tab);
         model.addAttribute("activeNav", "profile");
+        model.addAttribute("activeTab", "profile");
 
         return "user/profile";
     }

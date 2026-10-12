@@ -1,123 +1,369 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layouts/default :: layout(
-        title=${searchQuery != null && !searchQuery.isEmpty() ? 'Tìm kiếm: ' + searchQuery + ' — AloUTE' : 'Tìm kiếm — AloUTE'},
-        content=~{::#search-content},
-        extraHead=~{::#search-head},
-        extraScripts=~{::#search-scripts},
-        activeTab='search'
-      )}">
-<head id="search-head">
-</head>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/default :: layout(title=${q != null and !q.isEmpty()} ? 'Tìm kiếm: ' + ${q} : 'Tìm kiếm', content=~{::#search-content})}">
 <body>
-    <div id="search-content">
-        <div class="search-page-view" style="max-width: 680px; margin: 0 auto; width: 100%;">
-            <!-- Search Hero Header -->
-            <div class="card-social search-hero-box" style="padding: 16px 20px; margin-bottom: 16px;">
-                <form th:action="@{/search}" method="get" style="display: flex; gap: 10px; align-items: center;">
-                    <div style="flex: 1; position: relative; display: flex; align-items: center;">
-                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; color: var(--text-muted);"></i>
-                        <input type="text" 
-                               name="q" 
-                               th:value="${searchQuery}" 
-                               placeholder="Tìm kiếm bài viết, người dùng, cộng đồng..." 
-                               style="width: 100%; padding: 10px 16px 10px 40px; border-radius: var(--radius-pill); border: 1px solid var(--border-color); background: var(--bg-hover); color: var(--text-main); font-size: 13px; outline: none;" />
-                        <input type="hidden" name="tab" th:value="${currentTab != null ? currentTab : 'posts'}" />
-                    </div>
-                    <button type="submit" class="btn-primary" style="padding: 10px 20px; border-radius: var(--radius-pill); font-weight: 700; font-size: 13px;">
-                        Tìm kiếm
-                    </button>
-                </form>
+<div id="search-content">
+    <!-- Search Query & Filter Header -->
+    <div class="aloute-card p-3 mb-3">
+        <form method="GET" th:action="@{/search}" action="/search" class="mb-3" role="search" id="search-page-form">
+            <input type="hidden" name="category" th:value="${category != null ? category : 'all'}" id="search-category-input">
+            <input type="hidden" name="size" th:value="${size}" id="search-size-input">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0 text-muted">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                </span>
+                <input type="search"
+                       name="q"
+                       class="form-control border-start-0 ps-0"
+                       th:value="${q}"
+                       placeholder="Tìm kiếm cộng đồng, chủ đề (#), người dùng (@)..."
+                       aria-label="Từ khóa tìm kiếm"
+                       id="search-main-input"
+                       autofocus>
+                <button class="btn btn-primary px-3" type="submit">Tìm kiếm</button>
             </div>
+        </form>
 
-            <!-- Search Filter Tabs -->
-            <div class="card-social search-tabs-bar" style="padding: 4px 12px; margin-bottom: 16px;">
-                <div style="display: flex; gap: 8px;">
-                    <a th:href="@{/search(q=${searchQuery}, tab='posts')}" 
-                       class="tab-btn" 
-                       th:classappend="${currentTab == null || currentTab == 'posts' ? 'active' : ''}"
-                       style="padding: 8px 16px; font-size: 13px; font-weight: 700; color: var(--text-secondary); text-decoration: none; border-bottom: 2px solid transparent;">
-                        <i class="fa-solid fa-newspaper"></i> Bài viết
+        <!-- Category Filter Tabs with Keyboard Accessible Navigation -->
+        <nav aria-label="Phân loại kết quả tìm kiếm">
+            <ul class="nav nav-pills gap-1 flex-nowrap overflow-x-auto pb-1" role="tablist" id="search-tab-list">
+                <li class="nav-item flex-shrink-0" role="presentation">
+                    <a th:href="@{/search(q=${q}, category='all', size=${size})}"
+                       class="nav-link rounded-pill px-3 py-1 small"
+                       th:classappend="${category == 'all' or category == null or category.isEmpty()} ? 'active' : ''"
+                       role="tab"
+                       th:attr="aria-selected=${category == 'all' or category == null or category.isEmpty() ? 'true' : 'false'}">
+                        <i class="bi bi-grid-fill me-1" aria-hidden="true"></i>Tất cả
                     </a>
-                    <a th:href="@{/search(q=${searchQuery}, tab='people')}" 
-                       class="tab-btn" 
-                       th:classappend="${currentTab == 'people' ? 'active' : ''}"
-                       style="padding: 8px 16px; font-size: 13px; font-weight: 700; color: var(--text-secondary); text-decoration: none; border-bottom: 2px solid transparent;">
-                        <i class="fa-solid fa-user"></i> Người dùng
+                </li>
+                <li class="nav-item flex-shrink-0" role="presentation">
+                    <a th:href="@{/search(q=${q}, category='communities', size=${size})}"
+                       class="nav-link rounded-pill px-3 py-1 small"
+                       th:classappend="${category == 'communities'} ? 'active' : ''"
+                       role="tab"
+                       th:attr="aria-selected=${category == 'communities' ? 'true' : 'false'}">
+                        <i class="bi bi-people-fill me-1" aria-hidden="true"></i>Cộng đồng
+                        <span th:if="${communities != null and !communities.isEmpty()}" class="badge bg-light text-dark ms-1" th:text="${communities.size()}">0</span>
                     </a>
-                    <a th:href="@{/search(q=${searchQuery}, tab='communities')}" 
-                       class="tab-btn" 
-                       th:classappend="${currentTab == 'communities' ? 'active' : ''}"
-                       style="padding: 8px 16px; font-size: 13px; font-weight: 700; color: var(--text-secondary); text-decoration: none; border-bottom: 2px solid transparent;">
-                        <i class="fa-solid fa-users"></i> Cộng đồng
+                </li>
+                <li class="nav-item flex-shrink-0" role="presentation">
+                    <a th:href="@{/search(q=${q}, category='topics', size=${size})}"
+                       class="nav-link rounded-pill px-3 py-1 small"
+                       th:classappend="${category == 'topics'} ? 'active' : ''"
+                       role="tab"
+                       th:attr="aria-selected=${category == 'topics' ? 'true' : 'false'}">
+                        <i class="bi bi-hash me-1" aria-hidden="true"></i>Chủ đề
+                        <span th:if="${topics != null and !topics.isEmpty()}" class="badge bg-light text-dark ms-1" th:text="${topics.size()}">0</span>
                     </a>
-                </div>
-            </div>
+                </li>
+                <li class="nav-item flex-shrink-0" role="presentation">
+                    <a th:href="@{/search(q=${q}, category='people', size=${size})}"
+                       class="nav-link rounded-pill px-3 py-1 small"
+                       th:classappend="${category == 'people'} ? 'active' : ''"
+                       role="tab"
+                       th:attr="aria-selected=${category == 'people' ? 'true' : 'false'}">
+                        <i class="bi bi-person-fill me-1" aria-hidden="true"></i>Người dùng
+                        <span th:if="${people != null and !people.isEmpty()}" class="badge bg-light text-dark ms-1" th:text="${people.size()}">0</span>
+                    </a>
+                </li>
+                <li class="nav-item flex-shrink-0" role="presentation">
+                    <a th:href="@{/search(q=${q}, category='posts', size=${size})}"
+                       class="nav-link rounded-pill px-3 py-1 small"
+                       th:classappend="${category == 'posts'} ? 'active' : ''"
+                       role="tab"
+                       th:attr="aria-selected=${category == 'posts' ? 'true' : 'false'}">
+                        <i class="bi bi-file-text me-1" aria-hidden="true"></i>Bài viết
+                        <span th:if="${posts != null and !posts.isEmpty()}" class="badge bg-light text-dark ms-1" th:text="${posts.size()}">0</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </div>
 
-            <!-- Search Results Stream -->
-            <div class="search-results-stream">
-                <!-- Posts Tab Results -->
-                <div th:if="${currentTab == null || currentTab == 'posts'}">
-                    <th:block th:if="${posts != null && !posts.isEmpty()}">
-                        <div th:each="post : ${posts}" th:replace="~{post/_post-card :: postCard(post=${post})}"></div>
-                    </th:block>
-                    <div th:if="${posts == null || posts.isEmpty()}" class="card-social empty-box text-center p-8" style="padding: 40px; text-align: center;">
-                        <i class="fa-solid fa-magnifying-glass font-32 text-muted" style="font-size: 36px; color: var(--text-muted); margin-bottom: 12px; display: block;"></i>
-                        <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 4px; color: var(--text-main);">Không tìm thấy bài viết nào</h3>
-                        <p style="color: var(--text-muted); font-size: 13px; margin: 0;">Thử tìm kiếm với từ khóa khác.</p>
-                    </div>
-                </div>
-
-                <!-- People Tab Results -->
-                <div th:if="${currentTab == 'people'}">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px;">
-                        <th:block th:if="${users != null && !users.isEmpty()}">
-                            <div th:each="u : ${users}" class="card-social" style="padding: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                                <div style="display: flex; align-items: center; gap: 12px; cursor: pointer; min-width: 0; flex: 1;" th:onclick="'window.location.href=\'/profile/' + ${u.username} + '\''">
-                                    <img th:src="${u.avatarUrl != null && !u.avatarUrl.isEmpty() ? u.avatarUrl : '/default-avatar.png'}" class="avatar avatar-md" alt="Avatar" />
-                                    <div style="min-width: 0; flex: 1;">
-                                        <strong style="display: block; font-size: 14px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" th:text="${u.displayName != null ? u.displayName : u.username}">User</strong>
-                                        <small style="color: var(--text-muted); font-size: 12px;" th:text="'@' + ${u.username}">@user</small>
-                                    </div>
-                                </div>
-                                <a th:href="@{'/profile/' + ${u.username}}" class="btn-secondary" style="padding: 6px 14px; font-size: 12px; font-weight: 600; border-radius: var(--radius-pill); border: 1px solid var(--border-color); background: var(--bg-hover); color: var(--text-main); text-decoration: none;">
-                                    Xem
-                                </a>
-                            </div>
-                        </th:block>
-                    </div>
-                    <div th:if="${users == null || users.isEmpty()}" class="card-social empty-box text-center p-8" style="padding: 40px; text-align: center;">
-                        <i class="fa-solid fa-user-slash font-32 text-muted" style="font-size: 36px; color: var(--text-muted); margin-bottom: 12px; display: block;"></i>
-                        <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 4px; color: var(--text-main);">Không tìm thấy người dùng</h3>
-                        <p style="color: var(--text-muted); font-size: 13px; margin: 0;">Thử tìm kiếm với tên hoặc @username khác.</p>
-                    </div>
-                </div>
-
-                <!-- Communities Tab Results -->
-                <div th:if="${currentTab == 'communities'}">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px;">
-                        <th:block th:if="${communities != null && !communities.isEmpty()}">
-                            <div th:each="comm : ${communities}" class="card-social" style="padding: 16px; cursor: pointer;" th:onclick="'window.location.href=\'/c/' + ${comm.slug} + '\''">
-                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                                    <img th:src="${comm.avatarUrl != null ? comm.avatarUrl : 'https://ui-avatars.com/api/?name=' + comm.name + '&background=50b5ff&color=fff'}" class="avatar avatar-md rounded-xl" alt="Avatar" />
-                                    <div>
-                                        <strong style="display: block; font-size: 14px; color: var(--text-main);" th:text="${comm.name}">Community</strong>
-                                        <small style="color: var(--text-muted); font-size: 12px;" th:text="'c/' + ${comm.slug}">c/slug</small>
-                                    </div>
-                                </div>
-                                <p style="font-size: 12px; color: var(--text-secondary); margin: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" th:text="${comm.description}">Description</p>
-                            </div>
-                        </th:block>
-                    </div>
-                    <div th:if="${communities == null || communities.isEmpty()}" class="card-social empty-box text-center p-8" style="padding: 40px; text-align: center;">
-                        <i class="fa-solid fa-users-slash font-32 text-muted" style="font-size: 36px; color: var(--text-muted); margin-bottom: 12px; display: block;"></i>
-                        <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 4px; color: var(--text-main);">Không tìm thấy cộng đồng</h3>
-                        <p style="color: var(--text-muted); font-size: 13px; margin: 0;">Thử tìm kiếm với tên cộng đồng khác.</p>
-                    </div>
-                </div>
-            </div>
+    <!-- Empty Query Prompt -->
+    <div th:if="${q == null or q.trim().isEmpty()}" class="aloute-card text-center p-5 my-3">
+        <div class="mb-3">
+            <i class="bi bi-search fs-1 text-primary" aria-hidden="true"></i>
+        </div>
+        <h2 class="fs-5 fw-bold mb-2">Khám phá nội dung trên AloUTE</h2>
+        <p class="text-secondary small mb-3">
+            Nhập tên cộng đồng, từ khóa chủ đề hoặc tên tài khoản sinh viên (@username) để bắt đầu tìm kiếm.
+        </p>
+        <div class="d-flex justify-content-center gap-2 flex-wrap">
+            <a th:href="@{/communities}" class="btn btn-sm btn-outline-primary rounded-pill">
+                <i class="bi bi-people me-1" aria-hidden="true"></i>Xem tất cả cộng đồng
+            </a>
+            <a th:href="@{/feed}" class="btn btn-sm btn-outline-secondary rounded-pill">
+                <i class="bi bi-house-door me-1" aria-hidden="true"></i>Bảng tin chính
+            </a>
         </div>
     </div>
-    <div id="search-scripts"></div>
+
+    <!-- Search Results Section -->
+    <div th:if="${q != null and !q.trim().isEmpty()}">
+        <!-- 1. Communities Section (shown on 'all' or 'communities') -->
+        <section th:if="${category == 'all' or category == 'communities' or category == null}" class="mb-4" aria-label="Kết quả cộng đồng">
+            <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                <h2 class="fs-6 fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                    <i class="bi bi-people-fill text-primary" aria-hidden="true"></i>
+                    <span>Cộng đồng</span>
+                </h2>
+                <a th:if="${category == 'all' and communities != null and !communities.isEmpty()}"
+                   th:href="@{/search(q=${q}, category='communities', size=${size})}"
+                   class="small text-primary text-decoration-none">
+                    Xem tất cả (<span th:text="${communities.size()}">0</span>)
+                </a>
+            </div>
+
+            <!-- Service Error Alert -->
+            <div th:if="${communitiesError == true}" class="alert alert-warning d-flex align-items-center justify-content-between p-3 mb-3" role="alert">
+                <div>
+                    <i class="bi bi-exclamation-triangle-fill me-2" aria-hidden="true"></i>
+                    <span>Không thể tải danh sách cộng đồng lúc này. Vui lòng thử lại sau.</span>
+                </div>
+                <a th:href="@{/search(q=${q}, category=${category}, page=${page}, size=${size})}" class="btn btn-sm btn-outline-warning">Thử lại</a>
+            </div>
+
+            <div th:if="${communities != null and !communities.isEmpty()}" class="row g-3">
+                <div class="col-12 col-md-6" th:each="comm : ${communities}">
+                    <div class="aloute-card h-100 p-3 d-flex flex-column">
+                        <a th:href="@{'/communities/' + ${comm.id}}" class="d-flex align-items-center gap-3 text-decoration-none text-reset mb-2">
+                            <img th:src="${comm.avatarUrl != null and !comm.avatarUrl.isEmpty()} ? ${comm.avatarUrl} : @{/images/avatar-fallback.svg}"
+                                 src="/images/avatar-fallback.svg"
+                                 class="avatar-img rounded-3 flex-shrink-0"
+                                 width="42"
+                                 height="42"
+                                 style="object-fit: cover;"
+                                 alt="Avatar" />
+                            <div class="aloute-min-w-0 flex-grow-1">
+                                <h3 class="fs-6 fw-bold mb-0 text-truncate text-dark" th:text="${comm.name}">Tên</h3>
+                                <small class="text-primary fw-medium" th:text="'c/' + ${comm.slug}">c/slug</small>
+                            </div>
+                        </a>
+                        <p class="small text-secondary flex-grow-1 mb-2 text-truncate" th:text="${comm.description ?: 'Không có mô tả.'}">Mô tả</p>
+                        <div class="d-flex justify-content-between align-items-center pt-2 border-top border-subtle small text-muted mt-auto">
+                            <span>
+                                <i class="bi bi-people me-1" aria-hidden="true"></i>
+                                <strong class="text-dark" th:text="${comm.memberCount != null ? comm.memberCount : 0}">0</strong> thành viên
+                            </span>
+                            <a th:href="@{'/communities/' + ${comm.id}}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                Khám phá
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pagination for Communities View -->
+            <nav th:if="${category == 'communities' and communitiesMeta != null and communitiesMeta.totalPages > 1}" aria-label="Phân trang cộng đồng" class="mt-3">
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    <li class="page-item" th:classappend="${page <= 0} ? 'disabled' : ''">
+                        <a class="page-link" th:href="@{/search(q=${q}, category='communities', page=${page - 1}, size=${communitiesMeta != null ? communitiesMeta.size : size})}" aria-label="Trang trước">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link" th:text="'Trang ' + (${page} + 1) + ' / ' + ${communitiesMeta.totalPages}">Trang 1 / 1</span>
+                    </li>
+                    <li class="page-item" th:classappend="${page + 1 >= communitiesMeta.totalPages} ? 'disabled' : ''">
+                        <a class="page-link" th:href="@{/search(q=${q}, category='communities', page=${page + 1}, size=${communitiesMeta != null ? communitiesMeta.size : size})}" aria-label="Trang sau">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- Empty Communities for Category Specific View -->
+            <div th:if="${category == 'communities' and !communitiesError and (communities == null or communities.isEmpty())}" class="aloute-card text-center p-4">
+                <i class="bi bi-people fs-2 text-muted mb-2 d-block" aria-hidden="true"></i>
+                <h3 class="fs-6 fw-bold mb-1">Không tìm thấy cộng đồng phù hợp</h3>
+                <p class="small text-secondary mb-0">Thử tìm kiếm với tên hoặc từ khóa khác.</p>
+            </div>
+        </section>
+
+        <!-- 2. Topics Section (shown on 'all' or 'topics') -->
+        <section th:if="${category == 'all' or category == 'topics' or category == null}" class="mb-4" aria-label="Kết quả chủ đề">
+            <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                <h2 class="fs-6 fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                    <i class="bi bi-hash text-primary" aria-hidden="true"></i>
+                    <span>Chủ đề</span>
+                </h2>
+                <a th:if="${category == 'all' and topics != null and !topics.isEmpty()}"
+                   th:href="@{/search(q=${q}, category='topics', size=${size})}"
+                   class="small text-primary text-decoration-none">
+                    Xem tất cả (<span th:text="${topics.size()}">0</span>)
+                </a>
+            </div>
+
+            <!-- Service Error Alert -->
+            <div th:if="${topicsError == true}" class="alert alert-warning d-flex align-items-center justify-content-between p-3 mb-3" role="alert">
+                <div>
+                    <i class="bi bi-exclamation-triangle-fill me-2" aria-hidden="true"></i>
+                    <span>Không thể tải danh sách chủ đề lúc này. Vui lòng thử lại sau.</span>
+                </div>
+                <a th:href="@{/search(q=${q}, category=${category}, page=${page}, size=${size})}" class="btn btn-sm btn-outline-warning">Thử lại</a>
+            </div>
+
+            <div th:if="${topics != null and !topics.isEmpty()}" class="aloute-card p-3">
+                <div class="d-flex flex-wrap gap-2">
+                    <a th:each="t : ${topics}"
+                       th:href="@{'/topics/' + ${t.id}}"
+                       class="btn btn-sm btn-light border rounded-pill d-inline-flex align-items-center gap-1 text-decoration-none py-1 px-3">
+                        <i class="bi bi-hash text-primary" aria-hidden="true"></i>
+                        <span class="fw-semibold text-dark" th:text="${t.name}">tên</span>
+                        <small class="text-muted" th:text="'(' + ${t.slug} + ')'">(slug)</small>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Pagination for Topics View -->
+            <nav th:if="${category == 'topics' and topicsMeta != null and topicsMeta.totalPages > 1}" aria-label="Phân trang chủ đề" class="mt-3">
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    <li class="page-item" th:classappend="${page <= 0} ? 'disabled' : ''">
+                        <a class="page-link" th:href="@{/search(q=${q}, category='topics', page=${page - 1}, size=${topicsMeta != null ? topicsMeta.size : size})}" aria-label="Trang trước">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link" th:text="'Trang ' + (${page} + 1) + ' / ' + ${topicsMeta.totalPages}">Trang 1 / 1</span>
+                    </li>
+                    <li class="page-item" th:classappend="${page + 1 >= topicsMeta.totalPages} ? 'disabled' : ''">
+                        <a class="page-link" th:href="@{/search(q=${q}, category='topics', page=${page + 1}, size=${topicsMeta != null ? topicsMeta.size : size})}" aria-label="Trang sau">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- Empty Topics for Category Specific View -->
+            <div th:if="${category == 'topics' and !topicsError and (topics == null or topics.isEmpty())}" class="aloute-card text-center p-4">
+                <i class="bi bi-hash fs-2 text-muted mb-2 d-block" aria-hidden="true"></i>
+                <h3 class="fs-6 fw-bold mb-1">Không tìm thấy chủ đề phù hợp</h3>
+                <p class="small text-secondary mb-0">Không có chủ đề nào khớp với từ khóa của bạn.</p>
+            </div>
+        </section>
+
+        <!-- 3. People Section (shown on 'all' or 'people') -->
+        <section th:if="${category == 'all' or category == 'people' or category == null}" class="mb-4" aria-label="Kết quả người dùng">
+            <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                <h2 class="fs-6 fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                    <i class="bi bi-person-fill text-primary" aria-hidden="true"></i>
+                    <span>Người dùng</span>
+                </h2>
+                <span class="small text-muted fst-italic">Tìm chính xác theo @username</span>
+            </div>
+
+            <!-- Service Error Alert -->
+            <div th:if="${peopleError == true}" class="alert alert-warning d-flex align-items-center justify-content-between p-3 mb-3" role="alert">
+                <div>
+                    <i class="bi bi-exclamation-triangle-fill me-2" aria-hidden="true"></i>
+                    <span>Không thể tải kết quả người dùng lúc này. Vui lòng thử lại sau.</span>
+                </div>
+                <a th:href="@{/search(q=${q}, category='people', size=${size})}" class="btn btn-sm btn-outline-warning">Thử lại</a>
+            </div>
+
+            <div th:if="${people != null and !people.isEmpty()}" class="d-flex flex-column gap-2">
+                <div th:each="userItem : ${people}" class="aloute-card p-3 d-flex justify-content-between align-items-center">
+                    <a th:href="@{'/users/' + ${userItem.id}}" class="d-flex align-items-center gap-3 text-decoration-none text-reset">
+                        <img th:src="${userItem.avatarUrl != null and !userItem.avatarUrl.isEmpty()} ? ${userItem.avatarUrl} : @{/images/avatar-fallback.svg}"
+                             src="/images/avatar-fallback.svg"
+                             class="avatar-img rounded-circle flex-shrink-0"
+                             width="44"
+                             height="44"
+                             alt="Avatar" />
+                        <div class="aloute-min-w-0">
+                            <h3 class="fs-6 fw-bold mb-0 text-dark text-truncate" th:text="${userItem.displayName ?: userItem.username}">Tên</h3>
+                            <small class="text-muted d-block text-truncate" th:text="'@' + ${userItem.username}">@user</small>
+                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle small py-0 px-2 mt-1">Sinh viên HCMUTE</span>
+                        </div>
+                    </a>
+                    <a th:href="@{'/users/' + ${userItem.id}}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                        Xem hồ sơ
+                    </a>
+                </div>
+            </div>
+
+            <!-- Empty People Notice -->
+            <div th:if="${category == 'people' and !peopleError and (people == null or people.isEmpty())}" class="aloute-card text-center p-4">
+                <i class="bi bi-person-x fs-2 text-muted mb-2 d-block" aria-hidden="true"></i>
+                <h3 class="fs-6 fw-bold mb-1">Không tìm thấy tài khoản chính xác</h3>
+                <p class="small text-secondary mb-0">
+                    Hệ thống hiện tại hỗ trợ tìm kiếm người dùng theo <strong>chính xác tên tài khoản (@username)</strong>.
+                </p>
+            </div>
+        </section>
+
+        <!-- 4. Posts Section (shown on 'all' or 'posts') -->
+        <section th:if="${category == 'all' or category == 'posts'}" class="mb-4" aria-label="Kết quả bài viết">
+            <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                <h2 class="fs-6 fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                    <i class="bi bi-file-text-fill text-primary" aria-hidden="true"></i>
+                    <span>Bài viết</span>
+                </h2>
+                <a th:if="${category == 'all' and posts != null and !posts.isEmpty()}"
+                   th:href="@{/search(q=${q}, category='posts', size=${size})}"
+                   class="small text-decoration-none">
+                    Xem tất cả bài viết <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                </a>
+            </div>
+
+            <!-- Service Error Alert -->
+            <div th:if="${postsError == true}" class="alert alert-warning d-flex align-items-center justify-content-between p-3 mb-3" role="alert">
+                <div>
+                    <i class="bi bi-exclamation-triangle-fill me-2" aria-hidden="true"></i>
+                    <span>Không thể tải kết quả bài viết lúc này. Vui lòng thử lại sau.</span>
+                </div>
+                <a th:href="@{/search(q=${q}, category='posts', size=${size})}" class="btn btn-sm btn-outline-warning">Thử lại</a>
+            </div>
+
+            <!-- Populated Posts List -->
+            <div th:if="${posts != null and !posts.isEmpty()}" class="d-flex flex-column gap-3 mb-3">
+                <th:block th:each="postItem : ${posts}">
+                    <div th:replace="~{post/_post-card :: postCard(post=${postItem})}"></div>
+                </th:block>
+
+                <!-- Pagination Affordance for Posts -->
+                <nav th:if="${category == 'posts' and postsMeta != null and postsMeta.totalPages > 1}"
+                     aria-label="Phân trang kết quả bài viết" class="mt-2">
+                    <ul class="pagination pagination-sm justify-content-center mb-0">
+                        <li class="page-item" th:classappend="${postsMeta.page == 0} ? 'disabled' : ''">
+                            <a class="page-link" th:href="@{/search(q=${q}, category='posts', page=${postsMeta.page - 1}, size=${size})}" aria-label="Trang trước">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item disabled">
+                            <span class="page-link text-dark" th:text="'Trang ' + (${postsMeta.page + 1}) + ' / ' + ${postsMeta.totalPages}">1 / 1</span>
+                        </li>
+                        <li class="page-item" th:classappend="${!postsMeta.hasNext} ? 'disabled' : ''">
+                            <a class="page-link" th:href="@{/search(q=${q}, category='posts', page=${postsMeta.page + 1}, size=${size})}" aria-label="Trang sau">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+
+            <!-- Empty Posts Notice on 'posts' tab -->
+            <div th:if="${category == 'posts' and !postsError and (posts == null or posts.isEmpty())}" class="aloute-card text-center p-4">
+                <i class="bi bi-file-earmark-x fs-2 text-muted mb-2 d-block" aria-hidden="true"></i>
+                <h3 class="fs-6 fw-bold mb-1">Không tìm thấy bài viết nào</h3>
+                <p class="small text-secondary mb-0">Không có bài viết nào khớp với từ khóa của bạn.</p>
+            </div>
+        </section>
+
+        <!-- Global Empty State if 'all' category has no results across communities, topics, people, posts -->
+        <div th:if="${(category == 'all' or category == null) and !communitiesError and !topicsError and !peopleError and !postsError and (communities == null or communities.isEmpty()) and (topics == null or topics.isEmpty()) and (people == null or people.isEmpty()) and (posts == null or posts.isEmpty())}"
+             class="aloute-card text-center p-4 my-2">
+            <i class="bi bi-question-circle fs-1 text-muted mb-2 d-block" aria-hidden="true"></i>
+            <h3 class="fs-6 fw-bold mb-1">Không tìm thấy kết quả nào</h3>
+            <p class="small text-secondary mb-3">
+                Không có cộng đồng, chủ đề, bài viết hoặc tài khoản nào khớp với từ khóa "<strong th:text="${q}"></strong>".
+            </p>
+            <a th:href="@{/communities}" class="btn btn-sm btn-primary rounded-pill px-3">
+                Xem danh sách cộng đồng
+            </a>
+        </div>
+    </div>
+</div>
 </body>
 </html>

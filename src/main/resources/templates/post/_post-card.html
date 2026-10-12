@@ -47,8 +47,8 @@
                 </div>
             </div>
 
-            <!-- Capabilities Actions Dropdown (Edit/Delete presentational hooks) -->
-            <div th:if="${post.capabilities != null and (post.capabilities.canEdit or post.capabilities.canDelete)}" class="dropdown">
+            <!-- Post Actions Dropdown (Edit/Delete/Report hooks) -->
+            <div th:if="${post.id != null}" class="dropdown">
                 <button class="btn btn-link text-muted p-1"
                         type="button"
                         data-bs-toggle="dropdown"
@@ -57,7 +57,7 @@
                     <i class="bi bi-three-dots" aria-hidden="true"></i>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow">
-                    <li th:if="${post.capabilities.canEdit}">
+                    <li th:if="${post.capabilities != null and post.capabilities.canEdit}">
                         <button type="button"
                                 class="dropdown-item d-flex align-items-center gap-2"
                                 data-action="edit-post"
@@ -66,13 +66,23 @@
                             <span>Chỉnh sửa bài viết</span>
                         </button>
                     </li>
-                    <li th:if="${post.capabilities.canDelete}">
+                    <li th:if="${post.capabilities != null and post.capabilities.canDelete}">
                         <button type="button"
                                 class="dropdown-item text-danger d-flex align-items-center gap-2"
                                 data-action="delete-post"
                                 th:attr="data-post-id=${post.id}">
                             <i class="bi bi-trash" aria-hidden="true"></i>
                             <span>Xóa bài viết</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item text-danger d-flex align-items-center gap-2"
+                                data-action="open-report-modal"
+                                data-report-type="post"
+                                th:attr="data-reported-id=${post.id}, data-reported-name=${post.author != null ? (post.author.displayName ?: post.author.username) : 'Bài viết'}">
+                            <i class="bi bi-flag" aria-hidden="true"></i>
+                            <span>Báo cáo bài viết</span>
                         </button>
                     </li>
                 </ul>
@@ -93,6 +103,78 @@
                      class="post-media-img"
                      loading="lazy">
             </div>
+        </div>
+
+        <!-- Poll Widget (if present) -->
+        <div th:if="${post.poll != null}"
+             th:with="isPollClosed=${(post.poll.closesAt != null and post.poll.closesAt.isBefore(T(java.time.Instant).now())) or (post.poll.expiresAt != null and post.poll.expiresAt.isBefore(T(java.time.Instant).now()))}"
+             class="post-poll-container border rounded-3 p-3 my-2 bg-light-subtle"
+             th:attr="data-poll-id=${post.poll.id}, data-allow-multiple=${post.poll.allowMultiple}, data-is-closed=${isPollClosed}">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h3 class="fs-6 fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                    <i class="bi bi-bar-chart-line-fill text-primary" aria-hidden="true"></i>
+                    <span th:text="${post.poll.question}">Bình chọn</span>
+                </h3>
+                <span th:if="${isPollClosed}" class="badge bg-secondary-subtle text-secondary small">
+                    Đã kết thúc
+                </span>
+            </div>
+
+            <!-- Voted or Closed State: Display Result Progress Bars -->
+            <div th:if="${isPollClosed or post.poll.userVotedOptionId != null or (post.poll.options != null and #lists.size(post.poll.options.?[selectedByCurrentUser == true]) > 0)}"
+                 class="poll-results d-flex flex-column gap-2">
+                <div th:each="opt : ${post.poll.options}" class="poll-option-result position-relative border rounded-2 p-2 overflow-hidden bg-white">
+                    <!-- Progress Fill Bar -->
+                    <div class="poll-progress-bg position-absolute top-0 start-0 h-100"
+                         th:style="'width: ' + (${post.poll.totalVotes > 0} ? ${opt.voteCount * 100 / post.poll.totalVotes} : 0) + '%; background-color: rgba(37, 99, 235, 0.12); z-index: 0;'"></div>
+                    <div class="position-relative d-flex justify-content-between align-items-center" style="z-index: 1;">
+                        <div class="d-flex align-items-center gap-2">
+                            <i th:if="${opt.selectedByCurrentUser == true or opt.id == post.poll.userVotedOptionId}"
+                               class="bi bi-check-circle-fill text-primary" aria-label="Lựa chọn của bạn"></i>
+                            <span class="small fw-medium text-dark" th:text="${opt.text}">Lựa chọn</span>
+                        </div>
+                        <div class="small text-muted d-flex align-items-center gap-2">
+                            <span th:text="(${post.poll.totalVotes > 0} ? ${opt.voteCount * 100 / post.poll.totalVotes} : 0) + '%'">0%</span>
+                            <span th:text="'(' + ${opt.voteCount} + ')'"> (0)</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center small text-muted mt-1">
+                    <span th:text="${post.poll.totalVotes} + ' lượt bình chọn'">0 lượt bình chọn</span>
+                    <span th:if="${post.poll.allowMultiple}" class="fst-italic">Nhiều lựa chọn</span>
+                </div>
+            </div>
+
+            <!-- Not Voted and Open State: Display Voting Form -->
+            <form th:if="${!isPollClosed and post.poll.userVotedOptionId == null and (post.poll.options == null or #lists.size(post.poll.options.?[selectedByCurrentUser == true]) == 0)}"
+                  class="poll-vote-form d-flex flex-column gap-2"
+                  th:attr="data-poll-id=${post.poll.id}, data-allow-multiple=${post.poll.allowMultiple}">
+                <div th:each="opt : ${post.poll.options}" class="form-check border rounded-2 p-2 ps-4 bg-white m-0">
+                    <input th:if="${!post.poll.allowMultiple}"
+                           class="form-check-input"
+                           type="radio"
+                           th:name="'poll-opt-' + ${post.poll.id}"
+                           th:id="'opt-' + ${opt.id}"
+                           th:value="${opt.id}" required>
+                    <input th:if="${post.poll.allowMultiple}"
+                           class="form-check-input"
+                           type="checkbox"
+                           th:name="'poll-opt-' + ${post.poll.id}"
+                           th:id="'opt-' + ${opt.id}"
+                           th:value="${opt.id}">
+                    <label class="form-check-label small fw-medium text-dark w-100 cursor-pointer"
+                           th:for="'opt-' + ${opt.id}"
+                           th:text="${opt.text}">Lựa chọn</label>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                    <span class="small text-muted" th:text="${post.poll.totalVotes} + ' lượt bình chọn'">0 lượt bình chọn</span>
+                    <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill px-3 btn-vote-poll">
+                        <span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
+                        <span>Bình chọn</span>
+                    </button>
+                </div>
+                <div class="poll-vote-error alert alert-danger py-1 px-2 small d-none mb-0 mt-1" role="alert"></div>
+            </form>
         </div>
 
         <!-- Post Topics / Tags (Non-interactive reference tags) -->
