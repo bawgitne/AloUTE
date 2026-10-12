@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/default :: layout(
+        title=${topic != null ? '#' + topic.name + ' — AloUTE' : 'Chủ đề — AloUTE'},
+        content=~{::#topic-detail-content},
+        extraHead=~{::#topic-detail-head},
+        extraScripts=~{::#topic-detail-scripts},
+        activeTab='feed'
+      )}">
+<head id="topic-detail-head">
+</head>
+<body>
+    <div id="topic-detail-content">
+        <div class="topic-detail-view" style="max-width: 680px; margin: 0 auto; width: 100%;">
+            <!-- Topic Hero Header -->
+            <div class="card-social topic-hero-header" style="padding: 20px; margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h1 style="font-size: 24px; font-weight: 800; color: var(--text-main); margin: 0;">
+                            <span style="color: var(--primary-color);">#</span><span th:text="${topic != null ? topic.name : 'topic'}">topic</span>
+                        </h1>
+                        <p style="font-size: 13px; color: var(--text-muted); margin: 4px 0 0;">
+                            Tất cả thảo luận và bài viết liên quan tới chủ đề này.
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn-primary" style="padding: 8px 18px; font-size: 13px; font-weight: 700; border-radius: var(--radius-pill);" data-bs-toggle="modal" data-bs-target="#createPostModal">
+                            <i class="fa-solid fa-plus"></i> Đăng bài
+                        </button>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 16px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 13px; color: var(--text-muted);">
+                    <span><strong style="color: var(--text-main);" th:text="${topic != null && topic.postCount != null ? topic.postCount : (posts != null ? posts.size() : 0)}">0</strong> bài viết</span>
+                </div>
+            </div>
+
+            <!-- Posts Stream for Topic -->
+            <div class="posts-stream">
+                <th:block th:if="${posts != null && !posts.isEmpty()}">
+                    <div th:each="post : ${posts}" th:replace="~{post/_post-card :: postCard(post=${post})}"></div>
+                </th:block>
+
+                <!-- Empty State -->
+                <div th:if="${posts == null || posts.isEmpty()}" class="card-social empty-box text-center p-8" style="padding: 40px; text-align: center;">
+                    <i class="fa-solid fa-hashtag font-32 text-muted" style="font-size: 36px; color: var(--text-muted); margin-bottom: 12px; display: block;"></i>
+                    <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">Chưa có bài viết nào với thẻ này</h3>
+                    <p style="color: var(--text-muted); font-size: 13px;">Hãy là người đầu tiên đăng bài với chủ đề này!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="topic-detail-scripts"></div>
+</body>
+</html>
