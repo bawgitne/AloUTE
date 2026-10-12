@@ -15,9 +15,16 @@
 (function () {
     'use strict';
 
+    if (typeof window !== 'undefined' && window.__alouteNotificationInitialized) return;
+    if (typeof window !== 'undefined') window.__alouteNotificationInitialized = true;
+
     // -------------------------------------------------------------------------
     // Utilities & Security
     // -------------------------------------------------------------------------
+
+    function isValidUnreadCount(val) {
+        return typeof val === 'number' && Number.isInteger(val) && Number.isSafeInteger(val) && val >= 0;
+    }
 
     function getCsrfToken() {
         const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
@@ -442,8 +449,9 @@
             if (currentVersion !== unreadCountVersion) {
                 return; // Stale count response, discard
             }
-            if (response.ok && body && body.success && body.data) {
-                state.unreadCount = typeof body.data.unreadCount === 'number' ? body.data.unreadCount : 0;
+            const hasValidMeta = !body || body.meta === undefined || body.meta === null;
+            if (response.status === 200 && body && body.success === true && hasValidMeta && body.data && isValidUnreadCount(body.data.unreadCount)) {
+                state.unreadCount = body.data.unreadCount;
                 updateUnreadBadge();
             }
         } catch (err) {
@@ -453,14 +461,49 @@
     }
 
     function updateUnreadBadge() {
-        if (!badgeUnread) return;
-        if (state.unreadCount > 0) {
-            badgeUnread.textContent = state.unreadCount > 99 ? '99+' : String(state.unreadCount);
-            badgeUnread.classList.remove('d-none');
-        } else {
-            badgeUnread.textContent = '0';
-            badgeUnread.classList.add('d-none');
+        const raw = state.unreadCount;
+        if (!isValidUnreadCount(raw)) {
+            // Malformed count: do not render fake 0, preserve DOM state
+            return;
         }
+        const num = raw;
+        const text = num > 99 ? '99+' : String(num);
+        const isHidden = num <= 0;
+        const parentLabel = num <= 0 ? 'Thông báo' : (num > 99 ? 'Thông báo (Hơn 99 thông báo chưa đọc)' : 'Thông báo (' + num + ' thông báo chưa đọc)');
+        const badgeLabel = num <= 0 ? 'Không có thông báo mới' : (num > 99 ? 'Hơn 99 thông báo chưa đọc' : (num + ' thông báo chưa đọc'));
+
+        if (badgeUnread) {
+            badgeUnread.textContent = isHidden ? '0' : text;
+            badgeUnread.setAttribute('aria-label', badgeLabel);
+            if (isHidden) badgeUnread.classList.add('d-none');
+            else badgeUnread.classList.remove('d-none');
+        }
+
+        const navBadges = document.querySelectorAll('#navbar-notification-badge, .navbar-notification-badge');
+        navBadges.forEach(function (badge) {
+            badge.textContent = isHidden ? '0' : text;
+            badge.setAttribute('aria-label', badgeLabel);
+            if (isHidden) badge.classList.add('d-none');
+            else badge.classList.remove('d-none');
+            const parentLink = badge.closest('a');
+            if (parentLink) parentLink.setAttribute('aria-label', parentLabel);
+        });
+
+        const sideBadges = document.querySelectorAll('.sidebar-notification-badge, [data-badge="notification"], #sidebar-notification-badge');
+        sideBadges.forEach(function (badge) {
+            badge.textContent = isHidden ? '0' : text;
+            badge.setAttribute('aria-label', badgeLabel);
+            if (isHidden) badge.classList.add('d-none');
+            else badge.classList.remove('d-none');
+            const parentLink = badge.closest('a');
+            if (parentLink) parentLink.setAttribute('aria-label', parentLabel);
+        });
+
+        try {
+            window.dispatchEvent(new CustomEvent('aloute:unread-count-updated', {
+                detail: { unreadCount: num, version: unreadCountVersion }
+            }));
+        } catch (_) {}
     }
 
     // -------------------------------------------------------------------------
@@ -486,6 +529,7 @@
                 if (item) item.isRead = true;
 
                 if (state.unreadCount > 0) {
+                    unreadCountVersion++;
                     state.unreadCount--;
                     updateUnreadBadge();
                 }
@@ -527,6 +571,7 @@
                         if (btnRead) btnRead.remove();
                     });
                 }
+                unreadCountVersion++;
                 state.unreadCount = 0;
                 updateUnreadBadge();
                 showFeedback('Đã đánh dấu tất cả thông báo là đã đọc.', 'success');
@@ -572,6 +617,7 @@
                 }, 200);
 
                 if (wasUnread && state.unreadCount > 0) {
+                    unreadCountVersion++;
                     state.unreadCount--;
                     updateUnreadBadge();
                 }

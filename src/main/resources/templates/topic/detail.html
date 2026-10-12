@@ -1,55 +1,91 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layouts/default :: layout(
-        title=${topic != null ? '#' + topic.name + ' — AloUTE' : 'Chủ đề — AloUTE'},
-        content=~{::#topic-detail-content},
-        extraHead=~{::#topic-detail-head},
-        extraScripts=~{::#topic-detail-scripts},
-        activeTab='feed'
-      )}">
-<head id="topic-detail-head">
-</head>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/default :: layout(title=${topic != null ? '#' + topic.name : 'Chủ đề'}, content=~{::#topic-detail-content})}">
 <body>
-    <div id="topic-detail-content">
-        <div class="topic-detail-view" style="max-width: 680px; margin: 0 auto; width: 100%;">
-            <!-- Topic Hero Header -->
-            <div class="card-social topic-hero-header" style="padding: 20px; margin-bottom: 16px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
-                    <div>
-                        <h1 style="font-size: 24px; font-weight: 800; color: var(--text-main); margin: 0;">
-                            <span style="color: var(--primary-color);">#</span><span th:text="${topic != null ? topic.name : 'topic'}">topic</span>
-                        </h1>
-                        <p style="font-size: 13px; color: var(--text-muted); margin: 4px 0 0;">
-                            Tất cả thảo luận và bài viết liên quan tới chủ đề này.
-                        </p>
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button type="button" class="btn-primary" style="padding: 8px 18px; font-size: 13px; font-weight: 700; border-radius: var(--radius-pill);" data-bs-toggle="modal" data-bs-target="#createPostModal">
-                            <i class="fa-solid fa-plus"></i> Đăng bài
-                        </button>
-                    </div>
-                </div>
-
-                <div style="display: flex; gap: 16px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 13px; color: var(--text-muted);">
-                    <span><strong style="color: var(--text-main);" th:text="${topic != null && topic.postCount != null ? topic.postCount : (posts != null ? posts.size() : 0)}">0</strong> bài viết</span>
-                </div>
-            </div>
-
-            <!-- Posts Stream for Topic -->
-            <div class="posts-stream">
-                <th:block th:if="${posts != null && !posts.isEmpty()}">
-                    <div th:each="post : ${posts}" th:replace="~{post/_post-card :: postCard(post=${post})}"></div>
-                </th:block>
-
-                <!-- Empty State -->
-                <div th:if="${posts == null || posts.isEmpty()}" class="card-social empty-box text-center p-8" style="padding: 40px; text-align: center;">
-                    <i class="fa-solid fa-hashtag font-32 text-muted" style="font-size: 36px; color: var(--text-muted); margin-bottom: 12px; display: block;"></i>
-                    <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">Chưa có bài viết nào với thẻ này</h3>
-                    <p style="color: var(--text-muted); font-size: 13px;">Hãy là người đầu tiên đăng bài với chủ đề này!</p>
-                </div>
-            </div>
-        </div>
+<div id="topic-detail-content">
+    <!-- Back Navigation Affordance -->
+    <div class="mb-3 d-flex align-items-center justify-content-between">
+        <a th:href="@{/feed}" class="btn btn-sm btn-link text-secondary text-decoration-none p-0 d-inline-flex align-items-center gap-1">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+            <span>Quay lại bảng tin</span>
+        </a>
+        <a th:href="@{/search(category='topics')}" class="btn btn-sm btn-outline-secondary rounded-pill">
+            <i class="bi bi-search me-1" aria-hidden="true"></i>Tìm chủ đề khác
+        </a>
     </div>
-    <div id="topic-detail-scripts"></div>
+
+    <!-- Topic Not Found -->
+    <div th:if="${topic == null}" class="aloute-card text-center p-4 my-3">
+        <div class="mb-3">
+            <i class="bi bi-hash fs-1 text-secondary" aria-hidden="true"></i>
+        </div>
+        <h1 class="fs-5 fw-bold mb-1">Chủ đề không tồn tại</h1>
+        <p class="small text-secondary mb-3">Chủ đề này không tồn tại hoặc đã bị ẩn.</p>
+        <a th:href="@{/feed}" class="btn btn-sm btn-primary rounded-pill px-3">
+            <i class="bi bi-house-door me-1" aria-hidden="true"></i>Về bảng tin chính
+        </a>
+    </div>
+
+    <!-- Topic Present View -->
+    <div th:if="${topic != null}">
+        <!-- Header Card -->
+        <header class="aloute-card p-3 p-md-4 mb-3">
+            <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
+                         style="width: 56px; height: 56px;">
+                        <i class="bi bi-hash fs-2" aria-hidden="true"></i>
+                    </div>
+                    <div>
+                        <h1 class="fs-4 fw-bold mb-0 text-dark" th:text="'#' + ${topic.name}">#hoc-tap</h1>
+                        <p class="small text-muted mb-0" th:text="'slug: ' + ${topic.slug}">slug: hoc-tap</p>
+                    </div>
+                </div>
+                <a th:href="@{/post/create}" class="btn btn-sm btn-primary rounded-pill d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                    <span>Đăng bài vào chủ đề</span>
+                </a>
+            </div>
+            <div class="mt-3 pt-2 border-top border-subtle d-flex gap-3 small text-muted">
+                <div>
+                    <i class="bi bi-file-text me-1 text-primary" aria-hidden="true"></i>
+                    <strong class="text-dark" th:text="${postsError ? '—' : (posts != null ? posts.size() : 0)}">0</strong> bài viết
+                </div>
+            </div>
+        </header>
+
+        <!-- Topic Posts Stream -->
+        <section aria-label="Danh sách bài viết theo chủ đề">
+            <h2 class="visually-hidden">Bài viết thuộc chủ đề</h2>
+
+            <!-- Posts Loading Error State -->
+            <div th:if="${postsError == true}" class="alert alert-warning d-flex align-items-center justify-content-between p-3 my-2" role="alert">
+                <div>
+                    <i class="bi bi-exclamation-triangle-fill me-2" aria-hidden="true"></i>
+                    <span>Không thể tải danh sách bài viết thuộc chủ đề lúc này. Vui lòng thử lại sau.</span>
+                </div>
+                <a th:href="@{'/topics/' + ${topic.id}}" class="btn btn-sm btn-outline-warning">Thử lại</a>
+            </div>
+
+            <div th:if="${posts != null and !posts.isEmpty()}" class="d-flex flex-column gap-3">
+                <th:block th:each="postItem : ${posts}">
+                    <div th:replace="~{post/_post-card :: postCard(post=${postItem})}"></div>
+                </th:block>
+            </div>
+
+            <!-- Empty Posts State -->
+            <div th:if="${!postsError and (posts == null or posts.isEmpty())}" class="aloute-card text-center p-4 my-2">
+                <div class="mb-3">
+                    <i class="bi bi-chat-square-dots fs-1 text-muted" aria-hidden="true"></i>
+                </div>
+                <h3 class="fs-6 fw-bold mb-1">Chưa có bài viết nào</h3>
+                <p class="small text-secondary mb-3">Hãy là người đầu tiên chia sẻ về chủ đề này trên AloUTE!</p>
+                <a th:href="@{/post/create}" class="btn btn-sm btn-primary rounded-pill px-3">
+                    <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Tạo bài viết ngay
+                </a>
+            </div>
+        </section>
+    </div>
+</div>
 </body>
 </html>

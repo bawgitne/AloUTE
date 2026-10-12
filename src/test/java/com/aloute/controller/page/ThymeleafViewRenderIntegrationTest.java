@@ -10,6 +10,7 @@ import com.aloute.security.authorization.Role;
 import com.aloute.security.principal.UserPrincipal;
 import com.aloute.service.CommunityService;
 import com.aloute.service.PostService;
+import com.aloute.service.TopicService;
 import com.aloute.service.UserService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,10 +30,6 @@ import org.thymeleaf.spring6.SpringTemplateEngine;
 import org.thymeleaf.web.IWebExchange;
 import org.thymeleaf.web.servlet.JakartaServletWebApplication;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -68,6 +65,9 @@ class ThymeleafViewRenderIntegrationTest {
 
     @MockBean
     private UserService userService;
+
+    @MockBean
+    private TopicService topicService;
 
     private WebContext createWebContext() {
         MockHttpServletRequest request = new MockHttpServletRequest();
@@ -199,6 +199,7 @@ class ThymeleafViewRenderIntegrationTest {
         assertThat(html).contains("Chào mừng đến với CLB AI!");
         assertThat(html).contains("11/10/2026 21:30");
         assertThat(html).doesNotContain("unsplash.com");
+        assertThat(html).contains("<div class=\"p-3 pt-0 position-relative\" style=\"z-index: 1;\">");
     }
 
     @Test
@@ -387,162 +388,434 @@ class ThymeleafViewRenderIntegrationTest {
                 .andExpect(content().contentTypeCompatibleWith(org.springframework.http.MediaType.APPLICATION_JSON));
     }
 
+
     @Test
-    @DisplayName("Export rendered HTML fixtures for Community, Messaging, and Error views into bridge job folder")
-    void exportRenderedFixtures() throws Exception {
-        Path fixturesDir = Paths.get(".antigravity-bridge", "jobs", "2026-10-11-002", "fixtures");
-        Files.createDirectories(fixturesDir);
-
-        ProfileResponse currentUser = new ProfileResponse(
-                1L, "nguyen_van_a", "Nguyễn Văn A", "Khoa Công nghệ Thông tin",
-                "/src/main/resources/static/images/avatar-fallback.svg",
-                "https://aloute.ute.udn.vn", false, false, 45L, 28L, 12L, null
-        );
-
-        CommunityResponse comm1 = new CommunityResponse(
-                1L, 1L, "CLB Tin học AloUTE", "clb-tin-hoc",
-                "Cộng đồng chia sẻ kiến thức lập trình và công nghệ sinh viên UTE.",
-                "/src/main/resources/static/images/avatar-fallback.svg",
-                null, false, 250L, 42L, CommunityRole.MEMBER, false
-        );
-        CommunityResponse comm2 = new CommunityResponse(
-                2L, 2L, "CLB Tiếng Anh UTE", "clb-tieng-anh",
-                "Môi trường rèn luyện kỹ năng giao tiếp tiếng Anh cho sinh viên.",
-                "/src/main/resources/static/images/avatar-fallback.svg",
-                null, false, 180L, 20L, null, false
-        );
-
-        // 1. Community Index Populated
-        WebContext ctxCommPop = createWebContext();
-        ctxCommPop.setVariable("communities", List.of(comm1, comm2));
-        ctxCommPop.setVariable("currentUser", currentUser);
-        ctxCommPop.setVariable("title", "Cộng đồng & Câu lạc bộ");
-        String htmlCommPop = rewriteAssetPaths(templateEngine.process("community/index", ctxCommPop));
-        Files.writeString(fixturesDir.resolve("community-populated.html"), htmlCommPop, StandardCharsets.UTF_8);
-
-        // 2. Community Index Empty
-        WebContext ctxCommEmpty = createWebContext();
-        ctxCommEmpty.setVariable("communities", Collections.emptyList());
-        ctxCommEmpty.setVariable("currentUser", currentUser);
-        ctxCommEmpty.setVariable("title", "Cộng đồng & Câu lạc bộ");
-        String htmlCommEmpty = rewriteAssetPaths(templateEngine.process("community/index", ctxCommEmpty));
-        Files.writeString(fixturesDir.resolve("community-empty.html"), htmlCommEmpty, StandardCharsets.UTF_8);
-
-        // 3. Community Detail Populated
-        PostResponse post1 = createSamplePost(101L, "Chào mừng các bạn tân sinh viên đến với CLB Tin học AloUTE!", Instant.now());
-        PostResponse post2 = createSamplePost(102L, "Lịch sinh hoạt chuyên đề tuần tới sẽ diễn ra tại phòng máy A1.", Instant.now());
-        WebContext ctxDetailPop = createWebContext();
-        ctxDetailPop.setVariable("community", comm1);
-        ctxDetailPop.setVariable("posts", List.of(post1, post2));
-        ctxDetailPop.setVariable("currentUser", currentUser);
-        ctxDetailPop.setVariable("title", comm1.name());
-        String htmlDetailPop = rewriteAssetPaths(templateEngine.process("community/detail", ctxDetailPop));
-        Files.writeString(fixturesDir.resolve("community-detail-populated.html"), htmlDetailPop, StandardCharsets.UTF_8);
-
-        // 4. Community Detail Empty
-        WebContext ctxDetailEmpty = createWebContext();
-        ctxDetailEmpty.setVariable("community", comm1);
-        ctxDetailEmpty.setVariable("posts", Collections.emptyList());
-        ctxDetailEmpty.setVariable("currentUser", currentUser);
-        ctxDetailEmpty.setVariable("title", comm1.name());
-        String htmlDetailEmpty = rewriteAssetPaths(templateEngine.process("community/detail", ctxDetailEmpty));
-        Files.writeString(fixturesDir.resolve("community-detail-empty.html"), htmlDetailEmpty, StandardCharsets.UTF_8);
-
-        // 5. Messaging Populated
-        WebContext ctxMsgPop = createWebContext();
-        ctxMsgPop.setVariable("currentUser", currentUser);
-        ctxMsgPop.setVariable("currentConversation", null);
-        ctxMsgPop.setVariable("title", "Tin nhắn — AloUTE");
-        String htmlMsgPop = rewriteAssetPaths(templateEngine.process("messaging/index", ctxMsgPop));
-        String mockTransportPop = """
-            <script>
-            /* FIXTURE SMOKE ONLY: Test-only deterministic mock transport for offline browser rendering */
-            (function() {
-                const originalFetch = window.fetch;
-                window.fetch = async function(url, options) {
-                    if (typeof url === 'string') {
-                        if (url.includes('/api/conversations') && url.includes('/messages')) {
-                            return new Response(JSON.stringify({
-                                success: true,
-                                data: [
-                                    { id: 101, content: 'Chào bạn! Bạn có tài liệu môn Lập trình Web không?', createdAt: '2026-10-11T10:00:00Z', sender: { id: 2, displayName: 'Trần Thị B', username: 'tranthib' } },
-                                    { id: 102, content: 'Chào B, mình có slide bài giảng và bài tập thực hành nhé!', createdAt: '2026-10-11T10:02:00Z', sender: { id: 1, displayName: 'Nguyễn Văn A', username: 'nguyen_van_a' } }
-                                ],
-                                meta: { page: 0, hasNext: false }
-                            }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-                        }
-                        if (url.includes('/api/conversations/1')) {
-                            return new Response(JSON.stringify({
-                                success: true,
-                                data: { id: 1, name: 'Trần Thị B', otherParticipant: { id: 2, displayName: 'Trần Thị B', username: 'tranthib' } }
-                            }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-                        }
-                        if (url.includes('/api/conversations')) {
-                            return new Response(JSON.stringify({
-                                success: true,
-                                data: [
-                                    { id: 1, name: 'Trần Thị B', otherParticipant: { id: 2, displayName: 'Trần Thị B', username: 'tranthib' }, unreadCount: 1, lastMessage: { content: 'Chào B, mình có slide...', createdAt: '2026-10-11T10:02:00Z' } },
-                                    { id: 2, name: 'CLB Tin học AloUTE', members: [{ id: 1 }, { id: 3, username: 'admin' }], unreadCount: 0, lastMessage: null }
-                                ],
-                                meta: { page: 0, hasNext: false }
-                            }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-                        }
-                    }
-                    return originalFetch ? originalFetch.apply(this, arguments) : Promise.reject(new Error('Mock unhandled'));
-                };
-            })();
-            </script>
-            """;
-        htmlMsgPop = htmlMsgPop.replace("</body>", mockTransportPop + "\n</body>");
-        Files.writeString(fixturesDir.resolve("messaging-populated.html"), htmlMsgPop, StandardCharsets.UTF_8);
-
-        // 6. Messaging Empty
-        WebContext ctxMsgEmpty = createWebContext();
-        ctxMsgEmpty.setVariable("currentUser", currentUser);
-        ctxMsgEmpty.setVariable("currentConversation", null);
-        ctxMsgEmpty.setVariable("title", "Tin nhắn — AloUTE");
-        String htmlMsgEmpty = rewriteAssetPaths(templateEngine.process("messaging/index", ctxMsgEmpty));
-        String mockTransportEmpty = """
-            <script>
-            /* FIXTURE SMOKE ONLY: Test-only deterministic empty mock transport */
-            (function() {
-                window.fetch = async function(url) {
-                    return new Response(JSON.stringify({
-                        success: true,
-                        data: [],
-                        meta: { page: 0, hasNext: false }
-                    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-                };
-            })();
-            </script>
-            """;
-        htmlMsgEmpty = htmlMsgEmpty.replace("</body>", mockTransportEmpty + "\n</body>");
-        Files.writeString(fixturesDir.resolve("messaging-empty.html"), htmlMsgEmpty, StandardCharsets.UTF_8);
-
-        // 7. Error 404
-        WebContext ctx404 = createWebContext();
-        ctx404.setVariable("path", "/communities/khong-ton-tai");
-        ctx404.setVariable("currentUser", null);
-        String html404 = rewriteAssetPaths(templateEngine.process("error/404", ctx404));
-        Files.writeString(fixturesDir.resolve("error-404.html"), html404, StandardCharsets.UTF_8);
-
-        // 8. Error 500
-        WebContext ctx500 = createWebContext();
-        ctx500.setVariable("currentUser", null);
-        String html500 = rewriteAssetPaths(templateEngine.process("error/500", ctx500));
-        Files.writeString(fixturesDir.resolve("error-500.html"), html500, StandardCharsets.UTF_8);
-
-        assertThat(Files.exists(fixturesDir.resolve("community-populated.html"))).isTrue();
-        assertThat(Files.exists(fixturesDir.resolve("messaging-populated.html"))).isTrue();
+    @DisplayName("Batch 2: MockMvc GET /search renders search/index template with query and category tabs")
+    void testSearchPageRender() throws Exception {
+        mockMvc.perform(get("/search")
+                        .param("q", "lap-trinh")
+                        .param("category", "all")
+                        .with(authentication(createMockAuth(1L, "sinhvien1"))))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("lap-trinh")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Cộng đồng")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Chủ đề")));
     }
 
-    private String rewriteAssetPaths(String html) {
-        return html
-                .replace("href=\"/css/", "href=\"/src/main/resources/static/css/")
-                .replace("src=\"/css/", "src=\"/src/main/resources/static/css/")
-                .replace("src=\"/js/", "src=\"/src/main/resources/static/js/")
-                .replace("href=\"/js/", "href=\"/src/main/resources/static/js/")
-                .replace("src=\"/images/", "src=\"/src/main/resources/static/images/")
-                .replace("href=\"/images/", "href=\"/src/main/resources/static/images/");
+    @Test
+    @DisplayName("Batch 2: MockMvc GET /topics/{id} renders topic/detail template")
+    void testTopicPageRender() throws Exception {
+        mockMvc.perform(get("/topics/1")
+                        .with(authentication(createMockAuth(1L, "sinhvien1"))))
+                .andExpect(status().isOk());
     }
+
+    @Test
+    @DisplayName("Batch 2: Layout renders Report, Quote, and Create Community modals")
+    void testBatch2ModalsRender() {
+        WebContext ctx = createWebContext();
+        ctx.setVariable("currentUser", null);
+        ctx.setVariable("title", "AloUTE");
+        String html = templateEngine.process("fragments/modal", Collections.singleton("postModals"), ctx);
+        assertThat(html).contains("id=\"reportModal\"");
+        assertThat(html).contains("id=\"quotePostModal\"");
+        assertThat(html).contains("id=\"createCommunityModal\"");
+    }
+
+    @Test
+    @DisplayName("Batch 2: Head title formatting avoids duplicated — AloUTE suffix")
+    void testHeadTitleDeduplication() {
+        WebContext ctx1 = createWebContext();
+        ctx1.setVariable("title", "Tin nhắn");
+        String html1 = templateEngine.process("fragments/head", Collections.singleton("head"), ctx1);
+        assertThat(html1).contains("<title>Tin nhắn — AloUTE</title>");
+
+        WebContext ctx2 = createWebContext();
+        ctx2.setVariable("title", "Tin nhắn — AloUTE");
+        String html2 = templateEngine.process("fragments/head", Collections.singleton("head"), ctx2);
+        assertThat(html2).contains("<title>Tin nhắn — AloUTE</title>");
+        assertThat(html2).doesNotContain("Tin nhắn — AloUTE — AloUTE");
+    }
+
+    @Test
+    @DisplayName("Batch 2: Profile Saved tab is guarded by currentUser.id == profile.id")
+    void testProfileSavedTabOwnershipGuard() {
+        ProfileResponse profileUser = new ProfileResponse(
+                2L, "user2", "Người dùng 2", "Khoa CNTT",
+                null, null, false, false, 10L, 5L, 2L, null
+        );
+        ProfileResponse viewerUser = new ProfileResponse(
+                1L, "user1", "Người dùng 1", "Khoa CNTT",
+                null, null, false, false, 5L, 2L, 1L, null
+        );
+
+        // When viewer != profile owner: saved tab must NOT be rendered
+        WebContext ctxOther = createWebContext();
+        ctxOther.setVariable("profile", profileUser);
+        ctxOther.setVariable("currentUser", viewerUser);
+        ctxOther.setVariable("posts", Collections.emptyList());
+        ctxOther.setVariable("title", profileUser.displayName());
+        String htmlOther = templateEngine.process("user/profile", ctxOther);
+        assertThat(htmlOther).doesNotContain("id=\"tab-saved\"");
+        assertThat(htmlOther).doesNotContain("id=\"pane-saved\"");
+
+        // When viewer == profile owner: saved tab MUST be rendered
+        WebContext ctxOwner = createWebContext();
+        ctxOwner.setVariable("profile", profileUser);
+        ctxOwner.setVariable("currentUser", profileUser);
+        ctxOwner.setVariable("posts", Collections.emptyList());
+        ctxOwner.setVariable("title", profileUser.displayName());
+        String htmlOwner = templateEngine.process("user/profile", ctxOwner);
+        assertThat(htmlOwner).contains("id=\"tab-saved\"");
+        assertThat(htmlOwner).contains("id=\"pane-saved\"");
+    }
+
+    @Test
+    @DisplayName("Batch 2: Search normalizes invalid category and bounds negative page/size")
+    void testSearchNormalizationAndBounds() throws Exception {
+        mockMvc.perform(get("/search")
+                        .param("q", "lap-trinh")
+                        .param("category", "invalid_category")
+                        .param("page", "-5")
+                        .param("size", "1000")
+                        .with(authentication(createMockAuth(1L, "sinhvien1"))))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("lap-trinh")));
+    }
+
+    @Test
+    @DisplayName("Batch 2: Search renders populated communities and pagination links with PageMeta")
+    void testSearchPopulatedAndPagination() throws Exception {
+        CommunityResponse comm = new CommunityResponse(
+                42L, 1L, "CLB Phần mềm", "clb-phan-mem", "Mô tả", null, null, false, 50L, 10L, CommunityRole.MEMBER, false
+        );
+        PageMeta meta = new PageMeta(0, 10, 25L, 3, false, true);
+        when(communityService.list(eq("phan-mem"), eq(0), eq(10), any()))
+                .thenReturn(ApiResponse.success(List.of(comm), meta));
+
+        mockMvc.perform(get("/search")
+                        .param("q", "phan-mem")
+                        .param("category", "communities")
+                        .param("page", "0")
+                        .param("size", "10")
+                        .with(authentication(createMockAuth(1L, "sinhvien1"))))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("CLB Phần mềm")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/search?q=phan-mem&amp;category=communities&amp;page=1")));
+    }
+
+    @Test
+    @DisplayName("Batch 2: Search renders retry alert on service failure without false empty state")
+    void testSearchServiceErrorDistinction() throws Exception {
+        when(communityService.list(eq("error-query"), anyInt(), anyInt(), any()))
+                .thenThrow(new RuntimeException("Database timeout"));
+
+        mockMvc.perform(get("/search")
+                        .param("q", "error-query")
+                        .param("category", "communities")
+                        .with(authentication(createMockAuth(1L, "sinhvien1"))))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Không thể tải danh sách cộng đồng lúc này")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Không tìm thấy cộng đồng nào phù hợp"))));
+    }
+
+    @Test
+    @DisplayName("Batch 2: Topic detail preserves topic metadata when posts service fails and renders retry alert")
+    void testTopicPagePostsServiceFailure() throws Exception {
+        TopicResponse topic = new TopicResponse(10L, "Trí tuệ nhân tạo", "tri-tue-nhan-tao");
+        when(topicService.get(10L)).thenReturn(topic);
+        when(postService.topicPosts(eq(10L), anyInt(), anyInt(), any()))
+                .thenThrow(new RuntimeException("Post service unreachable"));
+
+        mockMvc.perform(get("/topics/10")
+                        .with(authentication(createMockAuth(1L, "sinhvien1"))))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Trí tuệ nhân tạo")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Không thể tải danh sách bài viết thuộc chủ đề lúc này")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Chưa có bài viết nào trong chủ đề này"))));
+    }
+
+    @Test
+    @DisplayName("Batch 2: Interaction bar quote button is strictly fail-closed")
+    void testQuoteButtonFailClosedGate() {
+        // Case A: allowQuote = true and canQuote = true -> quote button present
+        PostResponse postWithQuote = createSamplePost(101L, "Allowed quote post", Instant.now());
+        WebContext ctxA = createWebContext();
+        ctxA.setVariable("post", postWithQuote);
+        String htmlA = templateEngine.process("post/_interaction-bar", Collections.singleton("interactionBar"), ctxA);
+        assertThat(htmlA).contains("interaction-btn-quote");
+        assertThat(htmlA).contains("data-action=\"open-quote-modal\"");
+
+        // Case B: allowQuote = true but capabilities is null -> MUST FAIL CLOSED
+        UserSummary author = new UserSummary(10L, "sinhvien_ute", "Nguyễn Văn Sinh Viên", "/images/avatar-fallback.svg", true);
+        PostViewerStateResponse viewerState = new PostViewerStateResponse(false, false, false);
+        PostResponse postNullCaps = new PostResponse(
+                102L, author, "Null caps post", null, null, null,
+                PostVisibility.PUBLIC, true, true, Collections.emptyList(), Collections.emptyList(), null,
+                0L, 0L, 0L, 0L, 0L, viewerState, null, Instant.now(), Instant.now()
+        );
+        WebContext ctxB = createWebContext();
+        ctxB.setVariable("post", postNullCaps);
+        String htmlB = templateEngine.process("post/_interaction-bar", Collections.singleton("interactionBar"), ctxB);
+        assertThat(htmlB).doesNotContain("interaction-btn-quote");
+        assertThat(htmlB).doesNotContain("open-quote-modal");
+
+        // Case C: allowQuote = true but canQuote = false -> fail closed
+        PostCapabilitiesResponse noQuoteCaps = new PostCapabilitiesResponse(true, true, true, false);
+        PostResponse postCannotQuote = new PostResponse(
+                103L, author, "Cannot quote post", null, null, null,
+                PostVisibility.PUBLIC, true, true, Collections.emptyList(), Collections.emptyList(), null,
+                0L, 0L, 0L, 0L, 0L, viewerState, noQuoteCaps, Instant.now(), Instant.now()
+        );
+        WebContext ctxC = createWebContext();
+        ctxC.setVariable("post", postCannotQuote);
+        String htmlC = templateEngine.process("post/_interaction-bar", Collections.singleton("interactionBar"), ctxC);
+        assertThat(htmlC).doesNotContain("interaction-btn-quote");
+        assertThat(htmlC).doesNotContain("open-quote-modal");
+
+        // Case D: allowQuote = false -> fail closed
+        PostResponse postQuoteDisabled = new PostResponse(
+                104L, author, "Quote disabled post", null, null, null,
+                PostVisibility.PUBLIC, true, false, Collections.emptyList(), Collections.emptyList(), null,
+                0L, 0L, 0L, 0L, 0L, viewerState, new PostCapabilitiesResponse(true, true, true, true), Instant.now(), Instant.now()
+        );
+        WebContext ctxD = createWebContext();
+        ctxD.setVariable("post", postQuoteDisabled);
+        String htmlD = templateEngine.process("post/_interaction-bar", Collections.singleton("interactionBar"), ctxD);
+        assertThat(htmlD).doesNotContain("interaction-btn-quote");
+        assertThat(htmlD).doesNotContain("open-quote-modal");
+    }
+
+    @Test
+    @DisplayName("Batch 2: Profile renders honest unavailable states for Replies, Media, and Saved tabs")
+    void testProfileUnavailableStatesRender() {
+        ProfileResponse profileUser = new ProfileResponse(
+                1L, "sinhvien1", "Sinh Viên 1", "Khoa CNTT",
+                null, null, false, false, 10L, 5L, 2L, null
+        );
+        WebContext ctx = createWebContext();
+        ctx.setVariable("profile", profileUser);
+        ctx.setVariable("currentUser", profileUser);
+        ctx.setVariable("posts", Collections.emptyList());
+        ctx.setVariable("title", profileUser.displayName());
+
+        String html = templateEngine.process("user/profile", ctx);
+
+        assertThat(html).contains("Danh sách phản hồi chưa khả dụng");
+        assertThat(html).contains("Danh sách đa phương tiện chưa khả dụng");
+        assertThat(html).contains("Danh sách bài viết đã lưu chưa khả dụng");
+        assertThat(html).doesNotContain("Chưa có phản hồi nào");
+        assertThat(html).doesNotContain("Chưa có tệp đa phương tiện nào");
+        assertThat(html).doesNotContain("Chưa có bài viết đã lưu nào");
+    }
+
+    @Test
+    @DisplayName("Batch 2: Search size parameter is clamped to 100 max and preserved across form, tabs, and pagination")
+    void testSearchSizeBoundedAndPreservedInLinks() throws Exception {
+        CommunityResponse comm = new CommunityResponse(
+                42L, 1L, "CLB Phần mềm", "clb-phan-mem", "Mô tả", null, null, false, 50L, 10L, CommunityRole.MEMBER, false
+        );
+        PageMeta meta = new PageMeta(0, 10, 25L, 3, false, true);
+        when(communityService.list(eq("phan-mem"), eq(0), eq(10), any()))
+                .thenReturn(ApiResponse.success(List.of(comm), meta));
+
+        // Request with size=10
+        mockMvc.perform(get("/search")
+                        .param("q", "phan-mem")
+                        .param("category", "communities")
+                        .param("page", "0")
+                        .param("size", "10")
+                        .with(authentication(createMockAuth(1L, "sinhvien1"))))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"size\" value=\"10\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("size=10")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/search?q=phan-mem&amp;category=communities&amp;page=1&amp;size=10")));
+
+        // Request with size=500 -> must clamp to max 100
+        mockMvc.perform(get("/search")
+                        .param("q", "phan-mem")
+                        .param("category", "communities")
+                        .param("size", "500")
+                        .with(authentication(createMockAuth(1L, "sinhvien1"))))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"size\" value=\"100\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("size=100")));
+    }
+
+    @Test
+    @DisplayName("Batch 2: Quote post modal supports PUBLIC and FOLLOWERS visibility and excludes COMMUNITY_ONLY")
+    void testQuoteModalVisibilityOptions() {
+        WebContext ctx = createWebContext();
+        ctx.setVariable("currentUser", null);
+
+        String html = templateEngine.process("fragments/modal", ctx);
+
+        assertThat(html).contains("id=\"quotePostModal\"");
+        assertThat(html).contains("id=\"quote-post-visibility\"");
+        assertThat(html).contains("value=\"PUBLIC\"");
+        assertThat(html).contains("value=\"FOLLOWERS\"");
+        assertThat(html).doesNotContain("COMMUNITY_ONLY");
+    }
+
+    @Test
+    @DisplayName("Poll: post/_post-card renders single-choice open poll with radio inputs and without closed badge")
+    void testPollSingleChoiceOpenRender() {
+        List<PollOptionResponse> options = List.of(
+                new PollOptionResponse(101L, "Lựa chọn 1", 5, false),
+                new PollOptionResponse(102L, "Lựa chọn 2", 3, false)
+        );
+        PollResponse poll = new PollResponse(
+                50L, "Bạn thích ngôn ngữ nào?", false,
+                Instant.now().plusSeconds(86400), Instant.now().plusSeconds(86400),
+                8, null, options
+        );
+        PostResponse postWithPoll = new PostResponse(
+                1L, new UserSummary(1L, "u1", "U1", null, true), "Bài viết có poll",
+                null, null, null, PostVisibility.PUBLIC, true, true,
+                Collections.emptyList(), Collections.emptyList(), poll,
+                0L, 0L, 0L, 0L, 0L,
+                new PostViewerStateResponse(false, false, false),
+                new PostCapabilitiesResponse(true, true, true, true),
+                Instant.now(), Instant.now()
+        );
+
+        WebContext ctx = createWebContext();
+        ctx.setVariable("post", postWithPoll);
+
+        String html = templateEngine.process("post/_post-card", Collections.singleton("postCard"), ctx);
+
+        assertThat(html).contains("Bạn thích ngôn ngữ nào?");
+        assertThat(html).contains("class=\"poll-vote-form");
+        assertThat(html).contains("type=\"radio\"");
+        assertThat(html).contains("data-allow-multiple=\"false\"");
+        assertThat(html).contains("data-is-closed=\"false\"");
+        assertThat(html).doesNotContain("Đã kết thúc");
+    }
+
+    @Test
+    @DisplayName("Poll: post/_post-card renders multiple-choice open poll with checkbox inputs")
+    void testPollMultipleChoiceOpenRender() {
+        List<PollOptionResponse> options = List.of(
+                new PollOptionResponse(201L, "Java", 10, false),
+                new PollOptionResponse(202L, "TypeScript", 15, false)
+        );
+        PollResponse poll = new PollResponse(
+                60L, "Công nghệ bạn đang dùng?", true,
+                Instant.now().plusSeconds(86400), Instant.now().plusSeconds(86400),
+                25, null, options
+        );
+        PostResponse postWithPoll = new PostResponse(
+                2L, new UserSummary(1L, "u1", "U1", null, true), "Bài viết multi poll",
+                null, null, null, PostVisibility.PUBLIC, true, true,
+                Collections.emptyList(), Collections.emptyList(), poll,
+                0L, 0L, 0L, 0L, 0L,
+                new PostViewerStateResponse(false, false, false),
+                new PostCapabilitiesResponse(true, true, true, true),
+                Instant.now(), Instant.now()
+        );
+
+        WebContext ctx = createWebContext();
+        ctx.setVariable("post", postWithPoll);
+
+        String html = templateEngine.process("post/_post-card", Collections.singleton("postCard"), ctx);
+
+        assertThat(html).contains("Công nghệ bạn đang dùng?");
+        assertThat(html).contains("type=\"checkbox\"");
+        assertThat(html).contains("data-allow-multiple=\"true\"");
+        assertThat(html).contains("data-is-closed=\"false\"");
+        assertThat(html).doesNotContain("Đã kết thúc");
+    }
+
+    @Test
+    @DisplayName("Poll: post/_post-card renders closed expired poll with badge and results even if unvoted")
+    void testPollClosedExpiredRender() {
+        List<PollOptionResponse> options = List.of(
+                new PollOptionResponse(301L, "Phương án A", 12, false),
+                new PollOptionResponse(302L, "Phương án B", 8, false)
+        );
+        PollResponse poll = new PollResponse(
+                70L, "Bình chọn đã hết hạn?", false,
+                Instant.now().minusSeconds(3600), Instant.now().minusSeconds(3600),
+                20, null, options
+        );
+        PostResponse postWithPoll = new PostResponse(
+                3L, new UserSummary(1L, "u1", "U1", null, true), "Bài viết poll đóng",
+                null, null, null, PostVisibility.PUBLIC, true, true,
+                Collections.emptyList(), Collections.emptyList(), poll,
+                0L, 0L, 0L, 0L, 0L,
+                new PostViewerStateResponse(false, false, false),
+                new PostCapabilitiesResponse(true, true, true, true),
+                Instant.now(), Instant.now()
+        );
+
+        WebContext ctx = createWebContext();
+        ctx.setVariable("post", postWithPoll);
+
+        String html = templateEngine.process("post/_post-card", Collections.singleton("postCard"), ctx);
+
+        assertThat(html).contains("Bình chọn đã hết hạn?");
+        assertThat(html).contains("Đã kết thúc");
+        assertThat(html).contains("data-is-closed=\"true\"");
+        assertThat(html).contains("class=\"poll-results");
+        assertThat(html).doesNotContain("class=\"poll-vote-form");
+    }
+
+    @Test
+    @DisplayName("Profile: user/profile renders retry alert when postsError is true without false empty state")
+    void testProfilePostsServiceFailureFixture() {
+        ProfileResponse profileUser = new ProfileResponse(
+                1L, "sinhvien1", "Sinh Viên 1", "Khoa CNTT",
+                null, null, false, false, 10L, 5L, 2L, null
+        );
+        WebContext ctx = createWebContext();
+        ctx.setVariable("profile", profileUser);
+        ctx.setVariable("currentUser", profileUser);
+        ctx.setVariable("postsError", true);
+        ctx.setVariable("profilePosts", null);
+        ctx.setVariable("title", profileUser.displayName());
+
+        String html = templateEngine.process("user/profile", ctx);
+
+        assertThat(html).contains("Không thể tải danh sách bài viết vào lúc này");
+        assertThat(html).doesNotContain("Chưa có bài viết nào");
+        assertThat(html).doesNotContain("Danh sách bài viết chưa khả dụng");
+    }
+
+    @Test
+    @DisplayName("Profile: user/profile renders retry alert when savedPostsError is true without false empty state")
+    void testProfileSavedPostsServiceFailureFixture() {
+        ProfileResponse profileUser = new ProfileResponse(
+                1L, "sinhvien1", "Sinh Viên 1", "Khoa CNTT",
+                null, null, false, false, 10L, 5L, 2L, null
+        );
+        WebContext ctx = createWebContext();
+        ctx.setVariable("profile", profileUser);
+        ctx.setVariable("currentUser", profileUser);
+        ctx.setVariable("savedPostsError", true);
+        ctx.setVariable("savedPosts", null);
+        ctx.setVariable("title", profileUser.displayName());
+
+        String html = templateEngine.process("user/profile", ctx);
+
+        assertThat(html).contains("Không thể tải danh sách bài viết đã lưu vào lúc này");
+        assertThat(html).doesNotContain("Chưa có bài viết đã lưu nào");
+        assertThat(html).doesNotContain("Danh sách bài viết đã lưu chưa khả dụng");
+    }
+
+    @Test
+    @DisplayName("MockMvc GET /users/{username} gracefully degrades with HTTP 200 and postsError alert on post service failure")
+    void testMockMvcProfilePostServiceFailure() throws Exception {
+        ProfileResponse profile = new ProfileResponse(
+                99L, "error_user", "Error User", "Khoa CNTT",
+                null, null, false, false, 0L, 0L, 0L, null
+        );
+        when(userService.getProfileByUsername("error_user")).thenReturn(profile);
+        when(postService.userPosts(eq(99L), anyInt(), anyInt(), any())).thenThrow(new RuntimeException("Post service down"));
+
+        mockMvc.perform(get("/users/error_user")
+                        .with(authentication(createMockAuth(1L, "viewer"))))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Không thể tải danh sách bài viết vào lúc này")));
+    }
+
 }

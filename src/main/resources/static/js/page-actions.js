@@ -9,6 +9,91 @@
 (function () {
     'use strict';
 
+    if (typeof window !== 'undefined' && window.__aloutePageActionsInitialized) return;
+    if (typeof window !== 'undefined') window.__aloutePageActionsInitialized = true;
+
+    // Keyed mutation locks to prevent race conditions & duplicate API submissions
+    const pendingLocks = new Set();
+    function acquireLock(key) {
+        if (pendingLocks.has(key)) return false;
+        pendingLocks.add(key);
+        return true;
+    }
+    function releaseLock(key) {
+        pendingLocks.delete(key);
+    }
+
+    // Modal freeze helpers to prevent backdrop/escape/cancel dismissal during active mutations
+    function freezeModal(modalEl, isFrozen) {
+        if (!modalEl) return;
+        modalEl.dataset.isFrozen = isFrozen ? 'true' : 'false';
+        const closeButtons = modalEl.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
+        closeButtons.forEach(btn => {
+            if (isFrozen) {
+                btn.setAttribute('disabled', 'true');
+            } else {
+                btn.removeAttribute('disabled');
+            }
+        });
+    }
+
+    function attachModalFreezeProtection(modalEl) {
+        if (!modalEl || modalEl.dataset.freezeAttached) return;
+        modalEl.dataset.freezeAttached = 'true';
+        modalEl.addEventListener('hide.bs.modal', function (e) {
+            if (modalEl.dataset.isFrozen === 'true') {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        });
+    }
+
+    // Modal session and lifecycle tracking to prevent stale callbacks and transition races
+    let reportModalSession = 0;
+    let quoteModalSession = 0;
+    let reportFormState = 'idle'; // 'idle' | 'pending' | 'confirmed' | 'closing'
+    const reportedTargetsInSession = new Set();
+    let quoteFormState = 'idle'; // 'idle' | 'pending' | 'confirmed-navigating'
+
+    let reportModalLifecycle = {
+        isShowing: false,
+        isShown: false,
+        isClosing: false,
+        dismissOnShown: false,
+        queuedOpen: null,
+        activeSession: 0
+    };
+
+    let quoteModalLifecycle = {
+        isShowing: false,
+        isShown: false,
+        dismissOnShown: false
+    };
+
+    // Positive safe-integer scalar check (strictly no coercion from boolean, string, array)
+    function isPositiveSafeInteger(val) {
+        return typeof val === 'number' && Number.isInteger(val) && val > 0 && Number.isSafeInteger(val);
+    }
+
+    // SSR authenticated viewer ID helper (strict canonical safe integer, no prefix acceptance)
+    function getCurrentUserId() {
+        const raw = (typeof document !== 'undefined' && document.body && document.body.dataset && document.body.dataset.currentUserId) ||
+            (typeof document !== 'undefined' && document.querySelector('[data-current-user-id]') && document.querySelector('[data-current-user-id]').getAttribute('data-current-user-id'));
+        if (typeof raw !== 'string') return null;
+        const trimmed = raw.trim();
+        if (!/^[1-9]\d*$/.test(trimmed)) return null;
+        const parsed = Number(trimmed);
+        return isPositiveSafeInteger(parsed) ? parsed : null;
+    }
+
+    // Shared transport accessor: requires window.alouteHttp with .request
+    function getHttp() {
+        if (typeof window !== 'undefined' && window.alouteHttp && typeof window.alouteHttp.request === 'function') {
+            return window.alouteHttp;
+        }
+        return null;
+    }
+
     // Accessible floating toast notification helper
     function notice(message, type) {
         let box = document.getElementById('aloute-toast-notice');
@@ -89,6 +174,13 @@
         if (code === 'FOLLOW_SELF_NOT_ALLOWED' || code === 'SOCIAL_FOLLOW_SELF_NOT_ALLOWED') return 'Bạn không thể tự theo dõi chính mình.';
         if (code === 'INTERNAL_SERVER_ERROR') return 'Hệ thống đang gặp sự cố. Vui lòng thử lại sau.';
         if (code === 'ACCESS_DENIED') return 'Bạn không có quyền thực hiện thao tác này.';
+        if (code === 'COMMUNITY_NOT_FOUND') return 'Không tìm thấy cộng đồng.';
+        if (code === 'COMMUNITY_NAME_DUPLICATED' || code === 'COMMUNITY_NAME_ALREADY_EXISTS') return 'Tên cộng đồng đã được sử dụng.';
+        if (code === 'COMMUNITY_SLUG_DUPLICATED' || code === 'COMMUNITY_SLUG_ALREADY_EXISTS') return 'Đường dẫn (slug) cộng đồng đã được sử dụng.';
+        if (code === 'COMMUNITY_MEMBER_ALREADY_EXISTS') return 'Bạn đã là thành viên của cộng đồng này.';
+        if (code === 'COMMUNITY_MEMBER_NOT_FOUND') return 'Bạn chưa tham gia cộng đồng này.';
+        if (code === 'POST_NOT_FOUND') return 'Bài viết không tồn tại.';
+        if (code === 'REPORT_ALREADY_EXISTS') return 'Bạn đã gửi báo cáo cho nội dung này trước đó.';
 
         // Safe translations for known English messages
         if (message === 'Invalid email or password' || message === 'Invalid credentials' || message === 'Bad credentials') {
@@ -611,6 +703,59 @@
         }
     }
 
+    // Report Modal Open Target (module-scoped for both click handler and hidden.bs.modal listener)
+    function openReportTarget(reportType, reportedId, reportedName) {
+        if (isPositiveSafeInteger(reportedId)) {
+            const targetKey = (reportType === 'user' ? 'user' : 'post') + ':' + reportedId;
+            if (reportedTargetsInSession.has(targetKey)) {
+                notice('Bạn đã báo cáo đối tượng này trong phiên làm việc hiện tại.', 'info');
+                return;
+            }
+        }
+        reportFormState = 'idle';
+        reportModalLifecycle.isClosing = false;
+        reportModalLifecycle.dismissOnShown = false;
+        reportModalSession++;
+        reportModalLifecycle.activeSession = reportModalSession;
+
+        const modalEl = document.getElementById('reportModal');
+        const typeInput = document.getElementById('report-target-type');
+        const idInput = document.getElementById('report-target-id');
+        const previewEl = document.getElementById('report-target-preview');
+        const reasonSelect = document.getElementById('report-reason');
+        const descEl = document.getElementById('report-description');
+        const descChar = document.getElementById('report-char-count');
+        const statusEl = document.getElementById('report-status');
+        const reasonErr = document.getElementById('report-reason-error');
+        const submitBtn = document.getElementById('btn-submit-report');
+        const spinner = document.getElementById('report-spinner');
+        const btnText = document.getElementById('report-btn-text');
+
+        if (typeInput) typeInput.value = reportType;
+        if (idInput) idInput.value = isPositiveSafeInteger(reportedId) ? String(reportedId) : '';
+        if (previewEl) {
+            previewEl.textContent = reportType === 'user'
+                ? ('Người dùng: ' + (reportedName || ('ID #' + reportedId)))
+                : ('Bài viết #' + reportedId + (reportedName ? (' (' + reportedName + ')') : ''));
+        }
+        if (reasonSelect) {
+            reasonSelect.value = '';
+            reasonSelect.classList.remove('is-invalid');
+        }
+        if (descEl) descEl.value = '';
+        if (descChar) descChar.textContent = '0';
+        if (statusEl) statusEl.className = 'alert d-none py-2 small mb-3';
+        if (reasonErr) reasonErr.classList.add('d-none');
+        if (submitBtn) submitBtn.removeAttribute('disabled');
+        if (spinner) spinner.classList.add('d-none');
+        if (btnText) btnText.textContent = 'Gửi báo cáo';
+
+        if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+            const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+        }
+    }
+
     // =========================================================================
     // 4. GLOBAL ACTION DELEGATION
     // =========================================================================
@@ -733,23 +878,1218 @@
             return;
         }
 
+        // P1-B: Join Community
+        if (action === 'join-community') {
+            event.preventDefault();
+            const communityId = parseInt(target.getAttribute('data-community-id'), 10);
+            if (!isPositiveSafeInteger(communityId)) return;
+
+            const lockKey = 'community:join:' + communityId;
+            if (!acquireLock(lockKey)) return;
+
+            const http = getHttp();
+            if (!http) {
+                releaseLock(lockKey);
+                notice('Lỗi kết nối ứng dụng.', 'danger');
+                return;
+            }
+
+            target.setAttribute('disabled', 'true');
+            const originalHtml = target.innerHTML;
+            target.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Đang tham gia...';
+
+            (async function () {
+                try {
+                    const response = await http.request('/api/communities/' + encodeURIComponent(communityId) + '/join', {
+                        method: 'POST'
+                    });
+                    const body = await http.readJson(response);
+
+                    // Strict canonical CommunityMembershipResponse confirmation:
+                    // 1. EXACT HTTP 200 (rejects 201, 204, etc.)
+                    // 2. body.success === true
+                    // 3. body.data has canonical membership identity:
+                    //    - communityId is positive safe integer matching requested communityId
+                    //    - role is valid enum: MEMBER, MODERATOR, ADMIN
+                    //    - user is object with positive safe integer id matching authenticated currentUserId (strict, no legacy fallback, no viewer bypass)
+                    //    - joinedAt is valid date-time string
+                    const data = body && body.data;
+                    const authUserId = getCurrentUserId();
+                    const isValidCommunityId = !!(data && isPositiveSafeInteger(data.communityId) && data.communityId === communityId);
+                    const isValidRole = !!(data && typeof data.role === 'string' && ['MEMBER', 'MODERATOR', 'ADMIN'].includes(data.role));
+                    const isValidUser = !!(data && data.user &&
+                        isPositiveSafeInteger(data.user.id) &&
+                        typeof data.user.username === 'string' &&
+                        data.user.username.trim().length > 0 &&
+                        authUserId !== null &&
+                        data.user.id === authUserId);
+                    const isValidJoinedAt = !!(data && typeof data.joinedAt === 'string' && !isNaN(Date.parse(data.joinedAt)));
+
+                    const hasOwnNullMeta = !!(body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, 'meta') && body.meta === null);
+
+                    const isSuccess = response.status === 200 &&
+                        body && body.success === true &&
+                        hasOwnNullMeta &&
+                        isValidCommunityId &&
+                        isValidRole &&
+                        isValidUser &&
+                        isValidJoinedAt;
+
+                    if (isSuccess) {
+                        target.removeAttribute('disabled');
+                        target.className = 'btn btn-sm btn-outline-danger rounded-pill px-3';
+                        target.setAttribute('data-action', 'leave-community');
+                        target.innerHTML = '<i class="bi bi-box-arrow-right me-1" aria-hidden="true"></i>Rời cộng đồng';
+
+                        const countEl = document.getElementById('community-member-count');
+                        if (countEl) {
+                            const cur = parseInt(countEl.textContent, 10) || 0;
+                            countEl.textContent = String(cur + 1);
+                        }
+                        const statusEl = document.getElementById('community-action-status');
+                        if (statusEl) {
+                            statusEl.className = 'alert alert-success py-2 px-3 small mt-2 mb-2';
+                            statusEl.textContent = 'Bạn đã tham gia cộng đồng thành công.';
+                            statusEl.classList.remove('d-none');
+                        } else {
+                            notice('Tham gia cộng đồng thành công!', 'success');
+                        }
+                    } else {
+                        target.removeAttribute('disabled');
+                        target.innerHTML = originalHtml;
+                        const msg = translateError(body && body.error, 'Không thể tham gia cộng đồng (phản hồi không hợp lệ).');
+                        const statusEl = document.getElementById('community-action-status');
+                        if (statusEl) {
+                            statusEl.className = 'alert alert-danger py-2 px-3 small mt-2 mb-2';
+                            statusEl.textContent = msg;
+                            statusEl.classList.remove('d-none');
+                        }
+                        notice(msg, 'danger');
+                    }
+                } catch (_) {
+                    target.removeAttribute('disabled');
+                    target.innerHTML = originalHtml;
+                    notice('Lỗi kết nối khi tham gia cộng đồng.', 'danger');
+                } finally {
+                    releaseLock(lockKey);
+                }
+            })();
+            return;
+        }
+
+        // P1-B: Leave Community
+        if (action === 'leave-community') {
+            event.preventDefault();
+            const communityId = parseInt(target.getAttribute('data-community-id'), 10);
+            if (!isPositiveSafeInteger(communityId)) return;
+
+            const lockKey = 'community:leave:' + communityId;
+            if (!acquireLock(lockKey)) return;
+
+            if (!confirm('Bạn có chắc chắn muốn rời khỏi cộng đồng này?')) {
+                releaseLock(lockKey);
+                return;
+            }
+
+            const http = getHttp();
+            if (!http) {
+                releaseLock(lockKey);
+                notice('Lỗi kết nối ứng dụng.', 'danger');
+                return;
+            }
+
+            target.setAttribute('disabled', 'true');
+            const originalHtml = target.innerHTML;
+            target.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Đang rời...';
+
+            (async function () {
+                try {
+                    const response = await http.request('/api/communities/' + encodeURIComponent(communityId) + '/members/me', {
+                        method: 'DELETE'
+                    });
+
+                    // Strict confirmation:
+                    // MUST be exact HTTP 204 No Content! Reject 200 HTML/JSON/201!
+                    if (response.status === 204) {
+                        target.removeAttribute('disabled');
+                        target.className = 'btn btn-sm btn-primary rounded-pill px-3';
+                        target.setAttribute('data-action', 'join-community');
+                        target.innerHTML = '<i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Tham gia';
+
+                        const countEl = document.getElementById('community-member-count');
+                        if (countEl) {
+                            const cur = parseInt(countEl.textContent, 10) || 0;
+                            countEl.textContent = String(Math.max(0, cur - 1));
+                        }
+                        const statusEl = document.getElementById('community-action-status');
+                        if (statusEl) {
+                            statusEl.className = 'alert alert-info py-2 px-3 small mt-2 mb-2';
+                            statusEl.textContent = 'Bạn đã rời khỏi cộng đồng.';
+                            statusEl.classList.remove('d-none');
+                        } else {
+                            notice('Đã rời khỏi cộng đồng.', 'info');
+                        }
+                    } else {
+                        target.removeAttribute('disabled');
+                        target.innerHTML = originalHtml;
+                        const body = await http.readJson(response);
+                        const msg = translateError(body && body.error, 'Không thể rời cộng đồng (phản hồi không hợp lệ).');
+                        const statusEl = document.getElementById('community-action-status');
+                        if (statusEl) {
+                            statusEl.className = 'alert alert-danger py-2 px-3 small mt-2 mb-2';
+                            statusEl.textContent = msg;
+                            statusEl.classList.remove('d-none');
+                        }
+                        notice(msg, 'danger');
+                    }
+                } catch (_) {
+                    target.removeAttribute('disabled');
+                    target.innerHTML = originalHtml;
+                    notice('Lỗi kết nối khi rời cộng đồng.', 'danger');
+                } finally {
+                    releaseLock(lockKey);
+                }
+            })();
+            return;
+        }
+
+        // P1-C: Open Report Modal
+        if (action === 'open-report-modal') {
+            event.preventDefault();
+            const modalEl = document.getElementById('reportModal');
+            if (modalEl && modalEl.dataset.isFrozen === 'true') {
+                // Pending request in flight: do NOT retarget or reset inputs!
+                return;
+            }
+            if (reportFormState === 'pending') {
+                return;
+            }
+
+            const reportType = target.getAttribute('data-report-type') || 'post';
+            const reportedIdRaw = target.getAttribute('data-reported-id');
+            const reportedId = parseInt(reportedIdRaw, 10);
+            const reportedName = target.getAttribute('data-reported-name') || '';
+
+            if (reportFormState === 'closing' || reportModalLifecycle.isClosing) {
+                // Async hide in flight: queue target and open cleanly once hidden
+                reportModalLifecycle.queuedOpen = {
+                    reportType: reportType,
+                    reportedId: reportedId,
+                    reportedName: reportedName
+                };
+                return;
+            }
+
+            openReportTarget(reportType, reportedId, reportedName);
+            return;
+        }
+
+        // P2-A: Open Quote Modal
+        if (action === 'open-quote-modal') {
+            event.preventDefault();
+            const modalEl = document.getElementById('quotePostModal');
+            if (modalEl && modalEl.dataset.isFrozen === 'true') {
+                // Pending request in flight: do NOT retarget or reset inputs!
+                return;
+            }
+            if (quoteFormState === 'pending' || quoteFormState === 'confirmed-navigating') {
+                return;
+            }
+            quoteFormState = 'idle';
+            quoteModalSession++;
+
+            const postIdRaw = target.getAttribute('data-post-id');
+            const postId = parseInt(postIdRaw, 10);
+            const author = target.getAttribute('data-post-author') || 'Tác giả';
+            const username = target.getAttribute('data-post-username') || '';
+            const content = target.getAttribute('data-post-content') || '';
+
+            const idInput = document.getElementById('quote-target-post-id');
+            const previewAuthor = document.getElementById('quoted-preview-author');
+            const previewHandle = document.getElementById('quoted-preview-handle');
+            const previewContent = document.getElementById('quoted-preview-content');
+            const contentInput = document.getElementById('quote-post-content');
+            const statusEl = document.getElementById('quote-post-status');
+            const errEl = document.getElementById('quote-post-error');
+            const visSelect = document.getElementById('quote-post-visibility');
+
+            if (idInput) idInput.value = isPositiveSafeInteger(postId) ? String(postId) : '';
+            if (previewAuthor) previewAuthor.textContent = author;
+            if (previewHandle) previewHandle.textContent = username ? ('@' + username) : '';
+            if (previewContent) previewContent.textContent = content || '(Nội dung không có chữ)';
+            if (contentInput) {
+                contentInput.value = '';
+                contentInput.classList.remove('is-invalid');
+            }
+            if (visSelect) visSelect.value = 'PUBLIC';
+            if (statusEl) statusEl.className = 'alert d-none py-2 small mb-3';
+            if (errEl) errEl.classList.add('d-none');
+
+            if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+                const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+            }
+            return;
+        }
+
         // Preserved inert non-scope actions
         event.preventDefault();
         const nonScopeLabels = {
-            'topic': 'Topic/Community thuộc module Ngọc chưa được ghép.'
+            'topic': 'Chức năng chủ đề.'
         };
         notice(nonScopeLabels[action] || ('Nút hoạt động. Chức năng "' + action + '" chưa được ghép trong phạm vi hiện tại.'));
     });
+
+    // P1-B: Initialize Create Community Modal
+    function initCreateCommunityModal() {
+        const form = document.getElementById('create-community-form');
+        const modalEl = document.getElementById('createCommunityModal');
+        if (!form) return;
+
+        if (modalEl) {
+            attachModalFreezeProtection(modalEl);
+        }
+
+        const nameInput = document.getElementById('community-name-input');
+        const slugInput = document.getElementById('community-slug-input');
+        const descInput = document.getElementById('community-description-input');
+        const statusEl = document.getElementById('create-community-status');
+        const submitBtn = document.getElementById('btn-submit-create-community');
+        const spinner = document.getElementById('create-community-spinner');
+        const btnText = document.getElementById('create-community-btn-text');
+        const nameErr = document.getElementById('community-name-error');
+        const slugErr = document.getElementById('community-slug-error');
+        const descChar = document.getElementById('community-desc-char-count');
+
+        if (descInput && descChar) {
+            descInput.addEventListener('input', function () {
+                descChar.textContent = String(descInput.value.length);
+            });
+        }
+
+        if (nameInput && slugInput) {
+            let userEditedSlug = false;
+            slugInput.addEventListener('input', function () {
+                userEditedSlug = slugInput.value.trim().length > 0;
+            });
+            nameInput.addEventListener('input', function () {
+                if (!userEditedSlug) {
+                    slugInput.value = nameInput.value
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[đĐ]/g, 'd')
+                        .replace(/[^a-z0-9]+/g, '-')
+                        .replace(/^-+|-+$/g, '')
+                        .slice(0, 50);
+                }
+            });
+        }
+
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const name = (nameInput ? nameInput.value : '').trim();
+            const slug = (slugInput ? slugInput.value : '').trim().toLowerCase();
+            const description = (descInput ? descInput.value : '').trim();
+            const isPrivateRadio = document.querySelector('input[name="isPrivate"]:checked');
+            const isPrivate = isPrivateRadio ? isPrivateRadio.value === 'true' : false;
+
+            let valid = true;
+            if (!name || name.length > 100) {
+                if (nameInput) nameInput.classList.add('is-invalid');
+                if (nameErr) nameErr.classList.remove('d-none');
+                valid = false;
+            } else {
+                if (nameInput) nameInput.classList.remove('is-invalid');
+                if (nameErr) nameErr.classList.add('d-none');
+            }
+
+            if (!slug || slug.length > 100 || !/^[a-z0-9-]+$/.test(slug)) {
+                if (slugInput) slugInput.classList.add('is-invalid');
+                if (slugErr) slugErr.classList.remove('d-none');
+                valid = false;
+            } else {
+                if (slugInput) slugInput.classList.remove('is-invalid');
+                if (slugErr) slugErr.classList.add('d-none');
+            }
+
+            if (!valid) return;
+
+            const lockKey = 'community:create';
+            if (!acquireLock(lockKey)) return;
+
+            const http = getHttp();
+            if (!http) {
+                releaseLock(lockKey);
+                if (statusEl) {
+                    statusEl.className = 'alert alert-danger py-2 small mb-3';
+                    statusEl.textContent = 'Lỗi kết nối ứng dụng.';
+                }
+                return;
+            }
+
+            freezeModal(modalEl, true);
+            if (submitBtn) submitBtn.setAttribute('disabled', 'true');
+            if (spinner) spinner.classList.remove('d-none');
+            if (btnText) btnText.textContent = 'Đang tạo...';
+            if (statusEl) statusEl.className = 'alert d-none py-2 small mb-3';
+
+            try {
+                const response = await http.request('/api/communities', {
+                    method: 'POST',
+                    body: {
+                        name: name,
+                        slug: slug,
+                        description: description || null,
+                        isPrivate: isPrivate
+                    }
+                });
+                const body = await http.readJson(response);
+
+                // Strict confirmation: EXACT HTTP 201 only (rejects 200), success===true, and positive safe integer scalar ID
+                const newId = body && body.data && body.data.id;
+                const isValidId = isPositiveSafeInteger(newId);
+
+                const isSuccess = response.status === 201 &&
+                    body && body.success === true && isValidId;
+
+                if (isSuccess) {
+                    freezeModal(modalEl, false);
+                    if (statusEl) {
+                        statusEl.className = 'alert alert-success py-2 small mb-3';
+                        statusEl.textContent = 'Tạo cộng đồng thành công! Đang chuyển hướng...';
+                    }
+                    setTimeout(function () {
+                        window.location.href = '/communities/' + encodeURIComponent(newId);
+                    }, 500);
+                } else {
+                    // Failure: unfreeze modal, preserve form draft, show diagnostic error
+                    freezeModal(modalEl, false);
+                    if (submitBtn) submitBtn.removeAttribute('disabled');
+                    if (spinner) spinner.classList.add('d-none');
+                    if (btnText) btnText.textContent = 'Tạo cộng đồng';
+                    const msg = translateError(body && body.error, 'Không thể tạo cộng đồng (phản hồi không hợp lệ).');
+                    if (statusEl) {
+                        statusEl.className = 'alert alert-danger py-2 small mb-3';
+                        statusEl.textContent = msg;
+                    }
+                    if (nameInput) nameInput.focus();
+                }
+            } catch (_) {
+                freezeModal(modalEl, false);
+                if (submitBtn) submitBtn.removeAttribute('disabled');
+                if (spinner) spinner.classList.add('d-none');
+                if (btnText) btnText.textContent = 'Tạo cộng đồng';
+                if (statusEl) {
+                    statusEl.className = 'alert alert-danger py-2 small mb-3';
+                    statusEl.textContent = 'Lỗi kết nối máy chủ khi tạo cộng đồng.';
+                }
+                if (nameInput) nameInput.focus();
+            } finally {
+                releaseLock(lockKey);
+            }
+        });
+    }
+
+    // P1-C: Initialize Report Modal
+    function initReportModal() {
+        const form = document.getElementById('report-form');
+        const modalEl = document.getElementById('reportModal');
+        if (!form) return;
+
+        const reasonSelect = document.getElementById('report-reason');
+        const descInput = document.getElementById('report-description');
+        const descChar = document.getElementById('report-char-count');
+        const statusEl = document.getElementById('report-status');
+        const submitBtn = document.getElementById('btn-submit-report');
+        const spinner = document.getElementById('report-spinner');
+        const btnText = document.getElementById('report-btn-text');
+        const reasonErr = document.getElementById('report-reason-error');
+        const typeInput = document.getElementById('report-target-type');
+        const idInput = document.getElementById('report-target-id');
+
+        if (modalEl) {
+            attachModalFreezeProtection(modalEl);
+            modalEl.addEventListener('show.bs.modal', function () {
+                reportModalLifecycle.isShowing = true;
+                reportModalLifecycle.isClosing = false;
+            });
+            modalEl.addEventListener('shown.bs.modal', function () {
+                reportModalLifecycle.isShowing = false;
+                reportModalLifecycle.isShown = true;
+                if (reportModalLifecycle.dismissOnShown || reportFormState === 'closing' || reportFormState === 'confirmed') {
+                    reportModalLifecycle.dismissOnShown = false;
+                    const modal = window.bootstrap && window.bootstrap.Modal && window.bootstrap.Modal.getInstance(modalEl);
+                    if (modal) {
+                        modal.hide();
+                    }
+                }
+            });
+            modalEl.addEventListener('hide.bs.modal', function () {
+                reportModalLifecycle.isClosing = true;
+                reportModalLifecycle.isShown = false;
+            });
+            modalEl.addEventListener('hidden.bs.modal', function () {
+                reportModalLifecycle.isClosing = false;
+                reportModalLifecycle.isShowing = false;
+                reportModalLifecycle.isShown = false;
+                reportModalLifecycle.dismissOnShown = false;
+
+                if (reasonSelect) {
+                    reasonSelect.value = '';
+                    reasonSelect.classList.remove('is-invalid');
+                }
+                if (descInput) descInput.value = '';
+                if (descChar) descChar.textContent = '0';
+                if (statusEl) statusEl.className = 'alert d-none py-2 small mb-3';
+                if (reasonErr) reasonErr.classList.add('d-none');
+                if (submitBtn) submitBtn.removeAttribute('disabled');
+                if (spinner) spinner.classList.add('d-none');
+                if (btnText) btnText.textContent = 'Gửi báo cáo';
+
+                if (reportModalLifecycle.queuedOpen) {
+                    const next = reportModalLifecycle.queuedOpen;
+                    reportModalLifecycle.queuedOpen = null;
+                    openReportTarget(next.reportType, next.reportedId, next.reportedName);
+                } else {
+                    reportFormState = 'idle';
+                }
+            });
+        }
+
+        if (descInput && descChar) {
+            descInput.addEventListener('input', function () {
+                descChar.textContent = String(descInput.value.length);
+            });
+        }
+
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            if (reportFormState === 'pending' || reportFormState === 'confirmed' || reportFormState === 'closing') {
+                return;
+            }
+
+            // Client availability check: fail gracefully if alouteHttp is missing without firing raw fetch
+            const http = getHttp();
+            if (!http) {
+                if (statusEl) {
+                    statusEl.className = 'alert alert-danger py-2 small mb-3';
+                    statusEl.textContent = 'Dịch vụ mạng không khả dụng. Vui lòng tải lại trang.';
+                    statusEl.classList.remove('d-none');
+                }
+                return;
+            }
+
+            const reason = reasonSelect ? reasonSelect.value : '';
+            const validReasons = ['SPAM', 'HARASSMENT', 'HATE', 'MISINFORMATION', 'VIOLENCE', 'OTHER'];
+            if (!reason || !validReasons.includes(reason)) {
+                if (reasonSelect) reasonSelect.classList.add('is-invalid');
+                if (reasonErr) reasonErr.classList.remove('d-none');
+                return;
+            } else {
+                if (reasonSelect) reasonSelect.classList.remove('is-invalid');
+                if (reasonErr) reasonErr.classList.add('d-none');
+            }
+
+            const targetType = typeInput && typeInput.value === 'user' ? 'user' : 'post';
+            const rawId = idInput ? idInput.value.trim() : '';
+            const targetId = /^[1-9]\d*$/.test(rawId) ? Number(rawId) : null;
+            if (!isPositiveSafeInteger(targetId)) {
+                if (statusEl) {
+                    statusEl.className = 'alert alert-danger py-2 small mb-3';
+                    statusEl.textContent = 'Đối tượng báo cáo không hợp lệ.';
+                    statusEl.classList.remove('d-none');
+                }
+                return;
+            }
+
+            const targetKey = targetType + ':' + targetId;
+            if (reportedTargetsInSession.has(targetKey)) {
+                if (statusEl) {
+                    statusEl.className = 'alert alert-info py-2 small mb-3';
+                    statusEl.textContent = 'Bạn đã báo cáo đối tượng này trong phiên làm việc hiện tại.';
+                    statusEl.classList.remove('d-none');
+                }
+                return;
+            }
+
+            const payload = {
+                reason: reason,
+                description: descInput && descInput.value.trim() ? descInput.value.trim() : null
+            };
+            if (targetType === 'user') {
+                payload.reportedUserId = targetId;
+            } else {
+                payload.reportedPostId = targetId;
+            }
+
+            const lockKey = 'report:submit';
+            if (!acquireLock(lockKey)) return;
+
+            reportFormState = 'pending';
+            const currentSession = reportModalSession;
+            freezeModal(modalEl, true);
+            if (submitBtn) submitBtn.setAttribute('disabled', 'true');
+            if (spinner) spinner.classList.remove('d-none');
+            if (btnText) btnText.textContent = 'Đang gửi...';
+            if (statusEl) statusEl.className = 'alert d-none py-2 small mb-3';
+
+            try {
+                const response = await http.request('/api/reports', {
+                    method: 'POST',
+                    body: payload
+                });
+                const body = await http.readJson(response);
+
+                // Exact confirmation status 201 only (reject 200 or anything else)
+                const validReportStatuses = ['PENDING', 'REVIEWED', 'REJECTED', 'RESOLVED'];
+                const reportData = body && body.data;
+                const isValidReportId = !!(reportData && isPositiveSafeInteger(reportData.id));
+                const isValidReason = !!(reportData &&
+                    typeof reportData.reason === 'string' &&
+                    validReasons.includes(reportData.reason) &&
+                    reportData.reason === reason);
+                const isValidStatus = !!(reportData &&
+                    typeof reportData.status === 'string' &&
+                    validReportStatuses.includes(reportData.status));
+                const isValidCreatedAt = !!(reportData &&
+                    typeof reportData.createdAt === 'string' &&
+                    !isNaN(Date.parse(reportData.createdAt)));
+
+                let isTargetReflected = false;
+                if (reportData) {
+                    if (targetType === 'user') {
+                        // user report: reportedUserId matches scalar ID, reportedPostId must be null/absent
+                        isTargetReflected = isPositiveSafeInteger(reportData.reportedUserId) &&
+                            reportData.reportedUserId === targetId &&
+                            (reportData.reportedPostId == null);
+                    } else {
+                        // post report: reportedPostId matches scalar ID, reportedUserId must be null/absent
+                        isTargetReflected = isPositiveSafeInteger(reportData.reportedPostId) &&
+                            reportData.reportedPostId === targetId &&
+                            (reportData.reportedUserId == null);
+                    }
+                }
+
+                const hasOwnNullMeta = !!(body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, 'meta') && body.meta === null);
+
+                const isSuccess = response.status === 201 &&
+                    body && body.success === true &&
+                    hasOwnNullMeta &&
+                    isValidReportId &&
+                    isValidReason &&
+                    isValidStatus &&
+                    isValidCreatedAt &&
+                    isTargetReflected;
+
+                if (isSuccess) {
+                    reportFormState = 'closing';
+                    reportedTargetsInSession.add(targetKey);
+                    freezeModal(modalEl, false);
+                    if (statusEl) {
+                        statusEl.className = 'alert alert-success py-2 small mb-3';
+                        statusEl.textContent = 'Báo cáo của bạn đã được gửi thành công. Cảm ơn bạn!';
+                        statusEl.classList.remove('d-none');
+                    }
+                    if (submitBtn) submitBtn.setAttribute('disabled', 'true');
+                    if (spinner) spinner.classList.add('d-none');
+                    if (btnText) btnText.textContent = 'Đã báo cáo';
+
+                    if (currentSession === reportModalSession) {
+                        notice('Báo cáo đã được ghi nhận.', 'success');
+                        if (reportModalLifecycle.isShowing) {
+                            reportModalLifecycle.dismissOnShown = true;
+                        } else {
+                            if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+                                const modal = window.bootstrap.Modal.getInstance(modalEl);
+                                if (modal) modal.hide();
+                            }
+                        }
+                    }
+                } else {
+                    // Failure: unfreeze modal, preserve form fields/draft, show diagnostic error, focus reason
+                    reportFormState = 'idle';
+                    freezeModal(modalEl, false);
+                    if (submitBtn) submitBtn.removeAttribute('disabled');
+                    if (spinner) spinner.classList.add('d-none');
+                    if (btnText) btnText.textContent = 'Gửi báo cáo';
+                    const msg = translateError(body && body.error, 'Không thể gửi báo cáo (phản hồi không hợp lệ).');
+                    if (statusEl) {
+                        statusEl.className = 'alert alert-danger py-2 small mb-3';
+                        statusEl.textContent = msg;
+                        statusEl.classList.remove('d-none');
+                    }
+                    if (reasonSelect) reasonSelect.focus();
+                }
+            } catch (_) {
+                reportFormState = 'idle';
+                freezeModal(modalEl, false);
+                if (submitBtn) submitBtn.removeAttribute('disabled');
+                if (spinner) spinner.classList.add('d-none');
+                if (btnText) btnText.textContent = 'Gửi báo cáo';
+                if (statusEl) {
+                    statusEl.className = 'alert alert-danger py-2 small mb-3';
+                    statusEl.textContent = 'Lỗi kết nối khi gửi báo cáo.';
+                    statusEl.classList.remove('d-none');
+                }
+                if (reasonSelect) reasonSelect.focus();
+            } finally {
+                releaseLock(lockKey);
+            }
+        });
+    }
+
+    // P2-A: Initialize Quote Post Modal
+    function initQuotePostModal() {
+        const form = document.getElementById('quote-post-form');
+        const modalEl = document.getElementById('quotePostModal');
+        if (!form) return;
+
+        const contentInput = document.getElementById('quote-post-content');
+        const charCount = document.getElementById('quote-post-char-count');
+        const statusEl = document.getElementById('quote-post-status');
+        const submitBtn = document.getElementById('btn-submit-quote');
+        const spinner = document.getElementById('quote-post-spinner');
+        const btnText = document.getElementById('quote-post-btn-text');
+        const errEl = document.getElementById('quote-post-error');
+        const idInput = document.getElementById('quote-target-post-id');
+        const visSelect = document.getElementById('quote-post-visibility');
+
+        if (modalEl) {
+            attachModalFreezeProtection(modalEl);
+            modalEl.addEventListener('show.bs.modal', function () {
+                quoteModalLifecycle.isShowing = true;
+            });
+            modalEl.addEventListener('shown.bs.modal', function () {
+                quoteModalLifecycle.isShowing = false;
+                quoteModalLifecycle.isShown = true;
+                if (quoteModalLifecycle.dismissOnShown || quoteFormState === 'confirmed-navigating') {
+                    quoteModalLifecycle.dismissOnShown = false;
+                    const modal = window.bootstrap && window.bootstrap.Modal && window.bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                }
+            });
+            modalEl.addEventListener('hide.bs.modal', function () {
+                quoteModalLifecycle.isShown = false;
+            });
+            modalEl.addEventListener('hidden.bs.modal', function () {
+                quoteModalLifecycle.isShowing = false;
+                quoteModalLifecycle.isShown = false;
+                quoteModalLifecycle.dismissOnShown = false;
+                if (quoteFormState === 'idle') {
+                    if (contentInput) {
+                        contentInput.value = '';
+                        contentInput.classList.remove('is-invalid');
+                    }
+                    if (charCount) charCount.textContent = '0';
+                    if (statusEl) statusEl.className = 'alert d-none py-2 small mb-3';
+                    if (errEl) errEl.classList.add('d-none');
+                    if (submitBtn) submitBtn.removeAttribute('disabled');
+                    if (spinner) spinner.classList.add('d-none');
+                    if (btnText) btnText.textContent = 'Đăng trích dẫn';
+                }
+            });
+        }
+
+        if (contentInput && charCount) {
+            contentInput.addEventListener('input', function () {
+                charCount.textContent = String(contentInput.value.length);
+            });
+        }
+
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            if (quoteFormState === 'pending' || quoteFormState === 'confirmed-navigating') {
+                return;
+            }
+
+            // Client availability check: fail gracefully if alouteHttp is missing without firing raw fetch
+            const http = getHttp();
+            if (!http) {
+                if (statusEl) {
+                    statusEl.className = 'alert alert-danger py-2 small mb-3';
+                    statusEl.textContent = 'Dịch vụ mạng không khả dụng. Vui lòng tải lại trang.';
+                    statusEl.classList.remove('d-none');
+                }
+                return;
+            }
+
+            const content = contentInput ? contentInput.value.trim() : '';
+            const rawPostId = idInput ? idInput.value.trim() : '';
+            const postId = /^[1-9]\d*$/.test(rawPostId) ? Number(rawPostId) : null;
+            const visibility = visSelect ? visSelect.value : 'PUBLIC';
+            const validVisibilities = ['PUBLIC', 'FOLLOWERS'];
+
+            if (!content || content.length > 4000) {
+                if (contentInput) contentInput.classList.add('is-invalid');
+                if (errEl) errEl.classList.remove('d-none');
+                return;
+            } else {
+                if (contentInput) contentInput.classList.remove('is-invalid');
+                if (errEl) errEl.classList.add('d-none');
+            }
+
+            if (!validVisibilities.includes(visibility)) {
+                if (statusEl) {
+                    statusEl.className = 'alert alert-danger py-2 small mb-3';
+                    statusEl.textContent = 'Phạm vi hiển thị không hợp lệ.';
+                    statusEl.classList.remove('d-none');
+                }
+                return;
+            }
+
+            if (!isPositiveSafeInteger(postId)) {
+                if (statusEl) {
+                    statusEl.className = 'alert alert-danger py-2 small mb-3';
+                    statusEl.textContent = 'Bài viết cần trích dẫn không hợp lệ.';
+                    statusEl.classList.remove('d-none');
+                }
+                return;
+            }
+
+            const lockKey = 'quote:submit:' + postId;
+            if (!acquireLock(lockKey)) return;
+
+            quoteFormState = 'pending';
+            const currentSession = quoteModalSession;
+            freezeModal(modalEl, true);
+            if (submitBtn) submitBtn.setAttribute('disabled', 'true');
+            if (spinner) spinner.classList.remove('d-none');
+            if (btnText) btnText.textContent = 'Đang đăng...';
+            if (statusEl) statusEl.className = 'alert d-none py-2 small mb-3';
+
+            try {
+                const response = await http.request('/api/posts/' + encodeURIComponent(postId) + '/quotes', {
+                    method: 'POST',
+                    body: {
+                        content: content,
+                        visibility: visibility,
+                        allowReply: true,
+                        allowQuote: true
+                    }
+                });
+                const body = await http.readJson(response);
+
+                // Exact confirmation status: 201 only. Valid returned post ID and scalar quotedPostId ONLY (no nested fallback)
+                const postData = body && body.data;
+                const isValidPostId = postData && isPositiveSafeInteger(postData.id);
+                const reflectsQuotedPost = postData && isPositiveSafeInteger(postData.quotedPostId) && postData.quotedPostId === postId;
+
+                const hasOwnNullMeta = !!(body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, 'meta') && body.meta === null);
+
+                const isSuccess = response.status === 201 &&
+                    body && body.success === true &&
+                    hasOwnNullMeta &&
+                    isValidPostId &&
+                    reflectsQuotedPost;
+
+                if (isSuccess) {
+                    quoteFormState = 'confirmed-navigating';
+                    // Disable submit button and keep lock active during confirmed navigation; reload directly without timer window
+                    if (submitBtn) submitBtn.setAttribute('disabled', 'true');
+                    if (spinner) spinner.classList.remove('d-none');
+                    if (btnText) btnText.textContent = 'Đang chuyển hướng...';
+                    if (statusEl) {
+                        statusEl.className = 'alert alert-success py-2 small mb-3';
+                        statusEl.textContent = 'Đã đăng trích dẫn thành công!';
+                        statusEl.classList.remove('d-none');
+                    }
+
+                    if (currentSession === quoteModalSession) {
+                        let flashSaved = false;
+                        try {
+                            if (typeof window !== 'undefined' && window.sessionStorage) {
+                                window.sessionStorage.setItem('aloute_flash_notice', JSON.stringify({
+                                    message: 'Đã đăng trích dẫn thành công!',
+                                    type: 'success'
+                                }));
+                                flashSaved = true;
+                            }
+                        } catch (_) {
+                            flashSaved = false;
+                        }
+
+                        if (quoteModalLifecycle.isShowing) {
+                            quoteModalLifecycle.dismissOnShown = true;
+                        } else {
+                            if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+                                const modal = window.bootstrap.Modal.getInstance(modalEl);
+                                if (modal) modal.hide();
+                            }
+                        }
+
+                        if (flashSaved) {
+                            window.location.reload();
+                        } else {
+                            // Storage absent or threw: fallback to canonical newly created post destination
+                            // displaying the confirmed quote post directly without reload wipeout
+                            window.location.href = '/posts/' + encodeURIComponent(postData.id);
+                        }
+                    }
+                } else {
+                    // Failure: unfreeze modal, preserve form draft, show diagnostic error, focus content
+                    quoteFormState = 'idle';
+                    freezeModal(modalEl, false);
+                    if (submitBtn) submitBtn.removeAttribute('disabled');
+                    if (spinner) spinner.classList.add('d-none');
+                    if (btnText) btnText.textContent = 'Đăng trích dẫn';
+                    const msg = translateError(body && body.error, 'Không thể đăng trích dẫn (phản hồi không hợp lệ).');
+                    if (statusEl) {
+                        statusEl.className = 'alert alert-danger py-2 small mb-3';
+                        statusEl.textContent = msg;
+                        statusEl.classList.remove('d-none');
+                    }
+                    if (contentInput) contentInput.focus();
+                }
+            } catch (_) {
+                quoteFormState = 'idle';
+                freezeModal(modalEl, false);
+                if (submitBtn) submitBtn.removeAttribute('disabled');
+                if (spinner) spinner.classList.add('d-none');
+                if (btnText) btnText.textContent = 'Đăng trích dẫn';
+                if (statusEl) {
+                    statusEl.className = 'alert alert-danger py-2 small mb-3';
+                    statusEl.textContent = 'Lỗi kết nối máy chủ khi đăng trích dẫn.';
+                    statusEl.classList.remove('d-none');
+                }
+                if (contentInput) contentInput.focus();
+            } finally {
+                if (quoteFormState !== 'confirmed-navigating') {
+                    releaseLock(lockKey);
+                }
+            }
+        });
+    }
+
+    // Helper: validate unread count scalar
+    function isValidUnreadCount(val) {
+        return typeof val === 'number' && Number.isInteger(val) && Number.isSafeInteger(val) && val >= 0;
+    }
+
+    let pageActionsUnreadVersion = 0;
+
+    // P1-D: Initialize Notification Badges across Navbar & Sidebar
+    function initNotificationBadges() {
+        const badges = document.querySelectorAll('.sidebar-notification-badge, [data-badge="notification"], #sidebar-notification-badge, .navbar-notification-badge, #navbar-notification-badge');
+        if (!badges || badges.length === 0) return;
+
+        function setBadges(rawCount) {
+            if (!isValidUnreadCount(rawCount)) {
+                // NEVER convert malformed counts to fake 0! Preserve last confirmed state
+                return;
+            }
+            const num = rawCount;
+            const text = num > 99 ? '99+' : String(num);
+            const isHidden = num <= 0;
+            const badgeLabel = num <= 0 ? 'Không có thông báo mới' : (num > 99 ? 'Hơn 99 thông báo chưa đọc' : (num + ' thông báo chưa đọc'));
+            const parentAriaLabel = num > 0 ? ('Thông báo (' + text + ' chưa đọc)') : 'Thông báo';
+
+            const currentBadges = document.querySelectorAll('.sidebar-notification-badge, [data-badge="notification"], #sidebar-notification-badge, .navbar-notification-badge, #navbar-notification-badge');
+            currentBadges.forEach(function (badge) {
+                badge.textContent = isHidden ? '0' : text;
+                badge.setAttribute('aria-label', badgeLabel);
+                if (isHidden) {
+                    badge.classList.add('d-none');
+                } else {
+                    badge.classList.remove('d-none');
+                }
+                const parentLink = badge.closest('a');
+                if (parentLink) {
+                    parentLink.setAttribute('aria-label', parentAriaLabel);
+                }
+            });
+        }
+
+        window.addEventListener('aloute:unread-count-updated', function (e) {
+            if (e && e.detail) {
+                const eventVersion = typeof e.detail.version === 'number' ? e.detail.version : null;
+                if (eventVersion !== null && eventVersion < pageActionsUnreadVersion) {
+                    return; // Stale event discarded
+                }
+                if (eventVersion !== null) {
+                    pageActionsUnreadVersion = Math.max(pageActionsUnreadVersion, eventVersion);
+                }
+                if (isValidUnreadCount(e.detail.unreadCount)) {
+                    setBadges(e.detail.unreadCount);
+                }
+            }
+        });
+
+        // SINGLE OWNER: If current page has #notifications-content, notification.js owns initial fetch!
+        if (document.getElementById('notifications-content')) {
+            return;
+        }
+
+        const isAuth = !!document.querySelector('.aloute-user-dropdown-btn, [data-current-user-id]:not([data-current-user-id=""])');
+        if (isAuth) {
+            const http = getHttp();
+            if (!http) {
+                return;
+            }
+            const currentFetchVersion = ++pageActionsUnreadVersion;
+            http.request('/api/notifications/unread-count', {
+                method: 'GET'
+            })
+            .then(async function (res) {
+                if (!res || res.status !== 200) return null;
+                return http.readJson(res);
+            })
+            .then(function (body) {
+                if (currentFetchVersion !== pageActionsUnreadVersion) {
+                    return; // Stale response discarded
+                }
+                const hasValidMeta = !body || body.meta === undefined || body.meta === null;
+                if (body && body.success === true && hasValidMeta && body.data && isValidUnreadCount(body.data.unreadCount)) {
+                    setBadges(body.data.unreadCount);
+                }
+                // Malformed response: preserve last confirmed state, do NOT set fake 0!
+            })
+            .catch(function () {
+                // Network error: preserve last confirmed state
+            });
+        }
+    }
+
+    // P3: Poll Voting Controller (POST /api/polls/{id}/vote)
+    function initPollVoting() {
+        document.addEventListener('submit', async function (e) {
+            const form = e.target.closest('.poll-vote-form');
+            if (!form) return;
+            e.preventDefault();
+
+            const pollIdStr = form.dataset.pollId;
+            const pollId = Number(pollIdStr);
+            if (!isPositiveSafeInteger(pollId)) return;
+
+            const lockKey = 'poll-vote-' + pollId;
+            if (!acquireLock(lockKey)) return;
+
+            const isMultiple = form.dataset.allowMultiple === 'true';
+            const errorEl = form.querySelector('.poll-vote-error');
+            const submitBtn = form.querySelector('.btn-vote-poll');
+            const spinner = submitBtn ? submitBtn.querySelector('.spinner-border') : null;
+
+            if (errorEl) {
+                errorEl.textContent = '';
+                errorEl.classList.add('d-none');
+            }
+
+            const container = form.closest('.post-poll-container');
+            if (container && (container.dataset.isClosed === 'true' || container.getAttribute('data-is-closed') === 'true')) {
+                releaseLock(lockKey);
+                if (errorEl) {
+                    errorEl.textContent = 'Bình chọn này đã kết thúc.';
+                    errorEl.classList.remove('d-none');
+                }
+                return;
+            }
+
+            let selectedIds = [];
+            if (isMultiple) {
+                const checkedBoxes = form.querySelectorAll('input[type="checkbox"]:checked');
+                checkedBoxes.forEach(function (cb) {
+                    const val = Number(cb.value);
+                    if (isPositiveSafeInteger(val)) {
+                        selectedIds.push(val);
+                    }
+                });
+            } else {
+                const checkedRadio = form.querySelector('input[type="radio"]:checked');
+                if (checkedRadio) {
+                    const val = Number(checkedRadio.value);
+                    if (isPositiveSafeInteger(val)) {
+                        selectedIds.push(val);
+                    }
+                }
+            }
+
+            if (selectedIds.length === 0) {
+                releaseLock(lockKey);
+                if (errorEl) {
+                    errorEl.textContent = isMultiple ? 'Vui lòng chọn ít nhất một phương án.' : 'Vui lòng chọn một phương án.';
+                    errorEl.classList.remove('d-none');
+                }
+                return;
+            }
+
+            if (submitBtn) submitBtn.disabled = true;
+            if (spinner) spinner.classList.remove('d-none');
+
+            const http = getHttp();
+            if (!http) {
+                releaseLock(lockKey);
+                if (submitBtn) submitBtn.disabled = false;
+                if (spinner) spinner.classList.add('d-none');
+                if (errorEl) {
+                    errorEl.textContent = 'Lỗi kết nối. Không tìm thấy HTTP client.';
+                    errorEl.classList.remove('d-none');
+                }
+                return;
+            }
+
+            const payload = isMultiple ? { optionIds: selectedIds } : { optionId: selectedIds[0] };
+
+            try {
+                const res = await http.request('/api/polls/' + encodeURIComponent(pollId) + '/vote', {
+                    method: 'POST',
+                    body: payload
+                });
+
+                if (res && (res.status === 200 || res.status === 201)) {
+                    const body = await http.readJson(res);
+                    const pollData = body && body.data;
+                    if (pollData && Array.isArray(pollData.options)) {
+                        renderPollResults(form, pollData);
+                        releaseLock(lockKey);
+                        notice('Bình chọn thành công!', 'success');
+                        return;
+                    }
+                }
+
+                // Error response
+                const errBody = res ? await http.readJson(res) : null;
+                const errCode = errBody && errBody.error && errBody.error.code;
+                let errMsg = 'Không thể gửi bình chọn. Vui lòng thử lại.';
+                if (errCode === 'POLL_ALREADY_VOTED' || (res && res.status === 409)) {
+                    errMsg = 'Bạn đã tham gia bình chọn này rồi.';
+                } else if (errCode === 'POLL_CLOSED') {
+                    errMsg = 'Bình chọn này đã kết thúc.';
+                } else if (res && res.status === 401) {
+                    errMsg = 'Vui lòng đăng nhập để bình chọn.';
+                } else if (errBody && errBody.error && errBody.error.message) {
+                    errMsg = errBody.error.message;
+                }
+
+                if (errorEl) {
+                    errorEl.textContent = errMsg;
+                    errorEl.classList.remove('d-none');
+                }
+            } catch (err) {
+                if (errorEl) {
+                    errorEl.textContent = 'Lỗi kết nối máy chủ khi gửi bình chọn.';
+                    errorEl.classList.remove('d-none');
+                }
+            } finally {
+                releaseLock(lockKey);
+                if (submitBtn) submitBtn.disabled = false;
+                if (spinner) spinner.classList.add('d-none');
+            }
+        });
+    }
+
+    function renderPollResults(formEl, poll) {
+        const total = poll.totalVotes || 0;
+        const container = formEl.closest('.post-poll-container');
+        if (!container) return;
+
+        const resultsDiv = document.createElement('div');
+        resultsDiv.className = 'poll-results d-flex flex-column gap-2';
+
+        poll.options.forEach(function (opt) {
+            const pct = total > 0 ? Math.round((opt.voteCount * 100) / total) : 0;
+            const optDiv = document.createElement('div');
+            optDiv.className = 'poll-option-result position-relative border rounded-2 p-2 overflow-hidden bg-white';
+
+            const bgBar = document.createElement('div');
+            bgBar.className = 'poll-progress-bg position-absolute top-0 start-0 h-100';
+            bgBar.style.width = pct + '%';
+            bgBar.style.backgroundColor = 'rgba(37, 99, 235, 0.12)';
+            bgBar.style.zIndex = '0';
+
+            const contentRow = document.createElement('div');
+            contentRow.className = 'position-relative d-flex justify-content-between align-items-center';
+            contentRow.style.zIndex = '1';
+
+            const leftCol = document.createElement('div');
+            leftCol.className = 'd-flex align-items-center gap-2';
+
+            if (opt.selectedByCurrentUser || opt.id === poll.userVotedOptionId) {
+                const checkIcon = document.createElement('i');
+                checkIcon.className = 'bi bi-check-circle-fill text-primary';
+                checkIcon.setAttribute('aria-label', 'Lựa chọn của bạn');
+                leftCol.appendChild(checkIcon);
+            }
+
+            const textSpan = document.createElement('span');
+            textSpan.className = 'small fw-medium text-dark';
+            textSpan.textContent = opt.text || '';
+            leftCol.appendChild(textSpan);
+
+            const rightCol = document.createElement('div');
+            rightCol.className = 'small text-muted d-flex align-items-center gap-2';
+
+            const pctSpan = document.createElement('span');
+            pctSpan.textContent = pct + '%';
+            const countSpan = document.createElement('span');
+            countSpan.textContent = '(' + (opt.voteCount || 0) + ')';
+
+            rightCol.appendChild(pctSpan);
+            rightCol.appendChild(countSpan);
+
+            contentRow.appendChild(leftCol);
+            contentRow.appendChild(rightCol);
+
+            optDiv.appendChild(bgBar);
+            optDiv.appendChild(contentRow);
+            resultsDiv.appendChild(optDiv);
+        });
+
+        const footerDiv = document.createElement('div');
+        footerDiv.className = 'd-flex justify-content-between align-items-center small text-muted mt-1';
+        const totalSpan = document.createElement('span');
+        totalSpan.textContent = total + ' lượt bình chọn';
+        footerDiv.appendChild(totalSpan);
+
+        if (poll.allowMultiple) {
+            const multSpan = document.createElement('span');
+            multSpan.className = 'fst-italic';
+            multSpan.textContent = 'Nhiều lựa chọn';
+            footerDiv.appendChild(multSpan);
+        }
+
+        resultsDiv.appendChild(footerDiv);
+        formEl.replaceWith(resultsDiv);
+    }
+
+    // Consume pending one-shot flash notice if present (e.g. post-reload success feedback)
+    function consumeFlashNotice() {
+        try {
+            if (typeof window !== 'undefined' && window.sessionStorage) {
+                const raw = window.sessionStorage.getItem('aloute_flash_notice');
+                if (raw) {
+                    window.sessionStorage.removeItem('aloute_flash_notice');
+                    const data = JSON.parse(raw);
+                    if (data && typeof data.message === 'string') {
+                        notice(data.message, data.type || 'info');
+                    }
+                }
+            }
+        } catch (_) {}
+    }
 
     // Initialize interactive components when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function () {
             initProfileEditModal();
             initFollowButton();
+            initCreateCommunityModal();
+            initReportModal();
+            initQuotePostModal();
+            initNotificationBadges();
+            initPollVoting();
+            consumeFlashNotice();
         });
     } else {
         initProfileEditModal();
         initFollowButton();
+        initCreateCommunityModal();
+        initReportModal();
+        initQuotePostModal();
+        initNotificationBadges();
+        initPollVoting();
+        consumeFlashNotice();
     }
 
 })();

@@ -1,56 +1,44 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org"
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{layouts/default :: layout(
-        title='Bài Viết Đã Lưu — AloUTE',
-        content=~{::#saved-content},
-        extraHead=~{::#saved-head},
-        extraScripts=~{::#saved-scripts},
-        activeTab='saved'
+        title='Bài viết đã lưu',
+        content=~{::#saved-content}
       )}">
-<head id="saved-head">
-</head>
 <body>
-    <div id="saved-content">
-        <div class="saved-posts-view" style="max-width: 640px; margin: 0 auto; width: 100%;">
-            <!-- Page Header Card (Exact match to SavedPostsPage.vue) -->
-            <div class="card-social page-header-card" style="padding: 18px 20px; margin-bottom: 16px;">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <div>
-                        <h2 class="page-title" style="font-size: 18px; font-weight: 800; margin: 0; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
-                            <i class="fa-solid fa-bookmark" style="color: #ffb800;"></i> Bài Viết Đã Lưu
-                        </h2>
-                        <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 0;">
-                            Danh sách các bài viết và thảo luận bạn đã lưu lại để xem sau.
-                        </p>
-                    </div>
-                    <div class="badge-count-pill" style="background: var(--bg-hover); padding: 4px 12px; border-radius: var(--radius-pill); font-size: 12px; color: var(--text-secondary); border: 1px solid var(--border-color);">
-                        <strong style="color: var(--text-main);" th:text="${posts != null ? posts.size() : 0}">0</strong> bài viết
-                    </div>
-                </div>
-            </div>
-
-            <!-- Posts Stream -->
-            <div class="posts-stream">
-                <th:block th:if="${posts != null && !posts.isEmpty()}">
-                    <div th:each="post : ${posts}" th:replace="~{post/_post-card :: postCard(post=${post})}"></div>
-                </th:block>
-
-                <!-- Empty State -->
-                <div th:if="${posts == null || posts.isEmpty()}" class="card-social empty-saved-card" style="padding: 40px; text-align: center;">
-                    <div class="empty-icon-wrapper" style="font-size: 40px; color: #ffb800; margin-bottom: 12px;">
-                        <i class="fa-regular fa-bookmark"></i>
-                    </div>
-                    <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 6px; color: var(--text-main);">Chưa có bài viết nào được lưu</h3>
-                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
-                        Bấm vào biểu tượng bookmark trên bài viết bất kỳ để lưu lại tại đây!
-                    </p>
-                    <a th:href="@{/feed}" class="btn-primary" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; font-size: 12px; font-weight: 700; border-radius: var(--radius-pill); text-decoration: none;">
-                        <i class="fa-solid fa-house"></i> Khám phá bài viết trên Feed
-                    </a>
-                </div>
-            </div>
+<div id="saved-content">
+    <div class="mb-3 d-flex align-items-center justify-content-between">
+        <div>
+            <h1 class="fs-5 fw-bold mb-1 text-dark d-flex align-items-center gap-2">
+                <i class="bi bi-bookmark-fill text-warning" aria-hidden="true"></i>
+                <span>Bài viết đã lưu</span>
+            </h1>
+            <p class="small text-muted mb-0">Danh sách các bài viết và thảo luận bạn đã lưu lại để xem sau.</p>
         </div>
+        <span class="badge bg-light text-secondary border rounded-pill px-3 py-2 small">
+            <strong class="text-dark" th:text="${posts != null ? posts.size() : 0}">0</strong> bài viết
+        </span>
     </div>
-    <div id="saved-scripts"></div>
+
+    <!-- Posts Stream -->
+    <div th:if="${posts != null and !posts.isEmpty()}" class="d-flex flex-column gap-3">
+        <th:block th:each="postItem : ${posts}">
+            <div th:replace="~{post/_post-card :: postCard(post=${postItem})}"></div>
+        </th:block>
+    </div>
+
+    <!-- Empty State -->
+    <div th:if="${posts == null or posts.isEmpty()}" class="aloute-card text-center p-5 my-2">
+        <div class="mb-3">
+            <i class="bi bi-bookmark fs-1 text-warning" aria-hidden="true"></i>
+        </div>
+        <h2 class="fs-6 fw-bold mb-1">Chưa có bài viết nào được lưu</h2>
+        <p class="small text-secondary mb-3">
+            Bấm vào biểu tượng bookmark trên bài viết bất kỳ để lưu lại tại đây!
+        </p>
+        <a th:href="@{/feed}" class="btn btn-sm btn-primary rounded-pill px-3">
+            <i class="bi bi-house-door me-1" aria-hidden="true"></i>Khám phá bài viết trên Bảng tin
+        </a>
+    </div>
+</div>
 </body>
 </html>

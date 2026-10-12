@@ -20,17 +20,16 @@
                 <span class="badge-brand">Campus</span>
             </a>
 
-            <!-- Search affordance: explicitly unavailable and honest -->
-            <div class="d-none d-sm-block aloute-search-box" role="search">
+            <!-- Navbar Search Form: Integrated with GET /search -->
+            <form method="GET" th:action="@{/search}" action="/search" class="d-none d-sm-block aloute-search-box" role="search">
                 <span class="bi bi-search aloute-search-icon" aria-hidden="true"></span>
                 <input class="form-control aloute-search-input"
                        type="search"
                        name="q"
-                       placeholder="Tìm kiếm (chưa hỗ trợ)..."
-                       aria-label="Tìm kiếm nội dung (chưa hỗ trợ)"
-                       disabled
-                       title="Chức năng tìm kiếm hiện chưa được hỗ trợ">
-            </div>
+                       th:value="${q != null ? q : ''}"
+                       placeholder="Tìm kiếm cộng đồng, chủ đề, @user..."
+                       aria-label="Tìm kiếm nội dung">
+            </form>
         </div>
 
         <!-- Right: Actions & User Controls -->
@@ -49,8 +48,11 @@
                 <a th:href="@{/messages}" href="/messages" class="btn btn-sm btn-link text-secondary text-decoration-none position-relative p-1" title="Tin nhắn" aria-label="Tin nhắn">
                     <i class="bi bi-chat-dots fs-5" aria-hidden="true"></i>
                 </a>
-                <a th:href="@{/notifications}" href="/notifications" class="btn btn-sm btn-link text-secondary text-decoration-none position-relative p-1" title="Thông báo" aria-label="Thông báo">
+                <a th:href="@{/notifications}" href="/notifications" class="navbar-notification-link btn btn-sm btn-link text-secondary text-decoration-none position-relative p-1" title="Thông báo" aria-label="Thông báo">
                     <i class="bi bi-bell fs-5" aria-hidden="true"></i>
+                    <span id="navbar-notification-badge" class="navbar-notification-badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" data-badge="notification" style="font-size: 0.65rem;">
+                        0
+                    </span>
                 </a>
             </div>
 
@@ -94,9 +96,21 @@
                         </a>
                     </li>
                     <li>
-                        <a class="dropdown-item d-flex align-items-center gap-2" th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post">
-                            <i class="bi bi-plus-circle text-secondary" aria-hidden="true"></i>
-                            <span>Tạo bài viết mới</span>
+                        <a class="dropdown-item d-flex align-items-center gap-2" th:href="@{/saved}" href="/saved">
+                            <i class="bi bi-bookmark text-secondary" aria-hidden="true"></i>
+                            <span>Bài viết đã lưu</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center gap-2" th:href="@{/friends}" href="/friends">
+                            <i class="bi bi-person-check text-secondary" aria-hidden="true"></i>
+                            <span>Bạn bè & Kết nối</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center gap-2" th:href="@{/settings}" href="/settings">
+                            <i class="bi bi-gear text-secondary" aria-hidden="true"></i>
+                            <span>Cài đặt</span>
                         </a>
                     </li>
                     <li><hr class="dropdown-divider"></li>
