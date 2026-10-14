@@ -104,6 +104,19 @@ public enum ErrorCode {
     REPORT_NOT_FOUND("REPORT_NOT_FOUND", HttpStatus.NOT_FOUND, "Report not found"),
     REPORT_TARGET_REQUIRED("REPORT_TARGET_REQUIRED", HttpStatus.UNPROCESSABLE_ENTITY, "Exactly one of reportedUserId or reportedPostId is required"),
     REPORT_SELF_NOT_ALLOWED("REPORT_SELF_NOT_ALLOWED", HttpStatus.CONFLICT, "Cannot report yourself"),
+    REPORT_ALREADY_IN_REVIEW("REPORT_ALREADY_IN_REVIEW", HttpStatus.CONFLICT, "Report is already being reviewed by another administrator"),
+    REPORT_INVALID_TRANSITION("REPORT_INVALID_TRANSITION", HttpStatus.CONFLICT, "Invalid report state transition"),
+    REPORT_VERSION_CONFLICT("REPORT_VERSION_CONFLICT", HttpStatus.CONFLICT, "Report was modified by another transaction"),
+    REPORT_REVIEWER_REQUIRED("REPORT_REVIEWER_REQUIRED", HttpStatus.FORBIDDEN, "Only the assigned reviewer can decide this report"),
+
+    // --- MODERATION ---
+    MODERATION_ACTION_NOT_FOUND("MODERATION_ACTION_NOT_FOUND", HttpStatus.NOT_FOUND, "Moderation action not found"),
+    POST_RESTORE_NOT_ALLOWED("POST_RESTORE_NOT_ALLOWED", HttpStatus.CONFLICT, "Cannot restore post that was author-deleted or not removed by moderation"),
+    POST_REMOVAL_NOT_FOUND("POST_REMOVAL_NOT_FOUND", HttpStatus.NOT_FOUND, "Active post moderation removal record not found"),
+    USER_SUSPENSION_ALREADY_ACTIVE("USER_SUSPENSION_ALREADY_ACTIVE", HttpStatus.CONFLICT, "User already has an active suspension"),
+    USER_LAST_ADMIN_PROTECTED("USER_LAST_ADMIN_PROTECTED", HttpStatus.CONFLICT, "Cannot suspend or demote the last remaining system administrator"),
+    COMMUNITY_OWNER_TRANSFER_INVALID("COMMUNITY_OWNER_TRANSFER_INVALID", HttpStatus.CONFLICT, "Invalid community owner transfer"),
+    BROADCAST_INVALID_STATE("BROADCAST_INVALID_STATE", HttpStatus.CONFLICT, "System broadcast is not in a deliverable state"),
 
     // --- FEED ---
     FEED_NOT_FOUND("FEED_NOT_FOUND", HttpStatus.NOT_FOUND, "Feed not found"),

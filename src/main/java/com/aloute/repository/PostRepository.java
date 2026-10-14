@@ -4,15 +4,17 @@ import com.aloute.entity.Post;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Optional;
 
 @Repository
-public interface PostRepository extends JpaRepository<Post, Long> {
+public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificationExecutor<Post> {
 
     Optional<Post> findByIdAndDeletedAtIsNull(Long id);
 
@@ -55,4 +57,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     long countByTopicId(@Param("topicId") Long topicId);
 
     long countByUserIdAndParentPostIsNullAndDeletedAtIsNull(Long userId);
+
+    long countByCreatedAtBetween(Instant start, Instant end);
 }
+
