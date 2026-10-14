@@ -46,6 +46,9 @@ Database Triggers, Stored Procedures & Index (Nguyễn Duy Ngọc phụ trách)
 
 Docker / Nginx / VPS / Deploy (Khôi & Ngọc)
 → ALOUTE_DOCKER_REVERSE_PROXY_CONVENTION.md
+
+Admin Dashboard, Content Moderation & Audit Rules
+→ ALOUTE_DOMAIN_SYSTEM.md, ALOUTE_SYSTEM_ARCHITECTURE.md, aloute-openapi.yaml, ALOUTE_SPRING_BOOT_BACKEND_CONVENTION.md, SPRING_SECURITY_CONVENTION.md, ALOUTE_FRONTEND_CONVENTION.md
 ```
 
 Nếu rule đã có owner thì file khác chỉ được:

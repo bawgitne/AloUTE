@@ -1861,3 +1861,51 @@ Bootstrap render thế nào?
 ```
 
 Các câu đó thuộc tài liệu kỹ thuật canonical khác.
+
+---
+
+# 67. MODERATION & ADMIN SYSTEM DOMAIN MODEL (QUẢN TRỊ & KIỂM DUYỆT)
+
+## 67.1. Bất biến bất khả xâm phạm (Inviolable Invariants)
+1. **Chống tự sát & Đảo chính:**
+   - Quản trị viên (`SYSTEM_ADMIN`) không được phép tự đình chỉ hoặc tự hạ quyền tài khoản của chính mình.
+   - Không được phép khóa hoặc hạ cấp `SYSTEM_ADMIN` cuối cùng trong hệ thống (`USER_LAST_ADMIN_PROTECTED`).
+2. **Nguồn gốc gỡ bài & Khôi phục (Post Provenance):**
+   - Bài viết do tác giả tự xóa (`owner-deleted`) **tuyệt đối không** được phép khôi phục bởi Admin.
+   - Admin chỉ có quyền khôi phục những bài viết đã bị gỡ bởi Admin (`admin-removed`), thông qua bản ghi `post_moderation_removals` hợp lệ (`POST_RESTORE`).
+3. **Quy trình duyệt Báo cáo (Report Review Lifecycle):**
+   - Quy trình chuyển trạng thái nghiêm ngặt: `PENDING → REVIEWED → (RESOLVED | REJECTED)`.
+   - Một báo cáo tại một thời điểm chỉ có tối đa một Admin tiếp nhận xử lý (`reviewed_by`).
+   - Sử dụng khóa lạc quan (`version`) để phát hiện và ngăn chặn xung đột khi nhiều Admin cùng xử lý một báo cáo.
+4. **Quyền riêng tư & Bảo vệ dữ liệu (Data Minimization & Privacy):**
+   - Vai trò `SYSTEM_ADMIN` **không cấp quyền** tự do duyệt và đọc trộm tin nhắn riêng tư (Direct Messages) của người dùng.
+   - Mật khẩu (`password_hash`) và mã thông báo bảo mật không bao giờ được phép xuất hiện trong bất kỳ DTO hay nhật ký kiểm duyệt nào.
+5. **Định danh Khóa chính (Canonical Primary Key Type):**
+   - 100% các thực thể trong cơ sở dữ liệu AloUTE sử dụng kiểu số nguyên tự tăng `Long / int64` làm Primary Key.
+
+## 67.2. Các thực thể Domain Kiểm duyệt mới (Proposed Entities)
+1. `moderation_actions` (Nhật ký hành động kiểm duyệt - Append-only):
+   - `id` (PK, Long)
+   - `actor_user_id` (FK User thực hiện)
+   - `target_type` (`USER`, `POST`, `REPORT`, `COMMUNITY`, `TOPIC`)
+   - `target_id` (ID của đối tượng)
+   - `action_type` (`POST_REMOVE`, `POST_RESTORE`, `REPORT_RESOLVE`, `USER_WARN`, `USER_SUSPEND`,...)
+   - `reason_code` (`SPAM`, `HARASSMENT`, `HATE`, `MISINFORMATION`, `VIOLENCE`, `OTHER`)
+   - `reason_detail` (Mô tả quyết định xử lý, tối thiểu 10 ký tự)
+   - `related_report_id` (FK Report nullable)
+   - `metadata` (JSON snapshot trạng thái tối thiểu)
+   - `created_at` (Timestamp UTC)
+   - *Bất biến:* Bảng chỉ ghi thêm (append-only), không cho phép chỉnh sửa (`UPDATE`) hoặc xóa (`DELETE`).
+2. `post_moderation_removals` (Bản ghi gỡ bài viết của Admin):
+   - `id` (PK, Long)
+   - `post_id` (FK Post)
+   - `remove_action_id` (FK `moderation_actions`)
+   - `restore_action_id` (FK `moderation_actions` nullable)
+   - `removed_at` (Timestamp)
+   - `restored_at` (Timestamp nullable)
+   - *Bất biến:* Một bài viết tại một thời điểm chỉ có tối đa 1 bản ghi gỡ bài còn hiệu lực (`restored_at IS NULL`).
+3. `account_suspensions` (P2 - Đình chỉ tài khoản hệ thống):
+   - `id` (PK, Long), `user_id` (FK User), `created_by` (FK Admin), `reason_code`, `reason_detail`, `starts_at`, `expires_at` (null nếu vô thời hạn), `revoked_at`, `revoked_by`, `related_report_id`, `created_at`.
+4. `account_feature_restrictions` (P2 - Hạn chế tính năng):
+   - `id` (PK, Long), `user_id` (FK User), `feature` (`POST_CREATE`, `POST_REPLY`), `starts_at`, `expires_at`, `created_by`, `reason_code`, `reason_detail`, `revoked_at`.
+
