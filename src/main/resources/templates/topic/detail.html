@@ -41,7 +41,7 @@
                         <p class="small text-muted mb-0" th:text="'slug: ' + ${topic.slug}">slug: hoc-tap</p>
                     </div>
                 </div>
-                <a th:href="@{/post/create}" class="btn btn-sm btn-primary rounded-pill d-inline-flex align-items-center gap-1">
+                <a th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" class="btn btn-sm btn-primary rounded-pill d-inline-flex align-items-center gap-1">
                     <i class="bi bi-pencil-square" aria-hidden="true"></i>
                     <span>Đăng bài vào chủ đề</span>
                 </a>
@@ -80,7 +80,7 @@
                 </div>
                 <h3 class="fs-6 fw-bold mb-1">Chưa có bài viết nào</h3>
                 <p class="small text-secondary mb-3">Hãy là người đầu tiên chia sẻ về chủ đề này trên AloUTE!</p>
-                <a th:href="@{/post/create}" class="btn btn-sm btn-primary rounded-pill px-3">
+                <a th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" class="btn btn-sm btn-primary rounded-pill px-3">
                     <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Tạo bài viết ngay
                 </a>
             </div>

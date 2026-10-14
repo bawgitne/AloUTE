@@ -5,35 +5,28 @@
 <div id="feed-content">
     <h1 class="visually-hidden">Bảng tin AloUTE</h1>
 
-    <!-- Quick Composer / Create Post Affordance (Presentational hook) -->
+    <!-- Single Visible Feed Create Post Entry: Clean Quick-Composer Card -->
     <section class="composer-box" aria-label="Tạo bài viết nhanh">
-        <div class="d-flex align-items-center gap-3">
-            <img th:src="${currentUser != null and currentUser.avatarUrl != null and !currentUser.avatarUrl.isEmpty()} ? ${currentUser.avatarUrl} : @{/images/avatar-fallback.svg}"
-                 src="/images/avatar-fallback.svg"
-                 alt="Avatar của bạn"
-                 class="avatar-img avatar-sm"
-                 width="40"
-                 height="40">
-            <a th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" class="composer-input-placeholder flex-grow-1">
-                Bạn đang nghĩ gì? Chia sẻ tin tức hoặc thảo luận học tập...
-            </a>
-        </div>
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 pt-3 mt-3 border-top border-secondary-subtle">
-            <div class="d-flex flex-wrap gap-1 gap-sm-2">
-                <button type="button" class="btn btn-sm btn-link text-muted text-decoration-none disabled aloute-composer-shortcut" aria-disabled="true" title="Đính kèm hình ảnh hiện chưa hỗ trợ">
-                    <i class="bi bi-image text-secondary me-1" aria-hidden="true"></i>
-                    <span>Hình ảnh (Chưa hỗ trợ)</span>
-                </button>
-                <button type="button" class="btn btn-sm btn-link text-muted text-decoration-none disabled aloute-composer-shortcut" aria-disabled="true" title="Gắn chủ đề hiện chưa hỗ trợ">
-                    <i class="bi bi-hash text-secondary me-1" aria-hidden="true"></i>
-                    <span>Chủ đề (Chưa hỗ trợ)</span>
-                </button>
+        <a th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" class="composer-card-link text-decoration-none d-flex align-items-center justify-content-between p-3 rounded" title="Soạn bài viết mới">
+            <div class="d-flex align-items-center gap-3 flex-grow-1">
+                <img th:src="${currentUser != null and currentUser.avatarUrl != null and !currentUser.avatarUrl.isEmpty()} ? ${currentUser.avatarUrl} : @{/images/avatar-fallback.svg}"
+                     src="/images/avatar-fallback.svg"
+                     alt="Avatar của bạn"
+                     class="avatar-img avatar-sm"
+                     width="40"
+                     height="40">
+                <div class="composer-text-block text-start">
+                    <div class="fw-semibold text-primary d-flex align-items-center gap-2">
+                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                        <span>Soạn bài viết</span>
+                    </div>
+                    <div class="composer-support-text text-muted small">
+                        Chia sẻ tài liệu, thảo luận học tập hoặc tin tức HCMUTE...
+                    </div>
+                </div>
             </div>
-            <a th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" class="btn btn-sm btn-primary">
-                <i class="bi bi-send me-1" aria-hidden="true"></i>
-                <span>Đăng bài</span>
-            </a>
-        </div>
+            <i class="bi bi-chevron-right text-muted fs-5 ms-2" aria-hidden="true"></i>
+        </a>
     </section>
 
     <!-- Activity Stream / Posts List -->
@@ -50,19 +43,13 @@
             </a>
         </div>
 
-        <!-- Feed Empty State -->
+        <!-- Feed Empty State (Clean helpful text, single primary composer above) -->
         <div th:if="${(feedError == null or !feedError) and (posts == null or #lists.isEmpty(posts))}" class="empty-state">
             <div class="empty-state-icon">
                 <i class="bi bi-chat-square-dots" aria-hidden="true"></i>
             </div>
             <h2 class="empty-state-title">Chưa có bài viết nào</h2>
             <p class="empty-state-desc">Hãy là người đầu tiên chia sẻ thông tin, tài liệu học tập hoặc đặt câu hỏi trên AloUTE!</p>
-            <div class="mt-3">
-                <a th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" class="btn btn-primary btn-sm">
-                    <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>
-                    <span>Tạo bài viết ngay</span>
-                </a>
-            </div>
         </div>
 
         <!-- Render Post Cards -->

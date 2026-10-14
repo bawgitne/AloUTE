@@ -104,6 +104,7 @@ class FeedPageControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("feed/index"))
                 .andExpect(model().attribute("activeNav", "feed"))
+                .andExpect(model().attribute("isFeedPage", true))
                 .andExpect(model().attribute("feedError", false))
                 .andExpect(model().attribute("currentUser", profile))
                 .andExpect(model().attribute("posts", hasSize(1)))
@@ -126,6 +127,7 @@ class FeedPageControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("feed/index"))
                 .andExpect(model().attribute("activeNav", "feed"))
+                .andExpect(model().attribute("isFeedPage", true))
                 .andExpect(model().attribute("feedError", false))
                 .andExpect(model().attribute("currentUser", profile))
                 .andExpect(model().attribute("posts", empty()));
@@ -148,6 +150,7 @@ class FeedPageControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("feed/index"))
                 .andExpect(model().attribute("activeNav", "feed"))
+                .andExpect(model().attribute("isFeedPage", true))
                 .andExpect(model().attribute("feedError", true))
                 .andExpect(model().attribute("currentUser", profile))
                 .andExpect(model().attribute("posts", empty()))

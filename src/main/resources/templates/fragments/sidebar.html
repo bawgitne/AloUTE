@@ -34,13 +34,13 @@
         </div>
     </div>
 
-    <!-- Navigation Shortcuts -->
+    <!-- Navigation Shortcuts: ONLY Feed, Profile, Communities, Friends, Saved Posts -->
     <div class="aloute-card p-2">
         <nav aria-label="Điều hướng thanh bên">
             <ul class="sidebar-nav">
                 <li>
                     <!-- Canonical /feed route -->
-                    <a th:href="@{/feed}" class="sidebar-nav-link" th:classappend="${activeNav == 'feed'} ? 'active' : ''">
+                    <a th:href="@{/feed}" class="sidebar-nav-link" th:classappend="${activeNav == 'feed'} ? 'active' : ''" th:attr="aria-current=${activeNav == 'feed'} ? 'page' : null">
                         <i class="bi bi-house-door-fill sidebar-nav-icon" aria-hidden="true"></i>
                         <span>Bảng tin chính</span>
                     </a>
@@ -51,63 +51,29 @@
                        data-page="user-profile"
                        data-action="navigate-profile"
                        class="sidebar-nav-link"
-                       th:classappend="${activeNav == 'profile'} ? 'active' : ''">
+                       th:classappend="${activeNav == 'profile'} ? 'active' : ''"
+                       th:attr="aria-current=${activeNav == 'profile'} ? 'page' : null">
                         <i class="bi bi-person-fill sidebar-nav-icon" aria-hidden="true"></i>
                         <span>Hồ sơ cá nhân</span>
                     </a>
                 </li>
                 <li>
                     <!-- Canonical /communities route -->
-                    <a th:href="@{/communities}" class="sidebar-nav-link" th:classappend="${activeNav == 'communities'} ? 'active' : ''">
+                    <a th:href="@{/communities}" class="sidebar-nav-link" th:classappend="${activeNav == 'communities'} ? 'active' : ''" th:attr="aria-current=${activeNav == 'communities'} ? 'page' : null">
                         <i class="bi bi-people-fill sidebar-nav-icon" aria-hidden="true"></i>
                         <span>Cộng đồng</span>
                     </a>
                 </li>
-                <li>
-                    <!-- Canonical /search route -->
-                    <a th:href="@{/search}" class="sidebar-nav-link" th:classappend="${activeNav == 'search'} ? 'active' : ''">
-                        <i class="bi bi-search sidebar-nav-icon" aria-hidden="true"></i>
-                        <span>Tìm kiếm</span>
-                    </a>
-                </li>
-                <li>
-                    <!-- Canonical /messages route -->
-                    <a th:href="@{/messages}" class="sidebar-nav-link" th:classappend="${activeNav == 'messages'} ? 'active' : ''">
-                        <i class="bi bi-chat-dots-fill sidebar-nav-icon" aria-hidden="true"></i>
-                        <span>Tin nhắn</span>
-                    </a>
-                </li>
-                <li>
-                    <!-- Canonical /notifications route -->
-                    <a th:href="@{/notifications}" class="sidebar-nav-link sidebar-notification-link position-relative d-flex align-items-center" th:classappend="${activeNav == 'notifications'} ? 'active' : ''" aria-label="Thông báo">
-                        <i class="bi bi-bell-fill sidebar-nav-icon" aria-hidden="true"></i>
-                        <span>Thông báo</span>
-                        <span class="sidebar-notification-badge badge rounded-pill bg-danger ms-auto d-none" data-badge="notification" style="font-size: 0.65rem;">0</span>
-                    </a>
-                </li>
                 <li th:if="${currentUser != null}">
-                    <a th:href="@{/friends}" class="sidebar-nav-link" th:classappend="${activeNav == 'friends'} ? 'active' : ''">
+                    <a th:href="@{/friends}" class="sidebar-nav-link" th:classappend="${activeNav == 'friends'} ? 'active' : ''" th:attr="aria-current=${activeNav == 'friends'} ? 'page' : null">
                         <i class="bi bi-person-check-fill sidebar-nav-icon" aria-hidden="true"></i>
                         <span>Bạn bè & Kết nối</span>
                     </a>
                 </li>
                 <li th:if="${currentUser != null}">
-                    <a th:href="@{/saved}" class="sidebar-nav-link" th:classappend="${activeNav == 'saved'} ? 'active' : ''">
+                    <a th:href="@{/saved}" class="sidebar-nav-link" th:classappend="${activeNav == 'saved'} ? 'active' : ''" th:attr="aria-current=${activeNav == 'saved'} ? 'page' : null">
                         <i class="bi bi-bookmark-fill sidebar-nav-icon" aria-hidden="true"></i>
                         <span>Bài viết đã lưu</span>
-                    </a>
-                </li>
-                <li th:if="${currentUser != null}">
-                    <a th:href="@{/settings}" class="sidebar-nav-link" th:classappend="${activeNav == 'settings'} ? 'active' : ''">
-                        <i class="bi bi-gear-fill sidebar-nav-icon" aria-hidden="true"></i>
-                        <span>Cài đặt</span>
-                    </a>
-                </li>
-                <li>
-                    <!-- Link for post/create -->
-                    <a th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" class="sidebar-nav-link" th:classappend="${activeNav == 'create-post'} ? 'active' : ''">
-                        <i class="bi bi-plus-square-fill sidebar-nav-icon" aria-hidden="true"></i>
-                        <span>Tạo bài viết mới</span>
                     </a>
                 </li>
             </ul>

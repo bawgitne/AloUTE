@@ -4,7 +4,7 @@
 <nav th:fragment="navbar" class="navbar navbar-expand aloute-navbar" aria-label="Thanh điều hướng chính">
     <div class="container-fluid d-flex align-items-center justify-content-between px-0">
         <!-- Brand & Campus Identifier (Canonical /feed route) -->
-        <div class="d-flex align-items-center gap-2">
+        <div class="d-flex align-items-center gap-1 gap-sm-2">
             <!-- Mobile Primary Navigation Offcanvas Trigger (<= 767px) -->
             <button class="btn btn-sm btn-outline-secondary d-md-none aloute-nav-toggle-btn"
                     type="button"
@@ -15,9 +15,9 @@
                 <i class="bi bi-list fs-5" aria-hidden="true"></i>
             </button>
 
-            <a class="navbar-brand d-flex align-items-center gap-2" th:href="@{/feed}" href="/feed">
+            <a class="navbar-brand d-flex align-items-center gap-1 gap-sm-2" th:href="@{/feed}" href="/feed">
                 <span class="fs-4 fw-bold">Alo<span class="text-primary">UTE</span></span>
-                <span class="badge-brand">Campus</span>
+                <span class="badge-brand d-none d-sm-inline-block">Campus</span>
             </a>
 
             <!-- Navbar Search Form: Integrated with GET /search -->
@@ -30,16 +30,20 @@
                        placeholder="Tìm kiếm cộng đồng, chủ đề, @user..."
                        aria-label="Tìm kiếm nội dung">
             </form>
+            <!-- Mobile Search Icon Button (< 576px) -->
+            <a th:href="@{/search}" href="/search" class="btn btn-sm btn-link text-secondary text-decoration-none d-inline-flex d-sm-none p-1 aloute-mobile-search-btn" title="Tìm kiếm" aria-label="Tìm kiếm">
+                <i class="bi bi-search fs-5" aria-hidden="true"></i>
+            </a>
         </div>
 
         <!-- Right: Actions & User Controls -->
-        <div class="d-flex align-items-center gap-2">
-            <!-- Create Post quick action -->
-            <a th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" class="btn btn-sm btn-primary d-none d-sm-inline-flex">
+        <div class="d-flex align-items-center gap-1 gap-sm-2">
+            <!-- Create Post quick action (Modal trigger with /post/create fallback; suppressed on /feed where quick-composer is primary) -->
+            <a th:if="${isFeedPage != true}" th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" class="btn btn-sm btn-primary d-none d-sm-inline-flex align-items-center gap-1">
                 <i class="bi bi-pencil-square" aria-hidden="true"></i>
                 <span>Tạo bài viết</span>
             </a>
-            <a th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" class="btn btn-sm btn-primary d-inline-flex d-sm-none aloute-btn-icon-mobile" aria-label="Tạo bài viết mới">
+            <a th:if="${isFeedPage != true}" th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" class="btn btn-sm btn-primary d-inline-flex d-sm-none aloute-btn-icon-mobile" aria-label="Tạo bài viết mới">
                 <i class="bi bi-pencil-square" aria-hidden="true"></i>
             </a>
 
@@ -48,12 +52,41 @@
                 <a th:href="@{/messages}" href="/messages" class="btn btn-sm btn-link text-secondary text-decoration-none position-relative p-1" title="Tin nhắn" aria-label="Tin nhắn">
                     <i class="bi bi-chat-dots fs-5" aria-hidden="true"></i>
                 </a>
-                <a th:href="@{/notifications}" href="/notifications" class="navbar-notification-link btn btn-sm btn-link text-secondary text-decoration-none position-relative p-1" title="Thông báo" aria-label="Thông báo">
-                    <i class="bi bi-bell fs-5" aria-hidden="true"></i>
-                    <span id="navbar-notification-badge" class="navbar-notification-badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" data-badge="notification" style="font-size: 0.65rem;">
-                        0
-                    </span>
-                </a>
+                <div class="dropdown aloute-notification-dropdown">
+                    <a th:href="@{/notifications}" href="/notifications"
+                       role="button"
+                       id="navbarNotificationDropdown"
+                       data-bs-toggle="dropdown"
+                       data-bs-auto-close="outside"
+                       aria-expanded="false"
+                       class="navbar-notification-link btn btn-sm btn-link text-secondary text-decoration-none position-relative p-1"
+                       title="Thông báo"
+                       aria-label="Thông báo">
+                        <i class="bi bi-bell fs-5" aria-hidden="true"></i>
+                        <span id="navbar-notification-badge" class="navbar-notification-badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" data-badge="notification" style="font-size: 0.65rem;">
+                            0
+                        </span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end shadow-lg p-0 aloute-notification-preview-menu"
+                         id="navbar-notification-preview"
+                         aria-labelledby="navbarNotificationDropdown">
+                        <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
+                            <span class="fw-bold small text-dark">Thông báo gần đây</span>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none small text-primary" id="btn-navbar-mark-all-read">
+                                Đã đọc tất cả
+                            </button>
+                        </div>
+                        <div id="navbar-notif-feedback" class="alert py-1 px-3 mb-0 small rounded-0 d-none" role="alert"></div>
+                        <div class="aloute-notification-preview-list" id="navbar-notification-list" role="region" aria-live="polite">
+                            <!-- Populated dynamically via REST GET /api/notifications?page=0&size=5 -->
+                        </div>
+                        <div class="p-2 border-top text-center bg-light rounded-bottom">
+                            <a th:href="@{/notifications}" href="/notifications" class="dropdown-item text-decoration-none small fw-semibold text-primary d-block py-1 text-center" id="navbar-notifications-view-all">
+                                Xem tất cả thông báo
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Authenticated User Dropdown -->

@@ -221,12 +221,29 @@
     // Notification Item Rendering
     // -------------------------------------------------------------------------
 
+    function normalizeNotificationReadState(item) {
+        if (!item || typeof item !== 'object') return item;
+        let readState;
+        if (typeof item.read === 'boolean') {
+            readState = item.read;
+        } else if (typeof item.isRead === 'boolean') {
+            readState = item.isRead;
+        }
+        if (typeof readState === 'boolean') {
+            item.read = readState;
+            item.isRead = readState;
+        }
+        return item;
+    }
+
     function createNotificationElement(item) {
+        normalizeNotificationReadState(item);
+        const isUnread = item.isRead === false;
         const div = document.createElement('article');
-        div.className = 'aloute-notification-item' + (!item.isRead ? ' unread' : '');
+        div.className = 'aloute-notification-item' + (isUnread ? ' unread' : '');
         div.setAttribute('data-id', item.id);
         div.setAttribute('role', 'article');
-        div.setAttribute('aria-label', (!item.isRead ? 'Chưa đọc: ' : '') + 'Thông báo từ ' + (item.actor ? item.actor.displayName : 'Người dùng'));
+        div.setAttribute('aria-label', (isUnread ? 'Chưa đọc: ' : '') + 'Thông báo từ ' + (item.actor ? item.actor.displayName : 'Người dùng'));
 
         const meta = getNotificationTypeMeta(item.type);
         const avatarUrl = item.actor && item.actor.avatarUrl ? item.actor.avatarUrl : '/images/avatar-fallback.svg';
@@ -235,8 +252,8 @@
         const timeStr = formatTime(item.createdAt);
         const preview = item.contentPreview ? `<p class="text-secondary small mt-1 mb-0 fst-italic text-break">"${escapeHtml(item.contentPreview)}"</p>` : '';
 
-        const unreadDot = !item.isRead ? '<span class="aloute-notification-item-dot" title="Chưa đọc" aria-hidden="true"></span>' : '';
-        const markReadBtn = !item.isRead ? `
+        const unreadDot = isUnread ? '<span class="aloute-notification-item-dot" title="Chưa đọc" aria-hidden="true"></span>' : '';
+        const markReadBtn = isUnread ? `
             <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none text-muted btn-mark-read" title="Đánh dấu đã đọc" aria-label="Đánh dấu đã đọc">
                 <i class="bi bi-check-circle" aria-hidden="true"></i>
             </button>
@@ -368,6 +385,9 @@
 
             const data = body.data || [];
             const meta = body.meta || {};
+            if (Array.isArray(data)) {
+                data.forEach(normalizeNotificationReadState);
+            }
 
             state.currentPage = meta.page != null ? meta.page : page;
             state.hasNext = Boolean(meta.hasNext);
@@ -526,7 +546,13 @@
                 if (btnRead) btnRead.remove();
 
                 const item = state.notifications.find(n => n.id === id);
-                if (item) item.isRead = true;
+                if (item) {
+                    item.isRead = true;
+                    item.read = true;
+                }
+                if (body.data && typeof body.data === 'object') {
+                    normalizeNotificationReadState(body.data);
+                }
 
                 if (state.unreadCount > 0) {
                     unreadCountVersion++;
@@ -561,7 +587,10 @@
             });
             const body = await readJson(response);
             if (response.ok && body && body.success) {
-                state.notifications.forEach(n => { n.isRead = true; });
+                state.notifications.forEach(n => {
+                    n.isRead = true;
+                    n.read = true;
+                });
                 if (elList) {
                     elList.querySelectorAll('.aloute-notification-item.unread').forEach(el => {
                         el.classList.remove('unread');
@@ -574,6 +603,11 @@
                 unreadCountVersion++;
                 state.unreadCount = 0;
                 updateUnreadBadge();
+                try {
+                    window.dispatchEvent(new CustomEvent('aloute:notifications-read-all', {
+                        detail: { unreadCount: 0, version: unreadCountVersion }
+                    }));
+                } catch (_) {}
                 showFeedback('Đã đánh dấu tất cả thông báo là đã đọc.', 'success');
 
                 // Authoritative unread-count refresh after mutation
@@ -680,6 +714,68 @@
                 }
             });
         }
+
+        // Synchronize with navbar / external notification mutations
+        window.addEventListener('aloute:notifications-read-all', function (e) {
+            const detail = (e && e.detail) || {};
+            // Invalidate pending in-flight list requests so stale unread rows are ignored
+            notifRequestId++;
+            if (notifAbortController) {
+                try { notifAbortController.abort(); } catch (_) {}
+                notifAbortController = null;
+            }
+            state.isLoading = false;
+            if (elLoading) elLoading.classList.add('d-none');
+
+            // Reconcile loaded items in state and DOM
+            state.notifications.forEach(function (n) {
+                n.isRead = true;
+                n.read = true;
+            });
+            if (elList) {
+                elList.querySelectorAll('.aloute-notification-item.unread').forEach(function (el) {
+                    el.classList.remove('unread');
+                    const dot = el.querySelector('.aloute-notification-item-dot');
+                    if (dot) dot.remove();
+                    const btnRead = el.querySelector('.btn-mark-read');
+                    if (btnRead) btnRead.remove();
+                });
+            }
+
+            state.unreadCount = 0;
+            unreadCountVersion = Math.max(unreadCountVersion + 1, detail.version || 0);
+            updateUnreadBadge();
+        });
+
+        window.addEventListener('aloute:notification-read', function (e) {
+            const detail = (e && e.detail) || {};
+            const notifId = detail.id;
+            if (!notifId) return;
+
+            const item = state.notifications.find(function (n) { return n.id === notifId; });
+            if (item) {
+                item.isRead = true;
+                item.read = true;
+            }
+            if (elList) {
+                const row = elList.querySelector(`.aloute-notification-item[data-id="${notifId}"]`);
+                if (row) {
+                    row.classList.remove('unread');
+                    const dot = row.querySelector('.aloute-notification-item-dot');
+                    if (dot) dot.remove();
+                    const btnRead = row.querySelector('.btn-mark-read');
+                    if (btnRead) btnRead.remove();
+                }
+            }
+
+            if (typeof detail.unreadCount === 'number') {
+                state.unreadCount = detail.unreadCount;
+            } else if (state.unreadCount > 0) {
+                state.unreadCount--;
+            }
+            unreadCountVersion = Math.max(unreadCountVersion + 1, detail.version || 0);
+            updateUnreadBadge();
+        });
     }
 
     function init() {
