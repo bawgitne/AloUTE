@@ -1155,3 +1155,31 @@ Backend security vẫn phải có test riêng; UI hide/show test không thay th�
 13. Không tạo God template/God JS.
 14. Server vẫn là business/security authority.
 15. Mọi cross-cutting contract phải reference file canonical, không copy.
+
+---
+
+# 46. ADMIN DASHBOARD & INLINE MODERATION FRONTEND CONVENTIONS
+
+## 46.1. Cấu trúc Backoffice Template
+1. **Layout chuyên biệt:**
+   - `templates/layouts/admin.html`: Giao diện quản trị riêng biệt với Sidebar cố định, Topbar điều hướng, Breadcrumbs, badge hiển thị số lượng Report đang chờ xử lý (`pendingReports`).
+2. **Hệ thống màn hình Admin:**
+   - `templates/admin/overview.html`: Thẻ KPI nhanh (`asOf`), biểu đồ tăng trưởng bài viết/người dùng, danh sách các báo cáo vi phạm cần duyệt gấp.
+   - `templates/admin/users/list.html` & `detail.html`: Bảng tra cứu tài khoản kèm bộ lọc trạng thái, chi tiết hồ sơ quản trị, lịch sử vi phạm.
+   - `templates/admin/posts/list.html` & `detail.html`: Bảng kiểm soát bài viết, xem trước nội dung, modal gỡ bài (`POST_REMOVE`) và khôi phục (`POST_RESTORE`).
+   - `templates/admin/reports/list.html` & `detail.html`: Hàng đợi duyệt báo cáo phân theo tab (`PENDING`, `REVIEWED`, `RESOLVED`, `REJECTED`), chi tiết vi phạm kèm đối tượng liên quan.
+   - `templates/admin/moderation-actions/list.html`: Nhật ký kiểm duyệt (Audit Log) chỉ đọc, không có nút xóa/sửa.
+
+## 46.2. Inline Admin Controls trên Giao diện Người dùng
+Khi Quản trị viên (`SYSTEM_ADMIN`) lướt web như người dùng thông thường, giao diện hiển thị thêm các công cụ đặc quyền thông qua `sec:authorize="hasRole('SYSTEM_ADMIN')"`:
+1. **Trên thẻ bài viết (`_post-card.html`) & Trang chi tiết (`post/detail.html`):**
+   - Menu 3 chấm (`...`) bổ sung khối thao tác quản trị màu đỏ:
+     - 🗑️ **Gỡ bài viết này (Admin)**: Mở modal xác nhận kèm ô nhập lý do gỡ bài.
+     - 🚫 **Khóa tài khoản tác giả (Ban User)**: Mở modal đình chỉ tài khoản tác giả.
+2. **Trên trang cá nhân (`user/profile.html`):**
+   - Hiển thị **Admin Toolbar** phía trên đầu hồ sơ: Nút Khóa/Mở khóa tài khoản (`Ban/Unban`), Nút Hạn chế tương tác (cấm đăng bài/bình luận có thời hạn).
+3. **Quy tắc UX bắt buộc:**
+   - **Không Optimistic Update:** Đối với mọi thao tác gỡ bài, xóa nội dung, khóa tài khoản, UI **bắt buộc** phải chờ phản hồi HTTP `2xx` từ máy chủ mới tiến hành xóa phần tử khỏi DOM hoặc cập nhật trạng thái.
+   - **Xác nhận & Lý do:** Mọi hành động can thiệp phải hiển thị Confirmation Modal, bắt buộc nhập lý do xử lý (`reasonDetail`, tối thiểu 10 ký tự).
+   - **Chống Submit trùng:** Vô hiệu hóa nút bấm và hiển thị trạng thái đang xử lý (spinner) trong khi request đang in-flight.
+

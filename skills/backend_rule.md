@@ -3282,3 +3282,36 @@ Feature backend chỉ được coi là xong khi:
 38. Không để common/utils trở thành sọt rác.
 39. Test business/security/query critical path.
 40. Một rule chỉ có một source of truth.
+
+---
+
+# 64. ADMIN & MODERATION BACKEND CONVENTIONS
+
+## 64.1. Phân chia Layer & Package
+1. **Controller Layer:**
+   - `controller.page.AdminPageController`: Điều hướng và render SSR cho `/admin/**`.
+   - `controller.api.admin.AdminOverviewController`: Thống kê KPI hệ thống.
+   - `controller.api.admin.AdminUserController`: Tra cứu và quản lý tài khoản người dùng.
+   - `controller.api.admin.AdminPostController`: Tra cứu, gỡ và khôi phục bài viết.
+   - `controller.api.admin.AdminReportController`: Quản lý và xử lý hàng đợi báo cáo vi phạm.
+   - `controller.api.admin.AdminModerationActionController`: Truy vấn lịch sử kiểm duyệt (Audit Log).
+2. **Service Layer:**
+   - `service.ModerationService`: Xử lý nghiệp vụ gỡ bài, khôi phục bài viết, ghi log `moderation_actions`, quản lý `post_moderation_removals`.
+   - `service.ReportReviewService`: Quản lý quy trình chuyển trạng thái báo cáo (`PENDING -> REVIEWED -> RESOLVED/REJECTED`) và kiểm tra optimistic lock `version`.
+   - `service.AdminOverviewService`: Tổng hợp số liệu KPI và thống kê tăng trưởng hệ thống.
+   - *Quy tắc:* Tuyệt đối không viết logic nghiệp vụ trong Controller. Một use case chỉ có duy nhất một Service method quản lý.
+
+## 64.2. Transaction & Audit Invariant
+1. **Tính nguyên tử (@Transactional):**
+   - Khi Admin ra quyết định giải quyết báo cáo (`REPORT_RESOLVE`) kèm theo gỡ bài viết (`POST_REMOVE`), toàn bộ các thao tác:
+     1. Khóa bản ghi Report và Post để kiểm tra tính hợp lệ.
+     2. Gỡ bài viết (`deleted_at = now()`) và cập nhật counter liên quan.
+     3. Tạo bản ghi `post_moderation_removals`.
+     4. Ghi bản ghi `moderation_actions` (Audit Log).
+     5. Cập nhật Report sang `RESOLVED` và tăng `version`.
+     **BẮT BUỘC** phải nằm trong một transaction duy nhất. Nếu bất kỳ bước nào thất bại, hệ thống tự động rollback toàn bộ.
+2. **Gửi Notification sau Commit:**
+   - Việc phát thông báo cảnh báo đến tác giả bài viết bị gỡ phải được thực hiện **sau khi commit** (`afterCommit`) để tránh việc lỗi gửi thông báo làm rollback nghiệp vụ cốt lõi của cơ sở dữ liệu.
+3. **Bảo vệ Nhật ký Kiểm duyệt:**
+   - Repository của `ModerationAction` chỉ cung cấp các phương thức `save()` và `find*()`. Không bao giờ cung cấp hoặc gọi `delete()`, `deleteAll()`.
+

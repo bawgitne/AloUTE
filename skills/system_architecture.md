@@ -642,6 +642,16 @@ Format:
 | **REPORT** | `REPORT_NOT_FOUND` | 404 Not Found | Báo cáo vi phạm không tồn tại |
 | | `REPORT_TARGET_REQUIRED` | 422 Unprocessable Entity | Yêu cầu chỉ định đúng một đối tượng vi phạm (User hoặc Post) |
 | | `REPORT_SELF_NOT_ALLOWED` | 409 Conflict | Không thể tự báo cáo chính mình |
+| | `REPORT_ALREADY_IN_REVIEW` | 409 Conflict | Báo cáo đã được Quản trị viên khác tiếp nhận xử lý |
+| | `REPORT_INVALID_TRANSITION` | 409 Conflict | Chuyển đổi trạng thái báo cáo không hợp lệ |
+| | `REPORT_VERSION_CONFLICT` | 409 Conflict | Dữ liệu báo cáo đã bị thay đổi bởi phiên khác (optimistic lock conflict) |
+| | `REPORT_REVIEWER_REQUIRED` | 403 Forbidden | Chỉ Quản trị viên đang tiếp nhận mới có quyền ra quyết định |
+| **MODERATION** | `POST_RESTORE_NOT_ALLOWED` | 409 Conflict | Không đủ điều kiện khôi phục (bài viết do tác giả tự xóa hoặc đã bị gỡ độc lập) |
+| | `POST_REMOVAL_NOT_FOUND` | 404 Not Found | Không tìm thấy bản ghi gỡ bài đang có hiệu lực |
+| | `USER_SUSPENSION_ALREADY_ACTIVE` | 409 Conflict | Tài khoản đã có lệnh đình chỉ đang còn hiệu lực |
+| | `USER_LAST_ADMIN_PROTECTED` | 409 Conflict | Không thể khóa hoặc hạ cấp Quản trị viên hệ thống (SYSTEM_ADMIN) cuối cùng |
+| | `COMMUNITY_OWNER_TRANSFER_INVALID` | 409 Conflict | Chuyển giao quyền Trưởng nhóm không hợp lệ |
+| | `BROADCAST_INVALID_STATE` | 409 Conflict | Thông báo toàn hệ thống không ở trạng thái cho phép gửi |
 | **FEED** | `FEED_NOT_FOUND` | 404 Not Found | Danh sách bảng tin tùy chỉnh không tồn tại |
 | | `FEED_ACCESS_DENIED` | 403 Forbidden | Không có quyền truy cập bảng tin riêng tư |
 | **NOTIFICATION** | `NOTIFICATION_NOT_FOUND` | 404 Not Found | Thông báo không tồn tại |
@@ -1177,3 +1187,23 @@ Canonical API contract defined only here
 Nguyên tắc quan trọng nhất:
 
 > **Business rule có một owner. Technical contract có một owner. Các tài liệu khác reference, không copy.**
+
+---
+
+# 26. ADMIN DASHBOARD & BACKOFFICE TRANSPORT ARCHITECTURE
+
+1. **Phân tách Route:**
+   - **Giao diện quản trị SSR:** `/admin/**` (Thymeleaf layout `layouts/admin.html`).
+   - **API REST Backend:** `/api/admin/**` (Trả về `ApiResponse<T>` envelope canonical).
+2. **Quyền & Xác thực:**
+   - Bắt buộc kiểm tra `ROLE_SYSTEM_ADMIN` (`@PreAuthorize("hasRole('SYSTEM_ADMIN')")`).
+   - Phủ nhận mặc định (Deny-by-default).
+   - Tuyệt đối không chấp nhận các header client tự phong như `X-Is-Admin`, `X-Role`, hay `adminId` trong request body; thông tin Admin thực hiện (`actorUserId`) luôn lấy từ authenticated `UserPrincipal`.
+3. **Bảo mật Request:**
+   - Browser Thymeleaf sử dụng JWT HttpOnly Cookie `aloute_access_token`.
+   - Mọi request ghi (POST/PATCH/DELETE) từ browser bắt buộc phải gửi kèm CSRF Token (`X-XSRF-TOKEN`).
+   - REST Client độc lập sử dụng `Authorization: Bearer <token>`.
+4. **Tính nhất quán Transaction & Audit:**
+   - Mọi thao tác can thiệp quản trị (gỡ bài viết, duyệt report, khóa tài khoản) phải được thực thi trong một transaction (`@Transactional`) cùng với việc ghi bản ghi Audit Log (`moderation_actions`).
+   - Không được cập nhật DOM trước khi server phản hồi HTTP `2xx`.
+   - Lệnh hủy/xóa/khóa phải có xác nhận (Confirmation modal) và lý do bắt buộc (`reasonDetail`).

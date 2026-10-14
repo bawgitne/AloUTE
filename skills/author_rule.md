@@ -708,3 +708,22 @@ ALOUTE_FRONTEND_CONVENTION.md
 13. SecurityConfig không chứa business rule.
 14. Error HTTP/body contract không được định nghĩa trong file này.
 15. Domain-specific permission không được invent trong file này.
+
+---
+
+# 30. ADMIN & MODERATION SECURITY CONVENTION
+
+1. **Mapping Global Role & Authority:**
+   - Role `SYSTEM_ADMIN` được map thành `ROLE_SYSTEM_ADMIN` trong Spring Security Context.
+   - Khi Principal có role `SYSTEM_ADMIN`, nạp thêm các quyền đặc thù:
+     - `GlobalAuthority.REPORT_REVIEW` (Quyền tiếp nhận và ra quyết định xử lý báo cáo vi phạm).
+     - `GlobalAuthority.USER_SUSPEND` (Quyền đình chỉ tài khoản và hạn chế tính năng).
+2. **Cấu hình Security Filter Chain:**
+   - Cụm route giao diện SSR: `/admin/**` → Yêu cầu authenticated `hasRole('SYSTEM_ADMIN')`.
+   - Cụm route API JSON: `/api/admin/**` → Yêu cầu authenticated `hasRole('SYSTEM_ADMIN')`.
+   - Áp dụng nguyên tắc **Deny-by-default** cho toàn bộ admin routes; không được phép whitelist công khai.
+3. **Bảo vệ CSRF & Cookie:**
+   - Khi Admin tương tác qua giao diện web (dùng JWT HttpOnly Cookie `aloute_access_token`), các request ghi (`POST`, `PATCH`, `DELETE`) bắt buộc phải gửi kèm header `X-XSRF-TOKEN`.
+4. **Không tin cậy Client Identity:**
+   - Thông tin Admin thực hiện (`actorUserId`) **bắt buộc** lấy trực tiếp từ `CurrentUserProvider.requireUserId()`, tuyệt đối không đọc từ Request Body hay Request Header do client gửi lên.
+

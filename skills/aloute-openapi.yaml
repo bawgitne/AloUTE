@@ -38,6 +38,7 @@ tags:
   - name: Conversations
   - name: Notifications
   - name: Reports
+  - name: Admin
 
 paths:
 
@@ -1500,6 +1501,491 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
 
+  /api/admin/overview:
+    get:
+      tags: [Admin]
+      summary: Get overview metrics and recent activity for Admin Dashboard
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [7d, 30d]
+            default: 7d
+      responses:
+        '200':
+          description: Overview metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminOverviewEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/users:
+    get:
+      tags: [Admin]
+      summary: List users with moderation metadata
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: isActive
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: isVerified
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: User list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserSummaryPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/users/{userId}:
+    get:
+      tags: [Admin]
+      summary: Get user moderation detail
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserDetailEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/users/{userId}/posts:
+    get:
+      tags: [Admin]
+      summary: List user posts in admin scope
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - name: contentState
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, AUTHOR_DELETED, ADMIN_REMOVED]
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: User posts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminPostSummaryPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/users/{userId}/moderation-actions:
+    get:
+      tags: [Admin]
+      summary: List moderation actions targeting user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: User moderation actions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationActionPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/posts:
+    get:
+      tags: [Admin]
+      summary: Search and list posts for moderation
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: authorId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: communityId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: contentState
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, AUTHOR_DELETED, ADMIN_REMOVED]
+        - name: reportedOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Moderation post list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminPostSummaryPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/posts/{postId}:
+    get:
+      tags: [Admin]
+      summary: Get post detail for moderation
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          description: Post detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminPostDetailEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/posts/{postId}/remove:
+    post:
+      tags: [Admin]
+      summary: Admin removes a violating post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminRemovePostRequest'
+      responses:
+        '200':
+          description: Post removed by admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostRemovalActionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/admin/posts/{postId}/restore:
+    post:
+      tags: [Admin]
+      summary: Admin restores an admin-removed post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminRestorePostRequest'
+      responses:
+        '200':
+          description: Post restored by admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostRestoreActionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/admin/posts/{postId}/moderation-actions:
+    get:
+      tags: [Admin]
+      summary: List moderation actions for a post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Post moderation actions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationActionPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/reports:
+    get:
+      tags: [Admin]
+      summary: List reports in review queue
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, REVIEWED, RESOLVED, REJECTED]
+        - name: targetType
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [USER, POST]
+        - name: reason
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ReportReason'
+        - name: reviewedBy
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Reports list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminReportSummaryPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/reports/{reportId}:
+    get:
+      tags: [Admin]
+      summary: Get report detail with evidence and target
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Report detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminReportDetailEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/reports/{reportId}/start-review:
+    post:
+      tags: [Admin]
+      summary: Assign report to current admin and transition PENDING to REVIEWED
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminStartReportReviewRequest'
+      responses:
+        '200':
+          description: Report review started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportReviewEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/admin/reports/{reportId}/decisions:
+    post:
+      tags: [Admin]
+      summary: Decide on report (RESOLVE with optional post removal, or REJECT)
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReportDecisionRequest'
+      responses:
+        '200':
+          description: Decision applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportDecisionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/admin/moderation-actions:
+    get:
+      tags: [Admin]
+      summary: Query moderation audit log
+      parameters:
+        - name: actorId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: targetType
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [USER, POST, REPORT, COMMUNITY, TOPIC]
+        - name: targetId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: actionType
+          in: query
+          required: false
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Moderation audit actions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationActionPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/moderation-actions/{actionId}:
+    get:
+      tags: [Admin]
+      summary: Get moderation audit action detail
+      parameters:
+        - name: actionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Audit action detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationActionDetailEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 components:
 
   securitySchemes:
@@ -2833,5 +3319,664 @@ components:
         meta:
           type: 'null'
 
+    # ==================== ADMIN DTO SCHEMAS ====================
+
+    AdminRemovePostRequest:
+      type: object
+      required: [reasonCode, reasonDetail]
+      properties:
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        reasonDetail:
+          type: string
+          minLength: 10
+          maxLength: 1000
+        relatedReportId:
+          type: integer
+          format: int64
+          nullable: true
+        publicNotice:
+          type: string
+          maxLength: 500
+          nullable: true
+
+    AdminRestorePostRequest:
+      type: object
+      required: [expectedRemovalId, reasonDetail]
+      properties:
+        expectedRemovalId:
+          type: integer
+          format: int64
+        reasonDetail:
+          type: string
+          minLength: 10
+          maxLength: 1000
+
+    AdminStartReportReviewRequest:
+      type: object
+      required: [expectedVersion]
+      properties:
+        expectedVersion:
+          type: integer
+          format: int64
+
+    AdminReportDecisionRequest:
+      type: object
+      required: [expectedVersion, decision, resolutionNote]
+      properties:
+        expectedVersion:
+          type: integer
+          format: int64
+        decision:
+          type: string
+          enum: [RESOLVE, REJECT]
+        resolutionNote:
+          type: string
+          minLength: 10
+          maxLength: 1000
+        resolutionAction:
+          type: object
+          nullable: true
+          properties:
+            type:
+              type: string
+              enum: [POST_REMOVE]
+            reasonCode:
+              $ref: '#/components/schemas/ReportReason'
+            reasonDetail:
+              type: string
+              minLength: 10
+              maxLength: 1000
+            publicNotice:
+              type: string
+              nullable: true
+
+    AdminOverviewResponse:
+      type: object
+      required: [asOf, period, metrics, dailyActivity]
+      properties:
+        asOf:
+          type: string
+          format: date-time
+        period:
+          type: string
+          example: '7d'
+        metrics:
+          type: object
+          properties:
+            totalUsers:
+              type: integer
+            activeUsers:
+              type: integer
+            totalPosts:
+              type: integer
+            postsCreatedToday:
+              type: integer
+            pendingReports:
+              type: integer
+            reviewedReports:
+              type: integer
+            totalCommunities:
+              type: integer
+        dailyActivity:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              newUsers:
+                type: integer
+              newPosts:
+                type: integer
+        recentReportIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        recentModerationActionIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+
+    AdminUserSummaryResponse:
+      type: object
+      required: [id, username, displayName, isActive, isVerified, isPrivate, moderationStatus, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        displayName:
+          type: string
+        isActive:
+          type: boolean
+        isVerified:
+          type: boolean
+        isPrivate:
+          type: boolean
+        moderationStatus:
+          type: string
+          enum: [NORMAL, SUSPENDED, RESTRICTED]
+        createdAt:
+          type: string
+          format: date-time
+
+    AdminUserDetailResponse:
+      type: object
+      required: [id, username, email, displayName, isActive, isVerified, isPrivate, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        bio:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        isVerified:
+          type: boolean
+        isPrivate:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        counts:
+          type: object
+          properties:
+            posts:
+              type: integer
+            reportsReceived:
+              type: integer
+        capabilities:
+          type: object
+          properties:
+            canWarn:
+              type: boolean
+            canSuspend:
+              type: boolean
+            canResetProfile:
+              type: boolean
+            canChangeGlobalRole:
+              type: boolean
+
+    AdminPostSummaryResponse:
+      type: object
+      required: [id, author, contentExcerpt, visibility, contentState, reportedCount, createdAt, capabilities]
+      properties:
+        id:
+          type: integer
+          format: int64
+        author:
+          $ref: '#/components/schemas/UserSummary'
+        contentExcerpt:
+          type: string
+        parentPostId:
+          type: integer
+          format: int64
+          nullable: true
+        quotedPostId:
+          type: integer
+          format: int64
+          nullable: true
+        communityId:
+          type: integer
+          format: int64
+          nullable: true
+        visibility:
+          $ref: '#/components/schemas/PostVisibility'
+        contentState:
+          type: string
+          enum: [ACTIVE, AUTHOR_DELETED, ADMIN_REMOVED]
+        reportedCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        capabilities:
+          type: object
+          properties:
+            canRemove:
+              type: boolean
+            canRestore:
+              type: boolean
+
+    AdminPostDetailResponse:
+      type: object
+      required: [id, author, content, visibility, contentState, createdAt, capabilities]
+      properties:
+        id:
+          type: integer
+          format: int64
+        author:
+          $ref: '#/components/schemas/UserSummary'
+        content:
+          type: string
+        visibility:
+          $ref: '#/components/schemas/PostVisibility'
+        contentState:
+          type: string
+          enum: [ACTIVE, AUTHOR_DELETED, ADMIN_REMOVED]
+        parentPostId:
+          type: integer
+          format: int64
+          nullable: true
+        quotedPostId:
+          type: integer
+          format: int64
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+        relatedReportIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        activeRemovalId:
+          type: integer
+          format: int64
+          nullable: true
+        capabilities:
+          type: object
+          properties:
+            canRemove:
+              type: boolean
+            canRestore:
+              type: boolean
+
+    PostRemovalActionResponse:
+      type: object
+      required: [actionId, postId, actionType, contentState, removalId, occurredAt]
+      properties:
+        actionId:
+          type: integer
+          format: int64
+        postId:
+          type: integer
+          format: int64
+        actionType:
+          type: string
+          example: 'POST_REMOVE'
+        contentState:
+          type: string
+          example: 'ADMIN_REMOVED'
+        removalId:
+          type: integer
+          format: int64
+        occurredAt:
+          type: string
+          format: date-time
+
+    PostRestoreActionResponse:
+      type: object
+      required: [actionId, postId, actionType, contentState, restoredRemovalId, occurredAt]
+      properties:
+        actionId:
+          type: integer
+          format: int64
+        postId:
+          type: integer
+          format: int64
+        actionType:
+          type: string
+          example: 'POST_RESTORE'
+        contentState:
+          type: string
+          example: 'ACTIVE'
+        restoredRemovalId:
+          type: integer
+          format: int64
+        occurredAt:
+          type: string
+          format: date-time
+
+    AdminReportSummaryResponse:
+      type: object
+      required: [id, targetType, targetId, reporter, reason, descriptionExcerpt, status, createdAt, version]
+      properties:
+        id:
+          type: integer
+          format: int64
+        targetType:
+          type: string
+          enum: [USER, POST]
+        targetId:
+          type: integer
+          format: int64
+        reporter:
+          $ref: '#/components/schemas/UserSummary'
+        reason:
+          $ref: '#/components/schemas/ReportReason'
+        descriptionExcerpt:
+          type: string
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        reviewedBy:
+          type: integer
+          format: int64
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+
+    AdminReportDetailResponse:
+      type: object
+      required: [id, target, reporter, reason, description, status, createdAt, version, capabilities]
+      properties:
+        id:
+          type: integer
+          format: int64
+        target:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [USER, POST]
+            id:
+              type: integer
+              format: int64
+        reporter:
+          $ref: '#/components/schemas/UserSummary'
+        reason:
+          $ref: '#/components/schemas/ReportReason'
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        reviewedBy:
+          type: integer
+          format: int64
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+        resolutionNote:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+        capabilities:
+          type: object
+          properties:
+            canStartReview:
+              type: boolean
+            canDecide:
+              type: boolean
+
+    ReportReviewResponse:
+      type: object
+      required: [id, status, reviewedBy, reviewedAt, version]
+      properties:
+        id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          example: 'REVIEWED'
+        reviewedBy:
+          type: integer
+          format: int64
+        reviewedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+
+    ReportDecisionResponse:
+      type: object
+      required: [reportId, status, closedAt, version]
+      properties:
+        reportId:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [RESOLVED, REJECTED]
+        resolutionActionId:
+          type: integer
+          format: int64
+          nullable: true
+        closedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+
+    ModerationActionResponse:
+      type: object
+      required: [id, actor, targetType, targetId, actionType, reasonCode, reasonDetail, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        actor:
+          $ref: '#/components/schemas/UserSummary'
+        targetType:
+          type: string
+          enum: [USER, POST, REPORT, COMMUNITY, TOPIC]
+        targetId:
+          type: integer
+          format: int64
+        actionType:
+          type: string
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        reasonDetail:
+          type: string
+        relatedReportId:
+          type: integer
+          format: int64
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    ModerationActionDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/ModerationActionResponse'
+        - type: object
+          properties:
+            metadata:
+              type: object
+              nullable: true
+
+    # ==================== ADMIN ENVELOPES ====================
+
+    AdminOverviewEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/AdminOverviewResponse'
+        meta:
+          type: 'null'
+
+    AdminUserSummaryPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminUserSummaryResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    AdminUserDetailEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/AdminUserDetailResponse'
+        meta:
+          type: 'null'
+
+    AdminPostSummaryPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminPostSummaryResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    AdminPostDetailEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/AdminPostDetailResponse'
+        meta:
+          type: 'null'
+
+    PostRemovalActionEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/PostRemovalActionResponse'
+        meta:
+          type: 'null'
+
+    PostRestoreActionEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/PostRestoreActionResponse'
+        meta:
+          type: 'null'
+
+    AdminReportSummaryPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminReportSummaryResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    AdminReportDetailEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/AdminReportDetailResponse'
+        meta:
+          type: 'null'
+
+    ReportReviewEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/ReportReviewResponse'
+        meta:
+          type: 'null'
+
+    ReportDecisionEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/ReportDecisionResponse'
+        meta:
+          type: 'null'
+
+    ModerationActionPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModerationActionResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    ModerationActionDetailEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/ModerationActionDetailResponse'
+        meta:
+          type: 'null'
+
 security:
   - cookieAuth: []
+
