@@ -73,6 +73,8 @@
     function initCreatePost() {
         const form = document.getElementById('create-post-form');
         if (!form) return;
+        if (form.dataset.composerInitialized === 'true') return;
+        form.dataset.composerInitialized = 'true';
 
         let isSubmitting = false;
 
@@ -84,6 +86,49 @@
         const charCountEl = document.getElementById('char-count');
         const statusBox = document.getElementById('create-post-status');
         const contentError = document.getElementById('post-content-error');
+
+        function updateSubmitButtonState() {
+            if (!submitBtn) return;
+            if (isSubmitting) {
+                submitBtn.disabled = true;
+                return;
+            }
+            const trimmed = contentInput ? contentInput.value.trim() : '';
+            const length = contentInput ? contentInput.value.length : 0;
+            const isValid = trimmed.length > 0 && length <= 2000;
+            submitBtn.disabled = !isValid;
+        }
+
+        // Modal lifecycle listeners
+        const modalEl = document.getElementById('createPostModal');
+        if (modalEl && modalEl.dataset.composerModalWired !== 'true') {
+            modalEl.dataset.composerModalWired = 'true';
+            let invokingTrigger = null;
+            modalEl.addEventListener('show.bs.modal', function (e) {
+                invokingTrigger = (e && e.relatedTarget) || modalEl._invokingTrigger || null;
+            });
+            modalEl.addEventListener('shown.bs.modal', function () {
+                if (contentInput) {
+                    contentInput.focus();
+                }
+                updateSubmitButtonState();
+            });
+            modalEl.addEventListener('hide.bs.modal', function (e) {
+                if (isSubmitting) {
+                    e.preventDefault();
+                }
+            });
+            modalEl.addEventListener('hidden.bs.modal', function () {
+                const trigger = invokingTrigger || modalEl._invokingTrigger;
+                if (trigger && typeof trigger.focus === 'function') {
+                    try {
+                        trigger.focus();
+                    } catch (_) {}
+                }
+                invokingTrigger = null;
+                modalEl._invokingTrigger = null;
+            });
+        }
 
         // Media attachment management
         const mediaInput = document.getElementById('post-media-input');
@@ -293,13 +338,24 @@
         if (contentInput) {
             contentInput.addEventListener('input', function () {
                 updateCharCount();
+                updateSubmitButtonState();
                 if (contentInput.classList.contains('is-invalid') && contentInput.value.trim().length > 0 && contentInput.value.length <= 2000) {
                     contentInput.classList.remove('is-invalid');
                     if (contentError) contentError.classList.add('d-none');
                 }
             });
             updateCharCount();
+            updateSubmitButtonState();
+        } else {
+            updateSubmitButtonState();
         }
+
+        form.addEventListener('reset', function () {
+            setTimeout(function () {
+                updateCharCount();
+                updateSubmitButtonState();
+            }, 0);
+        });
 
         if (submitBtn && submitBtn.type !== 'submit') {
             submitBtn.addEventListener('click', function (e) {
@@ -341,6 +397,7 @@
                 }
                 setStatus(statusBox, 'Nội dung bài viết không được để trống.', 'warning');
                 if (contentInput) contentInput.focus();
+                updateSubmitButtonState();
                 return;
             }
 
@@ -351,11 +408,13 @@
                     contentError.classList.remove('d-none');
                 }
                 setStatus(statusBox, 'Nội dung bài viết vượt quá tối đa 2000 ký tự.', 'warning');
+                updateSubmitButtonState();
                 return;
             }
 
             isSubmitting = true;
             freezeMediaControls();
+            updateSubmitButtonState();
 
             const visibility = (visibilitySelect && visibilitySelect.value) ? visibilitySelect.value : 'PUBLIC';
             const allowReply = allowReplyInput ? allowReplyInput.checked : true;
@@ -380,7 +439,11 @@
             }
 
             try {
-                const response = await fetch('/api/posts', {
+                const commInput = document.getElementById('post-community-id');
+                const communityId = (commInput && commInput.value && /^\d+$/.test(commInput.value)) ? parseInt(commInput.value, 10) : null;
+                const endpoint = communityId ? ('/api/communities/' + encodeURIComponent(communityId) + '/posts') : '/api/posts';
+
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     credentials: 'include',
                     headers: csrfHeaders({
@@ -395,7 +458,15 @@
                     const body = await readJson(response);
                     setStatus(statusBox, 'Đăng bài viết thành công!', 'success');
                     const createdPost = body && body.data;
-                    const destination = (createdPost && createdPost.id) ? ('/posts/' + encodeURIComponent(createdPost.id)) : '/feed';
+                    const destination = (createdPost && createdPost.id) ? ('/posts/' + encodeURIComponent(createdPost.id)) : (communityId ? ('/communities/' + encodeURIComponent(communityId)) : '/feed');
+
+                    const modalEl = document.getElementById('createPostModal');
+                    if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                        try {
+                            const inst = bootstrap.Modal.getInstance(modalEl);
+                            if (inst) inst.hide();
+                        } catch (_) {}
+                    }
                     setTimeout(function () {
                         window.location.href = destination;
                     }, 500);
@@ -406,9 +477,9 @@
                 isSubmitting = false;
                 unfreezeMediaControls();
                 if (submitBtn) {
-                    submitBtn.disabled = false;
                     submitBtn.innerHTML = originalBtnHtml;
                 }
+                updateSubmitButtonState();
 
                 if (response.status === 500) {
                     setStatus(statusBox, 'Hệ thống đang gặp sự cố khi xử lý bài viết (HTTP 500). Vui lòng thử lại sau.', 'danger');
@@ -428,9 +499,9 @@
                 isSubmitting = false;
                 unfreezeMediaControls();
                 if (submitBtn) {
-                    submitBtn.disabled = false;
                     submitBtn.innerHTML = originalBtnHtml;
                 }
+                updateSubmitButtonState();
                 setStatus(statusBox, 'Lỗi kết nối máy chủ khi đăng bài viết. Vui lòng thử lại.', 'danger');
             }
         });
@@ -442,6 +513,8 @@
     function initPostReply() {
         const form = document.getElementById('reply-form');
         if (!form) return;
+        if (form.dataset.replyInitialized === 'true') return;
+        form.dataset.replyInitialized = 'true';
 
         const postId = form.dataset.postId;
         if (!postId) return;

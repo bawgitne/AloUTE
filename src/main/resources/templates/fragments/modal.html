@@ -2,6 +2,30 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <body>
 <div th:fragment="postModals">
+    <!-- Accessible Bootstrap 5 Create Post Modal (Shared Composer) -->
+    <div th:if="${activeNav != 'create-post'}"
+         class="modal fade"
+         id="createPostModal"
+         tabindex="-1"
+         aria-labelledby="createPostModalLabel"
+         aria-hidden="true"
+         data-bs-backdrop="true"
+         data-bs-keyboard="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="createPostModalLabel">
+                        <i class="bi bi-pencil-square text-primary me-2" aria-hidden="true"></i>Tạo bài viết mới
+                    </h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <div th:replace="~{post/_composer-form :: composerForm(isModal=true)}"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Accessible Bootstrap 5 Edit Post Modal -->
     <div class="modal fade"
          id="editPostModal"

@@ -786,8 +786,25 @@
             return;
         }
         if (action === 'navigate-create-post') {
+            const modalEl = document.getElementById('createPostModal');
+            const bs = (typeof window !== 'undefined' && window.bootstrap) || (typeof bootstrap !== 'undefined' ? bootstrap : null);
+            if (modalEl && bs && bs.Modal) {
+                event.preventDefault();
+                const commId = target.getAttribute('data-community-id') ||
+                               (document.querySelector('[data-community-id]') ? document.querySelector('[data-community-id]').getAttribute('data-community-id') : null);
+                const commInput = document.getElementById('post-community-id');
+                if (commInput) {
+                    commInput.value = (commId && /^\d+$/.test(commId)) ? commId : '';
+                }
+                const modal = bs.Modal.getInstance(modalEl) || new bs.Modal(modalEl);
+                modalEl._invokingTrigger = target;
+                modal.show(target);
+                return;
+            }
+            // Fallback when #createPostModal is absent (e.g. on /post/create where modal is omitted) or Bootstrap modal is unavailable
             event.preventDefault();
-            window.location.href = '/post/create';
+            const href = target.getAttribute('href');
+            window.location.href = (href && href !== '#' && !href.startsWith('javascript:')) ? href : '/post/create';
             return;
         }
         if (action === 'navigate-profile') {
@@ -1769,6 +1786,7 @@
     }
 
     let pageActionsUnreadVersion = 0;
+    let pageActionsConfirmedUnreadCount = null;
 
     // P1-D: Initialize Notification Badges across Navbar & Sidebar
     function initNotificationBadges() {
@@ -1780,6 +1798,7 @@
                 // NEVER convert malformed counts to fake 0! Preserve last confirmed state
                 return;
             }
+            pageActionsConfirmedUnreadCount = rawCount;
             const num = rawCount;
             const text = num > 99 ? '99+' : String(num);
             const isHidden = num <= 0;
@@ -1795,7 +1814,7 @@
                 } else {
                     badge.classList.remove('d-none');
                 }
-                const parentLink = badge.closest('a');
+                const parentLink = badge.closest('a, button');
                 if (parentLink) {
                     parentLink.setAttribute('aria-label', parentAriaLabel);
                 }
@@ -1812,6 +1831,7 @@
                     pageActionsUnreadVersion = Math.max(pageActionsUnreadVersion, eventVersion);
                 }
                 if (isValidUnreadCount(e.detail.unreadCount)) {
+                    pageActionsConfirmedUnreadCount = e.detail.unreadCount;
                     setBadges(e.detail.unreadCount);
                 }
             }
@@ -1848,6 +1868,387 @@
             })
             .catch(function () {
                 // Network error: preserve last confirmed state
+            });
+        }
+    }
+
+    let isNavbarPreviewLoading = false;
+    let navbarPreviewData = null;
+    let navbarPreviewRequestId = 0;
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatPreviewTime(isoString) {
+        if (!isoString) return '';
+        try {
+            const date = new Date(isoString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMin = Math.floor(diffMs / 60000);
+            if (diffMin < 1) return 'Vừa xong';
+            if (diffMin < 60) return diffMin + 'm';
+            const diffHours = Math.floor(diffMin / 60);
+            if (diffHours < 24) return diffHours + 'h';
+            const day = date.getDate().toString().padStart(2, '0');
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            return day + '/' + month;
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function resolveNotificationDeepLink(item) {
+        if (!item) return '/notifications';
+        const targetType = (item.targetType || '').toUpperCase();
+        const targetId = isPositiveSafeInteger(item.targetId) ? item.targetId : null;
+        const actorId = (item.actor && isPositiveSafeInteger(item.actor.id)) ? item.actor.id :
+                        (isPositiveSafeInteger(item.actorId) ? item.actorId : null);
+
+        if (targetType === 'POST') {
+            return targetId ? ('/posts/' + encodeURIComponent(targetId)) : '/feed';
+        }
+        if (targetType === 'USER') {
+            if (targetId) return '/users/' + encodeURIComponent(targetId);
+            if (actorId) return '/users/' + encodeURIComponent(actorId);
+            return '/friends';
+        }
+        if (targetType === 'COMMUNITY') {
+            return targetId ? ('/communities/' + encodeURIComponent(targetId)) : '/communities';
+        }
+        if (targetType === 'MESSAGE') {
+            // Generic MESSAGE targetId is a messageId, NOT a conversationId; honestly link to /messages
+            return '/messages';
+        }
+        if (targetType === 'CONVERSATION') {
+            return targetId ? ('/messages/' + encodeURIComponent(targetId)) : '/messages';
+        }
+        return '/notifications';
+    }
+
+    function getNotificationPreviewText(item) {
+        const type = (item && item.type ? item.type : '').toUpperCase();
+        if (type.includes('LIKE')) return 'đã thích bài viết của bạn';
+        if (type.includes('REPLY') || type.includes('COMMENT')) return 'đã bình luận về bài viết';
+        if (type.includes('QUOTE')) return 'đã trích dẫn bài viết';
+        if (type.includes('REPOST')) return 'đã chia sẻ lại bài viết';
+        if (type.includes('MENTION')) return 'đã nhắc đến bạn';
+        if (type.includes('FOLLOW')) return 'đã theo dõi bạn';
+        if (type.includes('FRIEND_ACCEPT')) return 'đã chấp nhận kết bạn';
+        if (type.includes('FRIEND')) return 'đã gửi lời mời kết bạn';
+        return 'đã tương tác với bạn';
+    }
+
+    function normalizeNotificationReadState(item) {
+        if (!item || typeof item !== 'object') return item;
+        let readState;
+        if (typeof item.read === 'boolean') {
+            readState = item.read;
+        } else if (typeof item.isRead === 'boolean') {
+            readState = item.isRead;
+        }
+        if (typeof readState === 'boolean') {
+            item.read = readState;
+            item.isRead = readState;
+        }
+        return item;
+    }
+
+    const pendingNotificationReadIds = new Set();
+
+    function renderNavbarPreviewItems(container, items) {
+        if (!container) return;
+        container.innerHTML = '';
+        if (!items || items.length === 0) {
+            container.innerHTML = '<div class="p-4 text-center text-muted small"><i class="bi bi-bell-slash fs-4 d-block mb-2 text-secondary"></i>Không có thông báo mới</div>';
+            return;
+        }
+
+        items.forEach(function (item) {
+            normalizeNotificationReadState(item);
+            const isUnread = item.isRead === false;
+            const el = document.createElement('a');
+            el.className = 'dropdown-item aloute-notification-preview-item' + (isUnread ? ' unread' : '');
+            const deepLink = resolveNotificationDeepLink(item);
+            el.setAttribute('href', deepLink);
+            el.href = deepLink;
+            el.setAttribute('data-notification-id', String(item.id));
+            el.setAttribute('role', 'menuitem');
+
+            const avatarUrl = (item.actor && item.actor.avatarUrl) ? item.actor.avatarUrl : '/images/avatar-fallback.svg';
+            const actorName = (item.actor && (item.actor.displayName || item.actor.username)) || 'Sinh viên';
+            const actionText = getNotificationPreviewText(item);
+            const timeText = formatPreviewTime(item.createdAt);
+            const contentSnippet = item.contentPreview ? `<div class="small text-muted text-truncate mt-1" style="max-width: 250px;">"${escapeHtml(item.contentPreview)}"</div>` : '';
+            const unreadBadge = isUnread ? '<span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size: 0.65rem;">Chưa đọc</span>' : '';
+            const unreadDot = isUnread ? '<span class="aloute-preview-unread-dot" aria-hidden="true"></span>' : '';
+
+            el.innerHTML = `
+                ${unreadDot}
+                <img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(actorName)}" class="aloute-preview-avatar">
+                <div class="flex-grow-1 aloute-min-w-0">
+                    <div class="d-flex align-items-baseline justify-content-between gap-1">
+                        <span class="small fw-semibold text-truncate text-dark" style="max-width: 160px;">${escapeHtml(actorName)}</span>
+                        <span class="text-muted small flex-shrink-0" style="font-size: 0.7rem;">${escapeHtml(timeText)}</span>
+                    </div>
+                    <div class="small text-secondary">${escapeHtml(actionText)}</div>
+                    ${contentSnippet}
+                    <div class="mt-1">${unreadBadge}</div>
+                </div>
+            `;
+
+            el.addEventListener('click', async function (e) {
+                if (item.isRead === false) {
+                    e.preventDefault();
+                    if (pendingNotificationReadIds.has(item.id)) {
+                        return; // Rapid repeated clicks suppressed
+                    }
+                    pendingNotificationReadIds.add(item.id);
+                    const http = getHttp();
+                    if (http && isPositiveSafeInteger(item.id)) {
+                        try {
+                            const res = await http.request('/api/notifications/' + encodeURIComponent(item.id) + '/read', {
+                                method: 'PATCH'
+                            });
+                            const body = await http.readJson(res);
+                            if (res.status === 200 && body && body.success === true) {
+                                item.isRead = true;
+                                item.read = true;
+                                if (body.data && typeof body.data === 'object') {
+                                    normalizeNotificationReadState(body.data);
+                                }
+                                el.classList.remove('unread');
+                                const dot = el.querySelector('.aloute-preview-unread-dot');
+                                if (dot) dot.remove();
+                                const badge = el.querySelector('.badge');
+                                if (badge) badge.remove();
+
+                                let count;
+                                if (typeof pageActionsConfirmedUnreadCount === 'number') {
+                                    count = pageActionsConfirmedUnreadCount;
+                                } else {
+                                    const curBadge = document.getElementById('navbar-notification-badge');
+                                    const badgeText = curBadge ? curBadge.textContent.trim() : '';
+                                    count = parseInt(badgeText, 10) || 0;
+                                }
+                                const nextCount = Math.max(0, count - 1);
+                                pageActionsConfirmedUnreadCount = nextCount;
+                                const nextVersion = ++pageActionsUnreadVersion;
+                                window.dispatchEvent(new CustomEvent('aloute:notification-read', {
+                                    detail: { id: item.id, unreadCount: nextCount, version: nextVersion }
+                                }));
+                                window.dispatchEvent(new CustomEvent('aloute:unread-count-updated', {
+                                    detail: { unreadCount: nextCount, version: nextVersion }
+                                }));
+                            }
+                        } catch (_) {
+                        } finally {
+                            pendingNotificationReadIds.delete(item.id);
+                        }
+                    } else {
+                        pendingNotificationReadIds.delete(item.id);
+                    }
+                    window.location.href = el.href;
+                }
+            });
+
+            container.appendChild(el);
+        });
+    }
+
+    async function fetchNavbarRecentNotifications(force) {
+        const listContainer = document.getElementById('navbar-notification-list');
+        if (!listContainer) return;
+        if (isNavbarPreviewLoading) return; // Deduplication
+        if (navbarPreviewData && !force) {
+            renderNavbarPreviewItems(listContainer, navbarPreviewData);
+            return;
+        }
+
+        const currentPreviewReqId = ++navbarPreviewRequestId;
+        isNavbarPreviewLoading = true;
+        listContainer.innerHTML = '<div class="p-4 text-center text-muted small"><span class="spinner-border spinner-border-sm text-primary me-2" role="status"></span>Đang tải thông báo...</div>';
+
+        const http = getHttp();
+        if (!http) {
+            isNavbarPreviewLoading = false;
+            listContainer.innerHTML = '<div class="p-3 text-center text-danger small">Không thể tải thông báo.</div>';
+            return;
+        }
+
+        try {
+            const res = await http.request('/api/notifications?page=0&size=5', {
+                method: 'GET'
+            });
+            const body = await http.readJson(res);
+            isNavbarPreviewLoading = false;
+
+            if (currentPreviewReqId !== navbarPreviewRequestId) {
+                return; // Stale preview response discarded (superseded or read-all occurred)
+            }
+
+            if (res.status === 200 && body && body.success === true && Array.isArray(body.data)) {
+                body.data.forEach(normalizeNotificationReadState);
+                navbarPreviewData = body.data;
+                renderNavbarPreviewItems(listContainer, navbarPreviewData);
+            } else {
+                listContainer.innerHTML = '<div class="p-3 text-center text-danger small">Không thể tải danh sách thông báo.</div>';
+            }
+        } catch (err) {
+            isNavbarPreviewLoading = false;
+            if (currentPreviewReqId !== navbarPreviewRequestId) {
+                return;
+            }
+            listContainer.innerHTML = '<div class="p-3 text-center text-danger small">Lỗi kết nối máy chủ.</div>';
+        }
+    }
+
+    function initNavbarNotificationPreview() {
+        const toggle = document.getElementById('navbarNotificationDropdown');
+        const listContainer = document.getElementById('navbar-notification-list');
+        const btnMarkAll = document.getElementById('btn-navbar-mark-all-read');
+        const feedbackEl = document.getElementById('navbar-notif-feedback');
+        const previewMenu = document.getElementById('navbar-notification-preview');
+        if (!toggle || !listContainer) return;
+
+        // Space key activation on role="button" anchor toggle
+        if (toggle.dataset.spaceWired !== 'true') {
+            toggle.dataset.spaceWired = 'true';
+            toggle.addEventListener('keydown', function (e) {
+                if (e.key === ' ' || e.key === 'Spacebar') {
+                    e.preventDefault();
+                    toggle.click();
+                }
+            });
+        }
+
+        // Keyboard traversal (ArrowDown / ArrowUp / Escape) within dropdown menu
+        if (previewMenu && previewMenu.dataset.navWired !== 'true') {
+            previewMenu.dataset.navWired = 'true';
+            previewMenu.addEventListener('keydown', function (e) {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    const items = Array.from(previewMenu.querySelectorAll('.dropdown-item')).filter(function (el) {
+                        return !el.classList.contains('disabled') && !el.hasAttribute('disabled') && el.getAttribute('aria-disabled') !== 'true';
+                    });
+                    if (items.length === 0) return;
+                    const currentIndex = items.indexOf(document.activeElement);
+                    let nextIndex;
+                    if (e.key === 'ArrowDown') {
+                        nextIndex = (currentIndex < items.length - 1) ? currentIndex + 1 : 0;
+                    } else {
+                        nextIndex = (currentIndex > 0) ? currentIndex - 1 : items.length - 1;
+                    }
+                    e.preventDefault();
+                    items[nextIndex].focus();
+                } else if (e.key === 'Escape' || e.key === 'Esc') {
+                    e.preventDefault();
+                    const bs = (typeof window !== 'undefined' && window.bootstrap) || (typeof bootstrap !== 'undefined' ? bootstrap : null);
+                    if (bs && bs.Dropdown) {
+                        const inst = bs.Dropdown.getInstance(toggle);
+                        if (inst && typeof inst.hide === 'function') {
+                            inst.hide();
+                        }
+                    } else if (previewMenu.classList.contains('show')) {
+                        previewMenu.classList.remove('show');
+                    }
+                    try { toggle.focus(); } catch (_) {}
+                }
+            });
+        }
+
+        const dropdownParent = toggle.closest('.dropdown');
+        if (dropdownParent && dropdownParent.dataset.previewWired !== 'true') {
+            dropdownParent.dataset.previewWired = 'true';
+            dropdownParent.addEventListener('show.bs.dropdown', function () {
+                fetchNavbarRecentNotifications(true);
+            });
+        }
+
+        if (typeof window !== 'undefined' && !window.__aloutePageActionsReadAllWired) {
+            window.__aloutePageActionsReadAllWired = true;
+            window.addEventListener('aloute:notifications-read-all', function () {
+                navbarPreviewRequestId++;
+                pageActionsConfirmedUnreadCount = 0;
+                if (navbarPreviewData) {
+                    navbarPreviewData.forEach(function (item) {
+                        item.isRead = true;
+                        item.read = true;
+                    });
+                    if (listContainer) {
+                        renderNavbarPreviewItems(listContainer, navbarPreviewData);
+                    }
+                }
+            });
+        }
+
+        if (btnMarkAll && btnMarkAll.dataset.wired !== 'true') {
+            btnMarkAll.dataset.wired = 'true';
+            btnMarkAll.addEventListener('click', async function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const http = getHttp();
+                if (!http) return;
+
+                btnMarkAll.disabled = true;
+                const origText = btnMarkAll.textContent;
+                btnMarkAll.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+
+                try {
+                    const res = await http.request('/api/notifications/read-all', {
+                        method: 'PATCH'
+                    });
+                    const body = await http.readJson(res);
+                    btnMarkAll.disabled = false;
+                    btnMarkAll.textContent = origText;
+
+                    if (res.status === 200 && body && body.success === true) {
+                        navbarPreviewRequestId++;
+                        if (navbarPreviewData) {
+                            navbarPreviewData.forEach(function (item) {
+                                item.isRead = true;
+                                item.read = true;
+                            });
+                            renderNavbarPreviewItems(listContainer, navbarPreviewData);
+                        }
+                        pageActionsConfirmedUnreadCount = 0;
+                        const nextVersion = ++pageActionsUnreadVersion;
+                        window.dispatchEvent(new CustomEvent('aloute:notifications-read-all', {
+                            detail: { unreadCount: 0, version: nextVersion }
+                        }));
+                        window.dispatchEvent(new CustomEvent('aloute:unread-count-updated', {
+                            detail: { unreadCount: 0, version: nextVersion }
+                        }));
+                        if (feedbackEl) {
+                            feedbackEl.className = 'alert alert-success py-1 px-3 mb-0 small rounded-0';
+                            feedbackEl.textContent = 'Đã đánh dấu tất cả đã đọc.';
+                            feedbackEl.classList.remove('d-none');
+                            setTimeout(function () { feedbackEl.classList.add('d-none'); }, 3000);
+                        }
+                    } else {
+                        if (feedbackEl) {
+                            feedbackEl.className = 'alert alert-danger py-1 px-3 mb-0 small rounded-0';
+                            feedbackEl.textContent = 'Không thể đánh dấu đã đọc. Vui lòng thử lại.';
+                            feedbackEl.classList.remove('d-none');
+                            setTimeout(function () { feedbackEl.classList.add('d-none'); }, 3000);
+                        }
+                    }
+                } catch (err) {
+                    btnMarkAll.disabled = false;
+                    btnMarkAll.textContent = origText;
+                    if (feedbackEl) {
+                        feedbackEl.className = 'alert alert-danger py-1 px-3 mb-0 small rounded-0';
+                        feedbackEl.textContent = 'Lỗi kết nối máy chủ.';
+                        feedbackEl.classList.remove('d-none');
+                        setTimeout(function () { feedbackEl.classList.add('d-none'); }, 3000);
+                    }
+                }
             });
         }
     }
@@ -2078,6 +2479,7 @@
             initReportModal();
             initQuotePostModal();
             initNotificationBadges();
+            initNavbarNotificationPreview();
             initPollVoting();
             consumeFlashNotice();
         });
@@ -2088,6 +2490,7 @@
         initReportModal();
         initQuotePostModal();
         initNotificationBadges();
+        initNavbarNotificationPreview();
         initPollVoting();
         consumeFlashNotice();
     }

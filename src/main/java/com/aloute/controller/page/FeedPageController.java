@@ -28,6 +28,7 @@ public class FeedPageController {
             } catch (Exception ignored) {}
         }
         model.addAttribute("activeNav", "feed");
+        model.addAttribute("isFeedPage", true);
         try {
             var postPage = postService.getRecommendedFeed(userId, 0, 20);
             model.addAttribute("posts", postPage != null ? postPage.getData() : List.of());
