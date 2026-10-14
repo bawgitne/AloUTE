@@ -55,6 +55,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, SecurityWhitelist.PUBLIC_POST).permitAll()
                         .requestMatchers(HttpMethod.GET, SecurityWhitelist.PUBLIC_GET).permitAll()
                         .requestMatchers(SecurityWhitelist.PUBLIC_WEB).permitAll()
+                        .requestMatchers("/admin/**", "/api/admin/**").hasRole("SYSTEM_ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(csrfCookieFilter, JwtAuthenticationFilter.class);
