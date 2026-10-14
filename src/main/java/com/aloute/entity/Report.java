@@ -26,8 +26,25 @@ public class Report {
     private String description;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 32)
     private ReportStatus status = ReportStatus.PENDING;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reviewed_by_id", foreignKey = @ForeignKey(name = "fk_reports_reviewed_by"))
+    private User reviewedBy;
+    @Column(name = "reviewed_at")
+    private Instant reviewedAt;
+    @Column(name = "closed_at")
+    private Instant closedAt;
+    @Column(name = "resolution_note", length = 1000)
+    private String resolutionNote;
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version = 0L;
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    @PrePersist void prePersist() { if (status == null) status = ReportStatus.PENDING; if (createdAt == null) createdAt = Instant.now(); }
+    @PrePersist void prePersist() {
+        if (status == null) status = ReportStatus.PENDING;
+        if (createdAt == null) createdAt = Instant.now();
+        if (version == null) version = 0L;
+    }
 }
+
