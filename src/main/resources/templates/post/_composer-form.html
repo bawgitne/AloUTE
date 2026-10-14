@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="composerForm(isModal)">
+    <form id="create-post-form" class="needs-validation" novalidate>
+        <!-- Community Context (optional) -->
+        <input type="hidden" id="post-community-id" name="communityId" value="">
+
+        <!-- Status Alert for feedback -->
+        <div id="create-post-status" class="alert d-none mb-3" role="status" aria-live="polite"></div>
+
+        <!-- Content Field -->
+        <div class="mb-3">
+            <label for="postContent" class="form-label fw-semibold small">Nội dung bài viết <span class="text-danger">*</span></label>
+            <textarea class="form-control"
+                      id="postContent"
+                      name="content"
+                      rows="5"
+                      placeholder="Chia sẻ thảo luận học tập, câu hỏi chuyên ngành, hoặc thông tin sinh viên..."
+                      required
+                      maxlength="2000"
+                      th:text="${postForm != null ? postForm.content : ''}"></textarea>
+            <div class="d-flex justify-content-between align-items-center mt-1">
+                <div class="form-text small text-muted">Hỗ trợ tối đa 2000 ký tự. Vui lòng tuân thủ văn hóa AloUTE.</div>
+                <div class="text-muted small" id="char-count">0 / 2000</div>
+            </div>
+            <div th:if="${fieldErrors != null and fieldErrors.content != null}"
+                 class="invalid-feedback d-block"
+                 th:text="${fieldErrors.content}">
+                Nội dung không được để trống.
+            </div>
+            <div id="post-content-error" class="invalid-feedback d-none">
+                Nội dung không được để trống.
+            </div>
+        </div>
+
+        <!-- Visibility Selection (OpenAPI: PUBLIC, FOLLOWERS, MENTIONED) -->
+        <div class="mb-3">
+            <label for="visibility" class="form-label fw-semibold small">Phạm vi hiển thị</label>
+            <select class="form-select" id="visibility" name="visibility">
+                <option value="PUBLIC" selected>Công khai (Toàn bộ sinh viên AloUTE)</option>
+                <option value="FOLLOWERS">Người theo dõi (Chỉ người theo dõi bạn)</option>
+                <option value="MENTIONED">Chỉ người được nhắc đến</option>
+            </select>
+        </div>
+
+        <!-- Media Attachments (Supported via POST /api/media) -->
+        <div class="mb-3">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="form-label fw-semibold small mb-0">Hình ảnh đính kèm</span>
+                <button type="button" id="btn-select-media" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">
+                    <i class="bi bi-image" aria-hidden="true"></i>
+                    <span>Thêm hình ảnh</span>
+                </button>
+                <input type="file" id="post-media-input" accept="image/jpeg,image/png,image/gif,image/webp" multiple class="d-none">
+            </div>
+            <div id="media-preview-list" class="d-flex flex-wrap gap-2"></div>
+            <div id="media-upload-status" class="alert alert-danger py-1 px-2 small d-none mt-2" role="alert"></div>
+        </div>
+
+        <!-- Interaction Permissions (allowReply, allowQuote) -->
+        <div class="mb-4 p-3 rounded post-permissions-panel bg-light-subtle border">
+            <div class="form-label fw-semibold small mb-2">Quyền tương tác</div>
+            <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="allowReply" name="allowReply" value="true" checked>
+                <label class="form-check-label text-secondary small" for="allowReply">
+                    Cho phép người khác bình luận vào bài viết
+                </label>
+            </div>
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="allowQuote" name="allowQuote" value="true" checked>
+                <label class="form-check-label text-secondary small" for="allowQuote">
+                    Cho phép người khác trích dẫn bài viết này
+                </label>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="d-flex align-items-center justify-content-end gap-2 pt-2 border-top border-secondary-subtle">
+            <button th:if="${isModal}" type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="btn-cancel-create-post">Hủy bỏ</button>
+            <a th:unless="${isModal}" th:href="@{/feed}" href="/feed" class="btn btn-secondary">Hủy bỏ</a>
+            <button type="submit" id="btn-create-post" class="btn btn-primary px-4 fw-semibold" data-action="create-post"
+                    th:disabled="${postForm == null or postForm.content == null or #strings.isEmpty(#strings.trim(postForm.content))}"
+                    disabled>
+                <i class="bi bi-send me-1" aria-hidden="true"></i>
+                <span>Đăng bài</span>
+            </button>
+        </div>
+    </form>
+</div>
+</body>
+</html>

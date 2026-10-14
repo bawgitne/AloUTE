@@ -57,6 +57,9 @@ class ThymeleafViewRenderIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+
     @MockBean
     private CommunityService communityService;
 
@@ -816,6 +819,128 @@ class ThymeleafViewRenderIntegrationTest {
                         .with(authentication(createMockAuth(1L, "viewer"))))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Không thể tải danh sách bài viết vào lúc này")));
+    }
+
+    @Test
+    @DisplayName("Batch 1 Scope A: Sidebar contains strictly Feed, Profile, Communities, Friends, Saved Posts and excludes Search, Messages, Settings, Create Post, Notifications")
+    void testSidebarStrictScope() {
+        WebContext ctx = createWebContext();
+        ctx.setVariable("activeNav", "feed");
+        ctx.setVariable("currentUser", new UserSummary(1L, "testuser", "Test User", null, true));
+
+        String html = templateEngine.process("fragments/sidebar", Collections.singleton("sidebar"), ctx);
+
+        // Required entries present
+        assertThat(html).contains("href=\"/feed\"");
+        assertThat(html).contains("href=\"/communities\"");
+        assertThat(html).contains("href=\"/friends\"");
+        assertThat(html).contains("href=\"/saved\"");
+        assertThat(html).contains("href=\"/users/1\"");
+
+        // Excluded entries absent
+        assertThat(html).doesNotContain("href=\"/messages\"");
+        assertThat(html).doesNotContain("href=\"/search\"");
+        assertThat(html).doesNotContain("href=\"/settings\"");
+        assertThat(html).doesNotContain("href=\"/notifications\"");
+        assertThat(html).doesNotContain("data-action=\"navigate-create-post\"");
+        assertThat(html).doesNotContain("data-bs-target=\"#createPostModal\"");
+    }
+
+    @Test
+    @DisplayName("Batch 1 Scope B: Modal contains createPostModal when activeNav != create-post and is suppressed when activeNav == create-post")
+    void testCreatePostModalActiveNavGuard() {
+        WebContext ctxFeed = createWebContext();
+        ctxFeed.setVariable("activeNav", "feed");
+        String htmlFeed = templateEngine.process("fragments/modal", Collections.singleton("postModals"), ctxFeed);
+        assertThat(htmlFeed).contains("id=\"createPostModal\"");
+        assertThat(htmlFeed).contains("id=\"create-post-form\"");
+        assertThat(htmlFeed).contains("id=\"post-community-id\"");
+        assertThat(htmlFeed).contains("id=\"btn-create-post\"");
+
+        WebContext ctxCreate = createWebContext();
+        ctxCreate.setVariable("activeNav", "create-post");
+        String htmlCreate = templateEngine.process("fragments/modal", Collections.singleton("postModals"), ctxCreate);
+        assertThat(htmlCreate).doesNotContain("id=\"createPostModal\"");
+    }
+
+    @Test
+    @DisplayName("Batch 1 Scope C: Navbar renders compact recent notification preview container and actions")
+    void testNavbarNotificationPreviewStructure() {
+        WebContext ctx = createWebContext();
+        ctx.setVariable("currentUser", new UserSummary(1L, "testuser", "Test User", null, true));
+
+        String html = templateEngine.process("fragments/navbar", Collections.singleton("navbar"), ctx);
+
+        assertThat(html).contains("id=\"navbarNotificationDropdown\"");
+        assertThat(html).contains("id=\"navbar-notification-preview\"");
+        assertThat(html).contains("id=\"navbar-notification-list\"");
+        assertThat(html).contains("id=\"btn-navbar-mark-all-read\"");
+        assertThat(html).contains("id=\"navbar-notifications-view-all\"");
+        assertThat(html).contains("href=\"/notifications\"");
+    }
+
+    @Test
+    @DisplayName("Batch 1 Scope C (QA P1): Verify exact Jackson serialization of NotificationResponse boolean isRead")
+    void testNotificationResponseJacksonSerialization() throws Exception {
+        NotificationResponse readNotif = NotificationResponse.builder()
+                .id(1L)
+                .isRead(true)
+                .build();
+        String jsonRead = objectMapper.writeValueAsString(readNotif);
+        System.out.println("DEBUG_JSON_READ: " + jsonRead);
+
+        NotificationResponse unreadNotif = NotificationResponse.builder()
+                .id(2L)
+                .isRead(false)
+                .build();
+        String jsonUnread = objectMapper.writeValueAsString(unreadNotif);
+        System.out.println("DEBUG_JSON_UNREAD: " + jsonUnread);
+
+        // Verification of real Jackson serialization keys:
+        // Lombok generates isRead() getter for boolean isRead; Jackson discovers property name as "read".
+        assertThat(jsonRead).contains("\"read\":true");
+        assertThat(jsonUnread).contains("\"read\":false");
+        assertThat(jsonRead).doesNotContain("\"isRead\"");
+    }
+
+    @Test
+    @DisplayName("Phase B & Round 2 Polish: Navbar suppresses Create Post only on feed (isFeedPage == true), and renders on other pages and post-detail aliases where activeNav == 'feed' but isFeedPage is absent")
+    void testPhaseBNavbarAndFeedPolish() {
+        // 1. On feed page (isFeedPage == true), navbar suppresses Create Post buttons
+        WebContext ctxFeed = createWebContext();
+        ctxFeed.setVariable("activeNav", "feed");
+        ctxFeed.setVariable("isFeedPage", true);
+        ctxFeed.setVariable("currentUser", new UserSummary(1L, "testuser", "Test User", null, true));
+        String htmlNavFeed = templateEngine.process("fragments/navbar", Collections.singleton("navbar"), ctxFeed);
+        assertThat(htmlNavFeed).doesNotContain("data-action=\"navigate-create-post\"");
+
+        // 2. On other pages (e.g. activeNav == 'communities'), navbar renders Create Post buttons
+        WebContext ctxComm = createWebContext();
+        ctxComm.setVariable("activeNav", "communities");
+        ctxComm.setVariable("currentUser", new UserSummary(1L, "testuser", "Test User", null, true));
+        String htmlNavComm = templateEngine.process("fragments/navbar", Collections.singleton("navbar"), ctxComm);
+        assertThat(htmlNavComm).contains("data-action=\"navigate-create-post\"");
+        assertThat(htmlNavComm).contains("Tạo bài viết");
+
+        // 3. Post-detail regression: PostPageController sets activeNav = 'feed' on /post/{id}, /posts/{id}, /p/{id}
+        // but isFeedPage is absent (null). Navbar MUST render Create Post buttons for both desktop and mobile.
+        WebContext ctxPostDetail = createWebContext();
+        ctxPostDetail.setVariable("activeNav", "feed");
+        // isFeedPage is null/absent
+        ctxPostDetail.setVariable("currentUser", new UserSummary(1L, "testuser", "Test User", null, true));
+        String htmlNavPostDetail = templateEngine.process("fragments/navbar", Collections.singleton("navbar"), ctxPostDetail);
+        assertThat(htmlNavPostDetail).contains("data-action=\"navigate-create-post\"");
+        assertThat(htmlNavPostDetail).contains("Tạo bài viết");
+        assertThat(htmlNavPostDetail).contains("aloute-btn-icon-mobile");
+
+        // 4. Missing-post error state: activeNav = 'feed', isFeedPage absent -> navbar retains Create Post
+        WebContext ctxMissingPost = createWebContext();
+        ctxMissingPost.setVariable("activeNav", "feed");
+        ctxMissingPost.setVariable("currentUser", new UserSummary(1L, "testuser", "Test User", null, true));
+        ctxMissingPost.setVariable("postError", true);
+        String htmlNavMissingPost = templateEngine.process("fragments/navbar", Collections.singleton("navbar"), ctxMissingPost);
+        assertThat(htmlNavMissingPost).contains("data-action=\"navigate-create-post\"");
+        assertThat(htmlNavMissingPost).contains("Tạo bài viết");
     }
 
 }

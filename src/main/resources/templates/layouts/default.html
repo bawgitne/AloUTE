@@ -36,11 +36,18 @@
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Đóng menu điều hướng"></button>
         </div>
         <div class="offcanvas-body">
+            <!-- Mobile Search Form (< 576px) -->
+            <form method="GET" th:action="@{/search}" action="/search" class="d-sm-none mb-3" role="search">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted" aria-hidden="true"></i></span>
+                    <input class="form-control border-start-0 ps-0" type="search" name="q" th:value="${q != null ? q : ''}" placeholder="Tìm kiếm cộng đồng, chủ đề..." aria-label="Tìm kiếm nội dung">
+                </div>
+            </form>
             <div th:replace="~{fragments/sidebar :: sidebar}"></div>
         </div>
     </div>
 
-    <!-- Global Modals (Post Edit / Delete) -->
+    <!-- Global Modals (Post Create / Edit / Delete / Quote / Report) -->
     <div th:replace="~{fragments/modal :: postModals}"></div>
 
     <!-- Core Shared HTTP Transport Client -->
@@ -51,5 +58,7 @@
     <script th:src="@{/js/features/post/post-like.js}" src="/js/features/post/post-like.js" defer></script>
     <!-- Post Edit & Delete JS -->
     <script th:src="@{/js/features/post/post-edit-delete.js}" src="/js/features/post/post-edit-delete.js" defer></script>
+    <!-- Post Composer (Create Post Page & Modal & Reply) JS -->
+    <script th:src="@{/js/features/post/post-composer.js}" src="/js/features/post/post-composer.js" defer></script>
 </body>
 </html>
