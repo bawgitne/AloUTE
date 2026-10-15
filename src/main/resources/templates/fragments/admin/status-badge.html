@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!-- User Active Badge -->
+<span th:fragment="userStatus(active)"
+      class="admin-badge"
+      th:classappend="${active} ? 'admin-badge-success' : 'admin-badge-danger'">
+    <i th:class="${active} ? 'bi bi-check-circle-fill text-success' : 'bi bi-x-circle-fill text-danger'" aria-hidden="true"></i>
+    <span th:text="${active} ? 'Hoạt động' : 'Vô hiệu hóa'">Trạng thái</span>
+</span>
+
+<!-- Post Content State Badge -->
+<span th:fragment="contentState(state)"
+      class="admin-badge"
+      th:classappend="${state == 'ACTIVE' ? 'admin-badge-success' : (state == 'ADMIN_REMOVED' ? 'admin-badge-danger' : 'admin-badge-secondary')}">
+    <i th:if="${state == 'ACTIVE'}" class="bi bi-check-circle-fill text-success" aria-hidden="true"></i>
+    <i th:if="${state == 'ADMIN_REMOVED'}" class="bi bi-shield-x text-danger" aria-hidden="true"></i>
+    <i th:if="${state == 'AUTHOR_DELETED'}" class="bi bi-trash3 text-muted" aria-hidden="true"></i>
+    <span th:text="${state == 'ACTIVE' ? 'Bình thường' : (state == 'ADMIN_REMOVED' ? 'Đã gỡ (Admin)' : (state == 'AUTHOR_DELETED' ? 'Tác giả xóa' : state))}">Trạng thái</span>
+</span>
+
+<!-- Report Status Badge -->
+<span th:fragment="reportStatus(status)"
+      class="admin-badge"
+      th:classappend="${status == null ? 'admin-badge-secondary' : (status.name() == 'PENDING' ? 'admin-badge-warning' : (status.name() == 'REVIEWED' ? 'admin-badge-info' : (status.name() == 'RESOLVED' ? 'admin-badge-success' : 'admin-badge-danger')))}">
+    <i th:if="${status != null and status.name() == 'PENDING'}" class="bi bi-hourglass-split text-warning" aria-hidden="true"></i>
+    <i th:if="${status != null and status.name() == 'REVIEWED'}" class="bi bi-eye text-primary" aria-hidden="true"></i>
+    <i th:if="${status != null and status.name() == 'RESOLVED'}" class="bi bi-check-all text-success" aria-hidden="true"></i>
+    <i th:if="${status != null and status.name() == 'REJECTED'}" class="bi bi-x-octagon text-danger" aria-hidden="true"></i>
+    <span th:text="${status == null ? 'N/A' : (status.name() == 'PENDING' ? 'Chờ xử lý' : (status.name() == 'REVIEWED' ? 'Đang xử lý' : (status.name() == 'RESOLVED' ? 'Đã giải quyết' : (status.name() == 'REJECTED' ? 'Đã từ chối' : status.name()))))}">Status</span>
+</span>
+
+<!-- Report Reason Badge -->
+<span th:fragment="reportReason(reason)"
+      class="admin-badge admin-badge-secondary"
+      th:title="${reason}">
+    <span th:text="${reason == null ? 'N/A' : (reason.name() == 'SPAM' ? 'Spam' : (reason.name() == 'HARASSMENT' ? 'Quấy rối' : (reason.name() == 'HATE' ? 'Thù ghét' : (reason.name() == 'MISINFORMATION' ? 'Sai sự thật' : (reason.name() == 'VIOLENCE' ? 'Bạo lực' : 'Khác')))))}">Lý do</span>
+</span>
+
+<!-- Action Type Badge -->
+<span th:fragment="actionType(type)"
+      class="admin-badge"
+      th:classappend="${type == 'POST_REMOVE' ? 'admin-badge-danger' : (type == 'POST_RESTORE' ? 'admin-badge-success' : (type == 'REPORT_RESOLVE' ? 'admin-badge-info' : (type == 'REPORT_REJECT' ? 'admin-badge-secondary' : 'admin-badge-purple')))}">
+    <span th:text="${type == 'POST_REMOVE' ? 'Gỡ bài viết' : (type == 'POST_RESTORE' ? 'Khôi phục bài' : (type == 'REPORT_RESOLVE' ? 'Giải quyết báo cáo' : (type == 'REPORT_REJECT' ? 'Từ chối báo cáo' : (type == 'REPORT_REVIEW' ? 'Bắt đầu xử lý' : type))))}">Action</span>
+</span>
+
+<!-- Role Badge -->
+<span th:fragment="roleBadge(role)"
+      class="admin-badge"
+      th:classappend="${role == 'SYSTEM_ADMIN' or role == 'ROLE_SYSTEM_ADMIN' ? 'admin-badge-purple' : 'admin-badge-secondary'}">
+    <span th:text="${role == 'SYSTEM_ADMIN' or role == 'ROLE_SYSTEM_ADMIN' ? 'SYSTEM_ADMIN' : 'USER'}">Role</span>
+</span>
+
+</body>
+</html>

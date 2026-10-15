@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<nav th:fragment="pagination(pageMeta, baseUrl, extraParams)"
+     th:if="${pageMeta != null and pageMeta.totalPages > 1}"
+     aria-label="Điều hướng phân trang"
+     class="d-flex flex-column flex-sm-row align-items-center justify-content-between gap-3 p-3 border-top bg-light-subtle">
+    <div class="small text-muted">
+        Trang <span class="fw-semibold text-dark" th:text="${pageMeta.page + 1}">1</span> /
+        <span class="fw-semibold text-dark" th:text="${pageMeta.totalPages}">1</span>
+        (Tổng số <span class="fw-semibold text-dark" th:text="${pageMeta.totalElements}">0</span> bản ghi)
+    </div>
+
+    <ul class="pagination pagination-sm mb-0">
+        <!-- Previous Page Button -->
+        <li class="page-item" th:classappend="${!pageMeta.hasPrevious} ? 'disabled' : ''">
+            <a class="page-link"
+               th:href="@{${baseUrl} + '?page=' + ${pageMeta.page - 1} + ${extraParams != null ? extraParams : ''}}"
+               aria-label="Trang trước"
+               th:attr="aria-disabled=${!pageMeta.hasPrevious ? 'true' : null},tabindex=${!pageMeta.hasPrevious ? '-1' : null}">
+                <i class="bi bi-chevron-left" aria-hidden="true"></i>
+                <span class="d-none d-sm-inline ms-1">Trước</span>
+            </a>
+        </li>
+
+        <!-- First page indicator if far -->
+        <li class="page-item" th:if="${pageMeta.page > 1}">
+            <a class="page-link"
+               th:href="@{${baseUrl} + '?page=0' + ${extraParams != null ? extraParams : ''}}"
+               th:text="1">1</a>
+        </li>
+        <li class="page-item disabled" th:if="${pageMeta.page > 2}">
+            <span class="page-link">...</span>
+        </li>
+
+        <!-- Previous page if exists -->
+        <li class="page-item" th:if="${pageMeta.hasPrevious and pageMeta.page > 0}">
+            <a class="page-link"
+               th:href="@{${baseUrl} + '?page=' + ${pageMeta.page - 1} + ${extraParams != null ? extraParams : ''}}"
+               th:text="${pageMeta.page}">1</a>
+        </li>
+
+        <!-- Current Page -->
+        <li class="page-item active" aria-current="page">
+            <span class="page-link fw-bold" th:text="${pageMeta.page + 1}">1</span>
+        </li>
+
+        <!-- Next page if exists -->
+        <li class="page-item" th:if="${pageMeta.hasNext and pageMeta.page + 1 < pageMeta.totalPages - 1}">
+            <a class="page-link"
+               th:href="@{${baseUrl} + '?page=' + ${pageMeta.page + 1} + ${extraParams != null ? extraParams : ''}}"
+               th:text="${pageMeta.page + 2}">2</a>
+        </li>
+
+        <!-- Last page indicator if far -->
+        <li class="page-item disabled" th:if="${pageMeta.page + 2 < pageMeta.totalPages - 1}">
+            <span class="page-link">...</span>
+        </li>
+        <li class="page-item" th:if="${pageMeta.page + 1 < pageMeta.totalPages}">
+            <a class="page-link"
+               th:href="@{${baseUrl} + '?page=' + ${pageMeta.totalPages - 1} + ${extraParams != null ? extraParams : ''}}"
+               th:text="${pageMeta.totalPages}">10</a>
+        </li>
+
+        <!-- Next Page Button -->
+        <li class="page-item" th:classappend="${!pageMeta.hasNext} ? 'disabled' : ''">
+            <a class="page-link"
+               th:href="@{${baseUrl} + '?page=' + ${pageMeta.page + 1} + ${extraParams != null ? extraParams : ''}}"
+               aria-label="Trang tiếp"
+               th:attr="aria-disabled=${!pageMeta.hasNext ? 'true' : null},tabindex=${!pageMeta.hasNext ? '-1' : null}">
+                <span class="d-none d-sm-inline me-1">Sau</span>
+                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+            </a>
+        </li>
+    </ul>
+</nav>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin :: layout(title='Quản lý người dùng', content=~{::#admin-users-content})}">
+<body>
+<div id="admin-users-content">
+
+    <!-- Breadcrumbs -->
+    <nav aria-label="Đường dẫn phân cấp" class="admin-breadcrumb">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a th:href="@{/admin}" href="/admin">Tổng quan</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Người dùng</li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="admin-page-header">
+        <div>
+            <h1 class="admin-page-title">
+                <i class="bi bi-people text-primary" aria-hidden="true"></i>
+                <span>Quản lý người dùng</span>
+            </h1>
+            <p class="admin-page-subtitle">Danh sách tài khoản sinh viên, giảng viên và quản trị viên hệ thống</p>
+        </div>
+    </div>
+
+    <!-- Error Alert if failed -->
+    <div th:if="${errorMessage != null}" class="alert alert-danger py-2 px-3 small mb-3" role="alert" th:text="${errorMessage}">
+        Lỗi tải dữ liệu.
+    </div>
+
+    <!-- Main Card with Filter and Table -->
+    <div class="admin-card">
+        <!-- Filter Bar -->
+        <div class="admin-filter-bar">
+            <form method="GET" th:action="@{/admin/users}" action="/admin/users" class="admin-filter-grid">
+                <!-- Search Query -->
+                <div>
+                    <label for="filterQuery" class="form-label small fw-semibold">Từ khóa tìm kiếm</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white"><i class="bi bi-search text-muted" aria-hidden="true"></i></span>
+                        <input type="text"
+                               id="filterQuery"
+                               name="q"
+                               class="form-control"
+                               placeholder="Username, tên hiển thị..."
+                               th:value="${q}">
+                    </div>
+                </div>
+
+                <!-- Role Filter -->
+                <div>
+                    <label for="filterRole" class="form-label small fw-semibold">Vai trò hệ thống</label>
+                    <select id="filterRole" name="role" class="form-select form-select-sm">
+                        <option value="" th:selected="${role == null or role == ''}">-- Tất cả vai trò --</option>
+                        <option value="USER" th:selected="${role == 'USER'}">USER (Người dùng)</option>
+                        <option value="SYSTEM_ADMIN" th:selected="${role == 'SYSTEM_ADMIN'}">SYSTEM_ADMIN (Quản trị viên)</option>
+                    </select>
+                </div>
+
+                <!-- Active Status -->
+                <div>
+                    <label for="filterActive" class="form-label small fw-semibold">Trạng thái tài khoản</label>
+                    <select id="filterActive" name="active" class="form-select form-select-sm">
+                        <option value="" th:selected="${active == null}">-- Tất cả trạng thái --</option>
+                        <option value="true" th:selected="${active == true}">Hoạt động</option>
+                        <option value="false" th:selected="${active == false}">Đã khóa / Vô hiệu</option>
+                    </select>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-sm btn-primary flex-grow-1 d-flex align-items-center justify-content-center gap-1">
+                        <i class="bi bi-funnel" aria-hidden="true"></i>
+                        <span>Lọc</span>
+                    </button>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            data-action="reset-filter"
+                            data-target-url="/admin/users"
+                            title="Đặt lại bộ lọc">
+                        <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Users Table -->
+        <div class="admin-table-container">
+            <table class="table admin-table" aria-label="Danh sách tài khoản người dùng">
+                <thead>
+                    <tr>
+                        <th scope="col" style="width: 70px;">ID</th>
+                        <th scope="col">Tài khoản & Tên hiển thị</th>
+                        <th scope="col">Trạng thái</th>
+                        <th scope="col">Xác thực</th>
+                        <th scope="col">Quyền riêng tư</th>
+                        <th scope="col">Kiểm duyệt</th>
+                        <th scope="col">Ngày tạo</th>
+                        <th scope="col" class="text-end" style="width: 110px;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:if="${users == null or #lists.isEmpty(users)}">
+                        <td colspan="8">
+                            <div class="admin-empty-state">
+                                <div class="admin-empty-icon"><i class="bi bi-person-x" aria-hidden="true"></i></div>
+                                <div class="admin-empty-title">Không tìm thấy người dùng phù hợp</div>
+                                <div class="admin-empty-desc">Thử điều chỉnh từ khóa tìm kiếm hoặc bỏ các tiêu chí lọc để xem thêm kết quả.</div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr th:each="u : ${users}">
+                        <td>
+                            <span class="text-muted small fw-semibold" th:text="${'#' + u.id}">#1</span>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="rounded-circle bg-light border text-primary d-flex align-items-center justify-content-center"
+                                     style="width: 32px; height: 32px; font-size: 0.8125rem; font-weight: 700;"
+                                     th:text="${#strings.substring(u.username, 0, 1).toUpperCase()}">
+                                    U
+                                </div>
+                                <div>
+                                    <a th:href="@{'/admin/users/' + ${u.id}}"
+                                       href="/admin/users/1"
+                                       class="fw-semibold text-dark text-decoration-none hover-primary d-block"
+                                       th:text="${u.username}">username</a>
+                                    <span class="text-muted small" th:text="${u.displayName}">Tên sinh viên</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div th:replace="~{fragments/admin/status-badge :: userStatus(${u.isActive})}"></div>
+                        </td>
+                        <td>
+                            <span th:if="${u.isVerified}" class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                <i class="bi bi-patch-check-fill me-1" aria-hidden="true"></i>Đã xác thực
+                            </span>
+                            <span th:unless="${u.isVerified}" class="text-muted small">Chưa xác thực</span>
+                        </td>
+                        <td>
+                            <span th:if="${u.isPrivate}" class="badge bg-warning-subtle text-warning-emphasis">
+                                <i class="bi bi-lock-fill me-1" aria-hidden="true"></i>Riêng tư
+                            </span>
+                            <span th:unless="${u.isPrivate}" class="badge bg-light text-secondary border">
+                                <i class="bi bi-globe me-1" aria-hidden="true"></i>Công khai
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${u.moderationStatus == 'NORMAL' ? 'bg-light text-dark border' : 'bg-danger text-white'}"
+                                  th:text="${u.moderationStatus}">NORMAL</span>
+                        </td>
+                        <td>
+                            <span class="utc-date text-muted small" th:attr="data-utc-date=${u.createdAt}" th:text="${u.createdAt}">--</span>
+                        </td>
+                        <td class="text-end">
+                            <a th:href="@{'/admin/users/' + ${u.id}}"
+                               href="/admin/users/1"
+                               class="btn btn-sm btn-outline-primary"
+                               title="Xem hồ sơ chi tiết">
+                                <i class="bi bi-eye me-1" aria-hidden="true"></i>Chi tiết
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Fragment -->
+        <div th:replace="~{fragments/admin/pagination :: pagination(${pageMeta}, '/admin/users',
+            ${'&size=' + (size != null ? size : 20)
+            + (q != null and !#strings.isEmpty(q) ? '&q=' + #uris.escapeQueryParam(q) : '')
+            + (role != null and !#strings.isEmpty(role) ? '&role=' + #uris.escapeQueryParam(role) : '')
+            + (active != null ? '&active=' + active : '')
+            + (sort != null and !#strings.isEmpty(sort) ? '&sort=' + #uris.escapeQueryParam(sort) : '')})}"></div>
+    </div>
+
+</div>
+</body>
+</html>

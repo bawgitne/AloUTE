@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="modals">
+
+    <!-- 1. Post Moderation: Remove Modal -->
+    <div class="modal fade" id="adminRemovePostModal" tabindex="-1" aria-labelledby="adminRemovePostModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="adminRemovePostForm">
+                    <div class="modal-header admin-modal-header bg-danger-subtle">
+                        <h5 class="modal-title admin-modal-title text-danger d-flex align-items-center gap-2" id="adminRemovePostModalLabel">
+                            <i class="bi bi-shield-x" aria-hidden="true"></i>
+                            <span>Gỡ bài viết vi phạm</span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                    </div>
+                    <div class="modal-body admin-modal-body">
+                        <!-- Target Summary -->
+                        <div class="p-2 mb-3 rounded bg-light border d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted small">Bài viết:</span>
+                                <strong id="removePostDisplayId" class="ms-1 text-primary">#0</strong>
+                            </div>
+                            <div>
+                                <span class="text-muted small">Tác giả:</span>
+                                <span id="removePostDisplayAuthor" class="ms-1 fw-semibold">User</span>
+                            </div>
+                        </div>
+
+                        <!-- Error Feedback Box -->
+                        <div id="removePostErrorAlert" class="alert alert-danger d-none py-2 px-3 small" role="alert"></div>
+
+                        <input type="hidden" id="removePostTargetId" name="postId">
+
+                        <!-- Reason Code -->
+                        <div class="mb-3">
+                            <label for="removePostReasonCode" class="form-label small fw-semibold">
+                                Danh mục vi phạm <span class="text-danger">*</span>
+                            </label>
+                            <select id="removePostReasonCode" name="reasonCode" class="form-select form-select-sm" required>
+                                <option value="" disabled selected>-- Chọn danh mục lý do --</option>
+                                <option value="SPAM">SPAM — Quảng cáo, nội dung rác</option>
+                                <option value="HARASSMENT">HARASSMENT — Quấy rối, công kích cá nhân</option>
+                                <option value="HATE">HATE — Phát ngôn thù ghét, kỳ thị</option>
+                                <option value="MISINFORMATION">MISINFORMATION — Thông tin sai lệch, lừa đảo</option>
+                                <option value="VIOLENCE">VIOLENCE — Đe dọa, kích động bạo lực</option>
+                                <option value="OTHER">OTHER — Lý do khác</option>
+                            </select>
+                        </div>
+
+                        <!-- Reason Detail -->
+                        <div class="mb-3">
+                            <label for="removePostReasonDetail" class="form-label small fw-semibold">
+                                Chi tiết lý do gỡ bài <span class="text-danger">*</span>
+                            </label>
+                            <textarea id="removePostReasonDetail"
+                                      name="reasonDetail"
+                                      class="form-control form-control-sm"
+                                      rows="3"
+                                      minlength="10"
+                                      maxlength="1000"
+                                      data-char-counter="removePostReasonCounter"
+                                      data-min-len="10"
+                                      placeholder="Mô tả cụ thể căn cứ vi phạm (bắt buộc từ 10 đến 1000 ký tự)..."
+                                      required></textarea>
+                            <div id="removePostReasonCounter" class="char-counter">0 / 1000 (Tối thiểu 10 ký tự)</div>
+                        </div>
+
+                        <!-- Public Notice to Author -->
+                        <div class="mb-3">
+                            <label for="removePostPublicNotice" class="form-label small fw-semibold">
+                                Thông báo hiển thị cho tác giả (tùy chọn)
+                            </label>
+                            <textarea id="removePostPublicNotice"
+                                      name="publicNotice"
+                                      class="form-control form-control-sm"
+                                      rows="2"
+                                      maxlength="500"
+                                      data-char-counter="removePostPublicNoticeCounter"
+                                      placeholder="Thông điệp giải thích gửi tới tác giả (tối đa 500 ký tự)..."></textarea>
+                            <div id="removePostPublicNoticeCounter" class="char-counter">0 / 500</div>
+                        </div>
+
+                        <!-- Related Report ID -->
+                        <div class="mb-2">
+                            <label for="removePostRelatedReportId" class="form-label small fw-semibold">
+                                Mã báo cáo liên quan (nếu có)
+                            </label>
+                            <input type="number"
+                                   id="removePostRelatedReportId"
+                                   name="relatedReportId"
+                                   class="form-control form-control-sm"
+                                   placeholder="Ví dụ: 101">
+                        </div>
+                    </div>
+                    <div class="modal-footer admin-modal-footer">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Hủy bỏ</button>
+                        <button type="submit" id="btnConfirmRemovePost" class="btn btn-sm btn-danger d-flex align-items-center gap-1">
+                            <i class="bi bi-trash3" aria-hidden="true"></i>
+                            <span>Xác nhận gỡ bài</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Post Moderation: Restore Modal -->
+    <div class="modal fade" id="adminRestorePostModal" tabindex="-1" aria-labelledby="adminRestorePostModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="adminRestorePostForm">
+                    <div class="modal-header admin-modal-header bg-success-subtle">
+                        <h5 class="modal-title admin-modal-title text-success d-flex align-items-center gap-2" id="adminRestorePostModalLabel">
+                            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                            <span>Khôi phục bài viết</span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                    </div>
+                    <div class="modal-body admin-modal-body">
+                        <!-- Summary -->
+                        <div class="p-2 mb-3 rounded bg-light border d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted small">Bài viết:</span>
+                                <strong id="restorePostDisplayId" class="ms-1 text-primary">#0</strong>
+                            </div>
+                            <div>
+                                <span class="text-muted small">Phiên gỡ (Removal ID):</span>
+                                <strong id="restorePostDisplayRemovalId" class="ms-1 text-danger">#0</strong>
+                            </div>
+                        </div>
+
+                        <div id="restorePostErrorAlert" class="alert alert-danger d-none py-2 px-3 small" role="alert"></div>
+
+                        <input type="hidden" id="restorePostTargetId" name="postId">
+                        <input type="hidden" id="restorePostExpectedRemovalId" name="expectedRemovalId">
+
+                        <!-- Reason Detail -->
+                        <div class="mb-3">
+                            <label for="restorePostReasonDetail" class="form-label small fw-semibold">
+                                Lý do khôi phục bài viết <span class="text-danger">*</span>
+                            </label>
+                            <textarea id="restorePostReasonDetail"
+                                      name="reasonDetail"
+                                      class="form-control form-control-sm"
+                                      rows="3"
+                                      minlength="10"
+                                      maxlength="1000"
+                                      data-char-counter="restorePostReasonCounter"
+                                      data-min-len="10"
+                                      placeholder="Giải thích lý do khôi phục bài viết (bắt buộc từ 10 đến 1000 ký tự)..."
+                                      required></textarea>
+                            <div id="restorePostReasonCounter" class="char-counter">0 / 1000 (Tối thiểu 10 ký tự)</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer admin-modal-footer">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Hủy bỏ</button>
+                        <button type="submit" id="btnConfirmRestorePost" class="btn btn-sm btn-success d-flex align-items-center gap-1">
+                            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                            <span>Xác nhận khôi phục</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Report Review: Decision Modal (Resolve / Reject) -->
+    <div class="modal fade" id="adminReportDecisionModal" tabindex="-1" aria-labelledby="reportDecisionModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="adminReportDecisionForm">
+                    <div class="modal-header admin-modal-header">
+                        <h5 class="modal-title admin-modal-title" id="reportDecisionModalTitle">Quyết định xử lý báo cáo</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                    </div>
+                    <div class="modal-body admin-modal-body">
+                        <!-- Report Badge Summary -->
+                        <div class="p-2 mb-3 rounded bg-light border d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted small">Báo cáo:</span>
+                                <strong id="reportDecisionDisplayId" class="ms-1 text-primary">#0</strong>
+                            </div>
+                        </div>
+
+                        <div id="reportDecisionErrorAlert" class="alert alert-danger d-none py-2 px-3 small" role="alert"></div>
+
+                        <input type="hidden" id="reportDecisionTargetId" name="reportId">
+                        <input type="hidden" id="reportDecisionExpectedVersion" name="expectedVersion">
+                        <input type="hidden" id="reportDecisionType" name="decision">
+
+                        <!-- Resolution Note -->
+                        <div class="mb-3">
+                            <label for="reportDecisionResolutionNote" class="form-label small fw-semibold">
+                                Ghi chú quyết định kiểm duyệt <span class="text-danger">*</span>
+                            </label>
+                            <textarea id="reportDecisionResolutionNote"
+                                      name="resolutionNote"
+                                      class="form-control form-control-sm"
+                                      rows="3"
+                                      minlength="10"
+                                      maxlength="1000"
+                                      data-char-counter="reportDecisionNoteCounter"
+                                      data-min-len="10"
+                                      placeholder="Mô tả kết luận và cơ sở xử lý (bắt buộc từ 10 đến 1000 ký tự)..."
+                                      required></textarea>
+                            <div id="reportDecisionNoteCounter" class="char-counter">0 / 1000 (Tối thiểu 10 ký tự)</div>
+                        </div>
+
+                        <!-- Optional Atomic Post Removal (Only when RESOLVE and target is POST) -->
+                        <div id="reportDecisionPostRemoveContainer" class="d-none border rounded p-3 mb-2 bg-light-subtle">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="reportDecisionAtomicRemovePost">
+                                <label class="form-check-label fw-semibold small" for="reportDecisionAtomicRemovePost">
+                                    Đồng thời gỡ bài viết vi phạm <span id="reportDecisionPostRemoveId" class="text-danger"></span>
+                                </label>
+                            </div>
+
+                            <div id="reportDecisionPostRemoveFields" class="d-none mt-3 pt-2 border-top">
+                                <div class="mb-2">
+                                    <label for="reportDecisionRemoveReasonCode" class="form-label small fw-semibold">Lý do gỡ bài</label>
+                                    <select id="reportDecisionRemoveReasonCode" class="form-select form-select-sm">
+                                        <option value="" disabled selected>-- Chọn danh mục --</option>
+                                        <option value="SPAM">SPAM — Quảng cáo rác</option>
+                                        <option value="HARASSMENT">HARASSMENT — Quấy rối</option>
+                                        <option value="HATE">HATE — Thù ghét</option>
+                                        <option value="MISINFORMATION">MISINFORMATION — Sai sự thật</option>
+                                        <option value="VIOLENCE">VIOLENCE — Bạo lực</option>
+                                        <option value="OTHER">OTHER — Khác</option>
+                                    </select>
+                                </div>
+                                <div class="mb-2">
+                                    <label for="reportDecisionRemoveReasonDetail" class="form-label small fw-semibold">Chi tiết lý do (tùy chọn nếu trùng ghi chú)</label>
+                                    <input type="text" id="reportDecisionRemoveReasonDetail" class="form-control form-control-sm" maxlength="1000" placeholder="Mặc định lấy từ ghi chú quyết định...">
+                                </div>
+                                <div>
+                                    <label for="reportDecisionRemovePublicNotice" class="form-label small fw-semibold">Thông báo tới tác giả (tùy chọn)</label>
+                                    <input type="text"
+                                           id="reportDecisionRemovePublicNotice"
+                                           class="form-control form-control-sm"
+                                           maxlength="500"
+                                           data-char-counter="reportDecisionRemovePublicNoticeCounter"
+                                           placeholder="Thông điệp gửi tới tác giả (tối đa 500 ký tự)...">
+                                    <div id="reportDecisionRemovePublicNoticeCounter" class="char-counter">0 / 500</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer admin-modal-footer">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Hủy bỏ</button>
+                        <button type="submit" id="btnConfirmReportDecision" class="btn btn-sm btn-primary">Xác nhận</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Moderation Action: View Details Modal -->
+    <div class="modal fade" id="adminActionDetailModal" tabindex="-1" aria-labelledby="adminActionDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header admin-modal-header">
+                    <h5 class="modal-title admin-modal-title d-flex align-items-center gap-2" id="adminActionDetailModalLabel">
+                        <i class="bi bi-shield-check text-primary" aria-hidden="true"></i>
+                        <span>Chi tiết hành động kiểm duyệt</span>
+                        <span id="actionDetailId" class="badge bg-secondary-subtle text-dark">#0</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body admin-modal-body">
+                    <!-- Loading region -->
+                    <div id="actionDetailLoading" class="text-center py-4 d-none" role="status" aria-live="polite">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Đang tải...</span>
+                        </div>
+                        <div class="text-muted small mt-2">Đang tải thông tin chi tiết hành động kiểm duyệt...</div>
+                    </div>
+
+                    <!-- Error region -->
+                    <div id="actionDetailError" class="alert alert-danger d-flex align-items-center gap-2 mb-3 d-none" role="alert" aria-live="assertive">
+                        <i class="bi bi-exclamation-triangle-fill flex-shrink-0" aria-hidden="true"></i>
+                        <div id="actionDetailErrorMessage">Không thể tải chi tiết hành động kiểm duyệt.</div>
+                    </div>
+
+                    <!-- Content container -->
+                    <div id="actionDetailContainer" class="row g-3 mb-3 d-none">
+                        <div class="col-sm-6">
+                            <span class="text-muted small d-block">Người thực hiện:</span>
+                            <strong id="actionDetailActor" class="text-dark">Admin</strong>
+                        </div>
+                        <div class="col-sm-6">
+                            <span class="text-muted small d-block">Loại thao tác:</span>
+                            <span id="actionDetailType" class="badge bg-primary-subtle text-primary fw-bold">ACTION</span>
+                        </div>
+                        <div class="col-sm-6">
+                            <span class="text-muted small d-block">Đối tượng tác động:</span>
+                            <strong id="actionDetailTarget" class="text-dark">TARGET #0</strong>
+                        </div>
+                        <div class="col-sm-6">
+                            <span class="text-muted small d-block">Thời điểm ghi nhận:</span>
+                            <span id="actionDetailCreated" class="utc-date">--</span>
+                        </div>
+                        <div class="col-12">
+                            <span class="text-muted small d-block">Danh mục lý do:</span>
+                            <span id="actionDetailReason" class="badge bg-secondary">REASON</span>
+                        </div>
+                        <div class="col-12">
+                            <span class="text-muted small d-block">Chi tiết lý do / Ghi chú:</span>
+                            <div id="actionDetailDetail" class="admin-content-box mt-1">--</div>
+                        </div>
+                        <div class="col-12 d-none">
+                            <span class="text-muted small d-block">Dữ liệu kỹ thuật (Metadata):</span>
+                            <pre id="actionDetailMetadata" class="bg-light p-2 rounded small text-dark mt-1" style="max-height: 200px; overflow-y: auto;"></pre>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer admin-modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

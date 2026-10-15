@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin :: layout(title='Quản lý bài viết', content=~{::#admin-posts-content})}">
+<body>
+<div id="admin-posts-content">
+
+    <!-- Breadcrumbs -->
+    <nav aria-label="Đường dẫn phân cấp" class="admin-breadcrumb">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a th:href="@{/admin}" href="/admin">Tổng quan</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Bài viết</li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="admin-page-header">
+        <div>
+            <h1 class="admin-page-title">
+                <i class="bi bi-file-earmark-text text-primary" aria-hidden="true"></i>
+                <span>Quản lý bài viết</span>
+            </h1>
+            <p class="admin-page-subtitle">Theo dõi luồng nội dung, xử lý vi phạm và kiểm soát hiển thị bài viết</p>
+        </div>
+    </div>
+
+    <!-- Error Alert if failed -->
+    <div th:if="${errorMessage != null}" class="alert alert-danger py-2 px-3 small mb-3" role="alert" th:text="${errorMessage}">
+        Lỗi tải dữ liệu bài viết.
+    </div>
+
+    <!-- Main Card -->
+    <div class="admin-card">
+        <!-- Filter Bar -->
+        <div class="admin-filter-bar">
+            <form method="GET" th:action="@{/admin/posts}" action="/admin/posts" class="admin-filter-grid">
+                <!-- Search Query -->
+                <div>
+                    <label for="filterQuery" class="form-label small fw-semibold">Nội dung bài viết</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white"><i class="bi bi-search text-muted" aria-hidden="true"></i></span>
+                        <input type="text"
+                               id="filterQuery"
+                               name="q"
+                               class="form-control"
+                               placeholder="Tìm theo nội dung..."
+                               th:value="${q}">
+                    </div>
+                </div>
+
+                <!-- Content State Filter -->
+                <div>
+                    <label for="filterContentState" class="form-label small fw-semibold">Trạng thái nội dung</label>
+                    <select id="filterContentState" name="contentState" class="form-select form-select-sm">
+                        <option value="" th:selected="${contentState == null or contentState == ''}">-- Tất cả trạng thái --</option>
+                        <option value="ACTIVE" th:selected="${contentState == 'ACTIVE'}">ACTIVE (Đang hoạt động)</option>
+                        <option value="ADMIN_REMOVED" th:selected="${contentState == 'ADMIN_REMOVED' or contentState == 'AUTHOR_DELETED'}">REMOVED (Đã gỡ / Đã xóa)</option>
+                    </select>
+                </div>
+
+                <!-- Author ID -->
+                <div>
+                    <label for="filterAuthorId" class="form-label small fw-semibold">Mã tác giả (ID)</label>
+                    <input type="number"
+                           id="filterAuthorId"
+                           name="authorId"
+                           class="form-control form-control-sm"
+                           placeholder="Ví dụ: 123"
+                           th:value="${authorId}">
+                </div>
+
+                <!-- Community ID -->
+                <div>
+                    <label for="filterCommunityId" class="form-label small fw-semibold">Mã cộng đồng (ID)</label>
+                    <input type="number"
+                           id="filterCommunityId"
+                           name="communityId"
+                           class="form-control form-control-sm"
+                           placeholder="Ví dụ: 45"
+                           th:value="${communityId}">
+                </div>
+
+                <!-- Actions -->
+                <div class="d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-sm btn-primary flex-grow-1 d-flex align-items-center justify-content-center gap-1">
+                        <i class="bi bi-funnel" aria-hidden="true"></i>
+                        <span>Lọc</span>
+                    </button>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            data-action="reset-filter"
+                            data-target-url="/admin/posts"
+                            title="Đặt lại bộ lọc">
+                        <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Posts Table -->
+        <div class="admin-table-container">
+            <table class="table admin-table" aria-label="Danh sách bài viết cần kiểm duyệt">
+                <thead>
+                    <tr>
+                        <th scope="col" style="width: 70px;">ID</th>
+                        <th scope="col" style="width: 140px;">Tác giả</th>
+                        <th scope="col">Trích đoạn nội dung</th>
+                        <th scope="col">Loại</th>
+                        <th scope="col">Phạm vi</th>
+                        <th scope="col">Trạng thái</th>
+                        <th scope="col" class="text-center" style="width: 90px;">Báo cáo</th>
+                        <th scope="col">Ngày đăng</th>
+                        <th scope="col" class="text-end" style="width: 140px;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:if="${posts == null or #lists.isEmpty(posts)}">
+                        <td colspan="9">
+                            <div class="admin-empty-state">
+                                <div class="admin-empty-icon"><i class="bi bi-chat-square-text" aria-hidden="true"></i></div>
+                                <div class="admin-empty-title">Không tìm thấy bài viết nào</div>
+                                <div class="admin-empty-desc">Thử thay đổi từ khóa hoặc điều kiện bộ lọc để hiển thị danh sách bài viết.</div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr th:each="p : ${posts}">
+                        <td>
+                            <a th:href="@{'/admin/posts/' + ${p.id}}"
+                               href="/admin/posts/1"
+                               class="fw-bold text-decoration-none"
+                               th:text="${'#' + p.id}">#1</a>
+                        </td>
+                        <td>
+                            <div th:if="${p.author != null}">
+                                <a th:href="@{'/admin/users/' + ${p.author.id}}"
+                                   href="/admin/users/1"
+                                   class="fw-semibold text-dark text-decoration-none hover-primary small d-block"
+                                   th:text="${p.author.username}">author</a>
+                                <span class="text-muted" style="font-size: 0.75rem;" th:text="${p.author.displayName}">Name</span>
+                            </div>
+                            <span th:unless="${p.author != null}" class="text-muted small">Ẩn danh</span>
+                        </td>
+                        <td>
+                            <div th:if="${#strings.toString(p.visibility) == 'PUBLIC'}" class="admin-content-box p-2 mb-0 small" style="max-height: 80px; overflow: hidden;" th:text="${p.contentExcerpt}">
+                                Nội dung bài viết...
+                            </div>
+                            <div th:unless="${#strings.toString(p.visibility) == 'PUBLIC'}" class="text-muted small py-1 px-2 border rounded bg-light font-monospace" style="font-size: 0.75rem;">
+                                <i class="bi bi-shield-lock me-1 text-warning" aria-hidden="true"></i>[Nội dung riêng tư / Giới hạn - Chờ chính sách backend]
+                            </div>
+                        </td>
+                        <td>
+                            <span th:if="${p.parentPostId != null}" class="badge bg-light text-secondary border">
+                                <i class="bi bi-reply me-1" aria-hidden="true"></i>Phản hồi #<span th:text="${p.parentPostId}">0</span>
+                            </span>
+                            <span th:if="${p.quotedPostId != null}" class="badge bg-light text-secondary border">
+                                <i class="bi bi-quote me-1" aria-hidden="true"></i>Trích dẫn #<span th:text="${p.quotedPostId}">0</span>
+                            </span>
+                            <span th:if="${p.parentPostId == null and p.quotedPostId == null}" class="badge bg-light text-dark border">Bài gốc</span>
+                        </td>
+                        <td>
+                            <span th:if="${#strings.toString(p.visibility) == 'PUBLIC'}" class="badge bg-light text-muted border small" th:text="${p.visibility}">PUBLIC</span>
+                            <span th:unless="${#strings.toString(p.visibility) == 'PUBLIC'}" class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle small" th:text="${p.visibility}">PRIVATE</span>
+                        </td>
+                        <td>
+                            <div th:replace="~{fragments/admin/status-badge :: contentState(${p.contentState})}"></div>
+                        </td>
+                        <td class="text-center">
+                            <span th:if="${p.reportedCount > 0}" class="badge bg-danger text-white rounded-pill px-2">
+                                <i class="bi bi-flag-fill me-1" aria-hidden="true"></i><span th:text="${p.reportedCount}">1</span>
+                            </span>
+                            <span th:unless="${p.reportedCount > 0}" class="text-muted small">0</span>
+                        </td>
+                        <td>
+                            <span class="utc-date text-muted small" th:attr="data-utc-date=${p.createdAt}" th:text="${p.createdAt}">--</span>
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a th:href="@{'/admin/posts/' + ${p.id}}"
+                                   href="/admin/posts/1"
+                                   class="btn btn-outline-primary"
+                                   title="Xem chi tiết">
+                                    <i class="bi bi-eye" aria-hidden="true"></i>
+                                </a>
+                                <button th:if="${p.capabilities != null and p.capabilities.canRemove and #strings.toString(p.visibility) == 'PUBLIC'}"
+                                        type="button"
+                                        class="btn btn-outline-danger"
+                                        data-action="open-remove-post"
+                                        th:attr="data-post-id=${p.id},data-author-name=${p.author != null ? p.author.username : ''}"
+                                        title="Gỡ bài viết vi phạm">
+                                    <i class="bi bi-trash3" aria-hidden="true"></i>
+                                </button>
+                                <span th:if="${#strings.toString(p.visibility) != 'PUBLIC'}" class="badge bg-light text-muted border small align-self-center px-2 py-1" title="Không hỗ trợ thao tác trên bài viết riêng tư khi chưa có chính sách phân quyền">
+                                    <i class="bi bi-shield-lock me-1" aria-hidden="true"></i>Khóa
+                                </span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Fragment -->
+        <div th:replace="~{fragments/admin/pagination :: pagination(${pageMeta}, '/admin/posts',
+            ${'&size=' + (size != null ? size : 20)
+            + (q != null and !#strings.isEmpty(q) ? '&q=' + #uris.escapeQueryParam(q) : '')
+            + (authorId != null ? '&authorId=' + authorId : '')
+            + (communityId != null ? '&communityId=' + communityId : '')
+            + (contentState != null and !#strings.isEmpty(contentState) ? '&contentState=' + #uris.escapeQueryParam(contentState) : '')
+            + (sort != null and !#strings.isEmpty(sort) ? '&sort=' + #uris.escapeQueryParam(sort) : '')})}"></div>
+    </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:fragment="layout(title, content)">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title != null and !title.isEmpty()} ? ${title} + ' — AloUTE Admin' : 'AloUTE — Quản trị hệ thống'">AloUTE — Quản trị hệ thống</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" th:href="@{/images/favicon.svg}" href="/images/favicon.svg">
+
+    <!-- Version-Pinned Bootstrap 5.3.3 CSS -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+          crossorigin="anonymous">
+
+    <!-- Bootstrap Icons 1.11.3 -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <!-- AloUTE Design Tokens & Base Styles -->
+    <link rel="stylesheet" th:href="@{/css/tokens.css}" href="/css/tokens.css">
+    <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css">
+
+    <!-- Dedicated Admin Dashboard Stylesheet -->
+    <link rel="stylesheet" th:href="@{/css/admin/admin.css}" href="/css/admin/admin.css">
+
+    <!-- Bootstrap 5.3.3 Bundle JS (deferred) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+            crossorigin="anonymous"
+            defer></script>
+</head>
+<body class="admin-body" th:attr="data-current-admin-id=${currentUserId != null ? currentUserId : ''}">
+
+    <!-- Topbar Navigation -->
+    <div th:replace="~{fragments/admin/topbar :: topbar}"></div>
+
+    <!-- Main Wrapper with Sidebar and Content -->
+    <div class="admin-wrapper">
+        <!-- Desktop Sidebar (>= 992px) -->
+        <aside class="admin-sidebar d-none d-lg-flex" aria-label="Điều hướng chính quản trị">
+            <div th:replace="~{fragments/admin/sidebar :: sidebar(${activeNav})}"></div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="admin-content-area" id="admin-main-content" role="main" tabindex="-1">
+            <div th:replace="${content}"></div>
+        </main>
+    </div>
+
+    <!-- Mobile Offcanvas Sidebar (< 992px) -->
+    <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="adminOffcanvasSidebar" aria-labelledby="adminOffcanvasLabel">
+        <div class="offcanvas-header border-bottom">
+            <div class="d-flex align-items-center gap-2" id="adminOffcanvasLabel">
+                <i class="bi bi-shield-shaded admin-brand-accent fs-4" aria-hidden="true"></i>
+                <span class="fw-bold fs-5">Alo<span class="admin-brand-accent">UTE</span> Admin</span>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Đóng menu"></button>
+        </div>
+        <div class="offcanvas-body p-3">
+            <div th:replace="~{fragments/admin/sidebar :: sidebar(${activeNav})}"></div>
+        </div>
+    </div>
+
+    <!-- Modals Fragment (Post Remove, Restore, Report Decision, Action Detail) -->
+    <div th:replace="~{fragments/admin/modals :: modals}"></div>
+
+    <!-- Shared Core HTTP Transport Client -->
+    <script th:src="@{/js/core/http-client.js}" src="/js/core/http-client.js" defer></script>
+
+    <!-- Admin Interactivity & Actions JS -->
+    <script th:src="@{/js/features/admin/admin-actions.js}" src="/js/features/admin/admin-actions.js" defer></script>
+</body>
+</html>

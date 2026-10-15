@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin :: layout(title=${post != null ? 'Chi tiết bài viết #' + post.id : 'Bài viết không tồn tại'}, content=~{::#admin-post-detail-content})}">
+<body>
+<div id="admin-post-detail-content">
+
+    <!-- Breadcrumbs -->
+    <nav aria-label="Đường dẫn phân cấp" class="admin-breadcrumb">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a th:href="@{/admin}" href="/admin">Tổng quan</a></li>
+            <li class="breadcrumb-item"><a th:href="@{/admin/posts}" href="/admin/posts">Bài viết</a></li>
+            <li class="breadcrumb-item active" aria-current="page" th:text="${post != null ? '#' + post.id : 'Chi tiết'}">Chi tiết</li>
+        </ol>
+    </nav>
+
+    <!-- Error State if post is null -->
+    <div th:if="${post == null}" class="admin-card p-4 text-center">
+        <div class="admin-empty-icon text-danger"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
+        <h2 class="admin-empty-title" th:text="${errorMessage != null ? errorMessage : 'Không tìm thấy bài viết'}">Không tìm thấy bài viết</h2>
+        <p class="admin-empty-desc mb-3">Bài viết này có thể không tồn tại hoặc bạn không có quyền truy cập.</p>
+        <a th:href="@{/admin/posts}" href="/admin/posts" class="btn btn-sm btn-primary">
+            <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Quay lại danh sách bài viết
+        </a>
+    </div>
+
+    <th:block th:if="${post != null}">
+        <!-- Post Moderation Control Card -->
+        <div class="admin-card mb-4">
+            <div class="admin-card-header bg-light-subtle">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary fs-6" th:text="${'Bài viết #' + post.id}">#1</span>
+                    <div th:replace="~{fragments/admin/status-badge :: contentState(${post.contentState})}"></div>
+                    <span class="badge bg-light text-muted border" th:text="${post.visibility}">PUBLIC</span>
+                </div>
+
+                <!-- Action Controls (Remove / Restore) -->
+                <div class="d-flex align-items-center gap-2">
+                    <!-- Remove Post Button: Only offered for PUBLIC posts per privacy policy -->
+                    <button th:if="${post.capabilities != null and post.capabilities.canRemove and #strings.toString(post.visibility) == 'PUBLIC'}"
+                            type="button"
+                            class="btn btn-sm btn-danger d-flex align-items-center gap-1"
+                            data-action="open-remove-post"
+                            th:attr="data-post-id=${post.id},data-author-name=${post.author != null ? post.author.username : ''}">
+                        <i class="bi bi-trash3" aria-hidden="true"></i>
+                        <span>Gỡ bài viết</span>
+                    </button>
+
+                    <!-- Non-PUBLIC Notice -->
+                    <span th:if="${#strings.toString(post.visibility) != 'PUBLIC'}" class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle py-2 px-3 small">
+                        <i class="bi bi-shield-lock me-1" aria-hidden="true"></i>Nội dung riêng tư (<span th:text="${post.visibility}">PRIVATE</span>) - Đã khóa thao tác can thiệp
+                    </span>
+
+                    <!-- Restore Post Button: Only offered for PUBLIC posts per privacy policy -->
+                    <button th:if="${post.capabilities != null and post.capabilities.canRestore and post.activeRemovalId != null and #strings.toString(post.visibility) == 'PUBLIC'}"
+                            type="button"
+                            class="btn btn-sm btn-success d-flex align-items-center gap-1"
+                            data-action="open-restore-post"
+                            th:attr="data-post-id=${post.id},data-removal-id=${post.activeRemovalId}">
+                        <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                        <span>Khôi phục bài viết</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="admin-card-body p-4">
+                <!-- Author & Creation Info -->
+                <div class="d-flex align-items-center justify-content-between mb-3 pb-3 border-bottom">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-circle bg-light border text-primary d-flex align-items-center justify-content-center fw-bold"
+                             style="width: 44px; height: 44px;">
+                            <span th:text="${post.author != null ? #strings.substring(post.author.username, 0, 1).toUpperCase() : 'U'}">U</span>
+                        </div>
+                        <div>
+                            <div th:if="${post.author != null}">
+                                <a th:href="@{'/admin/users/' + ${post.author.id}}"
+                                   href="/admin/users/1"
+                                   class="fw-bold text-dark text-decoration-none hover-primary"
+                                   th:text="${post.author.displayName != null and !post.author.displayName.isEmpty() ? post.author.displayName : post.author.username}">Tác giả</a>
+                                <span class="text-muted small ms-1" th:text="${'@' + post.author.username}">@username</span>
+                            </div>
+                            <div class="text-muted small">
+                                Đăng ngày: <span class="utc-date fw-semibold text-dark" th:attr="data-utc-date=${post.createdAt}" th:text="${post.createdAt}">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Removal Info if applicable -->
+                    <div th:if="${post.deletedAt != null or post.activeRemovalId != null}" class="text-end">
+                        <div class="text-danger small fw-semibold" th:if="${post.activeRemovalId != null}">
+                            <i class="bi bi-shield-x me-1" aria-hidden="true"></i>Bị gỡ ở phiên #<span th:text="${post.activeRemovalId}">0</span>
+                        </div>
+                        <div class="text-muted small" th:if="${post.deletedAt != null}">
+                            Thời điểm xóa: <span class="utc-date" th:attr="data-utc-date=${post.deletedAt}" th:text="${post.deletedAt}">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Post Full Text Content -->
+                <div class="mb-4">
+                    <label class="admin-detail-label d-block mb-2">Nội dung bài viết</label>
+                    <div th:if="${#strings.toString(post.visibility) == 'PUBLIC'}" class="admin-content-box p-3" th:text="${post.content != null and !post.content.isEmpty() ? post.content : '(Nội dung trống hoặc chỉ chứa media/không có văn bản)'}">
+                        Nội dung bài viết chi tiết...
+                    </div>
+                    <div th:unless="${#strings.toString(post.visibility) == 'PUBLIC'}" class="alert alert-warning border-warning-subtle p-3 mb-0">
+                        <div class="d-flex align-items-center gap-2 mb-2 text-warning-emphasis fw-bold">
+                            <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
+                            <span>[Nội dung riêng tư / Giới hạn - Chờ chính sách backend]</span>
+                        </div>
+                        <p class="mb-0 small text-dark">
+                            Bài viết này được thiết lập phạm vi hiển thị là <strong th:text="${post.visibility}">PRIVATE</strong>.
+                            Hệ thống backend hiện trả về nội dung chưa qua kiểm tra chính sách hiển thị (visibility policy check).
+                            Theo nguyên tắc bảo vệ quyền riêng tư người dùng, giao diện quản trị ẩn nội dung bài viết và tạm ngưng các thao tác can thiệp cho đến khi backend cập nhật chính sách phân quyền.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Relational Metadata Grid -->
+                <div class="admin-detail-grid">
+                    <div class="admin-detail-item" th:if="${post.parentPostId != null}">
+                        <span class="admin-detail-label">Bài viết cha (Phản hồi đến)</span>
+                        <a th:href="@{'/admin/posts/' + ${post.parentPostId}}"
+                           href="/admin/posts/1"
+                           class="admin-detail-value text-primary text-decoration-none fw-bold">
+                            <i class="bi bi-reply me-1" aria-hidden="true"></i>Bài viết #<span th:text="${post.parentPostId}">0</span>
+                        </a>
+                    </div>
+
+                    <div class="admin-detail-item" th:if="${post.quotedPostId != null}">
+                        <span class="admin-detail-label">Bài viết trích dẫn</span>
+                        <a th:href="@{'/admin/posts/' + ${post.quotedPostId}}"
+                           href="/admin/posts/1"
+                           class="admin-detail-value text-primary text-decoration-none fw-bold">
+                            <i class="bi bi-quote me-1" aria-hidden="true"></i>Bài viết #<span th:text="${post.quotedPostId}">0</span>
+                        </a>
+                    </div>
+
+                    <!-- Related Reports -->
+                    <div class="admin-detail-item">
+                        <span class="admin-detail-label">Báo cáo liên quan</span>
+                        <div th:if="${post.relatedReportIds == null or #lists.isEmpty(post.relatedReportIds)}" class="text-muted small">
+                            Không có báo cáo nào gắn với bài viết này.
+                        </div>
+                        <div class="d-flex flex-wrap gap-1 mt-1" th:if="${post.relatedReportIds != null and !#lists.isEmpty(post.relatedReportIds)}">
+                            <th:block th:each="rId : ${post.relatedReportIds}">
+                                <a th:href="@{'/admin/reports/' + ${rId}}"
+                                   href="/admin/reports/1"
+                                   class="badge bg-warning-subtle text-warning-emphasis border border-warning text-decoration-none">
+                                    <i class="bi bi-flag-fill text-danger me-1" aria-hidden="true"></i>Báo cáo #<span th:text="${rId}">0</span>
+                                </a>
+                            </th:block>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Moderation Actions History for Post -->
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <h2 class="admin-card-title">
+                    <i class="bi bi-clock-history text-primary" aria-hidden="true"></i>
+                    <span>Lịch sử kiểm duyệt bài viết này</span>
+                </h2>
+            </div>
+            <div class="admin-table-container">
+                <table class="table admin-table" aria-label="Lịch sử kiểm duyệt bài viết">
+                    <thead>
+                        <tr>
+                            <th scope="col" style="width: 70px;">Action ID</th>
+                            <th scope="col">Thời điểm</th>
+                            <th scope="col">Người thực hiện</th>
+                            <th scope="col">Hành động</th>
+                            <th scope="col">Lý do</th>
+                            <th scope="col">Ghi chú chi tiết</th>
+                            <th scope="col" class="text-end" style="width: 90px;">Chi tiết</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:if="${postModerationActions == null or #lists.isEmpty(postModerationActions)}">
+                            <td colspan="7" class="text-center text-muted py-3">Bài viết chưa từng trải qua hành động kiểm duyệt nào.</td>
+                        </tr>
+                        <tr th:each="act : ${postModerationActions}">
+                            <td><span class="text-muted small fw-semibold" th:text="${'#' + act.id}">#1</span></td>
+                            <td><span class="utc-date text-muted small" th:attr="data-utc-date=${act.createdAt}" th:text="${act.createdAt}">--</span></td>
+                            <td>
+                                <strong th:text="${act.actor != null ? (act.actor.displayName != null ? act.actor.displayName : act.actor.username) : 'Hệ thống'}">Admin</strong>
+                            </td>
+                            <td>
+                                <div th:replace="~{fragments/admin/status-badge :: actionType(${act.actionType})}"></div>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border small" th:text="${act.reasonCode != null ? act.reasonCode : 'N/A'}">Lý do</span>
+                            </td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 320px;" th:text="${act.reasonDetail}">Ghi chú xử lý...</div>
+                            </td>
+                            <td class="text-end">
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                        data-action="view-action-detail"
+                                        th:attr="data-action-id=${act.id}"
+                                        title="Xem chi tiết">
+                                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </th:block>
+
+</div>
+</body>
+</html>
