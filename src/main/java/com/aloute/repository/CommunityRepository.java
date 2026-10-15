@@ -26,6 +26,38 @@ public interface CommunityRepository extends JpaRepository<Community, Long> {
     """)
     Page<Community> searchCommunities(@Param("keyword") String keyword, Pageable pageable);
 
+    /**
+     * Viewer-scoped discovery. Restrict private communities in SQL before count/pagination;
+     * viewerId -1 represents an unauthenticated guest (normal User IDs are positive).
+     */
+    @Query(value = """
+        SELECT c FROM Community c
+        WHERE c.deletedAt IS NULL
+          AND (c.privateCommunity = false
+               OR c.owner.id = :viewerId
+               OR EXISTS (SELECT cm.id FROM CommunityMember cm
+                          WHERE cm.community = c AND cm.user.id = :viewerId))
+          AND (:keyword IS NULL OR :keyword = ''
+               OR LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+               OR LOWER(c.slug) LIKE LOWER(CONCAT('%', :keyword, '%'))
+               OR LOWER(c.description) LIKE LOWER(CONCAT('%', :keyword, '%')))
+        ORDER BY c.memberCount DESC, c.id DESC
+    """, countQuery = """
+        SELECT COUNT(c) FROM Community c
+        WHERE c.deletedAt IS NULL
+          AND (c.privateCommunity = false
+               OR c.owner.id = :viewerId
+               OR EXISTS (SELECT cm.id FROM CommunityMember cm
+                          WHERE cm.community = c AND cm.user.id = :viewerId))
+          AND (:keyword IS NULL OR :keyword = ''
+               OR LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+               OR LOWER(c.slug) LIKE LOWER(CONCAT('%', :keyword, '%'))
+               OR LOWER(c.description) LIKE LOWER(CONCAT('%', :keyword, '%')))
+    """)
+    Page<Community> searchVisibleCommunities(@Param("keyword") String keyword,
+                                               @Param("viewerId") Long viewerId,
+                                               Pageable pageable);
+
     @Query("""
         SELECT COUNT(c) FROM Community c
         WHERE c.deletedAt IS NULL
