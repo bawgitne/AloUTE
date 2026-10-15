@@ -62,7 +62,8 @@ public class CommunityPageController {
             @PathVariable String slug,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            Model model
+            Model model,
+            HttpServletResponse response
     ) {
         Long currentUserId = currentUserProvider.getCurrentUserId().orElse(null);
         ProfileResponse currentUser = null;
