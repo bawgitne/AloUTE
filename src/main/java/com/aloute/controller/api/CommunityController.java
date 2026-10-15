@@ -73,7 +73,7 @@ public class CommunityController {
     public ApiResponse<List<CommunityMembershipResponse>> members(@PathVariable @Positive Long communityId,
                                                                   @RequestParam(defaultValue = "0") @Min(0) int page,
                                                                   @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return communityService.members(communityId, page, size);
+        return communityService.members(communityId, page, size, currentUserProvider.getCurrentUserId().orElse(null));
     }
 
     @DeleteMapping("/{communityId}/members/me")
