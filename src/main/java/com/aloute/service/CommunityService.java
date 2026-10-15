@@ -16,7 +16,12 @@ public interface CommunityService {
     CommunityResponse update(Long userId, Long communityId, UpdateCommunityRequest request);
     void delete(Long userId, Long communityId);
     CommunityMembershipResponse join(Long userId, Long communityId);
-    ApiResponse<List<CommunityMembershipResponse>> members(Long communityId, int page, int size);
+    ApiResponse<List<CommunityMembershipResponse>> members(Long communityId, int page, int size, Long viewerId);
+
+    /** A missing viewer identity must never grant private-community read access. */
+    default ApiResponse<List<CommunityMembershipResponse>> members(Long communityId, int page, int size) {
+        return members(communityId, page, size, null);
+    }
     void leave(Long userId, Long communityId);
     CommunityMembershipResponse updateRole(Long actorId, Long communityId, Long targetUserId, UpdateCommunityRoleRequest request);
 }
