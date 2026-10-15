@@ -585,6 +585,11 @@ public class PostServiceImpl implements PostService {
             return false;
         }
 
+        // Soft-deleted Communities are not readable through any normal Post path.
+        if (post.getCommunity() != null && post.getCommunity().getDeletedAt() != null) {
+            return false;
+        }
+
         // 1. Canonical private-community invariant: non-members cannot access private community posts
         // This check MUST occur before author exception (e.g. author who left the private community)
         if (post.getCommunity() != null && post.getCommunity().isPrivateCommunity()) {
