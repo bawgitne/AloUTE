@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin :: layout(title=${user != null ? 'Chi tiết người dùng: ' + user.username : 'Người dùng không tồn tại'}, content=~{::#admin-user-detail-content})}">
+<body>
+<div id="admin-user-detail-content">
+
+    <!-- Breadcrumbs -->
+    <nav aria-label="Đường dẫn phân cấp" class="admin-breadcrumb">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a th:href="@{/admin}" href="/admin">Tổng quan</a></li>
+            <li class="breadcrumb-item"><a th:href="@{/admin/users}" href="/admin/users">Người dùng</a></li>
+            <li class="breadcrumb-item active" aria-current="page" th:text="${user != null ? user.username : 'Chi tiết'}">Chi tiết</li>
+        </ol>
+    </nav>
+
+    <!-- Error State if user is null -->
+    <div th:if="${user == null}" class="admin-card p-4 text-center">
+        <div class="admin-empty-icon text-danger"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
+        <h2 class="admin-empty-title" th:text="${errorMessage != null ? errorMessage : 'Không tìm thấy người dùng'}">Không tìm thấy người dùng</h2>
+        <p class="admin-empty-desc mb-3">Tài khoản này có thể đã bị xóa hoặc đường dẫn không hợp lệ.</p>
+        <a th:href="@{/admin/users}" href="/admin/users" class="btn btn-sm btn-primary">
+            <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Quay lại danh sách người dùng
+        </a>
+    </div>
+
+    <th:block th:if="${user != null}">
+        <!-- User Profile Card -->
+        <div class="admin-card mb-4">
+            <div class="admin-card-body p-4">
+                <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <img th:if="${user.avatarUrl != null and !user.avatarUrl.isEmpty()}"
+                             th:src="${user.avatarUrl}"
+                             src="/images/avatar-fallback.svg"
+                             alt="Avatar"
+                             class="rounded-circle border"
+                             style="width: 64px; height: 64px; object-fit: cover;">
+                        <div th:unless="${user.avatarUrl != null and !user.avatarUrl.isEmpty()}"
+                             class="rounded-circle bg-primary-subtle text-primary border border-primary-subtle d-flex align-items-center justify-content-center fw-bold fs-3"
+                             style="width: 64px; height: 64px;">
+                            <span th:text="${#strings.substring(user.username, 0, 1).toUpperCase()}">U</span>
+                        </div>
+
+                        <div>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <h1 class="h4 mb-0 fw-bold text-dark" th:text="${user.displayName != null and !user.displayName.isEmpty() ? user.displayName : user.username}">User Display Name</h1>
+                                <span class="badge bg-light text-muted border" th:text="${'#' + user.id}">#1</span>
+                                <span th:if="${user.isVerified}" class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                    <i class="bi bi-patch-check-fill me-1" aria-hidden="true"></i>Đã xác thực
+                                </span>
+                            </div>
+                            <div class="text-muted small mt-1">
+                                <span class="fw-semibold text-primary" th:text="${'@' + user.username}">@username</span>
+                                <span class="mx-1">•</span>
+                                <span th:text="${user.email}">email@domain.com</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <div th:replace="~{fragments/admin/status-badge :: userStatus(${user.isActive})}"></div>
+                        <span th:if="${user.isPrivate}" class="badge bg-warning-subtle text-warning-emphasis">
+                            <i class="bi bi-lock-fill me-1" aria-hidden="true"></i>Tài khoản riêng tư
+                        </span>
+                        <span th:unless="${user.isPrivate}" class="badge bg-light text-secondary border">
+                            <i class="bi bi-globe me-1" aria-hidden="true"></i>Công khai
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Info Grid -->
+                <hr class="my-4">
+                <div class="admin-detail-grid">
+                    <div class="admin-detail-item">
+                        <span class="admin-detail-label">Tiểu sử (Bio)</span>
+                        <span class="admin-detail-value" th:text="${user.bio != null and !user.bio.isEmpty() ? user.bio : '(Không có)'}">--</span>
+                    </div>
+                    <div class="admin-detail-item">
+                        <span class="admin-detail-label">Ngày đăng ký</span>
+                        <span class="admin-detail-value utc-date" th:attr="data-utc-date=${user.createdAt}" th:text="${user.createdAt}">--</span>
+                    </div>
+                    <div class="admin-detail-item">
+                        <span class="admin-detail-label">Tổng bài viết</span>
+                        <span class="admin-detail-value fw-bold text-primary" th:text="${user.counts != null ? user.counts.posts : 0}">0</span>
+                    </div>
+                    <div class="admin-detail-item">
+                        <span class="admin-detail-label">Báo cáo nhận phải</span>
+                        <span class="admin-detail-value fw-bold"
+                              th:classappend="${user.counts != null and user.counts.reportsReceived > 0 ? 'text-danger' : 'text-muted'}"
+                              th:text="${user.counts != null ? user.counts.reportsReceived : 0}">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2 Column: User's Recent Posts & Moderation Actions History -->
+        <div class="row g-4">
+            <!-- Left: User's Recent Posts -->
+            <div class="col-lg-7">
+                <div class="admin-card">
+                    <div class="admin-card-header">
+                        <h2 class="admin-card-title">
+                            <i class="bi bi-file-earmark-text text-primary" aria-hidden="true"></i>
+                            <span>Bài viết gần đây</span>
+                        </h2>
+                        <a th:href="@{/admin/posts(authorId=${user.id})}" href="/admin/posts" class="btn btn-sm btn-link text-decoration-none p-0">
+                            Xem tất cả bài viết của user <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                        </a>
+                    </div>
+                    <div class="admin-table-container">
+                        <table class="table admin-table" aria-label="Bài viết của người dùng">
+                            <thead>
+                                <tr>
+                                    <th scope="col" style="width: 60px;">ID</th>
+                                    <th scope="col">Trích đoạn nội dung</th>
+                                    <th scope="col">Trạng thái</th>
+                                    <th scope="col">Ngày tạo</th>
+                                    <th scope="col" class="text-end">Chi tiết</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:if="${userPosts == null or #lists.isEmpty(userPosts)}">
+                                    <td colspan="5" class="text-center text-muted py-3">Người dùng chưa đăng bài viết nào.</td>
+                                </tr>
+                                <tr th:each="p : ${userPosts}">
+                                    <td><span class="text-muted small fw-semibold" th:text="${'#' + p.id}">#1</span></td>
+                                    <td>
+                                        <div th:if="${#strings.toString(p.visibility) == 'PUBLIC'}" class="text-truncate" style="max-width: 260px;" th:text="${p.contentExcerpt}">Nội dung bài viết...</div>
+                                        <div th:unless="${#strings.toString(p.visibility) == 'PUBLIC'}" class="text-muted fst-italic small">
+                                            <i class="bi bi-shield-lock me-1 text-warning" aria-hidden="true"></i>[Nội dung riêng tư - Chờ chính sách]
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div th:replace="~{fragments/admin/status-badge :: contentState(${p.contentState})}"></div>
+                                    </td>
+                                    <td>
+                                        <span class="utc-date text-muted small" th:attr="data-utc-date=${p.createdAt}" th:text="${p.createdAt}">--</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <a th:href="@{'/admin/posts/' + ${p.id}}" href="/admin/posts/1" class="btn btn-sm btn-outline-primary py-0 px-2">
+                                            <i class="bi bi-eye" aria-hidden="true"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Moderation History for User -->
+            <div class="col-lg-5">
+                <div class="admin-card">
+                    <div class="admin-card-header">
+                        <h2 class="admin-card-title">
+                            <i class="bi bi-shield-check text-success" aria-hidden="true"></i>
+                            <span>Lịch sử kiểm duyệt tài khoản</span>
+                        </h2>
+                    </div>
+                    <div class="admin-table-container">
+                        <table class="table admin-table" aria-label="Lịch sử kiểm duyệt liên quan đến người dùng">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Thời điểm</th>
+                                    <th scope="col">Hành động</th>
+                                    <th scope="col">Lý do</th>
+                                    <th scope="col" class="text-end">Chi tiết</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:if="${userModerationActions == null or #lists.isEmpty(userModerationActions)}">
+                                    <td colspan="4" class="text-center text-muted py-3">Chưa có ghi nhận kiểm duyệt nào đối với người dùng này.</td>
+                                </tr>
+                                <tr th:each="act : ${userModerationActions}">
+                                    <td>
+                                        <span class="utc-date text-muted small" th:attr="data-utc-date=${act.createdAt}" th:text="${act.createdAt}">--</span>
+                                    </td>
+                                    <td>
+                                        <div th:replace="~{fragments/admin/status-badge :: actionType(${act.actionType})}"></div>
+                                    </td>
+                                    <td>
+                                        <span class="small" th:text="${act.reasonCode != null ? act.reasonCode : 'N/A'}">Lý do</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                data-action="view-action-detail"
+                                                th:attr="data-action-id=${act.id}"
+                                                title="Xem chi tiết thao tác">
+                                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </th:block>
+
+</div>
+</body>
+</html>
