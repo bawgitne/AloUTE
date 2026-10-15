@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<nav th:fragment="breadcrumbs(items)" aria-label="Đường dẫn phân cấp" class="admin-breadcrumb">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item">
+            <a th:href="@{/admin}" href="/admin">
+                <i class="bi bi-house-door me-1" aria-hidden="true"></i>Tổng quan
+            </a>
+        </li>
+        <th:block th:each="item, iterStat : ${items}">
+            <li class="breadcrumb-item"
+                th:classappend="${iterStat.last} ? 'active' : ''"
+                th:attr="aria-current=${iterStat.last} ? 'page' : null">
+                <a th:if="${!iterStat.last and item.url != null}"
+                   th:href="@{${item.url}}"
+                   th:text="${item.label}">Trang</a>
+                <span th:if="${iterStat.last or item.url == null}"
+                      th:text="${item.label}">Trang hiện tại</span>
+            </li>
+        </th:block>
+    </ol>
+</nav>
+</body>
+</html>

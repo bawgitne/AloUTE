@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin :: layout(title='Hàng đợi báo cáo', content=~{::#admin-reports-content})}">
+<body>
+<div id="admin-reports-content">
+
+    <!-- Breadcrumbs -->
+    <nav aria-label="Đường dẫn phân cấp" class="admin-breadcrumb">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a th:href="@{/admin}" href="/admin">Tổng quan</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Hàng đợi báo cáo</li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="admin-page-header">
+        <div>
+            <h1 class="admin-page-title">
+                <i class="bi bi-flag text-primary" aria-hidden="true"></i>
+                <span>Hàng đợi báo cáo</span>
+            </h1>
+            <p class="admin-page-subtitle">Quy trình kiểm duyệt phản ánh nội dung và tài khoản vi phạm từ người dùng</p>
+        </div>
+    </div>
+
+    <!-- Error Alert if failed -->
+    <div th:if="${errorMessage != null}" class="alert alert-danger py-2 px-3 small mb-3" role="alert" th:text="${errorMessage}">
+        Lỗi tải dữ liệu báo cáo.
+    </div>
+
+    <!-- Main Card -->
+    <div class="admin-card">
+        <!-- Status Tabs -->
+        <div class="border-bottom bg-white px-3 pt-3">
+            <ul class="nav nav-tabs border-0" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link"
+                       th:classappend="${status == null or status == ''} ? 'active fw-bold' : ''"
+                       th:href="@{/admin/reports(targetType=${targetType}, reason=${reason}, reviewedBy=${reviewedBy})}"
+                       href="/admin/reports">
+                        <i class="bi bi-collection me-1" aria-hidden="true"></i>Tất cả
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link"
+                       th:classappend="${status == 'PENDING'} ? 'active fw-bold text-warning' : ''"
+                       th:href="@{/admin/reports(status='PENDING', targetType=${targetType}, reason=${reason}, reviewedBy=${reviewedBy})}"
+                       href="/admin/reports?status=PENDING">
+                        <i class="bi bi-hourglass-split me-1 text-warning" aria-hidden="true"></i>Chờ xử lý
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link"
+                       th:classappend="${status == 'REVIEWED'} ? 'active fw-bold text-primary' : ''"
+                       th:href="@{/admin/reports(status='REVIEWED', targetType=${targetType}, reason=${reason}, reviewedBy=${reviewedBy})}"
+                       href="/admin/reports?status=REVIEWED">
+                        <i class="bi bi-eye me-1 text-primary" aria-hidden="true"></i>Đang xem xét
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link"
+                       th:classappend="${status == 'RESOLVED'} ? 'active fw-bold text-success' : ''"
+                       th:href="@{/admin/reports(status='RESOLVED', targetType=${targetType}, reason=${reason}, reviewedBy=${reviewedBy})}"
+                       href="/admin/reports?status=RESOLVED">
+                        <i class="bi bi-check-all me-1 text-success" aria-hidden="true"></i>Đã giải quyết
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link"
+                       th:classappend="${status == 'REJECTED'} ? 'active fw-bold text-danger' : ''"
+                       th:href="@{/admin/reports(status='REJECTED', targetType=${targetType}, reason=${reason}, reviewedBy=${reviewedBy})}"
+                       href="/admin/reports?status=REJECTED">
+                        <i class="bi bi-x-octagon me-1 text-danger" aria-hidden="true"></i>Đã từ chối
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Filter Sub-bar -->
+        <div class="admin-filter-bar">
+            <form method="GET" th:action="@{/admin/reports}" action="/admin/reports" class="admin-filter-grid">
+                <input type="hidden" name="status" th:value="${status}">
+
+                <!-- Target Type Filter -->
+                <div>
+                    <label for="filterTargetType" class="form-label small fw-semibold">Đối tượng báo cáo</label>
+                    <select id="filterTargetType" name="targetType" class="form-select form-select-sm">
+                        <option value="" th:selected="${targetType == null or targetType == ''}">-- Tất cả đối tượng --</option>
+                        <option value="POST" th:selected="${targetType == 'POST'}">POST (Bài viết)</option>
+                        <option value="USER" th:selected="${targetType == 'USER'}">USER (Người dùng)</option>
+                    </select>
+                </div>
+
+                <!-- Reason Filter -->
+                <div>
+                    <label for="filterReason" class="form-label small fw-semibold">Danh mục lý do</label>
+                    <select id="filterReason" name="reason" class="form-select form-select-sm">
+                        <option value="" th:selected="${reason == null or reason == ''}">-- Tất cả lý do --</option>
+                        <option value="SPAM" th:selected="${reason == 'SPAM'}">SPAM — Quảng cáo rác</option>
+                        <option value="HARASSMENT" th:selected="${reason == 'HARASSMENT'}">HARASSMENT — Quấy rối</option>
+                        <option value="HATE" th:selected="${reason == 'HATE'}">HATE — Thù ghét</option>
+                        <option value="MISINFORMATION" th:selected="${reason == 'MISINFORMATION'}">MISINFORMATION — Sai sự thật</option>
+                        <option value="VIOLENCE" th:selected="${reason == 'VIOLENCE'}">VIOLENCE — Bạo lực</option>
+                        <option value="OTHER" th:selected="${reason == 'OTHER'}">OTHER — Khác</option>
+                    </select>
+                </div>
+
+                <!-- Reviewed By Admin ID -->
+                <div>
+                    <label for="filterReviewedBy" class="form-label small fw-semibold">Người xử lý (Admin ID)</label>
+                    <input type="number"
+                           id="filterReviewedBy"
+                           name="reviewedBy"
+                           class="form-control form-control-sm"
+                           placeholder="ID quản trị viên..."
+                           th:value="${reviewedBy}">
+                </div>
+
+                <!-- Submit / Reset -->
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-sm btn-primary flex-grow-1 d-flex align-items-center justify-content-center gap-1">
+                        <i class="bi bi-funnel" aria-hidden="true"></i>
+                        <span>Lọc</span>
+                    </button>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            data-action="reset-filter"
+                            data-target-url="/admin/reports"
+                            title="Đặt lại bộ lọc">
+                        <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Reports Table -->
+        <div class="admin-table-container">
+            <table class="table admin-table" aria-label="Danh sách phản ánh vi phạm">
+                <thead>
+                    <tr>
+                        <th scope="col" style="width: 70px;">ID</th>
+                        <th scope="col" style="width: 140px;">Đối tượng vi phạm</th>
+                        <th scope="col" style="width: 130px;">Người báo cáo</th>
+                        <th scope="col">Lý do</th>
+                        <th scope="col">Mô tả vi phạm</th>
+                        <th scope="col">Trạng thái</th>
+                        <th scope="col">Người nhận xử lý</th>
+                        <th scope="col">Ngày gửi</th>
+                        <th scope="col" class="text-end" style="width: 150px;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:if="${reports == null or #lists.isEmpty(reports)}">
+                        <td colspan="9">
+                            <div class="admin-empty-state">
+                                <div class="admin-empty-icon"><i class="bi bi-inbox" aria-hidden="true"></i></div>
+                                <div class="admin-empty-title">Không có báo cáo nào trong danh mục này</div>
+                                <div class="admin-empty-desc">Hàng đợi hiện đang sạch sẽ hoặc không có phản ánh nào khớp với tiêu chí tìm kiếm.</div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr th:each="r : ${reports}">
+                        <td>
+                            <a th:href="@{'/admin/reports/' + ${r.id}}"
+                               href="/admin/reports/1"
+                               class="fw-bold text-decoration-none"
+                               th:text="${'#' + r.id}">#1</a>
+                        </td>
+                        <td>
+                            <span th:if="${r.targetType == 'POST'}" class="badge bg-light text-primary border">
+                                <i class="bi bi-file-earmark-text me-1" aria-hidden="true"></i>
+                                <a th:href="@{'/admin/posts/' + ${r.targetId}}"
+                                   href="/admin/posts/1"
+                                   class="text-decoration-none fw-bold"
+                                   th:text="${'Bài viết #' + r.targetId}">Bài viết #1</a>
+                            </span>
+                            <span th:if="${r.targetType == 'USER'}" class="badge bg-light text-success border">
+                                <i class="bi bi-person me-1" aria-hidden="true"></i>
+                                <a th:href="@{'/admin/users/' + ${r.targetId}}"
+                                   href="/admin/users/1"
+                                   class="text-decoration-none fw-bold"
+                                   th:text="${'User #' + r.targetId}">User #1</a>
+                            </span>
+                            <span th:if="${r.targetType != 'POST' and r.targetType != 'USER'}" class="badge bg-secondary" th:text="${r.targetType + ' #' + r.targetId}">TARGET</span>
+                        </td>
+                        <td>
+                            <div th:if="${r.reporter != null}">
+                                <a th:href="@{'/admin/users/' + ${r.reporter.id}}"
+                                   href="/admin/users/1"
+                                   class="fw-semibold text-dark text-decoration-none hover-primary small d-block"
+                                   th:text="${r.reporter.username}">reporter</a>
+                            </div>
+                            <span th:unless="${r.reporter != null}" class="text-muted small">Ẩn danh</span>
+                        </td>
+                        <td>
+                            <div th:replace="~{fragments/admin/status-badge :: reportReason(${r.reason})}"></div>
+                        </td>
+                        <td>
+                            <div class="text-truncate small" style="max-width: 240px;" th:text="${r.descriptionExcerpt != null and !r.descriptionExcerpt.isEmpty() ? r.descriptionExcerpt : '(Không có mô tả)'}">
+                                Mô tả vi phạm...
+                            </div>
+                        </td>
+                        <td>
+                            <div th:replace="~{fragments/admin/status-badge :: reportStatus(${r.status})}"></div>
+                        </td>
+                        <td>
+                            <span th:if="${r.reviewedBy != null}" class="badge bg-light text-dark border">
+                                <i class="bi bi-person-badge me-1" aria-hidden="true"></i>Admin #<span th:text="${r.reviewedBy}">1</span>
+                            </span>
+                            <span th:unless="${r.reviewedBy != null}" class="text-muted small">Chưa nhận</span>
+                        </td>
+                        <td>
+                            <span class="utc-date text-muted small" th:attr="data-utc-date=${r.createdAt}" th:text="${r.createdAt}">--</span>
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a th:href="@{'/admin/reports/' + ${r.id}}"
+                                   href="/admin/reports/1"
+                                   class="btn btn-outline-primary"
+                                   title="Xem chi tiết báo cáo">
+                                    <i class="bi bi-eye me-1" aria-hidden="true"></i>Xem
+                                </a>
+                                <button th:if="${r.status != null and r.status.name() == 'PENDING'}"
+                                        type="button"
+                                        class="btn btn-outline-warning"
+                                        data-action="start-report-review"
+                                        th:attr="data-report-id=${r.id},data-expected-version=${r.version}"
+                                        title="Nhận xử lý báo cáo này">
+                                    <i class="bi bi-hand-index-thumb" aria-hidden="true"></i>Nhận
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Fragment -->
+        <div th:replace="~{fragments/admin/pagination :: pagination(${pageMeta}, '/admin/reports',
+            ${'&size=' + (size != null ? size : 20)
+            + (status != null and !#strings.isEmpty(status) ? '&status=' + #uris.escapeQueryParam(status) : '')
+            + (targetType != null and !#strings.isEmpty(targetType) ? '&targetType=' + #uris.escapeQueryParam(targetType) : '')
+            + (reason != null and !#strings.isEmpty(reason) ? '&reason=' + #uris.escapeQueryParam(reason) : '')
+            + (reviewedBy != null ? '&reviewedBy=' + reviewedBy : '')
+            + (sort != null and !#strings.isEmpty(sort) ? '&sort=' + #uris.escapeQueryParam(sort) : '')})}"></div>
+    </div>
+
+</div>
+</body>
+</html>

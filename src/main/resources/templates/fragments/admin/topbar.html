@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<header th:fragment="topbar" class="admin-navbar navbar navbar-expand px-3 px-lg-4">
+    <div class="d-flex align-items-center gap-2">
+        <!-- Mobile Sidebar Toggle -->
+        <button class="btn btn-sm btn-outline-secondary d-lg-none me-1"
+                type="button"
+                data-bs-toggle="offcanvas"
+                data-bs-target="#adminOffcanvasSidebar"
+                aria-controls="adminOffcanvasSidebar"
+                aria-label="Mở menu quản trị">
+            <i class="bi bi-list fs-5" aria-hidden="true"></i>
+        </button>
+
+        <!-- Brand Link -->
+        <a class="admin-brand" th:href="@{/admin}" href="/admin">
+            <i class="bi bi-shield-shaded admin-brand-accent fs-4" aria-hidden="true"></i>
+            <span>Alo<span class="admin-brand-accent">UTE</span></span>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-6 py-0 px-2 rounded-pill fw-semibold">Admin</span>
+        </a>
+    </div>
+
+    <!-- Right Topbar Controls -->
+    <div class="ms-auto d-flex align-items-center gap-3">
+        <!-- Return to Main Campus Link -->
+        <a th:href="@{/feed}" href="/feed" class="btn btn-sm btn-outline-primary d-none d-sm-inline-flex align-items-center gap-1">
+            <i class="bi bi-arrow-left-circle" aria-hidden="true"></i>
+            <span>Về AloUTE Campus</span>
+        </a>
+
+        <!-- Current Admin Identity Dropdown -->
+        <div class="dropdown">
+            <button class="btn btn-sm btn-light border dropdown-toggle d-flex align-items-center gap-2 py-1 px-2"
+                    type="button"
+                    id="adminUserDropdown"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false">
+                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                     style="width: 28px; height: 28px; font-size: 0.75rem; font-weight: 700;"
+                     th:text="${currentUser != null ? #strings.substring(currentUser.displayUsername, 0, 1).toUpperCase() : 'A'}">
+                    A
+                </div>
+                <div class="text-start d-none d-md-block" style="line-height: 1.2;">
+                    <div class="fw-semibold small"
+                         th:text="${currentUser != null ? currentUser.displayUsername : 'Quản trị viên'}">
+                        Admin
+                    </div>
+                    <div class="text-muted" style="font-size: 0.7rem;">SYSTEM_ADMIN</div>
+                </div>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="adminUserDropdown">
+                <li class="dropdown-header">
+                    <div class="fw-bold" th:text="${currentUser != null ? currentUser.displayUsername : 'Admin'}">Admin</div>
+                    <div class="small text-muted" th:text="${currentUser != null ? currentUser.email : ''}">admin@aloute.local</div>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item d-flex align-items-center gap-2" th:href="@{/feed}" href="/feed">
+                        <i class="bi bi-house-door text-muted" aria-hidden="true"></i>
+                        <span>Giao diện người dùng</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item d-flex align-items-center gap-2" th:href="@{/admin/moderation-actions}" href="/admin/moderation-actions">
+                        <i class="bi bi-clock-history text-muted" aria-hidden="true"></i>
+                        <span>Nhật ký hoạt động</span>
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <form id="adminLogoutForm" method="POST" th:action="@{/api/auth/logout}" action="/api/auth/logout" class="px-2 py-1">
+                        <button type="submit" id="adminBtnLogout" class="btn btn-sm btn-outline-danger w-100 d-flex align-items-center justify-content-center gap-1">
+                            <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                            <span>Đăng xuất</span>
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </div>
+</header>
+</body>
+</html>

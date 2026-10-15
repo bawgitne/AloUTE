@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<nav th:fragment="sidebar(activeNav)" class="d-flex flex-column h-100" aria-label="Điều hướng quản trị">
+    <div class="admin-nav-group-title">Tổng quan</div>
+    <a th:href="@{/admin}"
+       href="/admin"
+       class="admin-nav-item"
+       th:classappend="${activeNav == 'overview'} ? 'active' : ''"
+       th:attr="aria-current=${activeNav == 'overview'} ? 'page' : null">
+        <i class="bi bi-speedometer2" aria-hidden="true"></i>
+        <span>Bảng điều khiển</span>
+    </a>
+
+    <div class="admin-nav-group-title">Quản trị & Kiểm duyệt</div>
+    <a th:href="@{/admin/users}"
+       href="/admin/users"
+       class="admin-nav-item"
+       th:classappend="${activeNav == 'users'} ? 'active' : ''"
+       th:attr="aria-current=${activeNav == 'users'} ? 'page' : null">
+        <i class="bi bi-people" aria-hidden="true"></i>
+        <span>Người dùng</span>
+    </a>
+
+    <a th:href="@{/admin/posts}"
+       href="/admin/posts"
+       class="admin-nav-item"
+       th:classappend="${activeNav == 'posts'} ? 'active' : ''"
+       th:attr="aria-current=${activeNav == 'posts'} ? 'page' : null">
+        <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+        <span>Bài viết</span>
+    </a>
+
+    <a th:href="@{/admin/reports}"
+       href="/admin/reports"
+       class="admin-nav-item"
+       th:classappend="${activeNav == 'reports'} ? 'active' : ''"
+       th:attr="aria-current=${activeNav == 'reports'} ? 'page' : null">
+        <i class="bi bi-flag" aria-hidden="true"></i>
+        <span>Hàng đợi báo cáo</span>
+    </a>
+
+    <a th:href="@{/admin/moderation-actions}"
+       href="/admin/moderation-actions"
+       class="admin-nav-item"
+       th:classappend="${activeNav == 'moderation-actions'} ? 'active' : ''"
+       th:attr="aria-current=${activeNav == 'moderation-actions'} ? 'page' : null">
+        <i class="bi bi-shield-check" aria-hidden="true"></i>
+        <span>Nhật ký kiểm duyệt</span>
+    </a>
+
+    <div class="mt-auto pt-3 border-top">
+        <a th:href="@{/feed}" href="/feed" class="admin-nav-item text-primary">
+            <i class="bi bi-arrow-left-circle" aria-hidden="true"></i>
+            <span>Về AloUTE Campus</span>
+        </a>
+    </div>
+</nav>
+</body>
+</html>
