@@ -98,17 +98,16 @@
                 <!-- Post Full Text Content -->
                 <div class="mb-4">
                     <label class="admin-detail-label d-block mb-2">Nội dung bài viết</label>
-                    <div th:if="${#strings.toString(post.visibility) == 'PUBLIC'}" class="admin-content-box p-3" th:text="${post.content != null and !post.content.isEmpty() ? post.content : '(Nội dung trống hoặc chỉ chứa media/không có văn bản)'}">
+                    <div th:if="${#strings.toString(post.visibility) == 'PUBLIC' and !#strings.contains(post.content, '[REDACTED')}" class="admin-content-box p-3" th:text="${post.content != null and !post.content.isEmpty() ? post.content : '(Nội dung trống hoặc chỉ chứa media/không có văn bản)'}">
                         Nội dung bài viết chi tiết...
                     </div>
-                    <div th:unless="${#strings.toString(post.visibility) == 'PUBLIC'}" class="alert alert-warning border-warning-subtle p-3 mb-0">
+                    <div th:unless="${#strings.toString(post.visibility) == 'PUBLIC' and !#strings.contains(post.content, '[REDACTED')}" class="alert alert-warning border-warning-subtle p-3 mb-0">
                         <div class="d-flex align-items-center gap-2 mb-2 text-warning-emphasis fw-bold">
                             <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
                             <span>[Nội dung riêng tư / Giới hạn - Chờ chính sách backend]</span>
                         </div>
                         <p class="mb-0 small text-dark">
-                            Bài viết này được thiết lập phạm vi hiển thị là <strong th:text="${post.visibility}">PRIVATE</strong>.
-                            Hệ thống backend hiện trả về nội dung chưa qua kiểm tra chính sách hiển thị (visibility policy check).
+                            Bài viết này thuộc phạm vi hiển thị giới hạn <strong th:text="${post.visibility}">PRIVATE</strong>.
                             Theo nguyên tắc bảo vệ quyền riêng tư người dùng, giao diện quản trị ẩn nội dung bài viết và tạm ngưng các thao tác can thiệp cho đến khi backend cập nhật chính sách phân quyền.
                         </p>
                     </div>

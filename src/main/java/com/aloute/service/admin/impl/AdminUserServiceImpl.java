@@ -81,10 +81,10 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         AdminUserDetailResponse.UserCounts counts = new AdminUserDetailResponse.UserCounts(postCount, reportsCount);
         AdminUserDetailResponse.UserCapabilities capabilities = new AdminUserDetailResponse.UserCapabilities(
-                true,
-                canSuspend,
-                true,
-                canChangeGlobalRole
+                false,
+                false,
+                false,
+                false
         );
 
         return new AdminUserDetailResponse(

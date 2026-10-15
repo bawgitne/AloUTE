@@ -568,6 +568,70 @@ describe('AloUTE Admin Dashboard Frontend Tests', () => {
             assert.strictEqual(body.decision, 'REJECT');
             assert.strictEqual(body.resolutionAction, null);
         });
+
+        it('when removeReasonDetail is whitespace-only, it falls back to resolutionNote', async () => {
+            const env = createTestEnvironment();
+
+            const modal = new MockElement('DIV', 'adminReportDecisionModal');
+            const form = new MockElement('FORM', 'adminReportDecisionForm');
+            const targetId = new MockElement('INPUT', 'reportDecisionTargetId');
+            const expectedVersion = new MockElement('INPUT', 'reportDecisionExpectedVersion');
+            const decisionType = new MockElement('INPUT', 'reportDecisionType');
+            const displayId = new MockElement('SPAN', 'reportDecisionDisplayId');
+            const resolutionNote = new MockElement('TEXTAREA', 'reportDecisionResolutionNote');
+            const atomicRemoveCheck = new MockElement('INPUT', 'reportDecisionAtomicRemovePost');
+            const removeReasonCode = new MockElement('SELECT', 'reportDecisionRemoveReasonCode');
+            const removeReasonDetail = new MockElement('INPUT', 'reportDecisionRemoveReasonDetail');
+            const removePublicNotice = new MockElement('INPUT', 'reportDecisionRemovePublicNotice');
+            const removeFields = new MockElement('DIV', 'reportDecisionPostRemoveFields');
+            const postRemoveContainer = new MockElement('DIV', 'reportDecisionPostRemoveContainer');
+            const submitBtn = new MockElement('BUTTON', 'btnConfirmReportDecision');
+            const errorAlert = new MockElement('DIV', 'reportDecisionErrorAlert');
+
+            modal.appendChild(form);
+            form.appendChild(targetId);
+            form.appendChild(expectedVersion);
+            form.appendChild(decisionType);
+            form.appendChild(displayId);
+            form.appendChild(resolutionNote);
+            form.appendChild(postRemoveContainer);
+            postRemoveContainer.appendChild(atomicRemoveCheck);
+            form.appendChild(removeFields);
+            removeFields.appendChild(removeReasonCode);
+            removeFields.appendChild(removeReasonDetail);
+            removeFields.appendChild(removePublicNotice);
+            form.appendChild(submitBtn);
+            form.appendChild(errorAlert);
+            env.registerElement(modal);
+
+            const triggerBtn = new MockElement('BUTTON');
+            triggerBtn.setAttribute('data-action', 'open-report-decision');
+            triggerBtn.setAttribute('data-report-id', '503');
+            triggerBtn.setAttribute('data-expected-version', '1');
+            triggerBtn.setAttribute('data-decision', 'RESOLVE');
+            triggerBtn.setAttribute('data-target-type', 'POST');
+            triggerBtn.setAttribute('data-target-id', '3001');
+            triggerBtn.setAttribute('data-target-can-atomic-remove', 'true');
+            env.registerElement(triggerBtn);
+
+            vm.runInContext(httpClientSource, env.context);
+            vm.runInContext(adminActionsSource, env.context);
+
+            triggerBtn.dispatchEvent({ type: 'click' });
+
+            resolutionNote.value = 'Resolution note with enough characters for validation.';
+            atomicRemoveCheck.checked = true;
+            removeReasonCode.value = 'SPAM';
+            removeReasonDetail.value = '             '; // Whitespace only
+
+            form.dispatchEvent({ type: 'submit', preventDefault() {} });
+
+            await new Promise(r => setTimeout(r, 10));
+            const reqs = env.getFetchRequests();
+            assert.strictEqual(reqs.length, 1);
+            const body = JSON.parse(reqs[0].opts.body);
+            assert.strictEqual(body.resolutionAction.reasonDetail, 'Resolution note with enough characters for validation.');
+        });
     });
 
     describe('6. 409 Conflict Handling & XSS Prevention', () => {

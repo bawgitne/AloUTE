@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import com.aloute.common.api.ApiResponse;
 import com.aloute.common.api.PageMeta;
 import com.aloute.common.exception.ApiException;
+import com.aloute.common.exception.ErrorCode;
 import com.aloute.dto.request.CreateCommunityRequest;
 import com.aloute.dto.request.UpdateCommunityRequest;
 import com.aloute.dto.request.UpdateCommunityRoleRequest;
@@ -147,6 +148,10 @@ public class CommunityServiceImpl implements CommunityService {
         if (memberRepository.existsByCommunityIdAndUserId(communityId, userId)) {
             CommunityMember existing = memberRepository.findByCommunityIdAndUserId(communityId, userId).get();
             return membership(existing);
+        }
+
+        if (community.isPrivateCommunity()) {
+            throw new ApiException(ErrorCode.COMMUNITY_ACCESS_DENIED, "Cannot self-join private community");
         }
 
         CommunityMember newMember = new CommunityMember(community, user, CommunityRole.MEMBER);

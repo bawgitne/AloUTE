@@ -15,4 +15,5 @@ public interface CommunityMemberRepository extends JpaRepository<CommunityMember
     Page<CommunityMember> findByCommunityIdOrderByJoinedAtDesc(Long communityId, Pageable pageable);
     long countByCommunityId(Long communityId);
     void deleteByCommunityIdAndUserId(Long communityId, Long userId);
+    java.util.List<CommunityMember> findByUserId(Long userId);
 }
