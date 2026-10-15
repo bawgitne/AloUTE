@@ -49,11 +49,9 @@ public class AdminPostController {
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
             @RequestParam(defaultValue = "createdAt,desc") String sort
     ) {
-        String[] sortParts = sort.split(",");
-        Sort.Direction direction = sortParts.length > 1 && "asc".equalsIgnoreCase(sortParts[1])
-                ? Sort.Direction.ASC : Sort.Direction.DESC;
-        String property = sortParts[0].trim();
-        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, property));
+        Pageable pageable = com.aloute.service.admin.AdminSortHelper.createPageable(
+                page, size, sort, com.aloute.service.admin.AdminSortHelper.POST_SORT_FIELDS, "createdAt"
+        );
 
         Page<AdminPostSummaryResponse> postPage = adminPostService.getPosts(q, authorId, communityId, contentState, reportedOnly, pageable);
         return ApiResponse.page(postPage.getContent(), PageMeta.from(postPage));
@@ -91,11 +89,9 @@ public class AdminPostController {
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
             @RequestParam(defaultValue = "createdAt,desc") String sort
     ) {
-        String[] sortParts = sort.split(",");
-        Sort.Direction direction = sortParts.length > 1 && "asc".equalsIgnoreCase(sortParts[1])
-                ? Sort.Direction.ASC : Sort.Direction.DESC;
-        String property = sortParts[0].trim();
-        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, property));
+        Pageable pageable = com.aloute.service.admin.AdminSortHelper.createPageable(
+                page, size, sort, com.aloute.service.admin.AdminSortHelper.AUDIT_SORT_FIELDS, "createdAt"
+        );
 
         Page<ModerationActionResponse> actionPage = adminModerationService.getPostModerationActions(postId, pageable);
         return ApiResponse.page(actionPage.getContent(), PageMeta.from(actionPage));

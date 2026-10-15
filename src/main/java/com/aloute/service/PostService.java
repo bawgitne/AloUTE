@@ -27,5 +27,7 @@ public interface PostService {
     PostResponse repost(Long userId, Long postId);
     void removeRepost(Long userId, Long postId);
     PostResponse toResponse(com.aloute.entity.Post post, Long viewerId);
+    boolean isPostVisibleTo(com.aloute.entity.Post post, Long viewerId);
+    org.springframework.data.jpa.domain.Specification<com.aloute.entity.Post> buildVisibilitySpec(Long viewerId);
 }
 

@@ -10,6 +10,7 @@ import com.aloute.entity.Report;
 import com.aloute.entity.ReportReason;
 import com.aloute.entity.ReportStatus;
 import com.aloute.entity.User;
+import com.aloute.security.authorization.Role;
 import com.aloute.repository.ReportRepository;
 import com.aloute.repository.UserRepository;
 import com.aloute.service.admin.AdminMappingHelper;
@@ -112,10 +113,20 @@ public class AdminReportServiceImpl implements AdminReportService {
     @Override
     @Transactional
     public ReportReviewResponse startReview(Long actorAdminId, Long reportId, AdminStartReportReviewRequest request) {
+        User reviewer = userRepository.findById(actorAdminId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND, "Admin user not found"));
+
+        if (!reviewer.isActive()) {
+            throw new ApiException(ErrorCode.USER_INACTIVE, "User is inactive");
+        }
+        if (reviewer.getRole() != Role.SYSTEM_ADMIN) {
+            throw new ApiException(ErrorCode.AUTH_FORBIDDEN, "Admin privileges required");
+        }
+
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new ApiException(ErrorCode.REPORT_NOT_FOUND, "Report not found"));
 
-        if (!report.getVersion().equals(request.expectedVersion())) {
+        if (request.expectedVersion() == null || !report.getVersion().equals(request.expectedVersion())) {
             throw new ApiException(ErrorCode.REPORT_VERSION_CONFLICT, "Report data was modified concurrently");
         }
 
@@ -123,20 +134,19 @@ public class AdminReportServiceImpl implements AdminReportService {
             if (report.getStatus() == ReportStatus.REVIEWED) {
                 if (report.getReviewedBy() != null && !report.getReviewedBy().getId().equals(actorAdminId)) {
                     throw new ApiException(ErrorCode.REPORT_ALREADY_IN_REVIEW, "Report is already in review by another administrator");
+                } else {
+                    throw new ApiException(ErrorCode.REPORT_INVALID_TRANSITION, "Report is already under review");
                 }
             } else {
                 throw new ApiException(ErrorCode.REPORT_INVALID_TRANSITION, "Cannot start review on a closed report");
             }
         }
 
-        User reviewer = userRepository.findById(actorAdminId)
-                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND, "Admin user not found"));
-
         report.setStatus(ReportStatus.REVIEWED);
         report.setReviewedBy(reviewer);
         report.setReviewedAt(Instant.now());
 
-        Report savedReport = reportRepository.save(report);
+        Report savedReport = reportRepository.saveAndFlush(report);
 
         return new ReportReviewResponse(
                 savedReport.getId(),
@@ -150,10 +160,20 @@ public class AdminReportServiceImpl implements AdminReportService {
     @Override
     @Transactional
     public ReportDecisionResponse decideReport(Long actorAdminId, Long reportId, AdminReportDecisionRequest request) {
+        User actor = userRepository.findById(actorAdminId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND, "Admin user not found"));
+
+        if (!actor.isActive()) {
+            throw new ApiException(ErrorCode.USER_INACTIVE, "User is inactive");
+        }
+        if (actor.getRole() != Role.SYSTEM_ADMIN) {
+            throw new ApiException(ErrorCode.AUTH_FORBIDDEN, "Admin privileges required");
+        }
+
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new ApiException(ErrorCode.REPORT_NOT_FOUND, "Report not found"));
 
-        if (!report.getVersion().equals(request.expectedVersion())) {
+        if (request.expectedVersion() == null || !report.getVersion().equals(request.expectedVersion())) {
             throw new ApiException(ErrorCode.REPORT_VERSION_CONFLICT, "Report data was modified concurrently");
         }
 
@@ -165,43 +185,53 @@ public class AdminReportServiceImpl implements AdminReportService {
             throw new ApiException(ErrorCode.REPORT_REVIEWER_REQUIRED, "Only the assigned reviewer can decide this report");
         }
 
-        Instant now = Instant.now();
-        Long resolutionActionId = null;
         String decision = request.decision();
-
-        if ("RESOLVE".equalsIgnoreCase(decision)) {
-            report.setStatus(ReportStatus.RESOLVED);
-            report.setClosedAt(now);
-            report.setResolutionNote(request.resolutionNote());
-
-            if (request.resolutionAction() != null) {
-                AdminReportDecisionRequest.ResolutionAction action = request.resolutionAction();
-                if ("POST_REMOVE".equalsIgnoreCase(action.type())) {
-                    if (report.getReportedPostId() == null) {
-                        throw new ApiException(ErrorCode.BAD_REQUEST, "Report does not target a post for POST_REMOVE action");
-                    }
-                    PostRemovalActionResponse removal = adminModerationService.removePost(
-                            actorAdminId,
-                            report.getReportedPostId(),
-                            new AdminRemovePostRequest(
-                                    action.reasonCode() != null ? action.reasonCode() : report.getReason(),
-                                    action.reasonDetail() != null ? action.reasonDetail() : request.resolutionNote(),
-                                    report.getId(),
-                                    action.publicNotice()
-                            )
-                    );
-                    resolutionActionId = removal.actionId();
-                }
-            }
-        } else if ("REJECT".equalsIgnoreCase(decision)) {
-            report.setStatus(ReportStatus.REJECTED);
-            report.setClosedAt(now);
-            report.setResolutionNote(request.resolutionNote());
-        } else {
+        if (decision == null || (!"RESOLVE".equalsIgnoreCase(decision) && !"REJECT".equalsIgnoreCase(decision))) {
             throw new ApiException(ErrorCode.BAD_REQUEST, "Invalid decision: " + decision + ". Expected RESOLVE or REJECT");
         }
 
-        Report savedReport = reportRepository.save(report);
+        if ("REJECT".equalsIgnoreCase(decision)) {
+            if (request.resolutionAction() != null) {
+                throw new ApiException(ErrorCode.BAD_REQUEST, "Resolution action is not allowed with REJECT decision");
+            }
+        } else {
+            if (request.resolutionAction() != null) {
+                AdminReportDecisionRequest.ResolutionAction action = request.resolutionAction();
+                if (action.type() == null || !"POST_REMOVE".equalsIgnoreCase(action.type())) {
+                    throw new ApiException(ErrorCode.BAD_REQUEST, "Invalid or unsupported action type: " + (action.type() != null ? action.type() : "null"));
+                }
+                if (report.getReportedPostId() == null) {
+                    throw new ApiException(ErrorCode.BAD_REQUEST, "Report does not target a post for POST_REMOVE action");
+                }
+                if (action.reasonDetail() != null && action.reasonDetail().isBlank()) {
+                    throw new ApiException(ErrorCode.BAD_REQUEST, "Reason detail must not be blank");
+                }
+            }
+        }
+
+        Instant now = Instant.now();
+        Long resolutionActionId = null;
+
+        if ("RESOLVE".equalsIgnoreCase(decision) && request.resolutionAction() != null) {
+            AdminReportDecisionRequest.ResolutionAction action = request.resolutionAction();
+            PostRemovalActionResponse removal = adminModerationService.removePost(
+                    actorAdminId,
+                    report.getReportedPostId(),
+                    new AdminRemovePostRequest(
+                            action.reasonCode() != null ? action.reasonCode() : report.getReason(),
+                            action.reasonDetail() != null ? action.reasonDetail() : request.resolutionNote(),
+                            report.getId(),
+                            action.publicNotice()
+                    )
+            );
+            resolutionActionId = removal.actionId();
+        }
+
+        report.setStatus("RESOLVE".equalsIgnoreCase(decision) ? ReportStatus.RESOLVED : ReportStatus.REJECTED);
+        report.setClosedAt(now);
+        report.setResolutionNote(request.resolutionNote());
+
+        Report savedReport = reportRepository.saveAndFlush(report);
 
         return new ReportDecisionResponse(
                 savedReport.getId(),

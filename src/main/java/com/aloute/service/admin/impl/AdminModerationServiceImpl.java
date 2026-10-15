@@ -9,9 +9,11 @@ import com.aloute.dto.response.admin.ModerationActionResponse;
 import com.aloute.dto.response.admin.PostRemovalActionResponse;
 import com.aloute.dto.response.admin.PostRestoreActionResponse;
 import com.aloute.entity.*;
+import com.aloute.security.authorization.Role;
 import com.aloute.repository.ModerationActionRepository;
 import com.aloute.repository.PostModerationRemovalRepository;
 import com.aloute.repository.PostRepository;
+import com.aloute.repository.ReportRepository;
 import com.aloute.repository.UserRepository;
 import com.aloute.service.admin.AdminMappingHelper;
 import com.aloute.service.admin.AdminModerationService;
@@ -39,6 +41,7 @@ public class AdminModerationServiceImpl implements AdminModerationService {
 
     private final UserRepository userRepository;
     private final PostRepository postRepository;
+    private final ReportRepository reportRepository;
     private final ModerationActionRepository moderationActionRepository;
     private final PostModerationRemovalRepository postModerationRemovalRepository;
     private final AdminMappingHelper adminMappingHelper;
@@ -50,8 +53,29 @@ public class AdminModerationServiceImpl implements AdminModerationService {
         User actor = userRepository.findById(actorAdminId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
 
-        Post post = postRepository.findById(postId)
+        if (!actor.isActive()) {
+            throw new ApiException(ErrorCode.USER_INACTIVE);
+        }
+        if (actor.getRole() != Role.SYSTEM_ADMIN) {
+            throw new ApiException(ErrorCode.AUTH_FORBIDDEN);
+        }
+
+        Post post = postRepository.findByIdForUpdate(postId)
                 .orElseThrow(() -> new ApiException(ErrorCode.POST_NOT_FOUND));
+
+        if (request.relatedReportId() != null) {
+            Report relatedReport = reportRepository.findById(request.relatedReportId())
+                    .orElseThrow(() -> new ApiException(ErrorCode.REPORT_NOT_FOUND, "Related report not found"));
+            if (relatedReport.getReportedPostId() == null || !relatedReport.getReportedPostId().equals(postId)) {
+                throw new ApiException(ErrorCode.BAD_REQUEST, "Related report does not target post #" + postId);
+            }
+        }
+
+        if (post.getVisibility() != PostVisibility.PUBLIC
+                || (post.getUser() != null && post.getUser().isPrivateAccount())
+                || (post.getCommunity() != null && post.getCommunity().isPrivateCommunity())) {
+            throw new ApiException(ErrorCode.POST_ACCESS_DENIED, "Cannot moderate restricted-visibility post under current privacy policy");
+        }
 
         if (post.getDeletedAt() != null) {
             boolean activeRemovalExists = postModerationRemovalRepository.existsByPostIdAndRestoredAtIsNull(postId);
@@ -114,8 +138,21 @@ public class AdminModerationServiceImpl implements AdminModerationService {
         User actor = userRepository.findById(actorAdminId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
 
-        Post post = postRepository.findById(postId)
+        if (!actor.isActive()) {
+            throw new ApiException(ErrorCode.USER_INACTIVE);
+        }
+        if (actor.getRole() != Role.SYSTEM_ADMIN) {
+            throw new ApiException(ErrorCode.AUTH_FORBIDDEN);
+        }
+
+        Post post = postRepository.findByIdForUpdate(postId)
                 .orElseThrow(() -> new ApiException(ErrorCode.POST_NOT_FOUND));
+
+        if (post.getVisibility() != PostVisibility.PUBLIC
+                || (post.getUser() != null && post.getUser().isPrivateAccount())
+                || (post.getCommunity() != null && post.getCommunity().isPrivateCommunity())) {
+            throw new ApiException(ErrorCode.POST_ACCESS_DENIED, "Cannot moderate restricted-visibility post under current privacy policy");
+        }
 
         PostModerationRemoval activeRemoval = postModerationRemovalRepository
                 .findFirstByPostIdAndRestoredAtIsNullOrderByIdDesc(postId)
