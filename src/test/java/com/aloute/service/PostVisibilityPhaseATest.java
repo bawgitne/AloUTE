@@ -255,7 +255,7 @@ class PostVisibilityPhaseATest {
     }
 
     @Test
-    @DisplayName("communityPosts rejects non-members when community is private with COMMUNITY_ACCESS_DENIED")
+    @DisplayName("communityPosts rejects non-members when community is private with COMMUNITY_NOT_FOUND")
     void communityPostsRejectsNonMembersWhenPrivate() {
         Community privateComm = new Community();
         privateComm.setId(500L);
@@ -266,7 +266,11 @@ class PostVisibilityPhaseATest {
 
         assertThatThrownBy(() -> postService.communityPosts(500L, 0, 20, 20L))
                 .isInstanceOf(ApiException.class)
-                .satisfies(ex -> assertThat(((ApiException) ex).getErrorCode()).isEqualTo(ErrorCode.COMMUNITY_ACCESS_DENIED));
+                .satisfies(ex -> {
+                    ApiException apiEx = (ApiException) ex;
+                    assertThat(apiEx.getStatus()).isEqualTo(org.springframework.http.HttpStatus.NOT_FOUND);
+                    assertThat(apiEx.getCode()).isEqualTo("COMMUNITY_NOT_FOUND");
+                });
     }
 
     @Test

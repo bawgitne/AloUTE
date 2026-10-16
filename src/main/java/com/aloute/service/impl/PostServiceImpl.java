@@ -347,7 +347,7 @@ public class PostServiceImpl implements PostService {
                 .orElseThrow(() -> notFound("COMMUNITY_NOT_FOUND", "Community not found"));
         if (community.isPrivateCommunity()) {
             if (viewerId == null || !communityMemberRepository.existsByCommunityIdAndUserId(communityId, viewerId)) {
-                throw new ApiException(ErrorCode.COMMUNITY_ACCESS_DENIED);
+                throw notFound("COMMUNITY_NOT_FOUND", "Community not found");
             }
         }
         Specification<Post> spec = (root, query, cb) -> cb.and(
@@ -582,6 +582,11 @@ public class PostServiceImpl implements PostService {
     @Override
     public boolean isPostVisibleTo(Post post, Long viewerId) {
         if (post == null || post.getDeletedAt() != null) {
+            return false;
+        }
+
+        // Soft-deleted Communities are not readable through any normal Post path.
+        if (post.getCommunity() != null && post.getCommunity().getDeletedAt() != null) {
             return false;
         }
 
