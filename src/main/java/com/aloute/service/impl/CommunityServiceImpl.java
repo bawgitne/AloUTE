@@ -40,8 +40,9 @@ public class CommunityServiceImpl implements CommunityService {
     @Override
     @Transactional(readOnly = true)
     public ApiResponse<List<CommunityResponse>> list(String q, int page, int size, Long viewerId) {
-        Page<Community> communityPage = communityRepository.searchCommunities(
-                q, PageRequest.of(Math.max(0, page), Math.max(1, size)));
+        Page<Community> communityPage = communityRepository.searchVisibleCommunities(
+                q, viewerId == null ? -1L : viewerId,
+                PageRequest.of(Math.max(0, page), Math.max(1, size)));
         List<CommunityResponse> list = communityPage.getContent().stream()
                 .map(c -> toResponse(c, viewerId))
                 .toList();
@@ -51,15 +52,15 @@ public class CommunityServiceImpl implements CommunityService {
     @Override
     @Transactional(readOnly = true)
     public CommunityResponse get(Long communityId, Long viewerId) {
-        return toResponse(requireCommunity(communityId), viewerId);
+        return toResponse(requireReadableCommunity(communityId, viewerId), viewerId);
     }
 
     @Override
     @Transactional(readOnly = true)
     public CommunityResponse getBySlug(String slug, Long viewerId) {
         Community community = communityRepository.findBySlugAndDeletedAtIsNull(slug)
-                .or(() -> communityRepository.findBySlug(slug))
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "COMMUNITY_NOT_FOUND", "Community not found"));
+                .orElseThrow(() -> new ApiException(ErrorCode.COMMUNITY_NOT_FOUND));
+        requireDiscoveryAccess(community, viewerId);
         return toResponse(community, viewerId);
     }
 
@@ -165,8 +166,8 @@ public class CommunityServiceImpl implements CommunityService {
 
     @Override
     @Transactional(readOnly = true)
-    public ApiResponse<List<CommunityMembershipResponse>> members(Long communityId, int page, int size) {
-        requireCommunity(communityId);
+    public ApiResponse<List<CommunityMembershipResponse>> members(Long communityId, int page, int size, Long viewerId) {
+        requireReadableCommunity(communityId, viewerId);
         Page<CommunityMember> membersPage = memberRepository.findByCommunityIdOrderByJoinedAtDesc(
                 communityId, PageRequest.of(Math.max(0, page), Math.max(1, size)));
         List<CommunityMembershipResponse> list = membersPage.getContent().stream()
@@ -212,8 +213,30 @@ public class CommunityServiceImpl implements CommunityService {
 
     private Community requireCommunity(Long id) {
         return communityRepository.findByIdAndDeletedAtIsNull(id)
-                .or(() -> communityRepository.findById(id))
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "COMMUNITY_NOT_FOUND", "Community not found"));
+                .orElseThrow(() -> new ApiException(ErrorCode.COMMUNITY_NOT_FOUND));
+    }
+
+    private Community requireReadableCommunity(Long id, Long viewerId) {
+        Community community = requireCommunity(id);
+        requireDiscoveryAccess(community, viewerId);
+        return community;
+    }
+
+    /**
+     * Strict private-discovery proposal: unauthorized viewers receive the same
+     * not-found response as a missing/deleted Community, with no metadata leaked.
+     * No automatic SYSTEM_ADMIN override of private Community membership.
+     */
+    private void requireDiscoveryAccess(Community community, Long viewerId) {
+        if (!community.isPrivateCommunity()) {
+            return;
+        }
+        if (viewerId != null
+                && (Objects.equals(community.getOwner().getId(), viewerId)
+                    || memberRepository.existsByCommunityIdAndUserId(community.getId(), viewerId))) {
+            return;
+        }
+        throw new ApiException(ErrorCode.COMMUNITY_NOT_FOUND);
     }
 
     private CommunityResponse toResponse(Community community, Long viewerId) {

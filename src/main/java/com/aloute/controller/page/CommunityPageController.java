@@ -3,7 +3,10 @@ package com.aloute.controller.page;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.aloute.common.exception.ApiException;
 import com.aloute.dto.response.CommunityResponse;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpStatus;
 import com.aloute.dto.response.PostResponse;
 import com.aloute.dto.response.ProfileResponse;
 import com.aloute.security.currentuser.CurrentUserProvider;
@@ -59,7 +62,8 @@ public class CommunityPageController {
             @PathVariable String slug,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            Model model
+            Model model,
+            HttpServletResponse response
     ) {
         Long currentUserId = currentUserProvider.getCurrentUserId().orElse(null);
         ProfileResponse currentUser = null;
@@ -78,9 +82,15 @@ public class CommunityPageController {
             } else {
                 community = communityService.getBySlug(slug, currentUserId);
             }
-        } catch (Exception ignored) {}
+        } catch (ApiException ex) {
+            if (ex.getStatus() != HttpStatus.NOT_FOUND) {
+                throw ex;
+            }
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+        }
 
-        Long communityId = community != null ? community.id() : (slug.matches("\\d+") ? Long.parseLong(slug) : null);
+        // Do not query Posts or render detail metadata when Community is absent or concealed.
+        Long communityId = community != null ? community.id() : null;
         var postsRes = communityId != null ? postService.communityPosts(communityId, page, size, currentUserId) : null;
 
         model.addAttribute("community", community);

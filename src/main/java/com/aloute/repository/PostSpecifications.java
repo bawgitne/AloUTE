@@ -39,6 +39,8 @@ public final class PostSpecifications {
             // or (viewer is member of that private community)
             Join<Post, Community> communityJoin = root.join("community", JoinType.LEFT);
             Predicate noCommunity = cb.isNull(root.get("community"));
+            // A deleted Community must not expose its Posts even if it was public.
+            predicates.add(cb.or(noCommunity, cb.isNull(communityJoin.get("deletedAt"))));
             Predicate publicCommunity = cb.isFalse(communityJoin.get("privateCommunity"));
             Predicate communityAllowed = cb.or(noCommunity, publicCommunity);
             if (userCommunityIds != null && !userCommunityIds.isEmpty()) {
@@ -110,6 +112,7 @@ public final class PostSpecifications {
             // 3. Community check (using explicit LEFT JOIN on community)
             Join<Post, Community> communityJoin = postJoin.join("community", JoinType.LEFT);
             Predicate noCommunity = cb.isNull(postJoin.get("community"));
+            predicates.add(cb.or(noCommunity, cb.isNull(communityJoin.get("deletedAt"))));
             Predicate publicCommunity = cb.isFalse(communityJoin.get("privateCommunity"));
             Predicate communityAllowed = cb.or(noCommunity, publicCommunity);
             if (userCommunityIds != null && !userCommunityIds.isEmpty()) {
