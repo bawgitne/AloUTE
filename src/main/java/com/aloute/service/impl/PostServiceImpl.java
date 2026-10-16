@@ -184,6 +184,13 @@ public class PostServiceImpl implements PostService {
         if (communityId != null) {
             community = communityRepository.findByIdAndDeletedAtIsNull(communityId)
                     .orElseThrow(() -> notFound("COMMUNITY_NOT_FOUND", "Community not found"));
+            if (community.isPrivateCommunity()) {
+                boolean canDiscover = (community.getOwner() != null && Objects.equals(community.getOwner().getId(), userId))
+                        || communityMemberRepository.existsByCommunityIdAndUserId(communityId, userId);
+                if (!canDiscover) {
+                    throw notFound("COMMUNITY_NOT_FOUND", "Community not found");
+                }
+            }
             if (!communityMemberRepository.existsByCommunityIdAndUserId(communityId, userId)) {
                 throw new ApiException(HttpStatus.FORBIDDEN, "COMMUNITY_MEMBERSHIP_REQUIRED", "Only community members can post there");
             }
@@ -273,6 +280,12 @@ public class PostServiceImpl implements PostService {
         if (post.getDeletedAt() != null || !isPostVisibleTo(post, userId)) {
             throw notFound("POST_NOT_FOUND", "Post not found");
         }
+        if (post.getCommunity() != null && post.getCommunity().isPrivateCommunity()) {
+            if (communityMemberRepository == null
+                    || !communityMemberRepository.existsByCommunityIdAndUserId(post.getCommunity().getId(), userId)) {
+                throw notFound("POST_NOT_FOUND", "Post not found");
+            }
+        }
         if (!Objects.equals(post.getUser().getId(), userId)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only post owner can edit the post");
         }
@@ -292,6 +305,12 @@ public class PostServiceImpl implements PostService {
                 .orElseThrow(() -> notFound("POST_NOT_FOUND", "Post not found"));
         if (post.getDeletedAt() != null || !isPostVisibleTo(post, userId)) {
             throw notFound("POST_NOT_FOUND", "Post not found");
+        }
+        if (post.getCommunity() != null && post.getCommunity().isPrivateCommunity()) {
+            if (communityMemberRepository == null
+                    || !communityMemberRepository.existsByCommunityIdAndUserId(post.getCommunity().getId(), userId)) {
+                throw notFound("POST_NOT_FOUND", "Post not found");
+            }
         }
         if (!Objects.equals(post.getUser().getId(), userId)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only post owner can delete the post");
@@ -345,8 +364,12 @@ public class PostServiceImpl implements PostService {
     public ApiResponse<List<PostResponse>> communityPosts(Long communityId, int page, int size, Long viewerId) {
         Community community = communityRepository.findByIdAndDeletedAtIsNull(communityId)
                 .orElseThrow(() -> notFound("COMMUNITY_NOT_FOUND", "Community not found"));
+        boolean isOwner = viewerId != null && community.getOwner() != null
+                && Objects.equals(community.getOwner().getId(), viewerId);
+        boolean isMember = viewerId != null && communityMemberRepository != null
+                && communityMemberRepository.existsByCommunityIdAndUserId(communityId, viewerId);
         if (community.isPrivateCommunity()) {
-            if (viewerId == null || !communityMemberRepository.existsByCommunityIdAndUserId(communityId, viewerId)) {
+            if (!isOwner && !isMember) {
                 throw notFound("COMMUNITY_NOT_FOUND", "Community not found");
             }
         }
@@ -354,7 +377,7 @@ public class PostServiceImpl implements PostService {
                 cb.equal(root.get("community").get("id"), communityId),
                 cb.isNull(root.get("parentPost"))
         );
-        spec = spec.and(buildVisibilitySpec(viewerId));
+        spec = spec.and(buildVisibilitySpec(viewerId, isOwner ? communityId : null));
         Page<Post> postPage = postRepository.findAll(
                 spec,
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
@@ -506,6 +529,12 @@ public class PostServiceImpl implements PostService {
     @Transactional
     public PostResponse bookmark(Long userId, Long postId) {
         Post post = requireVisiblePost(postId, userId);
+        if (post.getCommunity() != null && post.getCommunity().isPrivateCommunity()) {
+            if (communityMemberRepository == null
+                    || !communityMemberRepository.existsByCommunityIdAndUserId(post.getCommunity().getId(), userId)) {
+                throw new ApiException(ErrorCode.POST_ACCESS_DENIED);
+            }
+        }
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> notFound("USER_NOT_FOUND", "User not found"));
 
@@ -576,6 +605,12 @@ public class PostServiceImpl implements PostService {
         if (!isPostVisibleTo(post, viewerId)) {
             throw new ApiException(ErrorCode.POST_ACCESS_DENIED);
         }
+        if (post.getCommunity() != null && post.getCommunity().isPrivateCommunity()) {
+            if (viewerId == null || communityMemberRepository == null
+                    || !communityMemberRepository.existsByCommunityIdAndUserId(post.getCommunity().getId(), viewerId)) {
+                throw new ApiException(ErrorCode.POST_ACCESS_DENIED);
+            }
+        }
         return post;
     }
 
@@ -590,14 +625,18 @@ public class PostServiceImpl implements PostService {
             return false;
         }
 
-        // 1. Canonical private-community invariant: non-members cannot access private community posts
+        // 1. Canonical private-community invariant: non-members cannot access private community posts.
+        // Actual community owner may read posts without membership row (read consistency).
         // This check MUST occur before author exception (e.g. author who left the private community)
         if (post.getCommunity() != null && post.getCommunity().isPrivateCommunity()) {
             if (viewerId == null) {
                 return false;
             }
-            if (communityMemberRepository == null
-                    || !communityMemberRepository.existsByCommunityIdAndUserId(post.getCommunity().getId(), viewerId)) {
+            boolean isOwner = post.getCommunity().getOwner() != null
+                    && Objects.equals(post.getCommunity().getOwner().getId(), viewerId);
+            boolean isMember = communityMemberRepository != null
+                    && communityMemberRepository.existsByCommunityIdAndUserId(post.getCommunity().getId(), viewerId);
+            if (!isOwner && !isMember) {
                 return false;
             }
         }
@@ -653,6 +692,10 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public Specification<Post> buildVisibilitySpec(Long viewerId) {
+        return buildVisibilitySpec(viewerId, null);
+    }
+
+    private Specification<Post> buildVisibilitySpec(Long viewerId, Long extraCommunityId) {
         List<Long> blockedUserIds = new ArrayList<>();
         List<Long> followingUserIds = new ArrayList<>();
         List<Long> userCommunityIds = new ArrayList<>();
@@ -667,6 +710,9 @@ public class PostServiceImpl implements PostService {
             }
             if (communityMemberRepository != null) {
                 userCommunityIds.addAll(communityMemberRepository.findByUserId(viewerId).stream().map(cm -> cm.getCommunity().getId()).toList());
+            }
+            if (extraCommunityId != null && !userCommunityIds.contains(extraCommunityId)) {
+                userCommunityIds.add(extraCommunityId);
             }
         }
 

@@ -123,12 +123,13 @@ class CommunityJoinResidualIntegrationTest {
         long initialCount = memberRepository.countByCommunityId(privateCommunity.getId());
         long initialEntityCount = privateCommunity.getMemberCount();
 
-        // 1. Outsider attempts to join private community -> 403 Forbidden COMMUNITY_ACCESS_DENIED
+        // 1. Outsider attempts to join private community -> 404 Not Found COMMUNITY_NOT_FOUND (concealed as absent)
         mockMvc.perform(post("/api/communities/" + privateCommunity.getId() + "/join")
                         .with(authentication(outsiderAuth))
                         .with(csrf()))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error.code").value("COMMUNITY_ACCESS_DENIED"));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("COMMUNITY_NOT_FOUND"))
+                .andExpect(jsonPath("$.error.message").value("Community not found"));
 
         // 2. Real DB proof: no membership record created for outsider
         boolean membershipExists = memberRepository.existsByCommunityIdAndUserId(privateCommunity.getId(), outsider.getId());
