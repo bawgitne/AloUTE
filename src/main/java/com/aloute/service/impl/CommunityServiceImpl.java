@@ -105,6 +105,7 @@ public class CommunityServiceImpl implements CommunityService {
     @Transactional
     public CommunityResponse update(Long userId, Long communityId, UpdateCommunityRequest request) {
         Community community = requireCommunity(communityId);
+        requireDiscoveryAccess(community, userId);
         CommunityMember actorMember = memberRepository.findByCommunityIdAndUserId(communityId, userId)
                 .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Must be a community member"));
 
@@ -132,6 +133,7 @@ public class CommunityServiceImpl implements CommunityService {
     @Transactional
     public void delete(Long userId, Long communityId) {
         Community community = requireCommunity(communityId);
+        requireDiscoveryAccess(community, userId);
         if (!Objects.equals(community.getOwner().getId(), userId)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only community owner can delete the community");
         }
@@ -143,6 +145,7 @@ public class CommunityServiceImpl implements CommunityService {
     @Transactional
     public CommunityMembershipResponse join(Long userId, Long communityId) {
         Community community = requireCommunity(communityId);
+        requireDiscoveryAccess(community, userId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found"));
 
