@@ -211,11 +211,13 @@ class PostVisibilityDatabaseIntegrationTest {
     @Test
     @DisplayName("DB: Private community post requires membership; author who left group is denied (Finding 4)")
     void privateCommunityMembershipAndLeftAuthorCheck() {
+        User commOwner = createUser("comm_owner_" + System.nanoTime(), "comm_owner_" + System.nanoTime() + "@aloute.test", false);
+
         Community privateComm = new Community();
         privateComm.setName("Secret Club " + System.nanoTime());
         privateComm.setSlug("secret-club-" + System.nanoTime());
         privateComm.setPrivateCommunity(true);
-        privateComm.setOwner(publicAuthor);
+        privateComm.setOwner(commOwner);
         privateComm = communityRepository.save(privateComm);
 
         Post commPost = createPost(publicAuthor, "Internal club update", PostVisibility.PUBLIC, privateComm);
@@ -225,6 +227,10 @@ class PostVisibilityDatabaseIntegrationTest {
         assertThatThrownBy(() -> postService.get(commPost.getId(), publicAuthor.getId()))
                 .isInstanceOf(ApiException.class)
                 .satisfies(ex -> assertThat(((ApiException) ex).getErrorCode()).isEqualTo(ErrorCode.POST_ACCESS_DENIED));
+
+        // Actual community owner can read the post even without a membership row
+        PostResponse ownerResp = postService.get(commPost.getId(), commOwner.getId());
+        assertThat(ownerResp.id()).isEqualTo(commPost.getId());
 
         // Add testViewer as member
         communityMemberRepository.save(new CommunityMember(privateComm, testViewer, CommunityRole.MEMBER));
