@@ -9,4 +9,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface FollowRepository extends JpaRepository<Follow, FollowId> {
     Page<Follow> findByFollowing_Id(Long followingUserId, Pageable pageable);
     Page<Follow> findByFollower_Id(Long followerUserId, Pageable pageable);
+    java.util.List<Follow> findByFollower_Id(Long followerUserId);
 }

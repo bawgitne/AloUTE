@@ -93,6 +93,35 @@
             </div>
         </div>
 
+        <!-- User Capabilities / Moderation Controls -->
+        <div class="admin-card mb-4">
+            <div class="admin-card-header bg-light-subtle d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <h2 class="admin-card-title mb-0">
+                    <i class="bi bi-person-gear text-secondary" aria-hidden="true"></i>
+                    <span>Thao tác quản trị tài khoản</span>
+                </h2>
+                <span class="badge bg-secondary-subtle text-secondary border">
+                    <i class="bi bi-info-circle me-1" aria-hidden="true"></i>Tính năng nâng cao (P2/P3) chưa khả dụng trong bản MVP
+                </span>
+            </div>
+            <div class="admin-card-body p-3">
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled aria-disabled="true" title="Chức năng cảnh báo chưa khả dụng">
+                        <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>Cảnh báo tài khoản
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled aria-disabled="true" title="Chức năng đình chỉ chưa khả dụng">
+                        <i class="bi bi-person-x me-1" aria-hidden="true"></i>Đình chỉ tài khoản
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled aria-disabled="true" title="Chức năng đặt lại hồ sơ chưa khả dụng">
+                        <i class="bi bi-person-lines-fill me-1" aria-hidden="true"></i>Đặt lại hồ sơ
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled aria-disabled="true" title="Chức năng thay đổi vai trò chưa khả dụng">
+                        <i class="bi bi-shield-lock me-1" aria-hidden="true"></i>Đổi vai trò hệ thống
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- 2 Column: User's Recent Posts & Moderation Actions History -->
         <div class="row g-4">
             <!-- Left: User's Recent Posts -->
@@ -125,8 +154,8 @@
                                 <tr th:each="p : ${userPosts}">
                                     <td><span class="text-muted small fw-semibold" th:text="${'#' + p.id}">#1</span></td>
                                     <td>
-                                        <div th:if="${#strings.toString(p.visibility) == 'PUBLIC'}" class="text-truncate" style="max-width: 260px;" th:text="${p.contentExcerpt}">Nội dung bài viết...</div>
-                                        <div th:unless="${#strings.toString(p.visibility) == 'PUBLIC'}" class="text-muted fst-italic small">
+                                        <div th:if="${#strings.toString(p.visibility) == 'PUBLIC' and !user.isPrivate}" class="text-truncate" style="max-width: 260px;" th:text="${p.contentExcerpt}">Nội dung bài viết...</div>
+                                        <div th:unless="${#strings.toString(p.visibility) == 'PUBLIC' and !user.isPrivate}" class="text-muted fst-italic small">
                                             <i class="bi bi-shield-lock me-1 text-warning" aria-hidden="true"></i>[Nội dung riêng tư - Chờ chính sách]
                                         </div>
                                     </td>

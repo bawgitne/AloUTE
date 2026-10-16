@@ -11,6 +11,7 @@ import com.aloute.entity.Report;
 import com.aloute.entity.ReportReason;
 import com.aloute.entity.ReportStatus;
 import com.aloute.entity.User;
+import com.aloute.security.authorization.Role;
 import com.aloute.repository.ReportRepository;
 import com.aloute.repository.UserRepository;
 import com.aloute.service.admin.impl.AdminReportServiceImpl;
@@ -54,6 +55,8 @@ class AdminReportServiceImplTest {
         admin = new User();
         admin.setId(1L);
         admin.setUsername("admin");
+        admin.setActive(true);
+        admin.setRole(Role.SYSTEM_ADMIN);
 
         report = new Report();
         report.setId(50L);
@@ -62,6 +65,10 @@ class AdminReportServiceImplTest {
         report.setDescription("Reported for offensive content");
         report.setStatus(ReportStatus.PENDING);
         report.setVersion(0L);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
+        when(reportRepository.saveAndFlush(any(Report.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(reportRepository.save(any(Report.class))).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
@@ -69,7 +76,6 @@ class AdminReportServiceImplTest {
     void startReviewSuccess() {
         when(reportRepository.findById(50L)).thenReturn(Optional.of(report));
         when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
-        when(reportRepository.save(any(Report.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         AdminStartReportReviewRequest request = new AdminStartReportReviewRequest(0L);
 
@@ -82,7 +88,7 @@ class AdminReportServiceImplTest {
         assertThat(report.getReviewedBy()).isEqualTo(admin);
         assertThat(report.getReviewedAt()).isNotNull();
 
-        verify(reportRepository).save(report);
+        verify(reportRepository).saveAndFlush(report);
     }
 
     @Test
@@ -107,7 +113,7 @@ class AdminReportServiceImplTest {
         report.setReviewedAt(Instant.now());
 
         when(reportRepository.findById(50L)).thenReturn(Optional.of(report));
-        when(reportRepository.save(any(Report.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
 
         PostRemovalActionResponse removalResponse = new PostRemovalActionResponse(
                 88L, 10L, "POST_REMOVE", "ADMIN_REMOVED", 99L, Instant.now()
@@ -137,6 +143,6 @@ class AdminReportServiceImplTest {
         assertThat(report.getClosedAt()).isNotNull();
 
         verify(adminModerationService).removePost(eq(1L), eq(10L), any());
-        verify(reportRepository).save(report);
+        verify(reportRepository).saveAndFlush(report);
     }
 }

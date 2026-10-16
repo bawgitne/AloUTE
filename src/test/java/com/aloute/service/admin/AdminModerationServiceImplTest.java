@@ -7,9 +7,11 @@ import com.aloute.dto.request.admin.AdminRestorePostRequest;
 import com.aloute.dto.response.admin.PostRemovalActionResponse;
 import com.aloute.dto.response.admin.PostRestoreActionResponse;
 import com.aloute.entity.*;
+import com.aloute.security.authorization.Role;
 import com.aloute.repository.ModerationActionRepository;
 import com.aloute.repository.PostModerationRemovalRepository;
 import com.aloute.repository.PostRepository;
+import com.aloute.repository.ReportRepository;
 import com.aloute.repository.UserRepository;
 import com.aloute.service.admin.impl.AdminModerationServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,6 +31,7 @@ class AdminModerationServiceImplTest {
 
     private UserRepository userRepository;
     private PostRepository postRepository;
+    private ReportRepository reportRepository;
     private ModerationActionRepository moderationActionRepository;
     private PostModerationRemovalRepository postModerationRemovalRepository;
     private AdminMappingHelper adminMappingHelper;
@@ -43,14 +46,18 @@ class AdminModerationServiceImplTest {
     void setUp() {
         userRepository = mock(UserRepository.class);
         postRepository = mock(PostRepository.class);
+        reportRepository = mock(ReportRepository.class);
         moderationActionRepository = mock(ModerationActionRepository.class);
         postModerationRemovalRepository = mock(PostModerationRemovalRepository.class);
         adminMappingHelper = mock(AdminMappingHelper.class);
         objectMapper = new ObjectMapper();
 
+        when(postRepository.findByIdForUpdate(anyLong())).thenAnswer(inv -> postRepository.findById(inv.getArgument(0)));
+
         service = new AdminModerationServiceImpl(
                 userRepository,
                 postRepository,
+                reportRepository,
                 moderationActionRepository,
                 postModerationRemovalRepository,
                 adminMappingHelper,
@@ -60,6 +67,8 @@ class AdminModerationServiceImplTest {
         admin = new User();
         admin.setId(1L);
         admin.setUsername("admin");
+        admin.setRole(Role.SYSTEM_ADMIN);
+        admin.setActive(true);
 
         author = new User();
         author.setId(2L);
@@ -69,6 +78,7 @@ class AdminModerationServiceImplTest {
         post.setId(10L);
         post.setUser(author);
         post.setContent("Violating content");
+        post.setVisibility(PostVisibility.PUBLIC);
     }
 
     @Test
@@ -164,6 +174,92 @@ class AdminModerationServiceImplTest {
         assertThatThrownBy(() -> service.restorePost(1L, 10L, request))
                 .isInstanceOf(ApiException.class)
                 .satisfies(ex -> assertThat(((ApiException) ex).getErrorCode()).isEqualTo(ErrorCode.POST_REMOVAL_NOT_FOUND));
+
+        verify(postRepository, never()).save(any(Post.class));
+    }
+
+    @Test
+    @DisplayName("removePost fails when actor is not SYSTEM_ADMIN")
+    void removePostFailsWhenActorNotAdmin() {
+        admin.setRole(Role.USER);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
+
+        AdminRemovePostRequest request = new AdminRemovePostRequest(ReportReason.SPAM, "Spam", null, null);
+
+        assertThatThrownBy(() -> service.removePost(1L, 10L, request))
+                .isInstanceOf(ApiException.class)
+                .satisfies(ex -> assertThat(((ApiException) ex).getErrorCode()).isEqualTo(ErrorCode.AUTH_FORBIDDEN));
+
+        verify(postRepository, never()).save(any(Post.class));
+    }
+
+    @Test
+    @DisplayName("removePost fails when actor is inactive")
+    void removePostFailsWhenActorInactive() {
+        admin.setActive(false);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
+
+        AdminRemovePostRequest request = new AdminRemovePostRequest(ReportReason.SPAM, "Spam", null, null);
+
+        assertThatThrownBy(() -> service.removePost(1L, 10L, request))
+                .isInstanceOf(ApiException.class)
+                .satisfies(ex -> assertThat(((ApiException) ex).getErrorCode()).isEqualTo(ErrorCode.USER_INACTIVE));
+
+        verify(postRepository, never()).save(any(Post.class));
+    }
+
+    @Test
+    @DisplayName("removePost fails when post has non-public visibility (restricted content)")
+    void removePostFailsWhenPostRestricted() {
+        post.setVisibility(PostVisibility.FOLLOWERS);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
+        when(postRepository.findById(10L)).thenReturn(Optional.of(post));
+
+        AdminRemovePostRequest request = new AdminRemovePostRequest(ReportReason.SPAM, "Spam", null, null);
+
+        assertThatThrownBy(() -> service.removePost(1L, 10L, request))
+                .isInstanceOf(ApiException.class)
+                .satisfies(ex -> assertThat(((ApiException) ex).getErrorCode()).isEqualTo(ErrorCode.POST_ACCESS_DENIED));
+
+        verify(postRepository, never()).save(any(Post.class));
+    }
+
+    @Test
+    @DisplayName("removePost fails when post belongs to private community")
+    void removePostFailsWhenPostInPrivateCommunity() {
+        Community privateComm = new Community();
+        privateComm.setId(99L);
+        privateComm.setPrivateCommunity(true);
+        post.setCommunity(privateComm);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
+        when(postRepository.findById(10L)).thenReturn(Optional.of(post));
+
+        AdminRemovePostRequest request = new AdminRemovePostRequest(ReportReason.SPAM, "Spam", null, null);
+
+        assertThatThrownBy(() -> service.removePost(1L, 10L, request))
+                .isInstanceOf(ApiException.class)
+                .satisfies(ex -> assertThat(((ApiException) ex).getErrorCode()).isEqualTo(ErrorCode.POST_ACCESS_DENIED));
+
+        verify(postRepository, never()).save(any(Post.class));
+    }
+
+    @Test
+    @DisplayName("removePost fails when relatedReportId does not target the specified post")
+    void removePostFailsWhenRelatedReportMismatch() {
+        Report report = new Report();
+        report.setId(999L);
+        report.setReportedPostId(888L); // Targets different post
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
+        when(postRepository.findById(10L)).thenReturn(Optional.of(post));
+        when(reportRepository.findById(999L)).thenReturn(Optional.of(report));
+
+        AdminRemovePostRequest request = new AdminRemovePostRequest(ReportReason.SPAM, "Spam", 999L, null);
+
+        assertThatThrownBy(() -> service.removePost(1L, 10L, request))
+                .isInstanceOf(ApiException.class)
+                .satisfies(ex -> assertThat(((ApiException) ex).getErrorCode()).isEqualTo(ErrorCode.BAD_REQUEST));
 
         verify(postRepository, never()).save(any(Post.class));
     }

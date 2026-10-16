@@ -62,8 +62,8 @@ public class AdminPageController {
             Model model
     ) {
         populateCommonAttributes(model, "users", "Quản lý người dùng");
-        Pageable pageable = buildPageable(page, size, sort, "createdAt");
         try {
+            Pageable pageable = AdminSortHelper.createPageable(page, size, sort, AdminSortHelper.USER_SORT_FIELDS, "createdAt");
             Page<AdminUserSummaryResponse> userPage = adminUserService.getUsers(q, role, active, pageable);
             model.addAttribute("users", userPage.getContent());
             model.addAttribute("pageMeta", PageMeta.from(userPage));
@@ -123,16 +123,17 @@ public class AdminPageController {
             @RequestParam(required = false) Long authorId,
             @RequestParam(required = false) Long communityId,
             @RequestParam(required = false) String contentState,
+            @RequestParam(required = false) Boolean reportedOnly,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt,desc") String sort,
             Model model
     ) {
         populateCommonAttributes(model, "posts", "Quản lý bài viết");
-        Pageable pageable = buildPageable(page, size, sort, "createdAt");
         try {
+            Pageable pageable = AdminSortHelper.createPageable(page, size, sort, AdminSortHelper.POST_SORT_FIELDS, "createdAt");
             Page<AdminPostSummaryResponse> postPage = adminPostService.getPosts(
-                    q, authorId, communityId, contentState, null, pageable
+                    q, authorId, communityId, contentState, reportedOnly, pageable
             );
             model.addAttribute("posts", postPage.getContent());
             model.addAttribute("pageMeta", PageMeta.from(postPage));
@@ -146,6 +147,7 @@ public class AdminPageController {
         model.addAttribute("authorId", authorId);
         model.addAttribute("communityId", communityId);
         model.addAttribute("contentState", contentState != null ? contentState : "");
+        model.addAttribute("reportedOnly", reportedOnly);
         model.addAttribute("sort", sort);
         model.addAttribute("size", size);
         return "admin/posts/index";
@@ -187,8 +189,8 @@ public class AdminPageController {
             Model model
     ) {
         populateCommonAttributes(model, "reports", "Hàng đợi báo cáo");
-        Pageable pageable = buildPageable(page, size, sort, "createdAt");
         try {
+            Pageable pageable = AdminSortHelper.createPageable(page, size, sort, AdminSortHelper.REPORT_SORT_FIELDS, "createdAt");
             Page<AdminReportSummaryResponse> reportPage = adminReportService.getReports(
                     status, targetType, reason, reviewedBy, pageable
             );
@@ -250,8 +252,8 @@ public class AdminPageController {
             Model model
     ) {
         populateCommonAttributes(model, "moderation-actions", "Nhật ký kiểm duyệt");
-        Pageable pageable = buildPageable(page, size, sort, "createdAt");
         try {
+            Pageable pageable = AdminSortHelper.createPageable(page, size, sort, AdminSortHelper.AUDIT_SORT_FIELDS, "createdAt");
             Page<ModerationActionResponse> actionPage = adminModerationService.getModerationActions(
                     actorId, targetType, targetId, actionType, pageable
             );
@@ -281,30 +283,5 @@ public class AdminPageController {
         currentUserProvider.getCurrentUserId().ifPresent(id -> {
             model.addAttribute("currentUserId", id);
         });
-    }
-
-    private static final java.util.Set<String> ALLOWED_SORT_PROPERTIES = java.util.Set.of(
-            "createdAt", "id", "username", "email", "updatedAt"
-    );
-
-    private Pageable buildPageable(int page, int size, String sort, String defaultProperty) {
-        int safePage = Math.max(0, page);
-        int safeSize = Math.max(1, Math.min(100, size));
-        String property = defaultProperty;
-        Sort.Direction direction = Sort.Direction.DESC;
-
-        if (sort != null && !sort.isBlank()) {
-            String[] parts = sort.split(",");
-            if (parts.length > 0 && !parts[0].isBlank()) {
-                String candidate = parts[0].trim();
-                if (ALLOWED_SORT_PROPERTIES.contains(candidate)) {
-                    property = candidate;
-                }
-            }
-            if (parts.length > 1 && "asc".equalsIgnoreCase(parts[1].trim())) {
-                direction = Sort.Direction.ASC;
-            }
-        }
-        return PageRequest.of(safePage, safeSize, Sort.by(direction, property));
     }
 }

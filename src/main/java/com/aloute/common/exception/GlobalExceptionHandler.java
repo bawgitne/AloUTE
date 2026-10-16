@@ -92,6 +92,16 @@ public class GlobalExceptionHandler {
                 .body(error(ErrorCode.CONFLICT.getCode(), "Data integrity constraint violated", null, request));
     }
 
+    @ExceptionHandler({
+            org.springframework.orm.ObjectOptimisticLockingFailureException.class,
+            jakarta.persistence.OptimisticLockException.class
+    })
+    public ResponseEntity<ErrorResponse> handleOptimisticLockConflict(Exception ex, HttpServletRequest request) {
+        log.warn("Optimistic locking conflict: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(error(ErrorCode.REPORT_VERSION_CONFLICT.getCode(), "Report was modified by another transaction", null, request));
+    }
+
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ErrorResponse> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
         log.warn("HTTP method not supported: {}", ex.getMessage());
