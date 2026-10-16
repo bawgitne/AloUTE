@@ -53,7 +53,17 @@
                     <select id="filterContentState" name="contentState" class="form-select form-select-sm">
                         <option value="" th:selected="${contentState == null or contentState == ''}">-- Tất cả trạng thái --</option>
                         <option value="ACTIVE" th:selected="${contentState == 'ACTIVE'}">ACTIVE (Đang hoạt động)</option>
-                        <option value="ADMIN_REMOVED" th:selected="${contentState == 'ADMIN_REMOVED' or contentState == 'AUTHOR_DELETED'}">REMOVED (Đã gỡ / Đã xóa)</option>
+                        <option value="ADMIN_REMOVED" th:selected="${contentState == 'ADMIN_REMOVED'}">ADMIN_REMOVED (Quản trị viên đã gỡ)</option>
+                        <option value="AUTHOR_DELETED" th:selected="${contentState == 'AUTHOR_DELETED'}">AUTHOR_DELETED (Tác giả đã xóa)</option>
+                    </select>
+                </div>
+
+                <!-- Reported Only Filter -->
+                <div>
+                    <label for="filterReportedOnly" class="form-label small fw-semibold">Bài có báo cáo</label>
+                    <select id="filterReportedOnly" name="reportedOnly" class="form-select form-select-sm">
+                        <option value="" th:selected="${reportedOnly == null}">-- Tất cả bài --</option>
+                        <option value="true" th:selected="${reportedOnly == true}">Chỉ bài có báo cáo</option>
                     </select>
                 </div>
 
@@ -205,6 +215,7 @@
             + (authorId != null ? '&authorId=' + authorId : '')
             + (communityId != null ? '&communityId=' + communityId : '')
             + (contentState != null and !#strings.isEmpty(contentState) ? '&contentState=' + #uris.escapeQueryParam(contentState) : '')
+            + (reportedOnly != null ? '&reportedOnly=' + reportedOnly : '')
             + (sort != null and !#strings.isEmpty(sort) ? '&sort=' + #uris.escapeQueryParam(sort) : '')})}"></div>
     </div>
 

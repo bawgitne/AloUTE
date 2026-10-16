@@ -47,11 +47,9 @@ public class AdminReportController {
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
             @RequestParam(defaultValue = "createdAt,desc") String sort
     ) {
-        String[] sortParts = sort.split(",");
-        Sort.Direction direction = sortParts.length > 1 && "asc".equalsIgnoreCase(sortParts[1])
-                ? Sort.Direction.ASC : Sort.Direction.DESC;
-        String property = sortParts[0].trim();
-        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, property));
+        Pageable pageable = com.aloute.service.admin.AdminSortHelper.createPageable(
+                page, size, sort, com.aloute.service.admin.AdminSortHelper.REPORT_SORT_FIELDS, "createdAt"
+        );
 
         Page<AdminReportSummaryResponse> reportPage = adminReportService.getReports(status, targetType, reason, reviewedBy, pageable);
         return ApiResponse.page(reportPage.getContent(), PageMeta.from(reportPage));

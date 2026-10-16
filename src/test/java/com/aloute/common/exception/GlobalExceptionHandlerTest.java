@@ -109,4 +109,16 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody().error().code()).isEqualTo("INTERNAL_ERROR");
         assertThat(response.getBody().error().message()).isEqualTo("Unexpected server failure");
     }
+
+    @Test
+    @DisplayName("handleOptimisticLockConflict returns 409 REPORT_VERSION_CONFLICT")
+    void handleOptimisticLockConflict() {
+        org.springframework.orm.ObjectOptimisticLockingFailureException ex =
+                new org.springframework.orm.ObjectOptimisticLockingFailureException("Report", 50L);
+        ResponseEntity<ErrorResponse> response = handler.handleOptimisticLockConflict(ex, request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().error().code()).isEqualTo("REPORT_VERSION_CONFLICT");
+    }
 }
