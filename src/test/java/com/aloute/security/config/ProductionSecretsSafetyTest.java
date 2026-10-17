@@ -8,6 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.PropertySource;
 import org.springframework.core.env.StandardEnvironment;
@@ -34,6 +35,14 @@ class ProductionSecretsSafetyTest {
         System.clearProperty("ALOUTE_JWT_EXPIRATION_SECONDS");
     }
 
+    private ApplicationContextRunner createContextRunner() {
+        return new ApplicationContextRunner(() -> {
+            AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
+            context.setEnvironment(new MockEnvironment());
+            return context;
+        }).withUserConfiguration(JwtProperties.class, JwtTokenProvider.class);
+    }
+
     @Test
     @DisplayName("Unit: JwtProperties throws when ALOUTE_JWT_SECRET is missing")
     void jwtPropertiesThrowsWhenSecretMissing() {
@@ -48,8 +57,7 @@ class ProductionSecretsSafetyTest {
     @Test
     @DisplayName("Unit: JwtTokenProvider @PostConstruct fails when ALOUTE_JWT_SECRET is missing")
     void jwtTokenProviderFailsStartupWhenSecretMissing() {
-        ApplicationContextRunner runner = new ApplicationContextRunner()
-                .withUserConfiguration(JwtProperties.class, JwtTokenProvider.class)
+        ApplicationContextRunner runner = createContextRunner()
                 .withPropertyValues("ALOUTE_JWT_EXPIRATION_SECONDS=3600");
 
         runner.run(context -> {
@@ -63,8 +71,7 @@ class ProductionSecretsSafetyTest {
     @Test
     @DisplayName("Unit: JwtTokenProvider @PostConstruct fails when ALOUTE_JWT_SECRET is shorter than 32 bytes")
     void jwtTokenProviderFailsStartupWhenSecretTooShort() {
-        ApplicationContextRunner runner = new ApplicationContextRunner()
-                .withUserConfiguration(JwtProperties.class, JwtTokenProvider.class)
+        ApplicationContextRunner runner = createContextRunner()
                 .withPropertyValues(
                         "ALOUTE_JWT_SECRET=" + SHORT_TEST_SECRET,
                         "ALOUTE_JWT_EXPIRATION_SECONDS=3600"
@@ -81,8 +88,7 @@ class ProductionSecretsSafetyTest {
     @Test
     @DisplayName("Unit: JwtTokenProvider starts cleanly with valid Base64 secret >= 32 bytes")
     void jwtTokenProviderStartsSuccessfullyWithValidSecret() {
-        ApplicationContextRunner runner = new ApplicationContextRunner()
-                .withUserConfiguration(JwtProperties.class, JwtTokenProvider.class)
+        ApplicationContextRunner runner = createContextRunner()
                 .withPropertyValues(
                         "ALOUTE_JWT_SECRET=" + VALID_TEST_SECRET,
                         "ALOUTE_JWT_EXPIRATION_SECONDS=3600"
@@ -114,7 +120,7 @@ class ProductionSecretsSafetyTest {
     void prodProfileFailsPlaceholderResolutionWhenDatasourcePasswordMissing() throws IOException {
         YamlPropertySourceLoader loader = new YamlPropertySourceLoader();
         List<PropertySource<?>> sources = loader.load("application-prod.yml", new ClassPathResource("application-prod.yml"));
-        StandardEnvironment env = new StandardEnvironment();
+        MockEnvironment env = new MockEnvironment();
         sources.forEach(env.getPropertySources()::addLast);
 
         assertThatThrownBy(() -> env.resolveRequiredPlaceholders(env.getProperty("spring.datasource.password")))
@@ -122,7 +128,7 @@ class ProductionSecretsSafetyTest {
                 .hasMessageContaining("SPRING_DATASOURCE_PASSWORD");
 
         // When password is provided, resolution succeeds
-        StandardEnvironment envWithDb = new StandardEnvironment();
+        MockEnvironment envWithDb = new MockEnvironment();
         envWithDb.getPropertySources().addFirst(new MapPropertySource("explicitDbProps", Map.of("SPRING_DATASOURCE_PASSWORD", "test_db_password")));
         sources.forEach(envWithDb.getPropertySources()::addLast);
         assertThat(envWithDb.resolveRequiredPlaceholders(envWithDb.getProperty("spring.datasource.password"))).isEqualTo("test_db_password");
@@ -133,7 +139,7 @@ class ProductionSecretsSafetyTest {
     void prodProfileFailsPlaceholderResolutionWhenJwtSecretMissing() throws IOException {
         YamlPropertySourceLoader loader = new YamlPropertySourceLoader();
         List<PropertySource<?>> sources = loader.load("application-prod.yml", new ClassPathResource("application-prod.yml"));
-        StandardEnvironment env = new StandardEnvironment();
+        MockEnvironment env = new MockEnvironment();
         sources.forEach(env.getPropertySources()::addLast);
 
         assertThatThrownBy(() -> env.resolveRequiredPlaceholders(env.getProperty("ALOUTE_JWT_SECRET")))
@@ -141,7 +147,7 @@ class ProductionSecretsSafetyTest {
                 .hasMessageContaining("ALOUTE_JWT_SECRET");
 
         // When secret is provided, resolution succeeds
-        StandardEnvironment envWithSecret = new StandardEnvironment();
+        MockEnvironment envWithSecret = new MockEnvironment();
         envWithSecret.getPropertySources().addFirst(new MapPropertySource("explicitJwtProps", Map.of("ALOUTE_JWT_SECRET", VALID_TEST_SECRET)));
         sources.forEach(envWithSecret.getPropertySources()::addLast);
         assertThat(envWithSecret.resolveRequiredPlaceholders(envWithSecret.getProperty("ALOUTE_JWT_SECRET"))).isEqualTo(VALID_TEST_SECRET);
