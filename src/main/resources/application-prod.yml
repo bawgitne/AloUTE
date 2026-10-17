@@ -2,7 +2,7 @@ spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://mysql:3306/aloutedb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8}
     username: ${SPRING_DATASOURCE_USERNAME:aloute_user}
-    password: ${SPRING_DATASOURCE_PASSWORD:aloute_secure_pass}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -26,5 +26,5 @@ aloute:
     bucket: ${ALOUTE_FIREBASE_BUCKET:}
     credentials-path: ${ALOUTE_FIREBASE_CREDENTIALS_PATH:}
 
-ALOUTE_JWT_SECRET: ${ALOUTE_JWT_SECRET:supersecretjwtkeythatisatleast256bitslongforhs256signatureverification123456}
+ALOUTE_JWT_SECRET: ${ALOUTE_JWT_SECRET}
 ALOUTE_JWT_EXPIRATION_SECONDS: ${ALOUTE_JWT_EXPIRATION_SECONDS:86400}
