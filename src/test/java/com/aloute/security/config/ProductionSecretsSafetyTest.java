@@ -2,8 +2,6 @@ package com.aloute.security.config;
 
 import com.aloute.security.jwt.JwtProperties;
 import com.aloute.security.jwt.JwtTokenProvider;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.env.YamlPropertySourceLoader;
@@ -11,11 +9,13 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.PropertySource;
-import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.mock.env.MockEnvironment;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
@@ -26,14 +26,6 @@ class ProductionSecretsSafetyTest {
 
     private static final String VALID_TEST_SECRET = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
     private static final String SHORT_TEST_SECRET = "c2hvcnQ="; // "short" decodes to 5 bytes
-
-    @BeforeEach
-    @AfterEach
-    void cleanSystemProperties() {
-        System.clearProperty("ALOUTE_JWT_SECRET");
-        System.clearProperty("SPRING_DATASOURCE_PASSWORD");
-        System.clearProperty("ALOUTE_JWT_EXPIRATION_SECONDS");
-    }
 
     private ApplicationContextRunner createContextRunner() {
         return new ApplicationContextRunner(() -> {
@@ -151,5 +143,45 @@ class ProductionSecretsSafetyTest {
         envWithSecret.getPropertySources().addFirst(new MapPropertySource("explicitJwtProps", Map.of("ALOUTE_JWT_SECRET", VALID_TEST_SECRET)));
         sources.forEach(envWithSecret.getPropertySources()::addLast);
         assertThat(envWithSecret.resolveRequiredPlaceholders(envWithSecret.getProperty("ALOUTE_JWT_SECRET"))).isEqualTo(VALID_TEST_SECRET);
+    }
+
+    @Test
+    @DisplayName("Config: docker-compose.yml requires secrets without committed default fallbacks")
+    void dockerComposeRequiresSecretsWithoutDefaultFallbacks() throws IOException {
+        Path composePath = Paths.get("docker-compose.yml");
+        assertThat(composePath).exists();
+
+        List<String> lines = Files.readAllLines(composePath);
+
+        List<String> mysqlPasswordLines = lines.stream()
+                .filter(l -> l.contains("MYSQL_PASSWORD") && !l.contains("MYSQL_ROOT_PASSWORD"))
+                .toList();
+        List<String> mysqlRootPasswordLines = lines.stream()
+                .filter(l -> l.contains("MYSQL_ROOT_PASSWORD"))
+                .toList();
+        List<String> jwtSecretLines = lines.stream()
+                .filter(l -> l.contains("ALOUTE_JWT_SECRET") && !l.contains("ALOUTE_JWT_EXPIRATION_SECONDS"))
+                .toList();
+
+        // MYSQL_PASSWORD is used in both db and app services
+        assertThat(mysqlPasswordLines).hasSize(2);
+        assertThat(mysqlPasswordLines).allSatisfy(line -> {
+            assertThat(line).contains("${MYSQL_PASSWORD}");
+            assertThat(line).doesNotContain(":-");
+        });
+
+        // MYSQL_ROOT_PASSWORD is used in db service environment and healthcheck ping
+        assertThat(mysqlRootPasswordLines).hasSize(2);
+        assertThat(mysqlRootPasswordLines).allSatisfy(line -> {
+            assertThat(line).contains("${MYSQL_ROOT_PASSWORD}");
+            assertThat(line).doesNotContain(":-");
+        });
+
+        // ALOUTE_JWT_SECRET is used in app service environment
+        assertThat(jwtSecretLines).hasSize(1);
+        assertThat(jwtSecretLines).allSatisfy(line -> {
+            assertThat(line).contains("${ALOUTE_JWT_SECRET}");
+            assertThat(line).doesNotContain(":-");
+        });
     }
 }
