@@ -183,6 +183,7 @@ public class CommunityServiceImpl implements CommunityService {
     @Transactional
     public void leave(Long userId, Long communityId) {
         Community community = requireCommunity(communityId);
+        requireDiscoveryAccess(community, userId);
         CommunityMember member = memberRepository.findByCommunityIdAndUserId(communityId, userId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "COMMUNITY_MEMBER_NOT_FOUND", "Not a member"));
 
@@ -198,11 +199,11 @@ public class CommunityServiceImpl implements CommunityService {
     @Override
     @Transactional
     public CommunityMembershipResponse updateRole(Long actorId, Long communityId, Long targetUserId, UpdateCommunityRoleRequest request) {
-        requireCommunity(communityId);
+        Community community = requireCommunity(communityId);
+        requireDiscoveryAccess(community, actorId);
         CommunityMember actorMember = memberRepository.findByCommunityIdAndUserId(communityId, actorId)
                 .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "You are not a member"));
 
-        Community community = requireCommunity(communityId);
         if (actorMember.getRole() != CommunityRole.ADMIN && !community.getOwner().getId().equals(actorId)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only admin or owner can change roles");
         }
