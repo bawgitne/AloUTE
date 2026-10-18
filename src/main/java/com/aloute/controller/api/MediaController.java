@@ -11,8 +11,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.Positive;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,11 +23,23 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriUtils;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SecureDirectoryStream;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributeView;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/media")
@@ -118,31 +130,144 @@ public class MediaController {
             throw new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Media not found");
         }
 
-        if (!Files.exists(candidate) || !Files.isRegularFile(candidate) || !Files.isReadable(candidate)) {
+        Path relativePath = baseDir.relativize(candidate);
+        Path fsRoot = baseDir.getRoot();
+        if (fsRoot == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Media not found");
         }
 
+        DirectoryStream<Path> fsRootStream;
         try {
-            Path realBase = Files.exists(baseDir) ? baseDir.toRealPath() : baseDir;
-            Path realCandidate = candidate.toRealPath();
-            if (!realCandidate.startsWith(realBase) || !Files.isRegularFile(realCandidate) || !Files.isReadable(realCandidate)) {
-                throw new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Media not found");
-            }
+            fsRootStream = Files.newDirectoryStream(fsRoot);
+        } catch (IOException | SecurityException ex) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Media not found");
+        }
 
-            Resource resource = new UrlResource(realCandidate.toUri());
-            String contentType = null;
+        if (!(fsRootStream instanceof SecureDirectoryStream<Path> sdsFsRoot)) {
             try {
-                contentType = Files.probeContentType(realCandidate);
-            } catch (IOException | SecurityException ignored) {}
+                fsRootStream.close();
+            } catch (IOException ignored) {}
+            // Fail closed when secure directory operations are unsupported on filesystem provider
+            throw new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Media not found");
+        }
 
-            return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_TYPE, contentType != null ? contentType : "application/octet-stream")
-                    .header(HttpHeaders.CACHE_CONTROL, "public, max-age=31536000, immutable")
-                    .body(resource);
+        List<SecureDirectoryStream<Path>> openedStreams = new ArrayList<>();
+        openedStreams.add(sdsFsRoot);
+        SeekableByteChannel fileChannel;
+        try {
+            Path rootRelative = fsRoot.relativize(baseDir);
+            SecureDirectoryStream<Path> sdsUploadRoot = openSecureDirectory(sdsFsRoot, rootRelative, openedStreams);
+            fileChannel = openSecureFileChannel(sdsUploadRoot, relativePath, openedStreams);
         } catch (ApiException ex) {
             throw ex;
+        } catch (Exception ex) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Media not found");
+        } finally {
+            closeStreams(openedStreams);
+        }
+
+        long contentLength;
+        try {
+            contentLength = fileChannel.size();
+        } catch (IOException ex) {
+            try {
+                fileChannel.close();
+            } catch (IOException ignored) {}
+            throw new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Media not found");
+        }
+
+        String filename = relativePath.getFileName().toString();
+        String contentType = null;
+        try {
+            contentType = Files.probeContentType(Paths.get(filename));
         } catch (IOException | SecurityException ignored) {}
 
-        throw new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Media not found");
+        InputStream inputStream = Channels.newInputStream(fileChannel);
+        Resource resource = new InputStreamResource(inputStream) {
+            @Override
+            public long contentLength() {
+                return contentLength;
+            }
+
+            @Override
+            public String getFilename() {
+                return filename;
+            }
+        };
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, contentType != null ? contentType : "application/octet-stream")
+                .header(HttpHeaders.CACHE_CONTROL, "public, max-age=31536000, immutable")
+                .body(resource);
+    }
+
+    SecureDirectoryStream<Path> openSecureDirectory(SecureDirectoryStream<Path> startStream,
+                                                    Path relativePath,
+                                                    List<SecureDirectoryStream<Path>> openedStreams) throws IOException {
+        if (relativePath == null) {
+            return startStream;
+        }
+        String pathStr = relativePath.toString();
+        if (pathStr.isEmpty() || pathStr.equals(".")) {
+            return startStream;
+        }
+
+        SecureDirectoryStream<Path> currentDir = startStream;
+        int nameCount = relativePath.getNameCount();
+
+        for (int i = 0; i < nameCount; i++) {
+            Path segment = relativePath.getName(i);
+            if (segment.toString().isEmpty() || segment.toString().equals(".")) {
+                continue;
+            }
+            BasicFileAttributeView view = currentDir.getFileAttributeView(segment, BasicFileAttributeView.class, LinkOption.NOFOLLOW_LINKS);
+            if (view == null) {
+                throw new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Media not found");
+            }
+            BasicFileAttributes attrs = view.readAttributes();
+            if (!attrs.isDirectory() || attrs.isSymbolicLink()) {
+                throw new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Media not found");
+            }
+            SecureDirectoryStream<Path> nextDir = currentDir.newDirectoryStream(segment, LinkOption.NOFOLLOW_LINKS);
+            openedStreams.add(nextDir);
+            currentDir = nextDir;
+        }
+
+        return currentDir;
+    }
+
+    SeekableByteChannel openSecureFileChannel(SecureDirectoryStream<Path> sdsRoot,
+                                              Path relativePath,
+                                              List<SecureDirectoryStream<Path>> openedStreams) throws IOException {
+        Path parent = relativePath.getParent();
+        SecureDirectoryStream<Path> leafDir = parent != null
+                ? openSecureDirectory(sdsRoot, parent, openedStreams)
+                : sdsRoot;
+
+        Path leaf = relativePath.getFileName();
+        if (leaf == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Media not found");
+        }
+        BasicFileAttributeView view = leafDir.getFileAttributeView(leaf, BasicFileAttributeView.class, LinkOption.NOFOLLOW_LINKS);
+        if (view == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Media not found");
+        }
+        BasicFileAttributes attrs = view.readAttributes();
+        if (!attrs.isRegularFile() || attrs.isSymbolicLink()) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Media not found");
+        }
+
+        return leafDir.newByteChannel(leaf, Set.of(StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS));
+    }
+
+    private void closeStreams(List<SecureDirectoryStream<Path>> streams) {
+        if (streams == null) {
+            return;
+        }
+        for (int i = streams.size() - 1; i >= 0; i--) {
+            try {
+                streams.get(i).close();
+            } catch (IOException ignored) {}
+        }
     }
 }
