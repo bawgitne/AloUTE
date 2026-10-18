@@ -58,6 +58,7 @@ class AdminPostPhaseBIntegrationTest {
     @Autowired private ReportRepository reportRepository;
     @Autowired private ModerationActionRepository moderationActionRepository;
     @Autowired private PostModerationRemovalRepository postModerationRemovalRepository;
+    @Autowired private CommunityMemberRepository communityMemberRepository;
 
     private User adminUser;
     private User normalUser;
@@ -255,7 +256,7 @@ class AdminPostPhaseBIntegrationTest {
         // 4. Private community post -> MUST NOT match q
         Post privateCommPost = createPost(normalUser, "Private community with " + keyword, PostVisibility.PUBLIC, privateComm, null);
 
-        // Search with query = "confidentialkey"
+        // Search with query = "confidentialkey" (unauthenticated viewer)
         Page<AdminPostSummaryResponse> searchResults = adminPostService.getPosts(
                 keyword, null, null, null, null, PageRequest.of(0, 20)
         );
@@ -264,23 +265,98 @@ class AdminPostPhaseBIntegrationTest {
         assertThat(searchIds).contains(publicMatch.getId());
         assertThat(searchIds).doesNotContain(followersPost.getId(), privateAuthorPost.getId(), privateCommPost.getId());
 
-        // Browse without query (q=null) -> all posts are returned, and restricted ones are redacted
-        Page<AdminPostSummaryResponse> browseResults = adminPostService.getPosts(
-                null, null, null, null, null, PageRequest.of(0, 50)
+        // Search as authenticated outsider admin -> also excludes restricted posts
+        Page<AdminPostSummaryResponse> authSearchResults = adminPostService.getPosts(
+                adminUser.getId(), keyword, null, null, null, null, PageRequest.of(0, 20)
         );
-        List<AdminPostSummaryResponse> browseItems = browseResults.getContent();
+        List<Long> authSearchIds = authSearchResults.getContent().stream().map(AdminPostSummaryResponse::id).toList();
+        assertThat(authSearchIds).contains(publicMatch.getId());
+        assertThat(authSearchIds).doesNotContain(followersPost.getId(), privateAuthorPost.getId(), privateCommPost.getId());
 
-        AdminPostSummaryResponse followersResp = browseItems.stream().filter(p -> p.id().equals(followersPost.getId())).findFirst().orElseThrow();
-        assertThat(followersResp.contentExcerpt()).isEqualTo("[REDACTED - RESTRICTED CONTENT]");
-        assertThat(followersResp.capabilities().canRemove()).isFalse();
+        // Browse without query (q=null) as outsider admin -> restricted posts are excluded from results under F-06
+        Page<AdminPostSummaryResponse> browseResults = adminPostService.getPosts(
+                adminUser.getId(), null, null, null, null, null, PageRequest.of(0, 50)
+        );
+        List<Long> browseIds = browseResults.getContent().stream().map(AdminPostSummaryResponse::id).toList();
+        assertThat(browseIds).contains(publicMatch.getId());
+        assertThat(browseIds).doesNotContain(followersPost.getId(), privateAuthorPost.getId(), privateCommPost.getId());
 
-        AdminPostSummaryResponse privAuthorResp = browseItems.stream().filter(p -> p.id().equals(privateAuthorPost.getId())).findFirst().orElseThrow();
-        assertThat(privAuthorResp.contentExcerpt()).isEqualTo("[REDACTED - RESTRICTED CONTENT]");
-        assertThat(privAuthorResp.capabilities().canRemove()).isFalse();
-
-        AdminPostSummaryResponse privCommResp = browseItems.stream().filter(p -> p.id().equals(privateCommPost.getId())).findFirst().orElseThrow();
-        assertThat(privCommResp.contentExcerpt()).isEqualTo("[REDACTED - RESTRICTED CONTENT]");
+        // When admin becomes a member of privateComm -> permitted visibility allows browsing the private community post
+        communityMemberRepository.save(new CommunityMember(privateComm, adminUser, CommunityRole.MEMBER));
+        Page<AdminPostSummaryResponse> memberBrowse = adminPostService.getPosts(
+                adminUser.getId(), null, null, null, null, null, PageRequest.of(0, 50)
+        );
+        List<Long> memberBrowseIds = memberBrowse.getContent().stream().map(AdminPostSummaryResponse::id).toList();
+        assertThat(memberBrowseIds).contains(privateCommPost.getId());
+        AdminPostSummaryResponse privCommResp = memberBrowse.getContent().stream().filter(p -> p.id().equals(privateCommPost.getId())).findFirst().orElseThrow();
+        assertThat(privCommResp.contentExcerpt()).contains("Private community with");
         assertThat(privCommResp.capabilities().canRemove()).isFalse();
+    }
+
+    @Test
+    @DisplayName("DB: Authenticated SYSTEM_ADMIN who owns a private community without a CommunityMember row can browse and search its posts with exact counts")
+    void adminAsPrivateCommunityOwnerWithoutMembershipRowCanSearchAndBrowsePosts() throws Exception {
+        long suffix = System.nanoTime();
+        String keyword = "ownersecret" + suffix;
+
+        // Create private community owned by adminUser
+        Community adminOwnedPrivateComm = new Community();
+        adminOwnedPrivateComm.setName("Admin Private Vault " + suffix);
+        adminOwnedPrivateComm.setSlug("admin-vault-" + suffix);
+        adminOwnedPrivateComm.setOwner(adminUser);
+        adminOwnedPrivateComm.setPrivateCommunity(true);
+        adminOwnedPrivateComm = communityRepository.save(adminOwnedPrivateComm);
+
+        // Explicitly assert that adminUser has NO CommunityMember row for this community
+        assertThat(communityMemberRepository.existsByCommunityIdAndUserId(adminOwnedPrivateComm.getId(), adminUser.getId())).isFalse();
+
+        // Create post in adminOwnedPrivateComm authored by normalUser (public visibility within community)
+        Post postInAdminComm = createPost(normalUser, "Post in admin vault with " + keyword, PostVisibility.PUBLIC, adminOwnedPrivateComm, null);
+
+        // Another outsider post with same keyword in privateComm (which admin does NOT own, nor is a member)
+        Post outsiderPrivatePost = createPost(normalUser, "Post in outsider secret lounge with " + keyword, PostVisibility.PUBLIC, privateComm, null);
+
+        // 1. Text Search (q = keyword) with viewerAdminId = adminUser.getId() -> includes post in admin's owned community, excludes outsider
+        Page<AdminPostSummaryResponse> searchResults = adminPostService.getPosts(
+                adminUser.getId(), keyword, null, null, null, null, PageRequest.of(0, 10)
+        );
+        List<Long> searchIds = searchResults.getContent().stream().map(AdminPostSummaryResponse::id).toList();
+        assertThat(searchIds).contains(postInAdminComm.getId());
+        assertThat(searchIds).doesNotContain(outsiderPrivatePost.getId());
+        assertThat(searchResults.getTotalElements()).isEqualTo(1L);
+
+        // 2. Browse/List without query (q = null) with communityId filter
+        Page<AdminPostSummaryResponse> browseCommResults = adminPostService.getPosts(
+                adminUser.getId(), null, null, adminOwnedPrivateComm.getId(), null, null, PageRequest.of(0, 10)
+        );
+        List<Long> browseCommIds = browseCommResults.getContent().stream().map(AdminPostSummaryResponse::id).toList();
+        assertThat(browseCommIds).contains(postInAdminComm.getId());
+        assertThat(browseCommResults.getTotalElements()).isEqualTo(1L);
+
+        // 3. Browse/List overall (q = null, communityId = null) -> includes owned private post, excludes outsider private post
+        Page<AdminPostSummaryResponse> browseAllResults = adminPostService.getPosts(
+                adminUser.getId(), null, null, null, null, null, PageRequest.of(0, 50)
+        );
+        List<Long> browseAllIds = browseAllResults.getContent().stream().map(AdminPostSummaryResponse::id).toList();
+        assertThat(browseAllIds).contains(postInAdminComm.getId());
+        assertThat(browseAllIds).doesNotContain(outsiderPrivatePost.getId());
+
+        // 4. REST endpoint verification via MockMvc with authenticated admin (q = keyword)
+        mockMvc.perform(get("/api/admin/posts")
+                        .param("q", keyword)
+                        .with(authentication(adminAuth)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].id", hasItem(postInAdminComm.getId().intValue())))
+                .andExpect(jsonPath("$.data[*].id", not(hasItem(outsiderPrivatePost.getId().intValue()))))
+                .andExpect(jsonPath("$.meta.totalElements").value(1));
+
+        // 5. Outsider check: normalUser (not owner, not member of adminOwnedPrivateComm) cannot view post
+        assertThat(communityMemberRepository.existsByCommunityIdAndUserId(adminOwnedPrivateComm.getId(), normalUser.getId())).isFalse();
+        Page<AdminPostSummaryResponse> outsiderBrowse = adminPostService.getPosts(
+                normalUser.getId(), null, null, adminOwnedPrivateComm.getId(), null, null, PageRequest.of(0, 10)
+        );
+        assertThat(outsiderBrowse.getTotalElements()).isEqualTo(0L);
+        assertThat(outsiderBrowse.getContent()).isEmpty();
     }
 
     @Test
