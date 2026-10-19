@@ -5,6 +5,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
@@ -18,6 +19,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class JwtTokenProvider {
     private final JwtProperties properties;
+
+    @PostConstruct
+    void validateConfiguration() {
+        signingKey();
+        properties.requireExpirationSeconds();
+    }
     public String generate(UserPrincipal principal) {
         Instant now=Instant.now(); long expiration=properties.requireExpirationSeconds();
         List<String> authorities=principal.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList();
