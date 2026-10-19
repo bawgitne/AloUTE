@@ -21,7 +21,9 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.jayway.jsonpath.JsonPath;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -472,5 +474,162 @@ class AdminUserPostsPrivacyIntegrationTest {
         assertThat(respQuoteFollower.quotedPostId()).isNull();
         assertThat(respQuoteDeleted.quotedPostId()).isNull();
         assertThat(respQuotePrivateComm.quotedPostId()).isNull();
+    }
+
+    @Test
+    @DisplayName("DB: Admin nested reference privacy: GET /api/admin/posts and GET /api/admin/posts/{id} mask inaccessible parent/quote IDs across followers, private-account, private-community, blocked, deleted, mentioned targets")
+    void adminPostsAndDetailMaskInaccessibleNestedReferences() throws Exception {
+        // 1. Inaccessible targets:
+        // A. Followers-only post (admin does not follow author)
+        Post followerOnlyTarget = createPost(targetAuthor, "Followers Only Target", PostVisibility.FOLLOWERS, null, null, null);
+
+        // B. Private-account author post (admin does not follow author)
+        User privateAccountUser = createUser("priv_usr_" + System.nanoTime(), "priv_" + System.nanoTime() + "@aloute.test", true, Role.USER);
+        Post privateAccountTarget = createPost(privateAccountUser, "Private Account Target", PostVisibility.PUBLIC, null, null, null);
+
+        // C. Private-community post (admin is not a member)
+        Community secretCommunity = createCommunity("Secret Club", "secret-club-" + System.nanoTime(), targetAuthor, true);
+        Post privateCommunityTarget = createPost(targetAuthor, "Private Comm Target", PostVisibility.PUBLIC, secretCommunity, null, null);
+
+        // D. Blocked post (author has blocked admin)
+        User blockingAuthor = createUser("blocker_" + System.nanoTime(), "blocker_" + System.nanoTime() + "@aloute.test", false, Role.USER);
+        Block block = new Block();
+        block.setBlocker(blockingAuthor);
+        block.setBlocked(adminUser);
+        blockRepository.save(block);
+        Post blockedTarget = createPost(blockingAuthor, "Blocked Author Target", PostVisibility.PUBLIC, null, null, null);
+
+        // E. Soft-deleted post
+        Post deletedTarget = createPost(targetAuthor, "Deleted Target", PostVisibility.PUBLIC, null, null, Instant.now());
+
+        // F. MENTIONED-visibility post (non-owner read fails closed)
+        Post mentionedTarget = createPost(targetAuthor, "Mentioned Target", PostVisibility.MENTIONED, null, null, null);
+
+        // 2. Control: Fully public visible target
+        Post visiblePublicTarget = createPost(targetAuthor, "Visible Public Target", PostVisibility.PUBLIC, null, null, null);
+
+        List<Post> inaccessibleTargets = List.of(
+                followerOnlyTarget,
+                privateAccountTarget,
+                privateCommunityTarget,
+                blockedTarget,
+                deletedTarget,
+                mentionedTarget
+        );
+
+        // 3. Create public wrappers quoting and replying to each target
+        List<Post> quoteWrappers = new ArrayList<>();
+        List<Post> replyWrappers = new ArrayList<>();
+
+        for (Post target : inaccessibleTargets) {
+            quoteWrappers.add(createQuotingPost(targetAuthor, "Public quote of inaccessible " + target.getId(), PostVisibility.PUBLIC, target));
+            replyWrappers.add(createPost(targetAuthor, "Public reply of inaccessible " + target.getId(), PostVisibility.PUBLIC, null, target, null));
+        }
+
+        Post visibleQuoteWrapper = createQuotingPost(targetAuthor, "Public quote of visible " + visiblePublicTarget.getId(), PostVisibility.PUBLIC, visiblePublicTarget);
+        Post visibleReplyWrapper = createPost(targetAuthor, "Public reply of visible " + visiblePublicTarget.getId(), PostVisibility.PUBLIC, null, visiblePublicTarget, null);
+
+        // --- Verify GET /api/admin/posts/{id} (Detail endpoint) ---
+        // Inaccessible quote targets must have quotedPostId masked to null in JSON response
+        for (Post qw : quoteWrappers) {
+            mockMvc.perform(get("/api/admin/posts/" + qw.getId())
+                            .with(authentication(adminAuth))
+                            .accept(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.id").value(qw.getId()))
+                    .andExpect(jsonPath("$.data.quotedPostId").value(nullValue()));
+        }
+
+        // Inaccessible reply targets must have parentPostId masked to null in JSON response
+        for (Post rw : replyWrappers) {
+            mockMvc.perform(get("/api/admin/posts/" + rw.getId())
+                            .with(authentication(adminAuth))
+                            .accept(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.id").value(rw.getId()))
+                    .andExpect(jsonPath("$.data.parentPostId").value(nullValue()));
+        }
+
+        // Visible targets must preserve referenced IDs in JSON response
+        mockMvc.perform(get("/api/admin/posts/" + visibleQuoteWrapper.getId())
+                        .with(authentication(adminAuth))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.quotedPostId").value(visiblePublicTarget.getId()));
+
+        mockMvc.perform(get("/api/admin/posts/" + visibleReplyWrapper.getId())
+                        .with(authentication(adminAuth))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.parentPostId").value(visiblePublicTarget.getId()));
+
+        // --- Verify GET /api/admin/posts (List endpoint) ---
+        var listActions = mockMvc.perform(get("/api/admin/posts?size=100")
+                        .with(authentication(adminAuth))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.meta.totalElements", greaterThanOrEqualTo(quoteWrappers.size() + replyWrappers.size() + 2)));
+
+        // Assert serialized JSON references from GET /api/admin/posts directly via jsonPath
+        for (Post qw : quoteWrappers) {
+            listActions.andExpect(jsonPath("$.data[?(@.id == " + qw.getId() + ")].quotedPostId").value(hasItem(nullValue())));
+        }
+        for (Post rw : replyWrappers) {
+            listActions.andExpect(jsonPath("$.data[?(@.id == " + rw.getId() + ")].parentPostId").value(hasItem(nullValue())));
+        }
+        listActions.andExpect(jsonPath("$.data[?(@.id == " + visibleQuoteWrapper.getId() + ")].quotedPostId")
+                .value(hasItem(visiblePublicTarget.getId().intValue())));
+        listActions.andExpect(jsonPath("$.data[?(@.id == " + visibleReplyWrapper.getId() + ")].parentPostId")
+                .value(hasItem(visiblePublicTarget.getId().intValue())));
+
+        // Also assert parsed serialized JSON references directly from the HTTP response body string
+        String responseContent = listActions.andReturn().getResponse().getContentAsString();
+        List<java.util.Map<String, Object>> dataList = JsonPath.read(responseContent, "$.data");
+
+        for (Post qw : quoteWrappers) {
+            var item = dataList.stream().filter(m -> qw.getId().equals(((Number) m.get("id")).longValue())).findFirst().orElseThrow();
+            assertThat(item.get("quotedPostId")).as("Serialized JSON quotedPostId must be null for post %d", qw.getId()).isNull();
+        }
+
+        for (Post rw : replyWrappers) {
+            var item = dataList.stream().filter(m -> rw.getId().equals(((Number) m.get("id")).longValue())).findFirst().orElseThrow();
+            assertThat(item.get("parentPostId")).as("Serialized JSON parentPostId must be null for post %d", rw.getId()).isNull();
+        }
+
+        var visQuoteItem = dataList.stream().filter(m -> visibleQuoteWrapper.getId().equals(((Number) m.get("id")).longValue())).findFirst().orElseThrow();
+        assertThat(((Number) visQuoteItem.get("quotedPostId")).longValue()).isEqualTo(visiblePublicTarget.getId());
+
+        var visReplyItem = dataList.stream().filter(m -> visibleReplyWrapper.getId().equals(((Number) m.get("id")).longValue())).findFirst().orElseThrow();
+        assertThat(((Number) visReplyItem.get("parentPostId")).longValue()).isEqualTo(visiblePublicTarget.getId());
+
+        // Direct service check on getPosts:
+        Page<AdminPostSummaryResponse> adminPostsPage = adminPostService.getPosts(
+                adminUser.getId(), null, null, null, null, null, PageRequest.of(0, 100)
+        );
+
+        for (Post qw : quoteWrappers) {
+            AdminPostSummaryResponse summary = adminPostsPage.getContent().stream()
+                    .filter(s -> s.id().equals(qw.getId())).findFirst().orElseThrow();
+            assertThat(summary.quotedPostId()).as("Inaccessible quoted target must be masked in getPosts").isNull();
+        }
+
+        for (Post rw : replyWrappers) {
+            AdminPostSummaryResponse summary = adminPostsPage.getContent().stream()
+                    .filter(s -> s.id().equals(rw.getId())).findFirst().orElseThrow();
+            assertThat(summary.parentPostId()).as("Inaccessible parent target must be masked in getPosts").isNull();
+        }
+
+        AdminPostSummaryResponse visibleQuoteSummary = adminPostsPage.getContent().stream()
+                .filter(s -> s.id().equals(visibleQuoteWrapper.getId())).findFirst().orElseThrow();
+        assertThat(visibleQuoteSummary.quotedPostId()).isEqualTo(visiblePublicTarget.getId());
+
+        AdminPostSummaryResponse visibleReplySummary = adminPostsPage.getContent().stream()
+                .filter(s -> s.id().equals(visibleReplyWrapper.getId())).findFirst().orElseThrow();
+        assertThat(visibleReplySummary.parentPostId()).isEqualTo(visiblePublicTarget.getId());
     }
 }

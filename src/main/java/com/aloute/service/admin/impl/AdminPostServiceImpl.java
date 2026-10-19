@@ -183,7 +183,7 @@ public class AdminPostServiceImpl implements AdminPostService {
         Specification<Post> combinedSpec = Specification.where(audienceSpec).and(filterSpec);
 
         return postRepository.findAll(combinedSpec, pageable)
-                .map(this::toSummaryResponse);
+                .map(post -> toSummaryResponse(post, effectiveAdminId));
     }
 
     @Override
@@ -227,8 +227,8 @@ public class AdminPostServiceImpl implements AdminPostService {
                 .map(Report::getId)
                 .toList();
 
-        Long parentPostId = post.getParentPost() != null ? post.getParentPost().getId() : null;
-        Long quotedPostId = post.getQuotedPost() != null ? post.getQuotedPost().getId() : null;
+        Long parentPostId = visiblePostId(post.getParentPost(), effectiveAdminId);
+        Long quotedPostId = visiblePostId(post.getQuotedPost(), effectiveAdminId);
         Long activeRemovalId = activeRemoval != null ? activeRemoval.getId() : null;
 
         return new AdminPostDetailResponse(
@@ -336,7 +336,22 @@ public class AdminPostServiceImpl implements AdminPostService {
         return false;
     }
 
+    private Long visiblePostId(Post targetPost, Long viewerId) {
+        if (targetPost == null || targetPost.getDeletedAt() != null) {
+            return null;
+        }
+        if (postService == null || !postService.isPostVisibleTo(targetPost, viewerId)) {
+            return null;
+        }
+        return targetPost.getId();
+    }
+
     private AdminPostSummaryResponse toSummaryResponse(Post post) {
+        Long adminId = currentUserProvider != null ? currentUserProvider.getCurrentUserId().orElse(null) : null;
+        return toSummaryResponse(post, adminId);
+    }
+
+    private AdminPostSummaryResponse toSummaryResponse(Post post, Long viewerId) {
         boolean activeRemovalExists = postModerationRemovalRepository.existsByPostIdAndRestoredAtIsNull(post.getId());
         String contentState;
         if (post.getDeletedAt() == null) {
@@ -357,8 +372,8 @@ public class AdminPostServiceImpl implements AdminPostService {
                 ? (post.getContent().length() > 100 ? post.getContent().substring(0, 100) + "..." : post.getContent())
                 : "";
 
-        Long parentPostId = post.getParentPost() != null ? post.getParentPost().getId() : null;
-        Long quotedPostId = post.getQuotedPost() != null ? post.getQuotedPost().getId() : null;
+        Long parentPostId = visiblePostId(post.getParentPost(), viewerId);
+        Long quotedPostId = visiblePostId(post.getQuotedPost(), viewerId);
         Long communityId = post.getCommunity() != null ? post.getCommunity().getId() : null;
 
         return new AdminPostSummaryResponse(
@@ -457,28 +472,6 @@ public class AdminPostServiceImpl implements AdminPostService {
     }
 
     private AdminPostSummaryResponse toUserPostSummaryResponse(Post post, Long viewerId) {
-        AdminPostSummaryResponse resp = toSummaryResponse(post);
-        Long visibleQuotedId = null;
-        if (post.getQuotedPost() != null && post.getQuotedPost().getDeletedAt() == null) {
-            if (postService == null || postService.isPostVisibleTo(post.getQuotedPost(), viewerId)) {
-                visibleQuotedId = post.getQuotedPost().getId();
-            }
-        }
-        if (Objects.equals(visibleQuotedId, resp.quotedPostId())) {
-            return resp;
-        }
-        return new AdminPostSummaryResponse(
-                resp.id(),
-                resp.author(),
-                resp.contentExcerpt(),
-                resp.parentPostId(),
-                visibleQuotedId,
-                resp.communityId(),
-                resp.visibility(),
-                resp.contentState(),
-                resp.reportedCount(),
-                resp.createdAt(),
-                resp.capabilities()
-        );
+        return toSummaryResponse(post, viewerId);
     }
 }
