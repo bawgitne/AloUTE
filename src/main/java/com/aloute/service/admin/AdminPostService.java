@@ -18,4 +18,10 @@ public interface AdminPostService {
     default AdminPostDetailResponse getPostDetail(Long postId) {
         return getPostDetail(null, postId);
     }
+
+    Page<AdminPostSummaryResponse> getUserPosts(Long userId, String contentState, Pageable pageable, Long viewerId);
+
+    default Page<AdminPostSummaryResponse> getUserPosts(Long userId, String contentState, Pageable pageable) {
+        return getUserPosts(userId, contentState, pageable, null);
+    }
 }
