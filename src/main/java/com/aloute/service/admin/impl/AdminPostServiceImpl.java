@@ -17,7 +17,9 @@ import com.aloute.repository.PostModerationRemovalRepository;
 import com.aloute.repository.PostRepository;
 import com.aloute.repository.PostSpecifications;
 import com.aloute.repository.ReportRepository;
+import com.aloute.repository.UserRepository;
 import com.aloute.security.currentuser.CurrentUserProvider;
+import com.aloute.service.PostService;
 import com.aloute.service.admin.AdminMappingHelper;
 import com.aloute.service.admin.AdminPostService;
 import jakarta.persistence.criteria.Predicate;
@@ -25,13 +27,16 @@ import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 
@@ -49,6 +54,8 @@ public class AdminPostServiceImpl implements AdminPostService {
     private final FollowRepository followRepository;
     private final CommunityMemberRepository communityMemberRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final UserRepository userRepository;
+    private final PostService postService;
 
     @Autowired
     public AdminPostServiceImpl(
@@ -59,7 +66,9 @@ public class AdminPostServiceImpl implements AdminPostService {
             BlockRepository blockRepository,
             FollowRepository followRepository,
             CommunityMemberRepository communityMemberRepository,
-            CurrentUserProvider currentUserProvider
+            CurrentUserProvider currentUserProvider,
+            UserRepository userRepository,
+            PostService postService
     ) {
         this.postRepository = postRepository;
         this.postModerationRemovalRepository = postModerationRemovalRepository;
@@ -69,6 +78,22 @@ public class AdminPostServiceImpl implements AdminPostService {
         this.followRepository = followRepository;
         this.communityMemberRepository = communityMemberRepository;
         this.currentUserProvider = currentUserProvider;
+        this.userRepository = userRepository;
+        this.postService = postService;
+    }
+
+    public AdminPostServiceImpl(
+            PostRepository postRepository,
+            PostModerationRemovalRepository postModerationRemovalRepository,
+            ReportRepository reportRepository,
+            AdminMappingHelper adminMappingHelper,
+            BlockRepository blockRepository,
+            FollowRepository followRepository,
+            CommunityMemberRepository communityMemberRepository,
+            CurrentUserProvider currentUserProvider
+    ) {
+        this(postRepository, postModerationRemovalRepository, reportRepository, adminMappingHelper,
+                blockRepository, followRepository, communityMemberRepository, currentUserProvider, null, null);
     }
 
     public AdminPostServiceImpl(
@@ -77,7 +102,7 @@ public class AdminPostServiceImpl implements AdminPostService {
             ReportRepository reportRepository,
             AdminMappingHelper adminMappingHelper
     ) {
-        this(postRepository, postModerationRemovalRepository, reportRepository, adminMappingHelper, null, null, null, null);
+        this(postRepository, postModerationRemovalRepository, reportRepository, adminMappingHelper, null, null, null, null, null, null);
     }
 
     @Override
@@ -365,5 +390,95 @@ public class AdminPostServiceImpl implements AdminPostService {
             return true;
         }
         return false;
+    }
+
+    @Override
+    public Page<AdminPostSummaryResponse> getUserPosts(Long userId, String contentState, Pageable pageable, Long viewerId) {
+        if (userId == null || userId <= 0) {
+            throw new ApiException(ErrorCode.BAD_REQUEST, "userId must be positive");
+        }
+        if (userRepository != null) {
+            userRepository.findById(userId)
+                    .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND, "User not found"));
+        }
+
+        if (contentState != null && !contentState.isBlank()) {
+            String upper = contentState.trim().toUpperCase(Locale.ROOT);
+            if (!VALID_CONTENT_STATES.contains(upper)) {
+                throw new ApiException(ErrorCode.BAD_REQUEST, "Invalid contentState: '" + contentState + "'. Allowed: " + VALID_CONTENT_STATES);
+            }
+        }
+
+        Specification<Post> spec = (root, qSpec, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("user").get("id"), userId));
+            predicates.add(cb.isNull(root.get("parentPost")));
+
+            if (contentState != null && !contentState.isBlank()) {
+                String upper = contentState.trim().toUpperCase(Locale.ROOT);
+                if ("ACTIVE".equals(upper)) {
+                    predicates.add(cb.isNull(root.get("deletedAt")));
+                } else if ("ADMIN_REMOVED".equals(upper)) {
+                    predicates.add(cb.isNotNull(root.get("deletedAt")));
+                    Subquery<Integer> removalSubquery = qSpec.subquery(Integer.class);
+                    Root<PostModerationRemoval> removalRoot = removalSubquery.from(PostModerationRemoval.class);
+                    removalSubquery.select(cb.literal(1))
+                            .where(
+                                    cb.equal(removalRoot.get("post").get("id"), root.get("id")),
+                                    cb.isNull(removalRoot.get("restoredAt"))
+                            );
+                    predicates.add(cb.exists(removalSubquery));
+                } else if ("AUTHOR_DELETED".equals(upper)) {
+                    predicates.add(cb.isNotNull(root.get("deletedAt")));
+                    Subquery<Integer> removalSubquery = qSpec.subquery(Integer.class);
+                    Root<PostModerationRemoval> removalRoot = removalSubquery.from(PostModerationRemoval.class);
+                    removalSubquery.select(cb.literal(1))
+                            .where(
+                                    cb.equal(removalRoot.get("post").get("id"), root.get("id")),
+                                    cb.isNull(removalRoot.get("restoredAt"))
+                            );
+                    predicates.add(cb.not(cb.exists(removalSubquery)));
+                }
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        if (postService != null) {
+            spec = spec.and(postService.buildVisibilitySpec(viewerId));
+        }
+
+        Pageable effectivePageable = pageable;
+        if (pageable.getSort().isUnsorted()) {
+            effectivePageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.DESC, "createdAt"));
+        }
+
+        return postRepository.findAll(spec, effectivePageable)
+                .map(post -> toUserPostSummaryResponse(post, viewerId));
+    }
+
+    private AdminPostSummaryResponse toUserPostSummaryResponse(Post post, Long viewerId) {
+        AdminPostSummaryResponse resp = toSummaryResponse(post);
+        Long visibleQuotedId = null;
+        if (post.getQuotedPost() != null && post.getQuotedPost().getDeletedAt() == null) {
+            if (postService == null || postService.isPostVisibleTo(post.getQuotedPost(), viewerId)) {
+                visibleQuotedId = post.getQuotedPost().getId();
+            }
+        }
+        if (Objects.equals(visibleQuotedId, resp.quotedPostId())) {
+            return resp;
+        }
+        return new AdminPostSummaryResponse(
+                resp.id(),
+                resp.author(),
+                resp.contentExcerpt(),
+                resp.parentPostId(),
+                visibleQuotedId,
+                resp.communityId(),
+                resp.visibility(),
+                resp.contentState(),
+                resp.reportedCount(),
+                resp.createdAt(),
+                resp.capabilities()
+        );
     }
 }
