@@ -53,7 +53,8 @@ public class AdminPostController {
                 page, size, sort, com.aloute.service.admin.AdminSortHelper.POST_SORT_FIELDS, "createdAt"
         );
 
-        Page<AdminPostSummaryResponse> postPage = adminPostService.getPosts(q, authorId, communityId, contentState, reportedOnly, pageable);
+        Long adminId = currentUserProvider.requireUserId();
+        Page<AdminPostSummaryResponse> postPage = adminPostService.getPosts(adminId, q, authorId, communityId, contentState, reportedOnly, pageable);
         return ApiResponse.page(postPage.getContent(), PageMeta.from(postPage));
     }
 
@@ -61,7 +62,8 @@ public class AdminPostController {
     public ApiResponse<AdminPostDetailResponse> getPostDetail(
             @PathVariable @Positive Long postId
     ) {
-        return ApiResponse.success(adminPostService.getPostDetail(postId));
+        Long adminId = currentUserProvider.requireUserId();
+        return ApiResponse.success(adminPostService.getPostDetail(adminId, postId));
     }
 
     @PostMapping("/posts/{postId}/remove")

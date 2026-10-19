@@ -23,18 +23,25 @@ public final class PostSpecifications {
                                                 Collection<Long> blockedUserIds,
                                                 Collection<Long> followingUserIds,
                                                 Collection<Long> userCommunityIds) {
+        return (root, query, cb) -> cb.and(
+                cb.isNull(root.get("deletedAt")),
+                visibleAudienceTo(viewerId, blockedUserIds, followingUserIds, userCommunityIds).toPredicate(root, query, cb)
+        );
+    }
+
+    public static Specification<Post> visibleAudienceTo(Long viewerId,
+                                                        Collection<Long> blockedUserIds,
+                                                        Collection<Long> followingUserIds,
+                                                        Collection<Long> userCommunityIds) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            // 1. Post must not be soft-deleted
-            predicates.add(cb.isNull(root.get("deletedAt")));
-
-            // 2. Block check: post author must not be blocked by viewer, nor author has blocked viewer
+            // 1. Block check: post author must not be blocked by viewer, nor author has blocked viewer
             if (blockedUserIds != null && !blockedUserIds.isEmpty()) {
                 predicates.add(cb.not(root.get("user").get("id").in(blockedUserIds)));
             }
 
-            // 3. Community check (using explicit LEFT JOIN to prevent implicit inner-join dropping standalone posts):
+            // 2. Community check (using explicit LEFT JOIN to prevent implicit inner-join dropping standalone posts):
             // Either post has no community, or community is not private,
             // or (viewer is member of that private community)
             Join<Post, Community> communityJoin = root.join("community", JoinType.LEFT);
@@ -43,16 +50,22 @@ public final class PostSpecifications {
             predicates.add(cb.or(noCommunity, cb.isNull(communityJoin.get("deletedAt"))));
             Predicate publicCommunity = cb.isFalse(communityJoin.get("privateCommunity"));
             Predicate communityAllowed = cb.or(noCommunity, publicCommunity);
+
+            Predicate memberOrOwnerOfPrivate = cb.disjunction();
             if (userCommunityIds != null && !userCommunityIds.isEmpty()) {
-                Predicate memberOfPrivateCommunity = cb.and(
-                        cb.isTrue(communityJoin.get("privateCommunity")),
-                        communityJoin.get("id").in(userCommunityIds)
-                );
-                communityAllowed = cb.or(communityAllowed, memberOfPrivateCommunity);
+                memberOrOwnerOfPrivate = cb.or(memberOrOwnerOfPrivate, communityJoin.get("id").in(userCommunityIds));
             }
+            if (viewerId != null) {
+                memberOrOwnerOfPrivate = cb.or(memberOrOwnerOfPrivate, cb.equal(communityJoin.get("owner").get("id"), viewerId));
+            }
+            Predicate privateCommunityAllowed = cb.and(
+                    cb.isTrue(communityJoin.get("privateCommunity")),
+                    memberOrOwnerOfPrivate
+            );
+            communityAllowed = cb.or(communityAllowed, privateCommunityAllowed);
             predicates.add(communityAllowed);
 
-            // 4. Post visibility & author privacy:
+            // 3. Post visibility & author privacy:
             if (viewerId != null) {
                 Predicate isAuthor = cb.equal(root.get("user").get("id"), viewerId);
 
@@ -115,13 +128,18 @@ public final class PostSpecifications {
             predicates.add(cb.or(noCommunity, cb.isNull(communityJoin.get("deletedAt"))));
             Predicate publicCommunity = cb.isFalse(communityJoin.get("privateCommunity"));
             Predicate communityAllowed = cb.or(noCommunity, publicCommunity);
+            Predicate memberOrOwnerOfPrivate = cb.disjunction();
             if (userCommunityIds != null && !userCommunityIds.isEmpty()) {
-                Predicate memberOfPrivateCommunity = cb.and(
-                        cb.isTrue(communityJoin.get("privateCommunity")),
-                        communityJoin.get("id").in(userCommunityIds)
-                );
-                communityAllowed = cb.or(communityAllowed, memberOfPrivateCommunity);
+                memberOrOwnerOfPrivate = cb.or(memberOrOwnerOfPrivate, communityJoin.get("id").in(userCommunityIds));
             }
+            if (userId != null) {
+                memberOrOwnerOfPrivate = cb.or(memberOrOwnerOfPrivate, cb.equal(communityJoin.get("owner").get("id"), userId));
+            }
+            Predicate memberOfPrivateCommunity = cb.and(
+                    cb.isTrue(communityJoin.get("privateCommunity")),
+                    memberOrOwnerOfPrivate
+            );
+            communityAllowed = cb.or(communityAllowed, memberOfPrivateCommunity);
             predicates.add(communityAllowed);
 
             // 4. Post visibility & author privacy:

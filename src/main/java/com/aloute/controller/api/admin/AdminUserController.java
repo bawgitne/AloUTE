@@ -2,8 +2,11 @@ package com.aloute.controller.api.admin;
 
 import com.aloute.common.api.ApiResponse;
 import com.aloute.common.api.PageMeta;
+import com.aloute.dto.response.admin.AdminPostSummaryResponse;
 import com.aloute.dto.response.admin.AdminUserDetailResponse;
 import com.aloute.dto.response.admin.AdminUserSummaryResponse;
+import com.aloute.security.currentuser.CurrentUserProvider;
+import com.aloute.service.admin.AdminPostService;
 import com.aloute.service.admin.AdminUserService;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -27,6 +30,8 @@ import java.util.List;
 public class AdminUserController {
 
     private final AdminUserService adminUserService;
+    private final AdminPostService adminPostService;
+    private final CurrentUserProvider currentUserProvider;
 
     @GetMapping("/users")
     public ApiResponse<List<AdminUserSummaryResponse>> getUsers(
@@ -38,7 +43,7 @@ public class AdminUserController {
             @RequestParam(defaultValue = "createdAt,desc") String sort
     ) {
         Pageable pageable = com.aloute.service.admin.AdminSortHelper.createPageable(
-                page, size, sort, com.aloute.service.admin.AdminSortHelper.USER_SORT_FIELDS, "createdAt"
+            page, size, sort, com.aloute.service.admin.AdminSortHelper.USER_SORT_FIELDS, "createdAt"
         );
 
         Page<AdminUserSummaryResponse> userPage = adminUserService.getUsers(q, role, active, pageable);
@@ -50,5 +55,18 @@ public class AdminUserController {
             @PathVariable @Positive Long userId
     ) {
         return ApiResponse.success(adminUserService.getUserDetail(userId));
+    }
+
+    @GetMapping("/users/{userId}/posts")
+    public ApiResponse<List<AdminPostSummaryResponse>> getUserPosts(
+            @PathVariable @Positive Long userId,
+            @RequestParam(required = false) String contentState,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
+    ) {
+        Long viewerId = currentUserProvider.requireUserId();
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<AdminPostSummaryResponse> postPage = adminPostService.getUserPosts(userId, contentState, pageable, viewerId);
+        return ApiResponse.page(postPage.getContent(), PageMeta.from(postPage));
     }
 }
