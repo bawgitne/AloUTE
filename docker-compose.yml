@@ -7,14 +7,14 @@ services:
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-aloutedb}
       MYSQL_USER: ${MYSQL_USER:-aloute_user}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD must be set and non-empty}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set and non-empty}
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
       - "${MYSQL_PORT:-3306}:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set and non-empty}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -34,8 +34,8 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-aloutedb}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-aloute_user}
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
-      ALOUTE_JWT_SECRET: ${ALOUTE_JWT_SECRET}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD must be set and non-empty}
+      ALOUTE_JWT_SECRET: ${ALOUTE_JWT_SECRET:?ALOUTE_JWT_SECRET must be set and non-empty}
       ALOUTE_JWT_EXPIRATION_SECONDS: ${ALOUTE_JWT_EXPIRATION_SECONDS:-86400}
     expose:
       - "8080"
