@@ -123,13 +123,15 @@ class ChatWebSocketControllerAuthorizationTest {
 
         private JwtTokenProvider jwtTokenProvider;
         private CustomUserDetailsService userDetailsService;
+        private ConversationMemberRepository memberRepository;
         private StompAuthChannelInterceptor interceptor;
 
         @BeforeEach
         void initInterceptor() {
             jwtTokenProvider = mock(JwtTokenProvider.class);
             userDetailsService = mock(CustomUserDetailsService.class);
-            interceptor = new StompAuthChannelInterceptor(jwtTokenProvider, userDetailsService);
+            memberRepository = mock(ConversationMemberRepository.class);
+            interceptor = new StompAuthChannelInterceptor(jwtTokenProvider, userDetailsService, memberRepository);
         }
 
         @Test
@@ -322,6 +324,180 @@ class ChatWebSocketControllerAuthorizationTest {
             assertThatThrownBy(() -> interceptor.preSend(message, mock(MessageChannel.class)))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Unauthenticated");
+        }
+
+        // --- SUBSCRIBE Destination Authorization Tests ---
+
+        @Test
+        @DisplayName("SUBSCRIBE with empty or blank destination is rejected")
+        void preSend_subscribe_emptyDestination_isRejected() {
+            StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+            accessor.setUser(aliceStompAuth);
+            accessor.setDestination("   ");
+            Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+            assertThatThrownBy(() -> interceptor.preSend(message, mock(MessageChannel.class)))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Subscription destination cannot be empty");
+        }
+
+        @Test
+        @DisplayName("SUBSCRIBE to user queue by unauthenticated or anonymous user is rejected")
+        void preSend_subscribe_userQueue_unauthenticated_isRejected() {
+            List<String> userDestinations = List.of(
+                    "/user/queue/messages",
+                    "/user/queue/typing",
+                    "/user/queue/read-receipts",
+                    "/user/queue/notifications",
+                    "/queue/messages"
+            );
+
+            for (String dest : userDestinations) {
+                StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+                accessor.setDestination(dest);
+                // No user set (unauthenticated)
+                Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+                assertThatThrownBy(() -> interceptor.preSend(message, mock(MessageChannel.class)))
+                        .as("Unauthenticated subscription to %s must be rejected", dest)
+                        .isInstanceOf(IllegalArgumentException.class)
+                        .hasMessageContaining("Unauthenticated");
+            }
+        }
+
+        @Test
+        @DisplayName("SUBSCRIBE to user queue by authenticated user succeeds")
+        void preSend_subscribe_userQueue_authenticated_succeeds() {
+            List<String> userDestinations = List.of(
+                    "/user/queue/messages",
+                    "/user/queue/typing",
+                    "/user/queue/read-receipts",
+                    "/user/queue/notifications"
+            );
+
+            for (String dest : userDestinations) {
+                StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+                accessor.setUser(aliceStompAuth);
+                accessor.setDestination(dest);
+                Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+                Message<?> result = interceptor.preSend(message, mock(MessageChannel.class));
+                assertThat(result).isNotNull();
+            }
+        }
+
+        @Test
+        @DisplayName("SUBSCRIBE to another user's explicit queue by authenticated user is rejected")
+        void preSend_subscribe_otherUserQueue_isRejected() {
+            StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+            accessor.setUser(aliceStompAuth); // Alice has userId 100
+            accessor.setDestination("/user/200/queue/messages"); // Attempts to subscribe to Bob (200)
+            Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+            assertThatThrownBy(() -> interceptor.preSend(message, mock(MessageChannel.class)))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Cannot subscribe to another user's queue");
+        }
+
+        @Test
+        @DisplayName("SUBSCRIBE to conversation destination by unauthenticated user is rejected")
+        void preSend_subscribe_conversation_unauthenticated_isRejected() {
+            StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+            accessor.setDestination("/topic/conversation/1");
+            Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+            assertThatThrownBy(() -> interceptor.preSend(message, mock(MessageChannel.class)))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Unauthenticated");
+        }
+
+        @Test
+        @DisplayName("SUBSCRIBE to conversation destination by non-member is rejected")
+        void preSend_subscribe_conversation_nonMember_isRejected() {
+            when(memberRepository.existsByConversationIdAndUserId(1L, outsiderEveId)).thenReturn(false);
+
+            StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+            accessor.setUser(eveStompAuth);
+            accessor.setDestination("/topic/conversation/1");
+            Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+            assertThatThrownBy(() -> interceptor.preSend(message, mock(MessageChannel.class)))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("not a member of conversation 1");
+
+            verify(memberRepository).existsByConversationIdAndUserId(1L, outsiderEveId);
+        }
+
+        @Test
+        @DisplayName("SUBSCRIBE to conversation destination by active member succeeds")
+        void preSend_subscribe_conversation_member_succeeds() {
+            when(memberRepository.existsByConversationIdAndUserId(1L, memberAliceId)).thenReturn(true);
+
+            List<String> conversationDestinations = List.of(
+                    "/topic/conversation/1",
+                    "/topic/conversations/1",
+                    "/queue/conversation/1",
+                    "/user/queue/conversation/1"
+            );
+
+            for (String dest : conversationDestinations) {
+                StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+                accessor.setUser(aliceStompAuth);
+                accessor.setDestination(dest);
+                Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+                Message<?> result = interceptor.preSend(message, mock(MessageChannel.class));
+                assertThat(result).isNotNull();
+            }
+
+            verify(memberRepository, times(conversationDestinations.size())).existsByConversationIdAndUserId(1L, memberAliceId);
+        }
+
+        @Test
+        @DisplayName("SUBSCRIBE to malformed or wildcard conversation destination is rejected")
+        void preSend_subscribe_malformedConversation_isRejected() {
+            List<String> malformedDestinations = List.of(
+                    "/topic/conversation/not-a-number",
+                    "/topic/conversation/*",
+                    "/topic/conversations/abc",
+                    "/topic/chat/xyz"
+            );
+
+            for (String dest : malformedDestinations) {
+                StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+                accessor.setUser(aliceStompAuth);
+                accessor.setDestination(dest);
+                Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+                assertThatThrownBy(() -> interceptor.preSend(message, mock(MessageChannel.class)))
+                        .as("Malformed destination %s must be rejected", dest)
+                        .isInstanceOf(IllegalArgumentException.class)
+                        .hasMessageContaining("Invalid conversation destination");
+            }
+        }
+
+        @Test
+        @DisplayName("SUBSCRIBE to public destination succeeds without membership check")
+        void preSend_subscribe_publicDestination_succeeds() {
+            List<String> publicDestinations = List.of(
+                    "/topic/public",
+                    "/topic/announcements",
+                    "/topic/feed",
+                    "/topic/system-status"
+            );
+
+            for (String dest : publicDestinations) {
+                StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+                accessor.setUser(aliceStompAuth);
+                accessor.setDestination(dest);
+                Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+                Message<?> result = interceptor.preSend(message, mock(MessageChannel.class));
+                assertThat(result).isNotNull();
+            }
+
+            // Membership repo never queried for public destinations
+            verifyNoInteractions(memberRepository);
         }
     }
 
