@@ -391,6 +391,18 @@ class ProductionSecretsSafetyTest {
         Assumptions.assumeTrue(isDockerComposeAvailable(),
                 "Docker Compose CLI is not available in the current environment; skipping CLI validation");
 
+        List<Path> composeFiles = List.of(
+                Paths.get("docker-compose.yml"),
+                Paths.get("deploy", "compose", "compose.prod.yml")
+        );
+
+        for (Path composeFile : composeFiles) {
+            assertThat(composeFile).exists();
+            validateComposeFileWithCli(composeFile);
+        }
+    }
+
+    private void validateComposeFileWithCli(Path composeFile) throws Exception {
         Path emptyEnv = Files.createTempFile("empty-compose", ".env");
         try {
             Map<String, String> validDummySecrets = Map.of(
@@ -400,9 +412,9 @@ class ProductionSecretsSafetyTest {
             );
 
             // 1. Success case: all dummy secrets provided
-            ProcessResult successResult = runDockerComposeConfig(emptyEnv, validDummySecrets);
+            ProcessResult successResult = runDockerComposeConfig(composeFile, emptyEnv, validDummySecrets);
             assertThat(successResult.exitCode())
-                    .as("docker compose config should succeed when all required secrets are provided: %s", successResult.output())
+                    .as("docker compose config should succeed for %s when all required secrets are provided: %s", composeFile, successResult.output())
                     .isEqualTo(0);
 
             // 2. Missing and empty checks for each required secret
@@ -410,23 +422,23 @@ class ProductionSecretsSafetyTest {
                 // Missing case
                 Map<String, String> missingEnv = new HashMap<>(validDummySecrets);
                 missingEnv.remove(secretVar);
-                ProcessResult missingResult = runDockerComposeConfig(emptyEnv, missingEnv);
+                ProcessResult missingResult = runDockerComposeConfig(composeFile, emptyEnv, missingEnv);
                 assertThat(missingResult.exitCode())
-                        .as("docker compose config should fail when %s is missing", secretVar)
+                        .as("docker compose config should fail for %s when %s is missing", composeFile, secretVar)
                         .isNotEqualTo(0);
                 assertThat(missingResult.output())
-                        .as("docker compose output should mention %s when missing", secretVar)
+                        .as("docker compose output should mention %s when missing for %s", secretVar, composeFile)
                         .contains(secretVar);
 
                 // Empty case
                 Map<String, String> emptyValEnv = new HashMap<>(validDummySecrets);
                 emptyValEnv.put(secretVar, "");
-                ProcessResult emptyValResult = runDockerComposeConfig(emptyEnv, emptyValEnv);
+                ProcessResult emptyValResult = runDockerComposeConfig(composeFile, emptyEnv, emptyValEnv);
                 assertThat(emptyValResult.exitCode())
-                        .as("docker compose config should fail when %s is empty", secretVar)
+                        .as("docker compose config should fail for %s when %s is empty", composeFile, secretVar)
                         .isNotEqualTo(0);
                 assertThat(emptyValResult.output())
-                        .as("docker compose output should mention %s when empty", secretVar)
+                        .as("docker compose output should mention %s when empty for %s", secretVar, composeFile)
                         .contains(secretVar);
             }
         } finally {
@@ -454,8 +466,8 @@ class ProductionSecretsSafetyTest {
         }
     }
 
-    private ProcessResult runDockerComposeConfig(Path emptyEnvFile, Map<String, String> secretEnv) throws Exception {
-        Path composeFile = Paths.get("docker-compose.yml").toAbsolutePath();
+    private ProcessResult runDockerComposeConfig(Path composePath, Path emptyEnvFile, Map<String, String> secretEnv) throws Exception {
+        Path composeFile = composePath.toAbsolutePath();
         Path tempOutputFile = Files.createTempFile("compose-config-output", ".log");
         Process process = null;
         try {
@@ -487,7 +499,7 @@ class ProductionSecretsSafetyTest {
             if (!finished) {
                 process.destroyForcibly();
                 process.waitFor(5, TimeUnit.SECONDS);
-                throw new IllegalStateException("docker compose config timed out");
+                throw new IllegalStateException("docker compose config timed out for " + composePath);
             }
             String output = Files.readString(tempOutputFile, StandardCharsets.UTF_8);
             return new ProcessResult(process.exitValue(), output);
