@@ -384,6 +384,47 @@ class ChatWebSocketControllerAuthorizationTest {
         }
 
         @Test
+        @DisplayName("SUBSCRIBE to real queue with unauthenticated numeric-name lambda Principal fails closed")
+        void preSend_subscribe_numericNameSpoofPrincipal_failsClosed() {
+            Principal numericSpoof = () -> "100";
+            List<String> realDestinations = List.of(
+                    "/user/queue/messages",
+                    "/user/queue/typing",
+                    "/user/queue/read-receipts",
+                    "/user/queue/notifications"
+            );
+
+            for (String dest : realDestinations) {
+                StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+                accessor.setUser(numericSpoof);
+                accessor.setDestination(dest);
+                Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+                assertThatThrownBy(() -> interceptor.preSend(message, mock(MessageChannel.class)))
+                        .as("Numeric name spoof subscription to %s must be rejected", dest)
+                        .isInstanceOf(IllegalArgumentException.class)
+                        .hasMessageContaining("Unauthenticated");
+            }
+        }
+
+        @Test
+        @DisplayName("SUBSCRIBE with unauthenticated Authentication token (isAuthenticated=false) fails closed")
+        void preSend_subscribe_unauthenticatedToken_failsClosed() {
+            UsernamePasswordAuthenticationToken unauthToken =
+                    new UsernamePasswordAuthenticationToken(alicePrincipal, null);
+            assertThat(unauthToken.isAuthenticated()).isFalse();
+
+            StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+            accessor.setUser(unauthToken);
+            accessor.setDestination("/user/queue/messages");
+            Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+            assertThatThrownBy(() -> interceptor.preSend(message, mock(MessageChannel.class)))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Unauthenticated");
+        }
+
+        @Test
         @DisplayName("SUBSCRIBE to unknown topic destinations fails closed")
         void preSend_subscribe_unknownTopicDestinations_failClosed() {
             List<String> topicDestinations = List.of(

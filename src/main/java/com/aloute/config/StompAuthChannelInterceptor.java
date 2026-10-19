@@ -166,17 +166,8 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
     private Long extractUserId(Principal principal) {
         if (principal instanceof Authentication auth && auth.isAuthenticated()) {
-            if (auth.getPrincipal() instanceof UserPrincipal userPrincipal) {
+            if (auth.getPrincipal() instanceof UserPrincipal userPrincipal && userPrincipal.getId() != null) {
                 return userPrincipal.getId();
-            }
-        }
-        if (principal instanceof UserPrincipal userPrincipal) {
-            return userPrincipal.getId();
-        }
-        if (principal != null && principal.getName() != null) {
-            try {
-                return Long.parseLong(principal.getName());
-            } catch (NumberFormatException ignored) {
             }
         }
         return null;
