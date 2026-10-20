@@ -1,6 +1,7 @@
 package com.aloute.integration;
 
 import com.aloute.repository.UserRepository;
+import com.aloute.service.email.TestEmailSink;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +11,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.concurrent.TimeUnit;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -24,10 +28,11 @@ class AuthUserApiIntegrationTest {
 
     @Autowired MockMvc mockMvc;
     @Autowired UserRepository userRepository;
+    @Autowired private TestEmailSink emailSink;
 
     @BeforeEach
     void clean() {
-        // FK tables are recreated for the in-memory test context; tests use unique accounts.
+        emailSink.clearSink();
     }
 
     @Test
@@ -55,7 +60,36 @@ class AuthUserApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.username").value("friend_it"));
 
+        // Prior to verification, login is blocked with 401 AUTH_ACCOUNT_NOT_VERIFIED and no auth cookie
+        mockMvc.perform(post("/api/auth/login")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"khoi_it@example.com","password":"12345678"}
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("AUTH_ACCOUNT_NOT_VERIFIED"))
+                .andExpect(cookie().doesNotExist("aloute_access_token"));
+
+        // Retrieve OTP and verify registration for khoi_it
+        assertThat(emailSink.awaitOtpCount(2, 5, TimeUnit.SECONDS)).isTrue();
+        String khoiOtp = emailSink.getOtpSink().stream()
+                .filter(s -> "khoi_it@example.com".equalsIgnoreCase(s.toEmail()))
+                .map(TestEmailSink.SentOtp::otpCode)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("OTP for khoi_it not found"));
+
+        mockMvc.perform(post("/api/auth/verify-registration-otp")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"khoi_it@example.com","otp":"%s"}
+                                """.formatted(khoiOtp)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
         var loginResponse = mockMvc.perform(post("/api/auth/login")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"khoi_it@example.com","password":"12345678"}
