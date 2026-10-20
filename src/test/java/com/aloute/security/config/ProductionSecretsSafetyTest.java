@@ -409,7 +409,12 @@ class ProductionSecretsSafetyTest {
                     "MYSQL_PASSWORD", "safe_dummy_password",
                     "MYSQL_ROOT_PASSWORD", "safe_dummy_root_password",
                     "ALOUTE_JWT_SECRET", VALID_TEST_SECRET,
-                    "ALOUTE_REGISTRATION_OTP_SECRET", VALID_TEST_SECRET
+                    "ALOUTE_REGISTRATION_OTP_SECRET", VALID_TEST_SECRET,
+                    "ALOUTE_DOMAIN", "aloute.example.com",
+                    "ALOUTE_APP_BASE_URL", "https://aloute.example.com",
+                    "ALOUTE_MAIL_HOST", "smtp.example.com",
+                    "ALOUTE_MAIL_USERNAME", "smtp_user",
+                    "ALOUTE_MAIL_PASSWORD", "smtp_secret_password"
             );
 
             // 1. Success case: all dummy secrets provided
@@ -419,8 +424,17 @@ class ProductionSecretsSafetyTest {
                     .isEqualTo(0);
 
             // 2. Missing and empty checks for each required secret
-            for (String secretVar : List.of("MYSQL_PASSWORD", "MYSQL_ROOT_PASSWORD", "ALOUTE_JWT_SECRET", "ALOUTE_REGISTRATION_OTP_SECRET")) {
-                // Missing case
+            for (String secretVar : List.of(
+                    "MYSQL_PASSWORD",
+                    "MYSQL_ROOT_PASSWORD",
+                    "ALOUTE_JWT_SECRET",
+                    "ALOUTE_REGISTRATION_OTP_SECRET",
+                    "ALOUTE_DOMAIN",
+                    "ALOUTE_APP_BASE_URL",
+                    "ALOUTE_MAIL_HOST",
+                    "ALOUTE_MAIL_USERNAME",
+                    "ALOUTE_MAIL_PASSWORD"
+            )) {
                 Map<String, String> missingEnv = new HashMap<>(validDummySecrets);
                 missingEnv.remove(secretVar);
                 ProcessResult missingResult = runDockerComposeConfig(composeFile, emptyEnv, missingEnv);
@@ -492,6 +506,11 @@ class ProductionSecretsSafetyTest {
             env.remove("MYSQL_DATABASE");
             env.remove("MYSQL_PORT");
             env.remove("ALOUTE_JWT_EXPIRATION_SECONDS");
+            env.remove("ALOUTE_DOMAIN");
+            env.remove("ALOUTE_APP_BASE_URL");
+            env.remove("ALOUTE_MAIL_HOST");
+            env.remove("ALOUTE_MAIL_USERNAME");
+            env.remove("ALOUTE_MAIL_PASSWORD");
 
             // Apply only test-specified dummy secrets
             env.putAll(secretEnv);
