@@ -585,6 +585,10 @@ Format:
 | | `AUTH_TOKEN_EXPIRED` | 401 Unauthorized | Token xác thực đã hết hạn |
 | | `AUTH_FORBIDDEN` | 403 Forbidden | Đã xác thực nhưng tài khoản không có quyền thực hiện hành động |
 | | `AUTH_ACCOUNT_LOCKED` | 403 Forbidden | Tài khoản bị tạm khóa hoặc đình chỉ hoạt động |
+| | `AUTH_ACCOUNT_NOT_VERIFIED` | 401 Unauthorized | Tài khoản chưa hoàn thành xác thực email OTP |
+| | `INVALID_OTP` | 400 Bad Request | Mã xác thực không hợp lệ hoặc đã hết hạn |
+| | `OTP_EXPIRED` | 400 Bad Request | Mã xác thực đã hết hạn |
+| | `OTP_MAX_ATTEMPTS_EXCEEDED` | 400 Bad Request | Đã vượt quá số lần thử xác thực tối đa cho phép |
 | **USER** | `USER_NOT_FOUND` | 404 Not Found | Người dùng không tồn tại |
 | | `USER_INACTIVE` | 403 Forbidden | Tài khoản người dùng đang bị vô hiệu hóa |
 | | `USER_USERNAME_ALREADY_EXISTS` | 409 Conflict | Username đã được sử dụng |
