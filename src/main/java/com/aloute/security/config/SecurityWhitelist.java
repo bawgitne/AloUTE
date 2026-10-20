@@ -12,6 +12,11 @@ public final class SecurityWhitelist {
             "/api/auth/login"
     };
 
+    public static final String[] PUBLIC_RECOVERY_POST = {
+            "/api/auth/forgot-password",
+            "/api/auth/reset-password"
+    };
+
     public static final String[] PUBLIC_GET = {
             "/api/auth/me",
             "/api/users/*",
@@ -43,6 +48,8 @@ public final class SecurityWhitelist {
             "/feed",
             "/login",
             "/register",
+            "/forgot-password",
+            "/reset-password",
             "/explore",
             "/post/**",
             "/posts/**",
@@ -68,6 +75,7 @@ public final class SecurityWhitelist {
             "/friends/**",
             "/messages",
             "/messages/**",
+
             "/notifications",
             "/notifications/**",
             "/search",

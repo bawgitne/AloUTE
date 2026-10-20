@@ -22,18 +22,18 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     public static final String COOKIE_NAME="aloute_access_token";
-    private final JwtTokenProvider tokenProvider;
-    private final CustomUserDetailsService userDetailsService;
+    private final JwtSessionService jwtSessionService;
+
     @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
         String token=readCookie(request); if (token==null) token=readBearer(request);
         if (token!=null && SecurityContextHolder.getContext().getAuthentication()==null) {
             try {
-                Long id=tokenProvider.parseUserId(token); UserPrincipal p=userDetailsService.loadById(id);
+                UserPrincipal p = jwtSessionService.authenticate(token);
                 if (p.isEnabled()) {
                     UsernamePasswordAuthenticationToken a=new UsernamePasswordAuthenticationToken(p,null,p.getAuthorities());
                     a.setDetails(new WebAuthenticationDetailsSource().buildDetails(request)); SecurityContextHolder.getContext().setAuthentication(a);
                 }
-            } catch (JwtException|IllegalArgumentException|org.springframework.security.core.userdetails.UsernameNotFoundException ex) { SecurityContextHolder.clearContext(); }
+            } catch (org.springframework.security.core.AuthenticationException | IllegalArgumentException ex) { SecurityContextHolder.clearContext(); }
         }
         chain.doFilter(request,response);
     }
