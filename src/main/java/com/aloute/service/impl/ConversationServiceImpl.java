@@ -177,22 +177,44 @@ public class ConversationServiceImpl implements ConversationService {
 
         MessageResponse response = mapToMessageResponse(msg);
 
-        // Realtime STOMP transport (Persist-Before-Publish)
+        // Realtime STOMP transport (Persist-Before-Publish: AFTER_COMMIT)
         if (messagingTemplate != null) {
-            try {
-                List<ConversationMember> members = conversationMemberRepository.findByConversationId(conversationId);
-                for (ConversationMember m : members) {
-                    if (!m.getUser().getId().equals(currentUserId)) {
+            List<Long> recipientIds = conversationMemberRepository.findByConversationId(conversationId).stream()
+                    .map(m -> m.getUser().getId())
+                    .filter(id -> !id.equals(currentUserId))
+                    .toList();
+            log.info("SendMessage: recipientIds={}", recipientIds);
+
+            Runnable publishTask = () -> {
+                for (Long recipientId : recipientIds) {
+                    try {
+                        log.info("Sending realtime message to user {} destination /queue/messages", recipientId);
                         messagingTemplate.convertAndSendToUser(
-                                String.valueOf(m.getUser().getId()),
+                                String.valueOf(recipientId),
                                 "/queue/messages",
                                 response
                         );
+                        log.info("Successfully published realtime message to user {}", recipientId);
+                    } catch (Exception ex) {
+                        log.warn("Failed to publish realtime websocket message to user {}: {}", recipientId, ex.getMessage());
                     }
                 }
-            } catch (Exception ex) {
-                log.warn("Failed to publish realtime websocket message: {}", ex.getMessage());
+            };
+
+            if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+                org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                        new org.springframework.transaction.support.TransactionSynchronization() {
+                            @Override
+                            public void afterCommit() {
+                                publishTask.run();
+                            }
+                        }
+                );
+            } else {
+                publishTask.run();
             }
+        } else {
+            log.warn("messagingTemplate is null in ConversationServiceImpl!");
         }
 
         log.info("Sent message id={} to conversation={}", msg.getId(), conversationId);

@@ -100,6 +100,62 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
 
+  /api/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request password reset link
+      description: |
+        Generates a secure single-use expiring reset token and sends a recovery email
+        with a fragment-based link. Returns generic confirmation regardless of email existence.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: Generic instructions confirmation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseNull'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /api/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password using secure token
+      description: |
+        Atomically replaces password hash, increments account authVersion (invalidating all active JWTs),
+        and consumes the reset token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password reset successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseNull'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
   /api/auth/logout:
     post:
       tags: [Auth]
@@ -2096,6 +2152,13 @@ components:
         minimum: 1
 
   responses:
+    RateLimitExceeded:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
     BadRequest:
       description: Malformed or invalid request
       content:
@@ -2139,6 +2202,32 @@ components:
             $ref: '#/components/schemas/ErrorEnvelope'
 
   schemas:
+
+    ApiResponseNull:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          nullable: true
+          example: null
+
+    ApiResponseMessage:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          required: [message]
+          properties:
+            message:
+              type: string
+              example: "Thao tác thành công."
 
     ApiError:
       type: object
@@ -2749,6 +2838,30 @@ components:
           format: email
         password:
           type: string
+
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+
+    ResetPasswordRequest:
+      type: object
+      required: [token, password, confirmPassword]
+      properties:
+        token:
+          type: string
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+        confirmPassword:
+          type: string
+          minLength: 8
+          maxLength: 128
 
     UpdateProfileRequest:
       type: object

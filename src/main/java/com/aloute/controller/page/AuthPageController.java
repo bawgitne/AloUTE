@@ -38,4 +38,21 @@ public class AuthPageController {
         }
         return "auth/register";
     }
+
+    @GetMapping("/forgot-password")
+    public String forgotPasswordPage() {
+        if (currentUserProvider.getCurrentUserId().isPresent()) {
+            return "redirect:/feed";
+        }
+        return "auth/forgot-password";
+    }
+
+    @GetMapping("/reset-password")
+    public String resetPasswordPage(jakarta.servlet.http.HttpServletResponse response) {
+        if (currentUserProvider.getCurrentUserId().isPresent()) {
+            return "redirect:/feed";
+        }
+        response.setHeader("Referrer-Policy", "no-referrer");
+        return "auth/reset-password";
+    }
 }

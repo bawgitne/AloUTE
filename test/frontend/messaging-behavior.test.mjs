@@ -196,6 +196,15 @@ class MockElement {
         }
     }
 
+    click() {
+        this.dispatchEvent({
+            type: 'click',
+            target: this,
+            preventDefault: () => {},
+            stopPropagation: () => {}
+        });
+    }
+
     addEventListener(type, fn) {
         if (!this._listeners.has(type)) this._listeners.set(type, []);
         this._listeners.get(type).push(fn);
@@ -752,6 +761,1261 @@ describe('Messaging Frontend & Behavior Regression Tests', () => {
 
             assert.equal(env.getRedirectedTo(), null, 'Must not navigate on network failure');
             assert.equal(env.btn.hasAttribute('disabled'), false, 'Button must be restored for retry');
+        });
+    });
+
+    describe('STOMP Realtime & Catch-Up Behavior', () => {
+
+        class FakeWebSocket {
+            static OPEN = 1;
+            static CLOSED = 3;
+            constructor(url) {
+                this.url = url;
+                this.readyState = 1;
+                this.sentFrames = [];
+                FakeWebSocket.instances.push(this);
+                setTimeout(() => {
+                    if (this.onopen) this.onopen();
+                }, 5);
+            }
+            send(frame) {
+                this.sentFrames.push(frame);
+            }
+            close() {
+                this.readyState = 3;
+                if (this.onclose) this.onclose();
+            }
+            receive(data) {
+                if (this.onmessage) this.onmessage({ data });
+            }
+        }
+
+        function hasMessageInHistory(doc, text) {
+            const historyEl = doc.getElementById('chat-history');
+            if (!historyEl) return false;
+            if (historyEl.innerHTML && historyEl.innerHTML.includes(text)) return true;
+            return historyEl.children.some(c => (c.innerHTML && c.innerHTML.includes(text)) || (c.textContent && c.textContent.includes(text)));
+        }
+
+        function createStompSandbox(doc, mockFetch) {
+            FakeWebSocket.instances = [];
+            const listeners = new Map();
+            const win = {
+                location: { pathname: '/messages/42', search: '', protocol: 'http:', host: 'localhost:8080' },
+                innerWidth: 1024,
+                scrollY: 0,
+                WebSocket: FakeWebSocket,
+                addEventListener: (t, fn) => {
+                    if (!listeners.has(t)) listeners.set(t, []);
+                    listeners.get(t).push(fn);
+                },
+                removeEventListener: (t, fn) => {
+                    if (!listeners.has(t)) return;
+                    listeners.set(t, listeners.get(t).filter(l => l !== fn));
+                },
+                dispatchEvent: (e) => {
+                    const fns = listeners.get(e.type) || [];
+                    fns.forEach(fn => fn(e));
+                },
+                setTimeout: globalThis.setTimeout,
+                clearTimeout: globalThis.clearTimeout
+            };
+
+            const sandbox = {
+                document: doc,
+                window: win,
+                WebSocket: FakeWebSocket,
+                fetch: mockFetch,
+                URLSearchParams: globalThis.URLSearchParams,
+                AbortController: globalThis.AbortController,
+                setTimeout: globalThis.setTimeout,
+                clearTimeout: globalThis.clearTimeout,
+                console: console
+            };
+
+            return { sandbox, win };
+        }
+
+        it('connects STOMP with 0,0 heartbeats and subscribes to /user/queue/messages', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc);
+
+            const mockFetch = async (url) => {
+                if (url.includes('/api/conversations/42/messages')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: [],
+                            meta: { page: 0, hasNext: false }
+                        })
+                    };
+                }
+                if (url.includes('/api/conversations/42')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: { id: 42, name: 'Hội thoại 42' }
+                        })
+                    };
+                }
+                if (url.includes('/api/conversations?')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: [{ id: 42, name: 'Hội thoại 42', lastMessage: null }],
+                            meta: { page: 0, hasNext: false }
+                        })
+                    };
+                }
+                return { ok: true, status: 200, text: async () => '{"success":true}' };
+            };
+
+            const { sandbox } = createStompSandbox(doc, mockFetch);
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 20));
+
+            assert.equal(FakeWebSocket.instances.length, 1, 'FakeWebSocket should have 1 connection');
+            const ws = FakeWebSocket.instances[0];
+
+            // Verify CONNECT frame advertises heart-beat:0,0
+            assert.ok(ws.sentFrames.some(f => f.includes('CONNECT') && f.includes('heart-beat:0,0')), 'CONNECT frame must advertise heart-beat:0,0');
+
+            // Server responds with CONNECTED
+            ws.receive('CONNECTED\nversion:1.2\nheart-beat:0,0\n\n\0');
+            await new Promise(r => setTimeout(r, 10));
+
+            // Verify client subscribed to /user/queue/messages
+            assert.ok(ws.sentFrames.some(f => f.includes('SUBSCRIBE') && f.includes('/user/queue/messages')), 'Client must subscribe to /user/queue/messages');
+        });
+
+        it('handles leading heartbeats and fragmented frames in STOMP message delivery', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc);
+
+            const mockFetch = async (url) => {
+                if (url.includes('/api/conversations/42/messages')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: [],
+                            meta: { page: 0, hasNext: false }
+                        })
+                    };
+                }
+                if (url.includes('/api/conversations/42')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: { id: 42, name: 'Hội thoại 42' }
+                        })
+                    };
+                }
+                if (url.includes('/api/conversations?')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: [{ id: 42, name: 'Hội thoại 42', lastMessage: null }],
+                            meta: { page: 0, hasNext: false }
+                        })
+                    };
+                }
+                return { ok: true, status: 200, text: async () => '{"success":true}' };
+            };
+
+            const { sandbox } = createStompSandbox(doc, mockFetch);
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 20));
+            const ws = FakeWebSocket.instances[0];
+            ws.receive('CONNECTED\nversion:1.2\nheart-beat:0,0\n\n\0');
+            await new Promise(r => setTimeout(r, 10));
+
+            // Send leading newlines (heartbeats) + fragmented frame across two chunks
+            const chunk1 = '\n\nMESSAGE\ndestination:/user/queue/messages\n\n{"id":888,"conversationId":42,"content":"Chunked payload",';
+            const chunk2 = '"createdAt":"2026-10-20T05:00:00Z","sender":{"id":2,"username":"bob"}}\0';
+
+            ws.receive(chunk1);
+            // Before chunk 2, message should NOT yet be rendered
+            assert.ok(!hasMessageInHistory(doc, 'Chunked payload'), 'Message must not render while frame is fragmented');
+
+            ws.receive(chunk2);
+            await new Promise(r => setTimeout(r, 10));
+
+            // After chunk 2, message must be rendered
+            assert.ok(hasMessageInHistory(doc, 'Chunked payload'), 'Message must render after complete frame is received');
+        });
+
+        it('reconnect catch-up merges in-flight messages without overwriting', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc);
+
+            let fetchCounter = 0;
+            const mockFetch = async (url) => {
+                if (url.includes('/api/conversations/42/messages')) {
+                    fetchCounter++;
+                    if (fetchCounter === 1) {
+                        return {
+                            ok: true,
+                            status: 200,
+                            text: async () => JSON.stringify({
+                                success: true,
+                                data: [{ id: 100, content: 'Initial message', createdAt: '2026-10-20T04:00:00Z', sender: { id: 1 } }],
+                                meta: { page: 0, hasNext: false }
+                            })
+                        };
+                    } else {
+                        // Reconnect catch-up fetch returns server's persisted list (missing the very latest in-flight message)
+                        return {
+                            ok: true,
+                            status: 200,
+                            text: async () => JSON.stringify({
+                                success: true,
+                                data: [
+                                    { id: 101, content: 'Persisted msg 101', createdAt: '2026-10-20T04:30:00Z', sender: { id: 2 } },
+                                    { id: 100, content: 'Initial message', createdAt: '2026-10-20T04:00:00Z', sender: { id: 1 } }
+                                ],
+                                meta: { page: 0, hasNext: false }
+                            })
+                        };
+                    }
+                }
+                if (url.includes('/api/conversations/42')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: { id: 42, name: 'Hội thoại 42' }
+                        })
+                    };
+                }
+                if (url.includes('/api/conversations?')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: [{ id: 42, name: 'Hội thoại 42', lastMessage: null }],
+                            meta: { page: 0, hasNext: false }
+                        })
+                    };
+                }
+                return { ok: true, status: 200, text: async () => '{"success":true}' };
+            };
+
+            const { sandbox } = createStompSandbox(doc, mockFetch);
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 20));
+            const ws = FakeWebSocket.instances[0];
+            ws.receive('CONNECTED\nversion:1.2\nheart-beat:0,0\n\n\0');
+            await new Promise(r => setTimeout(r, 10));
+
+            // Deliver in-flight real-time message 102
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":102,"conversationId":42,"content":"In-flight realtime msg 102","createdAt":"2026-10-20T04:45:00Z","sender":{"id":2,"username":"bob"}}\0');
+            await new Promise(r => setTimeout(r, 10));
+
+            assert.ok(hasMessageInHistory(doc, 'In-flight realtime msg 102'), 'In-flight message must be visible');
+
+            // Trigger re-connect CONNECTED event which initiates REST catch-up
+            ws.receive('CONNECTED\nversion:1.2\nheart-beat:0,0\n\n\0');
+            await new Promise(r => setTimeout(r, 25));
+
+            // Verify both the REST catch-up msg (101) and the in-flight realtime msg (102) are present
+            assert.ok(hasMessageInHistory(doc, 'Persisted msg 101'), 'REST catchup message 101 must be rendered');
+            assert.ok(hasMessageInHistory(doc, 'In-flight realtime msg 102'), 'In-flight message 102 must NOT be overwritten by catchup');
+        });
+
+        it('cleans up socket and cancels timers on pagehide', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc);
+
+            const mockFetch = async () => ({
+                ok: true,
+                status: 200,
+                text: async () => JSON.stringify({ success: true, data: [], meta: { page: 0, hasNext: false } })
+            });
+
+            const { sandbox, win } = createStompSandbox(doc, mockFetch);
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 20));
+            const ws = FakeWebSocket.instances[0];
+            assert.equal(ws.readyState, 1, 'Socket should be open initially');
+
+            // Trigger pagehide event
+            win.dispatchEvent({ type: 'pagehide' });
+
+            assert.equal(ws.readyState, 3, 'Socket must be closed after pagehide');
+        });
+
+        it('sends POST read receipt when incoming STOMP message arrives in active conversation', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc);
+
+            let readReceiptCalled = false;
+            let readReceiptUrl = '';
+
+            const mockFetch = async (url, opts) => {
+                if (url.includes('/read') && opts && opts.method === 'POST') {
+                    readReceiptCalled = true;
+                    readReceiptUrl = url;
+                    return { ok: true, status: 200, text: async () => '{"success":true}' };
+                }
+                if (url.includes('/api/conversations/42/messages')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({ success: true, data: [], meta: { page: 0, hasNext: false } })
+                    };
+                }
+                if (url.includes('/api/conversations/42')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({ success: true, data: { id: 42, name: 'Hội thoại 42' } })
+                    };
+                }
+                if (url.includes('/api/conversations?')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: [{ id: 42, name: 'Hội thoại 42', lastMessage: null }],
+                            meta: { page: 0, hasNext: false }
+                        })
+                    };
+                }
+                return { ok: true, status: 200, text: async () => '{"success":true}' };
+            };
+
+            const { sandbox } = createStompSandbox(doc, mockFetch);
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 20));
+            const ws = FakeWebSocket.instances[0];
+            ws.receive('CONNECTED\nversion:1.2\nheart-beat:0,0\n\n\0');
+            await new Promise(r => setTimeout(r, 10));
+
+            // Deliver incoming message to active conversation 42
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":777,"conversationId":42,"content":"Hello active read receipt","createdAt":"2026-10-20T05:00:00Z","sender":{"id":2,"username":"bob"}}\0');
+            await new Promise(r => setTimeout(r, 20));
+
+            assert.ok(readReceiptCalled, 'Read receipt POST must be dispatched for active incoming message');
+            assert.ok(readReceiptUrl.includes('/api/conversations/42/read'), 'Read receipt must target active conversation');
+        });
+
+        it('deduplicates duplicate STOMP events and does not increment unread twice', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc);
+
+            const mockFetch = async (url) => {
+                if (url.includes('/api/conversations?')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: [
+                                { id: 42, name: 'Hội thoại 42', lastMessage: null },
+                                { id: 99, name: 'Hội thoại 99 (Inactive)', lastMessage: null, unreadCount: 0 }
+                            ],
+                            meta: { page: 0, hasNext: false }
+                        })
+                    };
+                }
+                return { ok: true, status: 200, text: async () => '{"success":true}' };
+            };
+
+            const { sandbox } = createStompSandbox(doc, mockFetch);
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 20));
+            const ws = FakeWebSocket.instances[0];
+            ws.receive('CONNECTED\nversion:1.2\nheart-beat:0,0\n\n\0');
+            await new Promise(r => setTimeout(r, 10));
+
+            // Deliver message 888 for inactive conversation 99
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":888,"conversationId":99,"content":"First delivery","createdAt":"2026-10-20T05:01:00Z","sender":{"id":3,"username":"eve"}}\0');
+            await new Promise(r => setTimeout(r, 10));
+
+            // Deliver DUPLICATE of message 888
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":888,"conversationId":99,"content":"First delivery","createdAt":"2026-10-20T05:01:00Z","sender":{"id":3,"username":"eve"}}\0');
+            await new Promise(r => setTimeout(r, 10));
+
+            // Find conversation 99 in rendered list
+            const convList = doc.getElementById('conversations-list');
+            assert.ok(convList, 'conversations-list must exist');
+            const item99 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '99');
+            assert.ok(item99, 'Conversation 99 item must be rendered');
+            // Unread badge in innerHTML should show 1, NOT 2
+            assert.ok(item99.innerHTML.includes('badge'), 'Unread badge must be rendered');
+            assert.ok(item99.innerHTML.includes('>1</span>'), 'Unread badge must show count 1');
+            assert.ok(!item99.innerHTML.includes('>2</span>'), 'Duplicate event must NOT increment unreadCount twice');
+        });
+
+        it('reconnects and restores STOMP on pageshow when persisted from bfcache', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc);
+
+            const mockFetch = async () => ({
+                ok: true,
+                status: 200,
+                text: async () => JSON.stringify({ success: true, data: [], meta: { page: 0, hasNext: false } })
+            });
+
+            const { sandbox, win } = createStompSandbox(doc, mockFetch);
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 20));
+            const initialCount = FakeWebSocket.instances.length;
+            assert.equal(initialCount, 1, 'Initial WebSocket instance created');
+
+            // Page navigates away into bfcache (pagehide)
+            win.dispatchEvent({ type: 'pagehide' });
+            assert.equal(FakeWebSocket.instances[0].readyState, 3, 'Old socket closed');
+
+            // Page restored from bfcache (pageshow with persisted: true)
+            win.dispatchEvent({ type: 'pageshow', persisted: true });
+            await new Promise(r => setTimeout(r, 20));
+
+            assert.equal(FakeWebSocket.instances.length, 2, 'New WebSocket created on pageshow restore');
+            assert.equal(FakeWebSocket.instances[1].readyState, 1, 'New WebSocket is open');
+        });
+
+        it('does not increment inactive unread count if HTTP summary already reflects incoming message ID', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc);
+
+            const mockFetch = async (url) => {
+                if (url.includes('/api/conversations?')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: [
+                                { id: 42, name: 'Hội thoại 42', lastMessage: null },
+                                {
+                                    id: 99,
+                                    name: 'Hội thoại 99 (Inactive)',
+                                    lastMessage: { id: 900, content: 'Already in HTTP summary', createdAt: '2026-10-20T05:00:00Z' },
+                                    unreadCount: 1
+                                }
+                            ],
+                            meta: { page: 0, hasNext: false }
+                        })
+                    };
+                }
+                return { ok: true, status: 200, text: async () => '{"success":true}' };
+            };
+
+            const { sandbox } = createStompSandbox(doc, mockFetch);
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 20));
+            const ws = FakeWebSocket.instances[0];
+            ws.receive('CONNECTED\nversion:1.2\nheart-beat:0,0\n\n\0');
+            await new Promise(r => setTimeout(r, 10));
+
+            // Deliver message 900 which was ALREADY in HTTP summary
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":900,"conversationId":99,"content":"Already in HTTP summary","createdAt":"2026-10-20T05:00:00Z","sender":{"id":3,"username":"eve"}}\0');
+            await new Promise(r => setTimeout(r, 10));
+
+            const convList = doc.getElementById('conversations-list');
+            const item99 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '99');
+            assert.ok(item99, 'Conversation 99 item must be rendered');
+            assert.ok(item99.innerHTML.includes('>1</span>'), 'Unread count must stay 1, not incremented to 2');
+            assert.ok(!item99.innerHTML.includes('>2</span>'), 'Must not double count already-reflected message');
+        });
+
+        it('dispatches active read receipt even if incoming message is already present in message history', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc, { initialConvId: 42 });
+
+            let readReceiptCalled = false;
+            let readReceiptUrl = '';
+
+            const mockFetch = async (url) => {
+                if (url.includes('/read')) {
+                    readReceiptCalled = true;
+                    readReceiptUrl = url;
+                    return { ok: true, status: 200, text: async () => '{"success":true}' };
+                }
+                if (url.includes('/api/conversations/42/messages')) {
+                    // Pre-populate message history with message 778
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: [{ id: 778, conversationId: 42, content: 'Already loaded in history', createdAt: '2026-10-20T04:59:00Z', sender: { id: 2, username: 'bob' } }],
+                            meta: { page: 0, hasNext: false }
+                        })
+                    };
+                }
+                if (url.includes('/api/conversations/42')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({ success: true, data: { id: 42, name: 'Hội thoại 42' } })
+                    };
+                }
+                if (url.includes('/api/conversations?')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: [{ id: 42, name: 'Hội thoại 42', lastMessage: null }],
+                            meta: { page: 0, hasNext: false }
+                        })
+                    };
+                }
+                return { ok: true, status: 200, text: async () => '{"success":true}' };
+            };
+
+            const { sandbox } = createStompSandbox(doc, mockFetch);
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 25));
+            const ws = FakeWebSocket.instances[0];
+            ws.receive('CONNECTED\nversion:1.2\nheart-beat:0,0\n\n\0');
+            await new Promise(r => setTimeout(r, 10));
+
+            // Deliver message 778 which is already in history
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":778,"conversationId":42,"content":"Already loaded in history","createdAt":"2026-10-20T04:59:00Z","sender":{"id":2,"username":"bob"}}\0');
+            await new Promise(r => setTimeout(r, 20));
+
+            assert.ok(readReceiptCalled, 'Read receipt must be dispatched even if message already in history');
+            assert.ok(readReceiptUrl.includes('/api/conversations/42/read'), 'Read receipt targets conversation 42');
+
+            // History should NOT have duplicate bubbles for message 778
+            const history = doc.getElementById('chat-history');
+            const bubbles = history.children.filter(c => c.innerHTML && c.innerHTML.includes('Already loaded in history'));
+            assert.equal(bubbles.length, 1, 'Must not render duplicate message bubble');
+        });
+
+        it('D1: summary refresh carrying lastMessage ID does not prevent first live STOMP event from appending bubble and dispatching read receipt', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc, { initialConvId: 10 });
+
+            let readReceiptCalledCount = 0;
+            let convCallCount = 0;
+
+            const mockFetch = async (url) => {
+                if (url.includes('/read')) {
+                    readReceiptCalledCount++;
+                    return { ok: true, status: 200, text: async () => '{"success":true}' };
+                }
+                if (url.includes('/api/conversations/10/messages')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({ success: true, data: [], meta: { page: 0, hasNext: false } })
+                    };
+                }
+                if (url.includes('/api/conversations/10')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({ success: true, data: { id: 10, name: 'Hội thoại 10' } })
+                    };
+                }
+                if (url.includes('/api/conversations?')) {
+                    convCallCount++;
+                    const lastId = convCallCount > 1 ? 500 : 400;
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: [{
+                                id: 10,
+                                name: 'Hội thoại 10',
+                                lastMessage: { id: lastId, content: 'msg-' + lastId, createdAt: '2026-10-20T06:05:00Z' }
+                            }],
+                            meta: { page: 0, hasNext: false }
+                        })
+                    };
+                }
+                return { ok: true, status: 200, text: async () => '{"success":true}' };
+            };
+
+            const { sandbox } = createStompSandbox(doc, mockFetch);
+            sandbox.window.location = { pathname: '/messages/10', search: '', protocol: 'http:', host: 'localhost:8080' };
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 25));
+            const ws = FakeWebSocket.instances[0];
+            ws.receive('CONNECTED\nversion:1.2\nheart-beat:0,0\n\n\0');
+            await new Promise(r => setTimeout(r, 25));
+
+            const historyEl = doc.getElementById('chat-history');
+            const initialBubbles = historyEl ? historyEl.children.length : 0;
+            const initialReceipts = readReceiptCalledCount;
+
+            // Deliver live message 500 (same ID as refreshed summary lastMessage)
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":500,"conversationId":10,"content":"msg-500","createdAt":"2026-10-20T06:05:00Z","sender":{"id":2,"username":"bob"}}\0');
+            await new Promise(r => setTimeout(r, 25));
+
+            const finalBubbles = historyEl ? historyEl.children.length : 0;
+            const receiptDelta = readReceiptCalledCount - initialReceipts;
+
+            assert.equal(finalBubbles, initialBubbles + 1, 'Message bubble must be appended even if summary carried this ID');
+            assert.ok(receiptDelta >= 1, 'Read receipt must be dispatched for live message arrival');
+        });
+
+        it('D2: older in-flight summary response landing after newer STOMP event preserves newer preview and unread count', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc);
+
+            let resolveSummary;
+            const summaryPromise = new Promise(res => { resolveSummary = res; });
+            let convCall = 0;
+
+            const initialSummary = {
+                success: true,
+                data: [
+                    { id: 10, name: 'Hội thoại 10', lastMessage: { id: 400, content: 'msg-400', createdAt: '2026-10-20T06:00:00Z' }, unreadCount: 0 },
+                    { id: 11, name: 'Hội thoại 11', lastMessage: { id: 401, content: 'msg-401', createdAt: '2026-10-20T06:00:00Z' }, unreadCount: 0 }
+                ],
+                meta: { page: 0, hasNext: false }
+            };
+
+            const mockFetch = async (url) => {
+                if (url.includes('/api/conversations?')) {
+                    convCall++;
+                    if (convCall === 1) {
+                        return { ok: true, status: 200, text: async () => JSON.stringify(initialSummary) };
+                    } else {
+                        // In-flight refresh: hold until released
+                        return summaryPromise;
+                    }
+                }
+                return { ok: true, status: 200, text: async () => '{"success":true}' };
+            };
+
+            const { sandbox } = createStompSandbox(doc, mockFetch);
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 20));
+            const ws = FakeWebSocket.instances[0];
+            ws.receive('CONNECTED\nversion:1.2\nheart-beat:0,0\n\n\0');
+            await new Promise(r => setTimeout(r, 10));
+
+            // Deliver newer message 450 for inactive conv 11 while refresh is in flight
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":450,"conversationId":11,"content":"msg-450","createdAt":"2026-10-20T06:05:00Z","sender":{"id":3,"username":"eve"}}\0');
+            await new Promise(r => setTimeout(r, 20));
+
+            const convList = doc.getElementById('conversations-list');
+            const item11Before = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            assert.ok(item11Before.innerHTML.includes('>1</span>'), 'Badge must be 1 after live event');
+
+            // Release in-flight summary (which has older state: unreadCount=0, lm=401)
+            resolveSummary({ ok: true, status: 200, text: async () => JSON.stringify(initialSummary) });
+            await new Promise(r => setTimeout(r, 25));
+
+            const item11After = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            assert.ok(item11After.innerHTML.includes('>1</span>'), 'Badge must remain 1; stale in-flight summary must not wipe unread to 0');
+            assert.ok(item11After.innerHTML.includes('msg-450'), 'Preview must preserve newer message 450');
+        });
+
+        it('D3: late or out-of-order STOMP event older than current summary lastMessage does not double-count unread and does not regress preview', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc);
+
+            const mockFetch = async (url) => {
+                if (url.includes('/api/conversations?')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: [
+                                { id: 10, name: 'Hội thoại 10', lastMessage: null },
+                                {
+                                    id: 11,
+                                    name: 'Hội thoại 11',
+                                    lastMessage: { id: 500, content: 'msg-500', createdAt: '2026-10-20T06:05:00Z' },
+                                    unreadCount: 1
+                                }
+                            ],
+                            meta: { page: 0, hasNext: false }
+                        })
+                    };
+                }
+                return { ok: true, status: 200, text: async () => '{"success":true}' };
+            };
+
+            const { sandbox } = createStompSandbox(doc, mockFetch);
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 20));
+            const ws = FakeWebSocket.instances[0];
+            ws.receive('CONNECTED\nversion:1.2\nheart-beat:0,0\n\n\0');
+            await new Promise(r => setTimeout(r, 10));
+
+            // Deliver older message 450 (createdAt 06:00:00 vs summary 06:05:00)
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":450,"conversationId":11,"content":"msg-450","createdAt":"2026-10-20T06:00:00Z","sender":{"id":3,"username":"eve"}}\0');
+            await new Promise(r => setTimeout(r, 20));
+
+            const convList = doc.getElementById('conversations-list');
+            let item11 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            assert.ok(item11.innerHTML.includes('>1</span>'), 'Unread count must stay 1, not incremented to 2 for older late message');
+            assert.ok(!item11.innerHTML.includes('>2</span>'), 'Must not double count older late message');
+            assert.ok(item11.innerHTML.includes('msg-500'), 'Preview must preserve newer message 500');
+            assert.ok(!item11.innerHTML.includes('msg-450'), 'Preview must not regress to older message 450');
+        });
+
+        it('D3b: adverse order with same timestamps uses message ID ordering', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc);
+
+            const mockFetch = async (url) => {
+                if (url.includes('/api/conversations?')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: [
+                                {
+                                    id: 11,
+                                    name: 'Hội thoại 11',
+                                    lastMessage: { id: 500, content: 'msg-500', createdAt: '2026-10-20T06:00:00Z' },
+                                    unreadCount: 1
+                                }
+                            ],
+                            meta: { page: 0, hasNext: false }
+                        })
+                    };
+                }
+                return { ok: true, status: 200, text: async () => '{"success":true}' };
+            };
+
+            const { sandbox } = createStompSandbox(doc, mockFetch);
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 20));
+            const ws = FakeWebSocket.instances[0];
+            ws.receive('CONNECTED\nversion:1.2\nheart-beat:0,0\n\n\0');
+            await new Promise(r => setTimeout(r, 10));
+
+            // Deliver message 450 with IDENTICAL timestamp as 500. Since 450 < 500, 450 is older.
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":450,"conversationId":11,"content":"msg-450","createdAt":"2026-10-20T06:00:00Z","sender":{"id":3,"username":"eve"}}\0');
+            await new Promise(r => setTimeout(r, 20));
+
+            const convList = doc.getElementById('conversations-list');
+            let item11 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            assert.ok(item11.innerHTML.includes('>1</span>'), 'Unread count must stay 1 for same-timestamp lower-ID event');
+            assert.ok(item11.innerHTML.includes('msg-500'), 'Preview must preserve higher-ID message 500');
+        });
+
+        it('D1b: active message older than conversation summary still renders and dispatches read receipt', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc, { initialConvId: 10 });
+
+            let readReceiptCount = 0;
+
+            const mockFetch = async (url) => {
+                if (url.includes('/read')) {
+                    readReceiptCount++;
+                    return { ok: true, status: 200, text: async () => '{"success":true}' };
+                }
+                if (url.includes('/api/conversations/10/messages')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({ success: true, data: [], meta: { page: 0, hasNext: false } })
+                    };
+                }
+                if (url.includes('/api/conversations/10')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: {
+                                id: 10,
+                                name: 'Hội thoại 10',
+                                lastMessage: { id: 500, content: 'msg-500', createdAt: '2026-10-20T06:05:00Z' }
+                            }
+                        })
+                    };
+                }
+                if (url.includes('/api/conversations?')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: [{
+                                id: 10,
+                                name: 'Hội thoại 10',
+                                lastMessage: { id: 500, content: 'msg-500', createdAt: '2026-10-20T06:05:00Z' }
+                            }],
+                            meta: { page: 0, hasNext: false }
+                        })
+                    };
+                }
+                return { ok: true, status: 200, text: async () => '{"success":true}' };
+            };
+
+            const { sandbox } = createStompSandbox(doc, mockFetch);
+            sandbox.window.location = { pathname: '/messages/10', search: '', protocol: 'http:', host: 'localhost:8080' };
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 25));
+            const ws = FakeWebSocket.instances[0];
+            ws.receive('CONNECTED\nversion:1.2\nheart-beat:0,0\n\n\0');
+            await new Promise(r => setTimeout(r, 20));
+
+            // Record read-receipt count after initial selection has settled
+            const receiptsBeforeMessage = readReceiptCount;
+
+            // Deliver older message 450 (createdAt 06:00:00 vs summary 06:05:00) into active conversation
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":450,"conversationId":10,"content":"msg-450","createdAt":"2026-10-20T06:00:00Z","sender":{"id":2,"username":"bob"}}\0');
+            await new Promise(r => setTimeout(r, 25));
+
+            assert.equal(readReceiptCount - receiptsBeforeMessage, 1, 'Read receipt count DELTA must be exactly 1 upon active message injection');
+            const historyEl = doc.getElementById('chat-history');
+            assert.ok(historyEl.children.length >= 1, 'Message bubble must be rendered for active conversation');
+        });
+
+        it('D3c: distinct live messages arriving out of order are all counted as unread; preview stays latest; duplicates dropped', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc);
+
+            const initialSummary = {
+                success: true,
+                data: [
+                    {
+                        id: 11,
+                        name: 'Hội thoại 11',
+                        lastMessage: { id: 400, content: 'msg-400', createdAt: '2026-10-20T06:00:00Z' },
+                        unreadCount: 0
+                    }
+                ],
+                meta: { page: 0, hasNext: false }
+            };
+
+            const mockFetch = async (url) => {
+                if (url.includes('/api/conversations?')) {
+                    return { ok: true, status: 200, text: async () => JSON.stringify(initialSummary) };
+                }
+                return { ok: true, status: 200, text: async () => '{"success":true}' };
+            };
+
+            const { sandbox } = createStompSandbox(doc, mockFetch);
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 20));
+            const ws = FakeWebSocket.instances[0];
+            ws.receive('CONNECTED\nversion:1.2\nheart-beat:0,0\n\n\0');
+            await new Promise(r => setTimeout(r, 10));
+
+            // 1. Deliver event 500 (newer than summary 400) -> unread becomes 1, preview becomes msg-500
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":500,"conversationId":11,"content":"msg-500","createdAt":"2026-10-20T06:10:00Z","sender":{"id":3,"username":"eve"}}\0');
+            await new Promise(r => setTimeout(r, 15));
+
+            const convList = doc.getElementById('conversations-list');
+            let item11 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            assert.ok(item11.innerHTML.includes('>1</span>'), 'Unread count must be 1 after msg-500');
+            assert.ok(item11.innerHTML.includes('msg-500'), 'Preview must show msg-500');
+
+            // 2. Deliver event 450 (newer than summary 400, but older than live preview 500)
+            // Unread MUST become 2; preview MUST remain msg-500!
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":450,"conversationId":11,"content":"msg-450","createdAt":"2026-10-20T06:05:00Z","sender":{"id":3,"username":"eve"}}\0');
+            await new Promise(r => setTimeout(r, 15));
+
+            item11 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            assert.ok(item11.innerHTML.includes('>2</span>'), 'Unread count must become 2 after out-of-order distinct event msg-450');
+            assert.ok(item11.innerHTML.includes('msg-500'), 'Preview must remain msg-500, not regressed by older msg-450');
+
+            // 3. Repeat duplicate delivery of 450 -> bounded dedup drops it; unread remains 2
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":450,"conversationId":11,"content":"msg-450","createdAt":"2026-10-20T06:05:00Z","sender":{"id":3,"username":"eve"}}\0');
+            await new Promise(r => setTimeout(r, 15));
+
+            item11 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            assert.ok(item11.innerHTML.includes('>2</span>'), 'Unread count must remain 2; duplicate event must not double count');
+
+            // 4. Deliver older event 300 (older than summary 400) -> not unread, does not regress preview
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":300,"conversationId":11,"content":"msg-300","createdAt":"2026-10-20T05:50:00Z","sender":{"id":3,"username":"eve"}}\0');
+            await new Promise(r => setTimeout(r, 15));
+
+            item11 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            assert.ok(item11.innerHTML.includes('>2</span>'), 'Unread count must remain 2 for delayed message older than summary');
+            assert.ok(item11.innerHTML.includes('msg-500'), 'Preview must remain msg-500');
+        });
+
+        it('D2b: pending summary captured before local read does not restore unread; fresh subsequent request authoritatively reconciles to 0', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc);
+            const btnRetry = doc.createElement('button');
+            btnRetry.id = 'btn-retry-conversations';
+            doc.body.appendChild(btnRetry);
+
+            let convCallCount = 0;
+            let resolveFirstInFlight;
+            const firstInFlightPromise = new Promise(resolve => { resolveFirstInFlight = resolve; });
+
+            const mockFetch = async (url) => {
+                if (url.includes('/read')) {
+                    return { ok: true, status: 200, text: async () => '{"success":true}' };
+                }
+                if (url.includes('/api/conversations/11/messages') || url.includes('/api/conversations/10/messages')) {
+                    return { ok: true, status: 200, text: async () => JSON.stringify({ success: true, data: [], meta: { page: 0, hasNext: false } }) };
+                }
+                if (url.includes('/api/conversations?')) {
+                    convCallCount++;
+                    if (convCallCount === 1) {
+                        // Initial summary: conv 11 has lm500, unread 1
+                        return {
+                            ok: true,
+                            status: 200,
+                            text: async () => JSON.stringify({
+                                success: true,
+                                data: [
+                                    { id: 10, name: 'Hội thoại 10', lastMessage: null },
+                                    {
+                                        id: 11,
+                                        name: 'Hội thoại 11',
+                                        lastMessage: { id: 500, content: 'msg-500', createdAt: '2026-10-20T06:00:00Z' },
+                                        unreadCount: 1
+                                    }
+                                ],
+                                meta: { page: 0, hasNext: false }
+                            })
+                        };
+                    } else if (convCallCount === 2) {
+                        // In-flight refresh: hold until user selects conv 11 then conv 10
+                        return firstInFlightPromise;
+                    } else {
+                        // Subsequent fresh request dispatched after local reads: authoritatively returns unread 0
+                        return {
+                            ok: true,
+                            status: 200,
+                            text: async () => JSON.stringify({
+                                success: true,
+                                data: [
+                                    { id: 10, name: 'Hội thoại 10', lastMessage: null },
+                                    {
+                                        id: 11,
+                                        name: 'Hội thoại 11',
+                                        lastMessage: { id: 500, content: 'msg-500', createdAt: '2026-10-20T06:00:00Z' },
+                                        unreadCount: 0
+                                    }
+                                ],
+                                meta: { page: 0, hasNext: false }
+                            })
+                        };
+                    }
+                }
+                return { ok: true, status: 200, text: async () => '{"success":true}' };
+            };
+
+            const { sandbox } = createStompSandbox(doc, mockFetch);
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 20));
+
+            const convList = doc.getElementById('conversations-list');
+            let item11 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            const item10 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '10');
+            assert.ok(item11.innerHTML.includes('>1</span>'), 'Initially conv 11 has unread badge 1');
+
+            // Trigger second conversations fetch that will be held in flight (dispatched before local read)
+            btnRetry.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            // User selects conv 11 (marks it as read locally, unreadCount becomes 0)
+            item11.click();
+            await new Promise(r => setTimeout(r, 15));
+
+            // User selects conv 10 (switches away from conv 11)
+            item10.click();
+            await new Promise(r => setTimeout(r, 15));
+
+            // Now resolve the older in-flight request (which had unreadCount 1 and was dispatched before the click)
+            resolveFirstInFlight({
+                ok: true,
+                status: 200,
+                text: async () => JSON.stringify({
+                    success: true,
+                    data: [
+                        { id: 10, name: 'Hội thoại 10', lastMessage: null },
+                        {
+                            id: 11,
+                            name: 'Hội thoại 11',
+                            lastMessage: { id: 500, content: 'msg-500', createdAt: '2026-10-20T06:00:00Z' },
+                            unreadCount: 1
+                        }
+                    ],
+                    meta: { page: 0, hasNext: false }
+                })
+            });
+            await new Promise(r => setTimeout(r, 25));
+
+            item11 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            assert.ok(!item11.innerHTML.includes('rounded-pill bg-primary'), 'Old pending in-flight summary must NOT restore unread after local read');
+
+            // Simulate incoming live event while inactive -> unread becomes 1 (nonzero state)
+            const ws = FakeWebSocket.instances[0];
+            ws.receive('CONNECTED\nversion:1.2\nheart-beat:0,0\n\n\0');
+            await new Promise(r => setTimeout(r, 20));
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":601,"conversationId":11,"content":"temp unread","createdAt":"2026-10-20T08:00:00Z","sender":{"id":99,"username":"eve"}}\0');
+            await new Promise(r => setTimeout(r, 20));
+
+            item11 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            assert.ok(item11.innerHTML.includes('>1</span>'), 'Local unread is now nonzero (1)');
+
+            // Now perform a fresh subsequent request (dispatched AFTER the live event, returning unread 0)
+            btnRetry.click();
+            await new Promise(r => setTimeout(r, 25));
+
+            item11 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            assert.ok(!item11.innerHTML.includes('rounded-pill bg-primary'), 'Fresh server snapshot authoritatively transitions unread from 1 to 0');
+        });
+
+        it('D2c: read then later live event preserves unread when held pre-read summary arrives', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc);
+            const btnRetry = doc.createElement('button');
+            btnRetry.id = 'btn-retry-conversations';
+            doc.body.appendChild(btnRetry);
+
+            let convCallCount = 0;
+            let resolveHeldSummary;
+            const heldSummaryPromise = new Promise(resolve => { resolveHeldSummary = resolve; });
+
+            const mockFetch = async (url) => {
+                if (url.includes('/read')) {
+                    return { ok: true, status: 200, text: async () => '{"success":true}' };
+                }
+                if (url.includes('/api/conversations/11/messages') || url.includes('/api/conversations/10/messages')) {
+                    return { ok: true, status: 200, text: async () => JSON.stringify({ success: true, data: [], meta: { page: 0, hasNext: false } }) };
+                }
+                if (url.includes('/api/conversations?')) {
+                    convCallCount++;
+                    if (convCallCount <= 2) {
+                        return {
+                            ok: true,
+                            status: 200,
+                            text: async () => JSON.stringify({
+                                success: true,
+                                data: [
+                                    { id: 10, name: 'Hội thoại 10', lastMessage: null },
+                                    {
+                                        id: 11,
+                                        name: 'Hội thoại 11',
+                                        lastMessage: { id: 500, content: 'msg-500', createdAt: '2026-10-20T06:00:00Z' },
+                                        unreadCount: 1
+                                    }
+                                ],
+                                meta: { page: 0, hasNext: false }
+                            })
+                        };
+                    } else {
+                        return heldSummaryPromise;
+                    }
+                }
+                return { ok: true, status: 200, text: async () => '{"success":true}' };
+            };
+
+            const { sandbox } = createStompSandbox(doc, mockFetch);
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 20));
+            const ws = FakeWebSocket.instances[0];
+            ws.receive('CONNECTED\nversion:1.2\nheart-beat:0,0\n\n\0');
+            await new Promise(r => setTimeout(r, 25));
+
+            const convList = doc.getElementById('conversations-list');
+            let item11 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            const item10 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '10');
+            assert.ok(item11.innerHTML.includes('>1</span>'), 'Initially conv 11 has unread badge 1');
+
+            // 1. Dispatch summary request (held in flight)
+            btnRetry.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            // 2. User selects conv 11 (marks it read, unreadCount becomes 0)
+            item11.click();
+            await new Promise(r => setTimeout(r, 15));
+            item11 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            assert.ok(!item11.innerHTML.includes('rounded-pill bg-primary'), 'Conv 11 unread badge cleared after click');
+
+            // 3. User switches to conv 10
+            item10.click();
+            await new Promise(r => setTimeout(r, 15));
+
+            // 4. New live STOMP message arrives for conv 11 while inactive
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":600,"conversationId":11,"content":"new live after read","createdAt":"2026-10-20T07:00:00Z","sender":{"id":99,"username":"eve"}}\0');
+            await new Promise(r => setTimeout(r, 20));
+
+            item11 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            assert.ok(item11.innerHTML.includes('>1</span>'), 'Live message for inactive conv 11 increments unread to 1');
+
+            // 5. Held pre-read summary arrives
+            resolveHeldSummary({
+                ok: true,
+                status: 200,
+                text: async () => JSON.stringify({
+                    success: true,
+                    data: [
+                        { id: 10, name: 'Hội thoại 10', lastMessage: null },
+                        {
+                            id: 11,
+                            name: 'Hội thoại 11',
+                            lastMessage: { id: 500, content: 'msg-500', createdAt: '2026-10-20T06:00:00Z' },
+                            unreadCount: 1
+                        }
+                    ],
+                    meta: { page: 0, hasNext: false }
+                })
+            });
+            await new Promise(r => setTimeout(r, 25));
+
+            item11 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            assert.ok(item11.innerHTML.includes('>1</span>'), 'Held pre-read summary must NOT zero unread for later live message');
+            assert.ok(item11.innerHTML.includes('new live after read'), 'Preview preserves latest live message 600');
+        });
+
+        it('D2d: equal-preview response does not wipe distinct live unread count', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc);
+            const btnRetry = doc.createElement('button');
+            btnRetry.id = 'btn-retry-conversations';
+            doc.body.appendChild(btnRetry);
+
+            let convCallCount = 0;
+            let resolveHeldSummary;
+            const heldSummaryPromise = new Promise(resolve => { resolveHeldSummary = resolve; });
+
+            const mockFetch = async (url) => {
+                if (url.includes('/read')) {
+                    return { ok: true, status: 200, text: async () => '{"success":true}' };
+                }
+                if (url.includes('/api/conversations?')) {
+                    convCallCount++;
+                    if (convCallCount <= 2) {
+                        // Baseline summary: conv 11 has lm400, unread 0
+                        return {
+                            ok: true,
+                            status: 200,
+                            text: async () => JSON.stringify({
+                                success: true,
+                                data: [
+                                    {
+                                        id: 11,
+                                        name: 'Hội thoại 11',
+                                        lastMessage: { id: 400, content: 'msg-400', createdAt: '2026-10-20T04:00:00Z' },
+                                        unreadCount: 0
+                                    }
+                                ],
+                                meta: { page: 0, hasNext: false }
+                            })
+                        };
+                    } else {
+                        // Held summary response with lastMessage 500, unread 1
+                        return heldSummaryPromise;
+                    }
+                }
+                return { ok: true, status: 200, text: async () => '{"success":true}' };
+            };
+
+            const { sandbox } = createStompSandbox(doc, mockFetch);
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 20));
+            const ws = FakeWebSocket.instances[0];
+            ws.receive('CONNECTED\nversion:1.2\nheart-beat:0,0\n\n\0');
+            await new Promise(r => setTimeout(r, 25));
+
+            // 1. Receive live 500 -> unread becomes 1, preview becomes 500
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":500,"conversationId":11,"content":"msg-500","createdAt":"2026-10-20T05:00:00Z","sender":{"id":99,"username":"eve"}}\0');
+            await new Promise(r => setTimeout(r, 20));
+
+            const convList = doc.getElementById('conversations-list');
+            let item11 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            assert.ok(item11.innerHTML.includes('>1</span>'), 'Live 500 sets unread to 1');
+            assert.ok(item11.innerHTML.includes('msg-500'), 'Preview is msg-500');
+
+            // 2. Dispatch summary request (held in flight) with lastMessage 500, unread 1
+            btnRetry.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            // 3. Receive distinct live 450 (older than 500, but newer than baseline 400)
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":450,"conversationId":11,"content":"msg-450","createdAt":"2026-10-20T04:30:00Z","sender":{"id":99,"username":"eve"}}\0');
+            await new Promise(r => setTimeout(r, 20));
+
+            item11 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            assert.ok(item11.innerHTML.includes('>2</span>'), 'Distinct live 450 increments unread to 2');
+            assert.ok(item11.innerHTML.includes('msg-500'), 'Preview stays latest 500');
+
+            // 4. Held response arrives with lastMessage 500 (equal preview), unread 1
+            resolveHeldSummary({
+                ok: true,
+                status: 200,
+                text: async () => JSON.stringify({
+                    success: true,
+                    data: [
+                        {
+                            id: 11,
+                            name: 'Hội thoại 11',
+                            lastMessage: { id: 500, content: 'msg-500', createdAt: '2026-10-20T05:00:00Z' },
+                            unreadCount: 1
+                        }
+                    ],
+                    meta: { page: 0, hasNext: false }
+                })
+            });
+            await new Promise(r => setTimeout(r, 25));
+
+            item11 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            assert.ok(item11.innerHTML.includes('>2</span>'), 'Equal-preview held response must NOT wipe distinct unread back to 1');
+            assert.ok(item11.innerHTML.includes('msg-500'), 'Preview remains msg-500');
+
+            // 5. Subsequent duplicate 450 arrives -> dropped by dedup, unread remains 2
+            ws.receive('MESSAGE\ndestination:/user/queue/messages\n\n{"id":450,"conversationId":11,"content":"msg-450-duplicate","createdAt":"2026-10-20T04:30:00Z","sender":{"id":99,"username":"eve"}}\0');
+            await new Promise(r => setTimeout(r, 20));
+
+            item11 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
+            assert.ok(item11.innerHTML.includes('>2</span>'), 'Duplicate 450 does not increment unread (stays 2)');
+            assert.ok(item11.innerHTML.includes('msg-500'), 'Preview remains msg-500');
         });
     });
 });
