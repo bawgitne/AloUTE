@@ -4,6 +4,7 @@ import com.aloute.common.api.ApiResponse;
 import com.aloute.common.api.PageMeta;
 import com.aloute.dto.response.*;
 import com.aloute.entity.CommunityRole;
+import com.aloute.entity.MediaType;
 import com.aloute.entity.PostVisibility;
 import com.aloute.entity.User;
 import com.aloute.security.authorization.Role;
@@ -941,6 +942,48 @@ class ThymeleafViewRenderIntegrationTest {
         String htmlNavMissingPost = templateEngine.process("fragments/navbar", Collections.singleton("navbar"), ctxMissingPost);
         assertThat(htmlNavMissingPost).contains("data-action=\"navigate-create-post\"");
         assertThat(htmlNavMissingPost).contains("Tạo bài viết");
+    }
+
+    @Test
+    @DisplayName("PostCard: post/_post-card renders IMAGE, GIF, and VIDEO media elements with escaped src and controls")
+    void testPostCardMediaBranchesRender() {
+        MediaResponse imageMedia = new MediaResponse(1L, MediaType.IMAGE, "https://storage.ute.udn.vn/media/img1.jpg?w=800&h=600", 800, 600, null);
+        MediaResponse gifMedia = new MediaResponse(2L, MediaType.GIF, "https://storage.ute.udn.vn/media/anim.gif?loop=1&speed=normal", 400, 300, null);
+        MediaResponse videoMedia = new MediaResponse(3L, MediaType.VIDEO, "https://storage.ute.udn.vn/media/clip.mp4?format=mp4&res=1080", 1920, 1080, 15.5);
+        MediaResponse nullTypeMedia = new MediaResponse(4L, null, "https://storage.ute.udn.vn/media/legacy.png?fallback=1&type=null", 640, 480, null);
+
+        PostResponse postWithAllMedia = new PostResponse(
+                88L, new UserSummary(1L, "mediauser", "Media User", null, true), "Post with media",
+                null, null, null, PostVisibility.PUBLIC, true, true,
+                List.of(imageMedia, gifMedia, videoMedia, nullTypeMedia), Collections.emptyList(), null,
+                0L, 0L, 0L, 0L, 0L,
+                new PostViewerStateResponse(false, false, false),
+                new PostCapabilitiesResponse(true, true, true, true),
+                Instant.now(), Instant.now()
+        );
+
+        WebContext ctx = createWebContext();
+        ctx.setVariable("post", postWithAllMedia);
+
+        String html = templateEngine.process("post/_post-card", Collections.singleton("postCard"), ctx);
+
+        // 1. IMAGE: rendered as <img> with escaped src containing &amp;
+        assertThat(html).contains("src=\"https://storage.ute.udn.vn/media/img1.jpg?w=800&amp;h=600\"");
+        assertThat(html).contains("alt=\"Hình ảnh đính kèm bài viết\"");
+
+        // 2. GIF: rendered as <img> with escaped src containing &amp;
+        assertThat(html).contains("src=\"https://storage.ute.udn.vn/media/anim.gif?loop=1&amp;speed=normal\"");
+        assertThat(html).contains("alt=\"Ảnh GIF đính kèm bài viết\"");
+
+        // 3. VIDEO: rendered as <video> with controls, preload="metadata", and escaped src containing &amp;
+        assertThat(html).contains("<video");
+        assertThat(html).contains("src=\"https://storage.ute.udn.vn/media/clip.mp4?format=mp4&amp;res=1080\"");
+        assertThat(html).contains("controls");
+        assertThat(html).contains("preload=\"metadata\"");
+        assertThat(html).contains("Trình duyệt của bạn không hỗ trợ thẻ video.");
+
+        // 4. Null type: falls back to <img> with escaped src containing &amp;
+        assertThat(html).contains("src=\"https://storage.ute.udn.vn/media/legacy.png?fallback=1&amp;type=null\"");
     }
 
 }

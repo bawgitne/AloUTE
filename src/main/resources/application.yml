@@ -3,7 +3,12 @@ spring:
     name: aloute
   profiles:
     active: dev
+  servlet:
+    multipart:
+      max-file-size: 35MB
+      max-request-size: 40MB
 
 server:
   port: ${PORT:8080}
-
+  tomcat:
+    max-swallow-size: 45MB
