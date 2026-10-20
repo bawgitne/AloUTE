@@ -11,8 +11,6 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set and non-empty}
     volumes:
       - mysql_data:/var/lib/mysql
-    ports:
-      - "${MYSQL_PORT:-3306}:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set and non-empty}"]
       interval: 5s
@@ -38,11 +36,11 @@ services:
       ALOUTE_JWT_SECRET: ${ALOUTE_JWT_SECRET:?ALOUTE_JWT_SECRET must be set and non-empty}
       ALOUTE_JWT_EXPIRATION_SECONDS: ${ALOUTE_JWT_EXPIRATION_SECONDS:-86400}
       ALOUTE_REGISTRATION_OTP_SECRET: ${ALOUTE_REGISTRATION_OTP_SECRET:?ALOUTE_REGISTRATION_OTP_SECRET must be set and non-empty}
-      ALOUTE_APP_BASE_URL: ${ALOUTE_APP_BASE_URL:-https://${ALOUTE_DOMAIN:-localhost}}
-      ALOUTE_MAIL_HOST: ${ALOUTE_MAIL_HOST:-}
+      ALOUTE_APP_BASE_URL: ${ALOUTE_APP_BASE_URL:?ALOUTE_APP_BASE_URL must be set and non-empty}
+      ALOUTE_MAIL_HOST: ${ALOUTE_MAIL_HOST:?ALOUTE_MAIL_HOST must be set and non-empty}
       ALOUTE_MAIL_PORT: ${ALOUTE_MAIL_PORT:-587}
-      ALOUTE_MAIL_USERNAME: ${ALOUTE_MAIL_USERNAME:-}
-      ALOUTE_MAIL_PASSWORD: ${ALOUTE_MAIL_PASSWORD:-}
+      ALOUTE_MAIL_USERNAME: ${ALOUTE_MAIL_USERNAME:?ALOUTE_MAIL_USERNAME must be set and non-empty}
+      ALOUTE_MAIL_PASSWORD: ${ALOUTE_MAIL_PASSWORD:?ALOUTE_MAIL_PASSWORD must be set and non-empty}
       ALOUTE_MAIL_FROM: ${ALOUTE_MAIL_FROM:-noreply@${ALOUTE_DOMAIN:-aloute.edu.vn}}
     expose:
       - "8080"
@@ -58,9 +56,15 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      ALOUTE_DOMAIN: ${ALOUTE_DOMAIN:?ALOUTE_DOMAIN must be set and non-empty}
+    entrypoint: ["/bin/sh", "/deploy/scripts/render-nginx.sh"]
+    command: ["nginx", "-g", "daemon off;"]
     volumes:
       - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./deploy/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./deploy/nginx/conf.d/aloute.conf.template:/etc/nginx/templates/aloute.conf.template:ro
+      - ./deploy/scripts/render-nginx.sh:/deploy/scripts/render-nginx.sh:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     networks:
       - aloute-net
 
