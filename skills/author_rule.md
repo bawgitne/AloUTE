@@ -284,6 +284,23 @@ Path=/
 Browser JavaScript trên Thymeleaf không đọc raw JWT để ngăn ngừa XSS.
 CSRF Token (`XSRF-TOKEN` cookie + `X-XSRF-TOKEN` header) bắt buộc kích hoạt cho các request ghi dữ liệu (POST, PUT, PATCH, DELETE) khi gửi từ Cookie.
 
+Implement thực tế trong `SecurityConfig` (đã verify trên master 2026-10-20):
+
+```text
+CookieCsrfTokenRepository.withHttpOnlyFalse(), cookiePath "/"
+CsrfTokenRequestAttributeHandler, csrfRequestAttributeName = null
+RequestMatcher "Authorization: Bearer ..."  → miễn CSRF (bearerRequest)
+PUBLIC_POST whitelist (register, login)     → miễn CSRF
+```
+
+Nghĩa là: request nào mang `Authorization: Bearer` được miễn CSRF (REST stateless contract);
+request cookie-only (form/fetch từ Thymeleaf) bắt buộc gửi `X-XSRF-TOKEN`. `CsrfCookieFilter`
+chạy sau `JwtAuthenticationFilter` để luôn cấp lại cookie `XSRF-TOKEN`.
+
+Ngoài ra `JwtSessionService.authenticate(token)` (REQUIRES_NEW, đọc DB trực tiếp) kiểm tra
+`v` claim khớp `user.authVersion` — password reset tăng `authVersion` khiến mọi JWT cũ
+(HTTP và STOMP) bị từ chối. Chi tiết lifecycle thuộc `ALOUTE_DOMAIN_SYSTEM.md` §60.
+
 Nếu sau này project mở external API dùng Bearer token, phải định nghĩa profile đó riêng; không trộn hai chiến lược tùy endpoint.
 
 CSRF strategy phải tương thích với credential transport đã chọn.

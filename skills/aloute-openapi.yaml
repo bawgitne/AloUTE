@@ -18,8 +18,19 @@ info:
     - private community join-request approval lifecycle
     - advanced community moderation
     - group-conversation ownership/admin lifecycle
-    - password-reset / email-verification / refresh-session lifecycle
+    - refresh-session lifecycle (access token only; revocation via `authVersion`)
     - notification preferences
+    - account suspension / feature restriction (`account_suspensions`, `account_feature_restrictions` are P2)
+
+    Implementation status legend (`x-implementation-status`):
+    - `implemented` — controller/service exist on master and are covered by the contract below.
+    - `stub` — route exists but returns placeholder data or ignores path semantics.
+    - `contract-only` — contract is authoritative, the route is not implemented yet; clients must expect 404.
+    Operations without the extension are `implemented`.
+
+    Registration email OTP and password recovery are implemented
+    (`verify-registration-otp`, `resend-registration-otp`, `forgot-password`, `reset-password`)
+    and are no longer listed as gaps.
 
 servers:
   - url: /
@@ -277,6 +288,18 @@ paths:
           $ref: '#/components/responses/NotFound'
 
   /api/users/me/profile:
+    get:
+      tags: [Users]
+      summary: Get current user profile
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
     patch:
       tags: [Users]
       summary: Update current user profile
@@ -297,6 +320,44 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '422':
           $ref: '#/components/responses/ValidationError'
+    put:
+      tags: [Users]
+      summary: Update current user profile (PUT alias)
+      description: Same handler as `PATCH`; registered for clients that can only issue PUT.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/users/profile:
+    get:
+      tags: [Users]
+      summary: Get current user profile (path alias)
+      description: |
+        Short alias of `/api/users/me/profile` served by the same controller methods
+        (`@GetMapping({"/me/profile", "/profile"})`). Both paths behave identically.
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
 
   /api/users/{userId}/posts:
     get:
@@ -478,6 +539,31 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
 
   /api/posts:
+    get:
+      tags: [Posts]
+      summary: List public posts
+      description: |
+        Public visibility-scoped listing. When `q` is present it delegates to
+        `PostService.searchPosts` with the same visibility specification, so private
+        community posts never leak. Replies and quotes are excluded from the top-level list.
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Visible posts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
     post:
       tags: [Posts]
       summary: Create post
@@ -500,6 +586,23 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationError'
+
+  /api/posts/bookmarks:
+    get:
+      tags: [Posts]
+      summary: List posts bookmarked by current user
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Bookmarked posts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
 
   /api/posts/{postId}:
     get:
@@ -799,6 +902,10 @@ paths:
     get:
       tags: [Media]
       summary: Stream media file from storage edge
+      description: |
+        Mapping thật là `@GetMapping("/file/**")` — `{path}` bắt **toàn bộ remaining path,
+        vượt dấu `/`** (multi-segment storage key). OpenAPI chỉ mô hình được 1 biến path;
+        client hãy nối nguyên storage path sau `/api/media/file/`.
       security: []
       parameters:
         - name: path
@@ -806,6 +913,7 @@ paths:
           required: true
           schema:
             type: string
+          description: Storage path nhiều cấp, ví dụ `posts/2026/10/abc.webp`.
       responses:
         '200':
           description: Media file stream
@@ -918,6 +1026,10 @@ paths:
     post:
       tags: [Polls]
       summary: Vote in poll
+      description: |
+        Single-choice vote endpoint. The controller also registers the legacy alias
+        `/api/polls/{pollId}/vote` (`@PostMapping({"/{pollId}/votes", "/{pollId}/vote"})`);
+        both paths share one handler and one request body.
       parameters:
         - $ref: '#/components/parameters/PollId'
       requestBody:
@@ -1230,10 +1342,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/PostPageEnvelope'
 
+  /api/feed/recommended:
+    get:
+      tags: [Feeds]
+      summary: Get recommended feed
+      description: |
+        Public GET (`/api/feed/**` is whitelisted) like explore. The viewer id is optional and
+        only personalizes ordering; anonymous callers get the same public visibility scope.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Recommended feed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+
   /api/feeds:
     get:
       tags: [Feeds]
       summary: List current user's custom feeds
+      x-implementation-status: stub
+      description: |
+        Contract owns the feature; `CustomFeedController.listCustomFeeds` currently returns an
+        empty page without reading the database. Treat the shape as authoritative, the data as empty.
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/Size'
@@ -1249,6 +1384,7 @@ paths:
     post:
       tags: [Feeds]
       summary: Create custom feed
+      x-implementation-status: contract-only
       requestBody:
         required: true
         content:
@@ -1271,6 +1407,7 @@ paths:
     get:
       tags: [Feeds]
       summary: Get custom feed
+      x-implementation-status: contract-only
       parameters:
         - $ref: '#/components/parameters/FeedId'
       responses:
@@ -1287,6 +1424,7 @@ paths:
     patch:
       tags: [Feeds]
       summary: Update owned custom feed
+      x-implementation-status: contract-only
       parameters:
         - $ref: '#/components/parameters/FeedId'
       requestBody:
@@ -1311,6 +1449,7 @@ paths:
     delete:
       tags: [Feeds]
       summary: Delete owned custom feed
+      x-implementation-status: contract-only
       parameters:
         - $ref: '#/components/parameters/FeedId'
       responses:
@@ -1327,6 +1466,7 @@ paths:
     get:
       tags: [Feeds]
       summary: Get posts generated by custom feed
+      x-implementation-status: contract-only
       parameters:
         - $ref: '#/components/parameters/FeedId'
         - $ref: '#/components/parameters/Page'
@@ -1347,6 +1487,7 @@ paths:
     put:
       tags: [Feeds]
       summary: Save public custom feed
+      x-implementation-status: contract-only
       parameters:
         - $ref: '#/components/parameters/FeedId'
       responses:
@@ -1361,6 +1502,7 @@ paths:
     delete:
       tags: [Feeds]
       summary: Remove saved custom feed
+      x-implementation-status: contract-only
       parameters:
         - $ref: '#/components/parameters/FeedId'
       responses:
@@ -1456,12 +1598,70 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Conversations]
+      summary: Send message over HTTP
+      description: |
+        Realtime delivery is WebSocket (`/app/chat.send/{conversationId}`); this HTTP route is the
+        fallback used when the socket is unavailable. Persist-before-publish is applied either way.
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '201':
+          description: Message created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/conversations/{conversationId}/read:
+    post:
+      tags: [Conversations]
+      summary: Mark conversation as read
+      description: Advances the caller's read marker for this conversation.
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: Read marker advanced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptySuccessEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /api/notifications:
     get:
       tags: [Notifications]
       summary: List current user's notifications
       parameters:
+        - name: filter
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ALL, LIKE, REPLY, MENTION, FOLLOW]
+            default: ALL
+          description: Tab filter server-side (`NotificationServiceImpl.getNotifications`).
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/Size'
       responses:
@@ -1726,6 +1926,11 @@ paths:
     get:
       tags: [Admin]
       summary: List moderation actions targeting user
+      x-implementation-status: contract-only
+      description: |
+        Not routed yet: `AdminUserController` only exposes `/users`, `/users/{userId}` and
+        `/users/{userId}/posts`. Use `/api/admin/moderation-actions?targetType=USER&targetId={userId}`
+        until this route lands.
       parameters:
         - $ref: '#/components/parameters/UserId'
         - $ref: '#/components/parameters/Page'
@@ -2785,33 +2990,49 @@ components:
 
     NotificationType:
       type: string
-      enum: [LIKE, REPLY, FOLLOW, REPOST, QUOTE, MENTION, MESSAGE, COMMUNITY]
+      description: |
+        Giá trị emit thực tế bởi NotificationServiceImpl (string, không phải enum Java).
+        Kiểu lọc theo tab ở GET /api/notifications dùng giá trị rút gọn: ALL, LIKE, REPLY,
+        MENTION, FOLLOW.
+      enum: [POST_LIKE, REPLY_LIKE, POST_REPLY, REPLY_REPLY, POST_QUOTE, POST_REPOST,
+             POST_MENTION, REPLY_MENTION, FOLLOW, FRIEND_REQUEST, FRIEND_ACCEPT]
 
     NotificationResponse:
       type: object
-      required: [id, type, createdAt]
+      description: |
+        Khớp `com.aloute.dto.response.NotificationResponse` (Lombok `isRead` getter → Jackson
+        serialize thành property `read`; asserted bởi ThymeleafViewRenderIntegrationTest).
+        Field `targetType`/`targetId` thay cho postId/messageId/communityId tách rời.
+      required: [id, recipientId, actorId, type, targetType, targetId, contentPreview, read, createdAt]
       properties:
         id:
           type: integer
           format: int64
-        type:
-          $ref: '#/components/schemas/NotificationType'
+        recipientId:
+          type: integer
+          format: int64
+        actorId:
+          type: integer
+          format: int64
+          nullable: true
         actor:
           nullable: true
           allOf:
             - $ref: '#/components/schemas/UserSummary'
-        postId:
+        type:
+          $ref: '#/components/schemas/NotificationType'
+        targetType:
+          type: string
+          nullable: true
+        targetId:
           type: integer
           format: int64
           nullable: true
-        messageId:
-          type: integer
-          format: int64
+        contentPreview:
+          type: string
           nullable: true
-        communityId:
-          type: integer
-          format: int64
-          nullable: true
+        read:
+          type: boolean
         createdAt:
           type: string
           format: date-time
@@ -3485,6 +3706,31 @@ components:
             $ref: '#/components/schemas/MessageResponse'
         meta:
           $ref: '#/components/schemas/PageMeta'
+
+    MessageEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/MessageResponse'
+        meta:
+          type: 'null'
+
+    SendMessageRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        replyToMessageId:
+          type: integer
+          format: int64
+          nullable: true
 
     NotificationPageEnvelope:
       type: object

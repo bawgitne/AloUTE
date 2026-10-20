@@ -72,7 +72,8 @@ Frontend Systems
     └── Nằm tại fe-vue/ tiêu thụ chung REST API (/api/*)
 
 Persistence & Database Processing
-├── Relational Database: PostgreSQL (Production/Staging) / MySQL (Tương thích) / H2 (Local Dev/Test)
+├── Relational Database: MySQL 8.0 (Production: `application-prod.yml` + compose) / H2 in-memory (Local Dev & Test)
+├── PostgreSQL: chỉ ở mức SQL script (`db/schema.sql`, `db/triggers.sql`, `db/procedures.sql`); chưa có profile runtime
 ├── JPA Entities & Repository Layer
 └── Database Processing (Nguyễn Duy Ngọc phụ trách):
     ├── Database Triggers (Audit updated_at, Counter sync: likes, replies, followers, members)
@@ -87,7 +88,7 @@ External Infrastructure & Media Storage
 
 Deployment & DevOps (Khôi & Ngọc phụ trách)
 ├── Dockerfile (Multi-stage build cho Spring Boot app)
-├── Docker Compose (Spring Boot + PostgreSQL + Nginx)
+├── Docker Compose (Spring Boot + MySQL 8 + Nginx)
 ├── Nginx Reverse Proxy (SSL Let's Encrypt, HTTP/2, WebSocket Upgrade /ws)
 └── Linux VPS (Ubuntu Server) + CI/CD GitHub Actions
 ```
@@ -227,10 +228,13 @@ src/
 │       │   └── data-seed.sql     # Dữ liệu mẫu (30 users, 100 posts, groups)
 │       │
 │       ├── application.yml       # Cấu hình chung
-│       └── application-dev.yml   # Cấu hình môi trường dev (H2/PostgreSQL)
+│       ├── application-dev.yml   # Cấu hình dev: H2 in-memory
+│       └── application-prod.yml  # Cấu hình prod: MySQL 8 + SMTP
 │
-├── fe-vue/                       <--- CLIENT SPA MỞ RỘNG (VUE 3 + VITE)
+├── fe-vue/                       <--- CHƯA TỒN TẠI trên master (kế hoạch: VUE 3 + VITE)
 │   └── (Tiêu thụ chung các endpoint REST API /api/*)
+│
+├── aloute_mobile/                <--- FLUTTER CLIENT MỞ RỘNG (xem docs/FLUTTER_HANDOFF.md)
 │
 └── test/
     └── java/com/aloute/          # Unit test & Integration test (Bắt buộc theo kế hoạch)
@@ -265,7 +269,7 @@ Service (Interface & Impl)
    ↓
 Repository (Spring Data JPA) / Database Triggers & Procedures
    ↓
-Relational Database (PostgreSQL / MySQL)
+Relational Database (MySQL 8 production / H2 dev & test)
 ```
 
 Không cho phép:
@@ -845,6 +849,12 @@ JPA dùng cho relational persistence.
 
 Các DB trên là lựa chọn thay thế, không phải ba source of truth đồng thời.
 
+**Trạng thái đã triển khai trên master (2026-10-20):** MySQL 8.0 là engine production
+(`application-prod.yml`, `docker-compose.yml`, `deploy/compose/compose.prod.yml` đều dùng
+`jdbc:mysql://...`); dev/test dùng H2 in-memory. Script PostgreSQL trong `db/` là tài liệu thiết kế
+schema, không chạy tự động. Triggers/stored procedures chưa được wire vào runtime — counter
+(like_count, reply_count, follower_count, member_count) hiện được cập nhật trong Java service layer.
+
 ## 19.2. MongoDB
 
 MongoDB không nằm dưới JPA.
@@ -922,11 +932,29 @@ Không phù hợp để thay toàn bộ CRUD HTTP.
 Hệ thống áp dụng cơ chế điều phối thông báo song song:
 1. **In-app Foreground (Đang mở tab web ALOUTE)**:
    - Sử dụng **Spring WebSocket (STOMP Protocol qua `/ws`)**.
-   - Destination: `/user/{recipientId}/queue/notifications`.
+   - Server gọi `messagingTemplate.convertAndSendToUser(recipientId, "/queue/notifications", payload)`;
+     client SUBSCRIBE vào user destination `/user/queue/notifications`.
    - Độ trễ tức thời, cập nhật badge chuông và toast UI mượt mà.
 2. **Background / Offline (Thu nhỏ trình duyệt hoặc tắt tab)**:
    - Sử dụng **FCM Web Push Notification**.
    - Bắt qua Service Worker `firebase-messaging-sw.js` hiển thị system popup trên OS/trình duyệt.
+
+Bảng destination canonical (đúng theo `StompAuthChannelInterceptor.ALLOWED_SUBSCRIBE_DESTINATIONS`
+và các `@MessageMapping`):
+
+| Hướng | Destination | Owner |
+| :--- | :--- | :--- |
+| Server → client | `/user/queue/messages` | chat delivery |
+| Server → client | `/user/queue/typing` | typing indicator |
+| Server → client | `/user/queue/read-receipts` | read receipt |
+| Server → client | `/user/queue/notifications` | in-app notification |
+| Client → server | `/app/chat.send/{conversationId}` | gửi tin nhắn realtime |
+| Client → server | `/app/chat.typing/{conversationId}` | typing |
+| Client → server | `/app/chat.read/{conversationId}` | đánh dấu đã đọc |
+
+Client chỉ được SUBSCRIBE đúng 4 user destination ở trên; destination khác bị interceptor từ chối.
+Broker dùng prefix `/topic`, `/queue`; `applicationDestinationPrefixes` là `/app`;
+`userDestinationPrefix` là `/user`.
 
 Rule:
 
