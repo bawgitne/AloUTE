@@ -73,7 +73,7 @@ public class AuthServiceImpl implements AuthService {
                             "AUTH_INVALID_CREDENTIALS", "Invalid email or password"));
 
             if (user.isVerificationRequired() && !user.isVerified()) {
-                throw new ApiException(HttpStatus.FORBIDDEN, "AUTH_ACCOUNT_NOT_VERIFIED",
+                throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_ACCOUNT_NOT_VERIFIED",
                         "Tài khoản chưa được kích hoạt. Vui lòng xác thực email.");
             }
 
