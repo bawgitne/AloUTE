@@ -39,6 +39,14 @@ public class AuthPageController {
         return "auth/register";
     }
 
+    @GetMapping("/verify-otp")
+    public String verifyOtpPage() {
+        if (currentUserProvider.getCurrentUserId().isPresent()) {
+            return "redirect:/feed";
+        }
+        return "auth/verify-otp";
+    }
+
     @GetMapping("/forgot-password")
     public String forgotPasswordPage() {
         if (currentUserProvider.getCurrentUserId().isPresent()) {

@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 public class LocalSmtpServer implements AutoCloseable {
@@ -33,6 +34,40 @@ public class LocalSmtpServer implements AutoCloseable {
     private final CountDownLatch messageReceivedLatch = new CountDownLatch(1);
     private SSLContext sslContext;
     private volatile boolean authenticated = false;
+    private volatile boolean simulateFailure = false;
+    private final AtomicInteger failedConnectionAttempts = new AtomicInteger(0);
+    private volatile CountDownLatch failedConnectionLatch = new CountDownLatch(1);
+
+    public void setSimulateFailure(boolean simulateFailure) {
+        this.simulateFailure = simulateFailure;
+    }
+
+    public int getFailedConnectionAttempts() {
+        return failedConnectionAttempts.get();
+    }
+
+    public boolean awaitFailedConnection(long timeout, TimeUnit unit) throws InterruptedException {
+        return failedConnectionLatch.await(timeout, unit);
+    }
+
+    public void resetFailedConnectionLatch() {
+        failedConnectionLatch = new CountDownLatch(1);
+    }
+
+    public void clearMessages() {
+        receivedMessages.clear();
+    }
+
+    public boolean awaitMessageCount(int minCount, long timeout, TimeUnit unit) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + unit.toMillis(timeout);
+        while (System.currentTimeMillis() < deadline) {
+            if (receivedMessages.size() >= minCount) {
+                return true;
+            }
+            Thread.sleep(50);
+        }
+        return receivedMessages.size() >= minCount;
+    }
 
     public LocalSmtpServer() throws Exception {
         this("/test-smtp-keystore.p12");
@@ -93,6 +128,14 @@ public class LocalSmtpServer implements AutoCloseable {
     }
 
     private void handleConnection(Socket plainSocket) {
+        if (simulateFailure) {
+            failedConnectionAttempts.incrementAndGet();
+            failedConnectionLatch.countDown();
+            try {
+                plainSocket.close();
+            } catch (Exception ignored) {}
+            return;
+        }
         new Thread(() -> {
             boolean connectionTlsStarted = false;
             boolean connectionAuthenticated = false;

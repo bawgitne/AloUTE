@@ -62,6 +62,17 @@ public class DefaultEmailService implements EmailService {
         }
     }
 
+    @Override
+    public void sendRegistrationOtpEmail(String toEmail, String otpCode) {
+        log.info("Registration OTP email dispatch requested for recipient {}", sanitizeForLog(toEmail));
+
+        if (smtpHost != null && !smtpHost.isBlank()) {
+            sendOtpViaSmtp(toEmail, otpCode);
+        } else {
+            log.info("SMTP host not configured; email delivery simulated for recipient {}", sanitizeForLog(toEmail));
+        }
+    }
+
     private void sendViaSmtp(String toEmail, String resetUrl) {
         if (!starttlsEnable || !sslCheckServerIdentity) {
             log.error("Unsafe SMTP configuration rejected");
@@ -101,6 +112,49 @@ public class DefaultEmailService implements EmailService {
 
             Transport.send(message);
             log.info("Reset notification dispatched via SMTP host {}:{}", smtpHost, smtpPort);
+        } catch (Exception ex) {
+            log.warn("Failed to deliver external email notification via SMTP host {}: {}", smtpHost, ex.getClass().getSimpleName());
+        }
+    }
+
+    private void sendOtpViaSmtp(String toEmail, String otpCode) {
+        if (!starttlsEnable || !sslCheckServerIdentity) {
+            log.error("Unsafe SMTP configuration rejected");
+            throw new IllegalStateException("Unsafe SMTP configuration rejected: STARTTLS and SSL server identity verification must be enabled for authenticated transport");
+        }
+        if (smtpUsername == null || smtpUsername.isBlank() || smtpPassword == null || smtpPassword.isBlank()) {
+            log.error("Missing SMTP credentials for configured host {}", smtpHost);
+            throw new IllegalStateException("Missing SMTP credentials: username and password are required for authenticated transport");
+        }
+        try {
+            Properties props = new Properties();
+            props.put("mail.transport.protocol", "smtp");
+            props.put("mail.smtp.host", smtpHost);
+            props.put("mail.smtp.port", String.valueOf(smtpPort));
+            props.put("mail.smtp.connectiontimeout", "5000");
+            props.put("mail.smtp.timeout", "5000");
+            props.put("mail.smtp.writetimeout", "5000");
+
+            props.put("mail.smtp.auth", "true");
+            props.put("mail.smtp.starttls.enable", "true");
+            props.put("mail.smtp.starttls.required", "true");
+            props.put("mail.smtp.ssl.checkserveridentity", "true");
+
+            Session session = Session.getInstance(props, new Authenticator() {
+                @Override
+                protected PasswordAuthentication getPasswordAuthentication() {
+                    return new PasswordAuthentication(smtpUsername, smtpPassword);
+                }
+            });
+
+            MimeMessage message = new MimeMessage(session);
+            message.setFrom(new InternetAddress(smtpFrom));
+            message.setRecipient(Message.RecipientType.TO, new InternetAddress(toEmail));
+            message.setSubject("[AloUTE] Ma xac thuc tai khoan", StandardCharsets.UTF_8.name());
+            message.setText("Ma xac thuc dang ky tai khoan AloUTE cua ban la: " + otpCode + "\n\nMa nay co hieu luc trong 5 phut.", StandardCharsets.UTF_8.name());
+
+            Transport.send(message);
+            log.info("Registration OTP notification dispatched via SMTP host {}:{}", smtpHost, smtpPort);
         } catch (Exception ex) {
             log.warn("Failed to deliver external email notification via SMTP host {}: {}", smtpHost, ex.getClass().getSimpleName());
         }
