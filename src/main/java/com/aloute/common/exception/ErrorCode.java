@@ -24,6 +24,11 @@ public enum ErrorCode {
     AUTH_TOKEN_EXPIRED("AUTH_TOKEN_EXPIRED", HttpStatus.UNAUTHORIZED, "Authentication token has expired"),
     AUTH_FORBIDDEN("AUTH_FORBIDDEN", HttpStatus.FORBIDDEN, "Operation is not permitted"),
     AUTH_ACCOUNT_LOCKED("AUTH_ACCOUNT_LOCKED", HttpStatus.FORBIDDEN, "Account is locked or suspended"),
+    AUTH_ACCOUNT_NOT_VERIFIED("AUTH_ACCOUNT_NOT_VERIFIED", HttpStatus.FORBIDDEN, "Account is not verified"),
+    INVALID_OTP("INVALID_OTP", HttpStatus.BAD_REQUEST, "Invalid or expired OTP"),
+    OTP_EXPIRED("OTP_EXPIRED", HttpStatus.BAD_REQUEST, "OTP has expired"),
+    OTP_MAX_ATTEMPTS_EXCEEDED("OTP_MAX_ATTEMPTS_EXCEEDED", HttpStatus.BAD_REQUEST, "Maximum verification attempts exceeded"),
+    ACCOUNT_ALREADY_VERIFIED("ACCOUNT_ALREADY_VERIFIED", HttpStatus.BAD_REQUEST, "Account is already verified"),
 
     // --- USER ---
     USER_NOT_FOUND("USER_NOT_FOUND", HttpStatus.NOT_FOUND, "User not found"),

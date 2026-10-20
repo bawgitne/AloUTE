@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/auth :: layout(title='Xác thực tài khoản', content=~{::#verify-otp-content})}">
+<body>
+<div id="verify-otp-content">
+    <form id="verify-otp-form" data-action="verify-otp" class="needs-validation" novalidate>
+        <div id="auth-status" class="alert d-none py-2 small mb-3" role="status" aria-live="polite"></div>
+
+        <p class="text-secondary small mb-3">
+            Mã xác thực 6 chữ số đã được gửi tới email:
+            <strong id="display-email" class="text-dark">...</strong>.
+            Vui lòng nhập mã để kích hoạt tài khoản của bạn (mã có hiệu lực trong 5 phút).
+        </p>
+
+        <!-- Hidden Email Field -->
+        <input type="hidden" id="otp-email" name="email" value="">
+
+        <!-- 6-digit OTP Input -->
+        <div class="mb-3">
+            <label for="otp" class="form-label fw-semibold">Mã xác thực (6 số)</label>
+            <div class="input-group">
+                <input type="text"
+                       class="form-control text-center fs-4 letter-spacing-2"
+                       id="otp"
+                       name="otp"
+                       placeholder="123456"
+                       inputmode="numeric"
+                       pattern="[0-9]{6}"
+                       maxlength="6"
+                       autocomplete="one-time-code"
+                       aria-describedby="otp-feedback"
+                       aria-invalid="false"
+                       required
+                       autofocus>
+            </div>
+            <div class="invalid-feedback d-none" id="otp-feedback">Vui lòng nhập đúng 6 chữ số.</div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="d-grid mb-3">
+            <button type="submit" class="btn btn-primary py-2 fw-semibold" id="verify-submit-btn" data-action="verify-otp-submit">
+                <span class="spinner-border spinner-border-sm d-none me-1" id="verify-spinner" role="status" aria-hidden="true"></span>
+                <i class="bi bi-shield-check me-1" id="verify-icon" aria-hidden="true"></i>
+                <span id="verify-btn-text">Xác thực tài khoản</span>
+            </button>
+        </div>
+
+        <!-- Resend OTP Action -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="small text-secondary">Chưa nhận được mã?</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="resend-otp-btn" data-action="resend-otp">
+                <span class="spinner-border spinner-border-sm d-none me-1" id="resend-spinner" role="status" aria-hidden="true"></span>
+                <span id="resend-btn-text">Gửi lại mã</span>
+            </button>
+        </div>
+
+        <!-- Back to Login Link -->
+        <div class="text-center pt-2 border-top border-secondary-subtle">
+            <p class="small text-secondary mb-0">
+                Đã xác thực tài khoản?
+                <a th:href="@{/login}" href="/login" data-action="navigate-login" class="fw-semibold text-primary">Đăng nhập</a>
+            </p>
+        </div>
+    </form>
+</div>
+</body>
+</html>

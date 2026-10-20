@@ -1652,6 +1652,24 @@ Không invent persistence implementation trong domain doc; chỉ ghi nhận capa
   3. Backfill all existing `users` rows: `UPDATE users SET auth_version = 0, version = 0 WHERE auth_version IS NULL`.
   4. Create table `password_reset_tokens` with columns `id BIGINT AUTO_INCREMENT PRIMARY KEY`, `user_id BIGINT NOT NULL UNIQUE`, `token_hash VARCHAR(64) NOT NULL UNIQUE`, `auth_version BIGINT NOT NULL`, `expires_at TIMESTAMP NOT NULL`, `created_at TIMESTAMP NOT NULL`, and foreign key `fk_password_reset_tokens_user` to `users(id)`.
 
+### 60.3. Registration Email OTP Verification Lifecycle & Legacy Account Compatibility Policy
+- **Lifecycle & Cryptographic Verification**:
+  - Upon registration (`POST /api/auth/register`), new accounts are created with `isVerified = false` and `verificationRequired = true`.
+  - A cryptographically random 6-digit numeric OTP (100000–999999) is generated and hashed using HMAC-SHA256 with a per-record 16-byte random salt and server secret.
+  - The plaintext OTP is dispatched asynchronously via bounded executor `emailExecutor` after transaction commit (`afterCommit`), and is NEVER stored or logged.
+  - Verification (`POST /api/auth/verify-registration-otp`):
+    - Pessimistic locking order: Transactions MUST acquire lock on the `User` record first (`userRepository.findByEmailForUpdate`) before acquiring lock on `RegistrationOtp` (`otpRepository.findByUserIdForUpdate`) to guarantee deadlock-free execution under concurrent requests.
+    - Single-use: Upon correct OTP match, `user.isVerified` is set to `true`, `user.verificationRequired` is set to `false`, and the `registration_otps` record is atomically deleted.
+  - Rate Limiting & Cooldown:
+    - Resend requests (`POST /api/auth/resend-registration-otp`) enforce a strict 60-second cooldown per account.
+    - Each issued OTP permits a maximum of 5 failed attempts (`maxAttempts = 5`), after which `OTP_MAX_ATTEMPTS_EXCEEDED` is enforced until a new OTP is issued.
+- **Anti-Enumeration Invariant**:
+  - Verify requests for nonexistent, inactive, already verified, or legacy accounts perform constant-time dummy HMAC computation and throw generic `INVALID_OTP` (HTTP 400), indistinguishable from an invalid OTP attempt.
+  - Resend requests for nonexistent, inactive, already verified, or legacy accounts perform constant-time dummy HMAC computation and return generic HTTP 200 silently without dispatching emails or revealing account state.
+- **Legacy Account Compatibility Policy**:
+  - Existing accounts created prior to registration OTP enforcement have `verificationRequired = false` (or `isVerified = true`).
+  - Legacy users are NOT locked out and can log in normally via `/api/auth/login` without being redirected to OTP gating.
+
 ---
 
 # 61. KNOWN GAP — NOTIFICATION PREFERENCES
