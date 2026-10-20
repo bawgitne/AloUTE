@@ -1,24 +1,23 @@
 package com.aloute.controller.ws;
 
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import com.aloute.dto.request.SendMessageRequest;
 import com.aloute.entity.ConversationMember;
 import com.aloute.repository.ConversationMemberRepository;
+import com.aloute.security.principal.UserPrincipal;
 import com.aloute.service.ConversationService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
-@RequiredArgsConstructor
 @Slf4j
 @Controller
 public class ChatWebSocketController {
@@ -29,22 +28,37 @@ public class ChatWebSocketController {
     @Autowired(required = false)
     private SimpMessagingTemplate messagingTemplate;
 
+    @Autowired
+    public ChatWebSocketController(ConversationService conversationService,
+                                   ConversationMemberRepository conversationMemberRepository) {
+        this.conversationService = conversationService;
+        this.conversationMemberRepository = conversationMemberRepository;
+    }
+
+    public ChatWebSocketController(ConversationService conversationService,
+                                   ConversationMemberRepository conversationMemberRepository,
+                                   SimpMessagingTemplate messagingTemplate) {
+        this.conversationService = conversationService;
+        this.conversationMemberRepository = conversationMemberRepository;
+        this.messagingTemplate = messagingTemplate;
+    }
+
     @MessageMapping("/chat.send/{conversationId}")
     public void handleChatMessage(
             @DestinationVariable Long conversationId,
             @Payload SendMessageRequest request,
             Principal principal
     ) {
-        if (principal == null) {
+        Long userId = extractUserId(principal);
+        if (userId == null) {
             log.warn("Unauthenticated WebSocket message rejected");
             return;
         }
-        try {
-            Long userId = Long.parseLong(principal.getName());
-            conversationService.sendMessage(conversationId, userId, request);
-        } catch (NumberFormatException ex) {
-            log.error("Invalid principal name for user ID: {}", principal.getName());
+        if (conversationId == null || !conversationMemberRepository.existsByConversationIdAndUserId(conversationId, userId)) {
+            log.warn("User {} is not a member of conversation {} - message rejected", userId, conversationId);
+            return;
         }
+        conversationService.sendMessage(conversationId, userId, request);
     }
 
     @MessageMapping("/chat.typing/{conversationId}")
@@ -52,12 +66,16 @@ public class ChatWebSocketController {
             @DestinationVariable Long conversationId,
             Principal principal
     ) {
-        if (principal == null || messagingTemplate == null) return;
+        Long userId = extractUserId(principal);
+        if (userId == null || messagingTemplate == null || conversationId == null) return;
+        if (!conversationMemberRepository.existsByConversationIdAndUserId(conversationId, userId)) {
+            log.warn("User {} is not a member of conversation {} - typing indicator rejected", userId, conversationId);
+            return;
+        }
         try {
-            Long userId = Long.parseLong(principal.getName());
             List<ConversationMember> members = conversationMemberRepository.findByConversationId(conversationId);
             for (ConversationMember m : members) {
-                if (!m.getUser().getId().equals(userId)) {
+                if (m.getUser() != null && m.getUser().getId() != null && !m.getUser().getId().equals(userId)) {
                     messagingTemplate.convertAndSendToUser(
                             String.valueOf(m.getUser().getId()),
                             "/queue/typing",
@@ -75,12 +93,16 @@ public class ChatWebSocketController {
             @DestinationVariable Long conversationId,
             Principal principal
     ) {
-        if (principal == null || messagingTemplate == null) return;
+        Long userId = extractUserId(principal);
+        if (userId == null || messagingTemplate == null || conversationId == null) return;
+        if (!conversationMemberRepository.existsByConversationIdAndUserId(conversationId, userId)) {
+            log.warn("User {} is not a member of conversation {} - read receipt rejected", userId, conversationId);
+            return;
+        }
         try {
-            Long userId = Long.parseLong(principal.getName());
             List<ConversationMember> members = conversationMemberRepository.findByConversationId(conversationId);
             for (ConversationMember m : members) {
-                if (!m.getUser().getId().equals(userId)) {
+                if (m.getUser() != null && m.getUser().getId() != null && !m.getUser().getId().equals(userId)) {
                     messagingTemplate.convertAndSendToUser(
                             String.valueOf(m.getUser().getId()),
                             "/queue/read-receipts",
@@ -91,5 +113,15 @@ public class ChatWebSocketController {
         } catch (Exception ex) {
             log.debug("Read receipt notification skipped: {}", ex.getMessage());
         }
+    }
+
+    private Long extractUserId(Principal principal) {
+        if (principal instanceof Authentication auth && auth.isAuthenticated() && auth.getPrincipal() instanceof UserPrincipal userPrincipal) {
+            return userPrincipal.getId();
+        }
+        if (principal instanceof UserPrincipal userPrincipal) {
+            return userPrincipal.getId();
+        }
+        return null;
     }
 }

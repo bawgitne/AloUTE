@@ -47,7 +47,7 @@
         <div class="mb-4">
             <div class="d-flex justify-content-between align-items-center mb-1">
                 <label for="password" class="form-label mb-0">Mật khẩu</label>
-                <span class="small text-muted" aria-disabled="true" title="Chức năng đặt lại mật khẩu hiện chưa được hỗ trợ">Quên mật khẩu? (Chưa hỗ trợ)</span>
+                <a th:href="@{/forgot-password}" href="/forgot-password" class="small text-primary text-decoration-none" data-action="navigate-forgot-password">Quên mật khẩu?</a>
             </div>
             <div class="input-group">
                 <input type="password"

@@ -11,6 +11,7 @@ import java.time.Instant;
         @UniqueConstraint(name = "uk_users_username", columnNames = "username"),
         @UniqueConstraint(name = "uk_users_email", columnNames = "email")
 })
+@org.hibernate.annotations.DynamicUpdate
 @Getter
 @Setter
 public class User {
@@ -31,11 +32,16 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(name = "global_role", nullable = false, length = 32)
     private Role role = Role.USER;
+    @Column(name = "auth_version", nullable = false)
+    private Long authVersion = 0L;
+    @Version
+    @Column(name = "version")
+    private Long version;
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    @PrePersist void prePersist() { Instant now = Instant.now(); createdAt = now; updatedAt = now; if (role == null) role = Role.USER; }
+    @PrePersist void prePersist() { Instant now = Instant.now(); createdAt = now; updatedAt = now; if (role == null) role = Role.USER; if (authVersion == null) authVersion = 0L; }
     @PreUpdate void preUpdate() { updatedAt = Instant.now(); }
 }

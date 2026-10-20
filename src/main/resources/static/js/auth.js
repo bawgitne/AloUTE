@@ -14,7 +14,7 @@
             box.id = 'auth-status';
             box.setAttribute('role', 'alert');
             box.setAttribute('aria-live', 'polite');
-            const form = document.querySelector('form[data-action="login"], form[data-action="register"]');
+            const form = document.querySelector('form[data-action="login"], form[data-action="register"], form[data-action="forgot-password"], form[data-action="reset-password"]');
             if (form) form.prepend(box);
             else document.body.prepend(box);
         }
@@ -69,6 +69,20 @@
         } catch (_) {
             return null;
         }
+    }
+
+    function getCsrfToken() {
+        const cookie = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='));
+        return cookie ? decodeURIComponent(cookie.split('=').slice(1).join('=')) : null;
+    }
+
+    function csrfHeaders(extra) {
+        const headers = Object.assign({}, extra || {});
+        const token = getCsrfToken();
+        if (token) {
+            headers['X-XSRF-TOKEN'] = token;
+        }
+        return headers;
     }
 
     // Safely translate stable backend error codes/messages to Vietnamese
@@ -373,6 +387,140 @@
         }
     }
 
+    async function forgotPassword(form) {
+        clearErrors(form);
+        const emailInput = document.getElementById('email');
+        const submitBtn = document.getElementById('forgot-submit-btn');
+        const email = emailInput ? emailInput.value.trim() : '';
+
+        if (!email) {
+            setFieldError('email', 'Vui lòng nhập địa chỉ email.');
+            return;
+        }
+
+        setSubmitting(submitBtn, true, 'Đang gửi...', 'Gửi liên kết đặt lại', 'forgot-icon', 'forgot-spinner');
+        statusBox('Đang gửi yêu cầu...', 'info');
+
+        try {
+            const response = await fetch('/api/auth/forgot-password', {
+                method: 'POST',
+                credentials: 'include',
+                headers: csrfHeaders({
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }),
+                body: JSON.stringify({ email: email })
+            });
+
+            const body = await readJson(response);
+            setSubmitting(submitBtn, false, 'Đang gửi...', 'Gửi liên kết đặt lại', 'forgot-icon', 'forgot-spinner');
+
+            if (response.ok) {
+                statusBox('Nếu địa chỉ email tồn tại trên hệ thống, liên kết đặt lại mật khẩu đã được gửi đến hòm thư của bạn.', 'success');
+                if (emailInput) emailInput.value = '';
+                return;
+            }
+
+            if (response.status === 429) {
+                statusBox('Bạn đã yêu cầu quá nhiều lần. Vui lòng chờ trước khi thử lại.', 'warning');
+            } else if (response.status === 422) {
+                if (body && body.error && body.error.fieldErrors) {
+                    for (const [field, msgs] of Object.entries(body.error.fieldErrors)) {
+                        setFieldError(field, translateFieldError(field, msgs));
+                    }
+                }
+                statusBox('Địa chỉ email không hợp lệ.', 'danger');
+            } else if (response.status === 403) {
+                statusBox('Phiên làm việc hết hạn hoặc thiếu mã bảo mật CSRF. Vui lòng tải lại trang.', 'danger');
+            } else {
+                statusBox('Đã có lỗi xảy ra. Vui lòng thử lại sau.', 'danger');
+            }
+        } catch (e) {
+            setSubmitting(submitBtn, false, 'Đang gửi...', 'Gửi liên kết đặt lại', 'forgot-icon', 'forgot-spinner');
+            statusBox('Lỗi kết nối tới máy chủ. Vui lòng kiểm tra mạng và thử lại.', 'danger');
+        }
+    }
+
+    async function resetPassword(form) {
+        clearErrors(form);
+        const tokenInput = document.getElementById('reset-token');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        const submitBtn = document.getElementById('reset-submit-btn');
+
+        const token = tokenInput ? tokenInput.value.trim() : '';
+        const password = passwordInput ? passwordInput.value : '';
+        const confirmPassword = confirmPasswordInput ? confirmPasswordInput.value : '';
+
+        if (!token) {
+            statusBox('Mã xác thực đặt lại mật khẩu không hợp lệ hoặc thiếu.', 'danger');
+            return;
+        }
+
+        let hasError = false;
+        if (!password) {
+            setFieldError('password', 'Vui lòng nhập mật khẩu mới.');
+            hasError = true;
+        } else if (password.length < 8 || password.length > 128) {
+            setFieldError('password', 'Mật khẩu phải từ 8 đến 128 ký tự.');
+            hasError = true;
+        }
+
+        if (!confirmPassword) {
+            setFieldError('confirmPassword', 'Vui lòng xác nhận mật khẩu.');
+            hasError = true;
+        } else if (password !== confirmPassword) {
+            setFieldError('confirmPassword', 'Mật khẩu xác nhận không khớp.');
+            hasError = true;
+        }
+
+        if (hasError) return;
+
+        setSubmitting(submitBtn, true, 'Đang lưu...', 'Lưu mật khẩu mới', 'reset-icon', 'reset-spinner');
+        statusBox('Đang cập nhật mật khẩu...', 'info');
+
+        try {
+            const response = await fetch('/api/auth/reset-password', {
+                method: 'POST',
+                credentials: 'include',
+                headers: csrfHeaders({
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }),
+                body: JSON.stringify({ token: token, password: password, confirmPassword: confirmPassword })
+            });
+
+            const body = await readJson(response);
+            setSubmitting(submitBtn, false, 'Đang lưu...', 'Lưu mật khẩu mới', 'reset-icon', 'reset-spinner');
+
+            if (response.ok) {
+                statusBox('Đặt lại mật khẩu thành công! Đang chuyển hướng về trang đăng nhập...', 'success');
+                window.setTimeout(function () {
+                    window.location.href = '/login';
+                }, 1500);
+                return;
+            }
+
+            if (response.status === 400) {
+                statusBox('Liên kết đặt lại mật khẩu không hợp lệ, đã hết hạn hoặc đã được sử dụng.', 'danger');
+            } else if (response.status === 422) {
+                if (body && body.error && body.error.fieldErrors) {
+                    for (const [field, msgs] of Object.entries(body.error.fieldErrors)) {
+                        setFieldError(field, translateFieldError(field, msgs));
+                    }
+                }
+                statusBox('Thông tin mật khẩu không hợp lệ.', 'danger');
+            } else if (response.status === 403) {
+                statusBox('Phiên làm việc hết hạn hoặc thiếu mã bảo mật CSRF. Vui lòng tải lại trang.', 'danger');
+            } else {
+                statusBox('Đã có lỗi xảy ra. Vui lòng thử lại sau.', 'danger');
+            }
+        } catch (e) {
+            setSubmitting(submitBtn, false, 'Đang lưu...', 'Lưu mật khẩu mới', 'reset-icon', 'reset-spinner');
+            statusBox('Lỗi kết nối tới máy chủ. Vui lòng kiểm tra mạng và thử lại.', 'danger');
+        }
+    }
+
     // Attach form submit listeners
     const loginForm = document.querySelector('form[data-action="login"]');
     if (loginForm) {
@@ -387,6 +535,43 @@
         registerForm.addEventListener('submit', function (event) {
             event.preventDefault();
             register(registerForm);
+        });
+    }
+
+    const forgotForm = document.querySelector('form[data-action="forgot-password"]');
+    if (forgotForm) {
+        forgotForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            forgotPassword(forgotForm);
+        });
+    }
+
+    const resetForm = document.querySelector('form[data-action="reset-password"]');
+    if (resetForm) {
+        const hash = window.location.hash;
+        let token = '';
+        if (hash) {
+            const match = hash.match(/token=([a-zA-Z0-9_-]+)/);
+            if (match) {
+                token = match[1];
+            }
+            // Immediately strip fragment from location bar to avoid referrer/history leaks
+            try {
+                history.replaceState(null, '', window.location.pathname + window.location.search);
+            } catch (_) {}
+        }
+        const tokenInput = document.getElementById('reset-token');
+        if (tokenInput && token) {
+            tokenInput.value = token;
+        } else if (!token) {
+            statusBox('Liên kết đặt lại mật khẩu không hợp lệ hoặc thiếu mã xác thực.', 'warning');
+            const submitBtn = document.getElementById('reset-submit-btn');
+            if (submitBtn) submitBtn.disabled = true;
+        }
+
+        resetForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            resetPassword(resetForm);
         });
     }
 
@@ -405,11 +590,12 @@
         });
     });
 
-    document.querySelectorAll('[data-action="forgot-password"]').forEach(link => {
+    document.querySelectorAll('[data-action="navigate-forgot-password"]').forEach(link => {
         link.addEventListener('click', function (event) {
             event.preventDefault();
-            statusBox('Chức năng Quên mật khẩu chưa được triển khai trong phạm vi hiện tại.', 'warning');
+            window.location.href = '/forgot-password';
         });
     });
 
 })();
+
