@@ -6,11 +6,19 @@
     <form id="verify-otp-form" data-action="verify-otp" class="needs-validation" novalidate>
         <div id="auth-status" class="alert d-none py-2 small mb-3" role="status" aria-live="polite"></div>
 
-        <p class="text-secondary small mb-3">
-            Mã xác thực 6 chữ số đã được gửi tới email:
-            <strong id="display-email" class="text-dark">...</strong>.
-            Vui lòng nhập mã để kích hoạt tài khoản của bạn (mã có hiệu lực trong 5 phút).
-        </p>
+        <div id="email-display-group">
+            <p class="text-secondary small mb-3">
+                Mã xác thực 6 chữ số được cấp cho tài khoản email:
+                <strong id="display-email" class="text-dark">...</strong>.
+                Vui lòng nhập mã để kích hoạt tài khoản của bạn (mã có hiệu lực trong 5 phút).
+            </p>
+        </div>
+
+        <div id="email-manual-group" class="mb-3 d-none">
+            <label for="otp-email-input" class="form-label fw-semibold">Email tài khoản</label>
+            <input type="email" class="form-control" id="otp-email-input" placeholder="name@example.com">
+            <div class="form-text small text-secondary">Nhập email tài khoản bạn đã đăng ký để xác thực mã OTP.</div>
+        </div>
 
         <!-- Hidden Email Field -->
         <input type="hidden" id="otp-email" name="email" value="">
