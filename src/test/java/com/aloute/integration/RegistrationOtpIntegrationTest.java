@@ -40,7 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestPropertySource(properties = {
         "ALOUTE_JWT_SECRET=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
         "ALOUTE_JWT_EXPIRATION_SECONDS=3600",
-        "aloute.auth.registration-otp-secret=test-registration-otp-secret-key-32b",
+        "aloute.auth.registration-otp-secret=dGVzdC1yZWdpc3RyYXRpb24tb3RwLXNlY3JldC1rZXktMzJiLWxlbmd0aCE=",
         "aloute.auth.registration-otp-expiry-minutes=5",
         "aloute.auth.registration-otp-cooldown-seconds=60",
         "aloute.auth.registration-otp-max-attempts=5"
@@ -190,7 +190,7 @@ class RegistrationOtpIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(verifyReq)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.code").value("OTP_EXPIRED"));
+                .andExpect(jsonPath("$.error.code").value("INVALID_OTP"));
     }
 
     @Test
@@ -257,7 +257,7 @@ class RegistrationOtpIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new VerifyRegistrationOtpRequest(email, "000000"))))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.code").value("OTP_MAX_ATTEMPTS_EXCEEDED"));
+                .andExpect(jsonPath("$.error.code").value("INVALID_OTP"));
 
         // 6th attempt with correct OTP is still rejected because limit is reached
         mockMvc.perform(post("/api/auth/verify-registration-otp")
@@ -265,11 +265,14 @@ class RegistrationOtpIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new VerifyRegistrationOtpRequest(email, correctOtp))))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.code").value("OTP_MAX_ATTEMPTS_EXCEEDED"));
+                .andExpect(jsonPath("$.error.code").value("INVALID_OTP"));
+
+        RegistrationOtp exhaustedOtp = otpRepository.findByUser(userRepository.findByEmailIgnoreCase(email).orElseThrow()).orElseThrow();
+        assertThat(exhaustedOtp.getAttempts()).isEqualTo(5);
     }
 
     @Test
-    @DisplayName("Case 11: Resend cooldown is strictly enforced")
+    @DisplayName("Case 11: Resend cooldown suppresses dispatch silently with 200, and flooding triggers 429")
     void resendCooldownEnforced() throws Exception {
         String email = generateEmail("cooldown");
         String username = generateUsername("cool");
@@ -282,12 +285,45 @@ class RegistrationOtpIntegrationTest {
                 .andExpect(status().isCreated());
 
         assertThat(emailSink.awaitOtpCount(1, 3, TimeUnit.SECONDS)).isTrue();
+        assertThat(emailSink.getOtpSink()).hasSize(1);
 
-        // Immediate resend within 60s cooldown must return 429
+        // Immediate resend within 60s cooldown returns 200 silently without dispatching additional email
         mockMvc.perform(post("/api/auth/resend-registration-otp")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new ResendRegistrationOtpRequest(email))))
+                .andExpect(status().isOk());
+
+        // Still exactly 1 email dispatched (cooldown prevented second dispatch)
+        assertThat(emailSink.getOtpSink()).hasSize(1);
+
+        // Rapid flooding exceeding 10 requests/minute triggers 429 RATE_LIMIT_EXCEEDED
+        for (int i = 0; i < 9; i++) {
+            mockMvc.perform(post("/api/auth/resend-registration-otp")
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(new ResendRegistrationOtpRequest(email))));
+        }
+
+        mockMvc.perform(post("/api/auth/resend-registration-otp")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ResendRegistrationOtpRequest(email))))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.error.code").value("RATE_LIMIT_EXCEEDED"));
+
+        // Unknown email also hits 429 when flooded
+        String unknownEmail = "flooded_unknown@example.com";
+        for (int i = 0; i < 10; i++) {
+            mockMvc.perform(post("/api/auth/resend-registration-otp")
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(new ResendRegistrationOtpRequest(unknownEmail))));
+        }
+        mockMvc.perform(post("/api/auth/resend-registration-otp")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ResendRegistrationOtpRequest(unknownEmail))))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.error.code").value("RATE_LIMIT_EXCEEDED"));
     }
@@ -667,8 +703,6 @@ class RegistrationOtpIntegrationTest {
                             .andReturn();
                     if (res.getResponse().getStatus() == 200) {
                         successCount.incrementAndGet();
-                    } else if (res.getResponse().getStatus() == 429) {
-                        rateLimitCount.incrementAndGet();
                     }
                 } catch (Exception e) {
                     // ignore
@@ -681,9 +715,8 @@ class RegistrationOtpIntegrationTest {
         }
         executor.shutdown();
 
-        // Exactly one concurrent resend succeeds; remaining concurrent requests are rate-limited with 429
-        assertThat(successCount.get()).isEqualTo(1);
-        assertThat(rateLimitCount.get()).isEqualTo(threads - 1);
+        // All concurrent resend requests receive 200 generic success, but exactly one email dispatch occurs
+        assertThat(successCount.get()).isEqualTo(threads);
         assertThat(emailSink.awaitOtpCount(1, 3, TimeUnit.SECONDS)).isTrue();
         assertThat(emailSink.getOtpSink()).hasSize(1);
     }

@@ -87,7 +87,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponseNull'
+                $ref: '#/components/schemas/ApiResponseMessage'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -115,7 +115,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponseNull'
+                $ref: '#/components/schemas/ApiResponseMessage'
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
