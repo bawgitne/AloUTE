@@ -2604,6 +2604,29 @@ cho production schema management.
 
 Development có thể khác theo config, nhưng canonical schema change phải có migration.
 
+## 97.1. Trạng thái thực tế trên master (2026-10-20)
+
+Hiện tại **chưa có Flyway/Liquibase** trong `pom.xml`. Schema được quản lý theo cách:
+
+```text
+Hibernate ddl-auto=update  → sinh/đổi bảng theo Entity ở mọi profile (kể cả prod)
+src/main/resources/db/     → script SQL thủ công, không chạy tự động
+├── schema.sql             # DDL PostgreSQL (tài liệu thiết kế, không wire vào runtime)
+├── triggers.sql           # plpgsql trigger (chưa chạy trên MySQL)
+├── procedures.sql         # stored procedure (chưa chạy trên MySQL)
+└── migration/
+    ├── h2_auth_and_registration_otp.sql     # đã verify bằng H2MigrationScriptVerificationTest
+    ├── mysql8_auth_and_registration_otp.sql # UNVERIFIED trên MySQL thật (theo README.md)
+    └── README.md                            # hướng dẫn chạy thủ công
+```
+
+Quy tắc bắt buộc khi thêm cột/bảng mới:
+
+1. Đổi Entity Java là nguồn tạo schema lúc runtime (ddl-auto=update).
+2. Nếu đổi ảnh hưởng dữ liệu có sẵn (backfill, rename, constraint), **phải** thêm script tương ứng
+   vào `db/migration/` cho cả H2 và MySQL 8 và note trạng thái verify trong `migration/README.md`.
+3. Migration đã merge không sửa nội dung — tạo script mới (đồng bộ §98 và `github_workflow.md` §43).
+
 ---
 
 # 98. MIGRATION RULE

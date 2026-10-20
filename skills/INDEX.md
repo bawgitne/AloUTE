@@ -34,12 +34,17 @@ JWT / refresh / authorization
 
 Firebase upload / storage key / FCM Web Push
 → ALOUTE_MEDIA_STORAGE_CONVENTION.md & ALOUTE_SYSTEM_ARCHITECTURE.md
+  (CHÚ Ý 2026-10-20: file owner riêng chưa tồn tại trong skills/ — boundary Firebase đang sống
+  tại §20 ALOUTE_SYSTEM_ARCHITECTURE.md cho tới khi file owner được tạo)
 
 STOMP destination / realtime event
 → ALOUTE_REALTIME_WEBSOCKET_CONVENTION.md
+  (CHÚ Ý 2026-10-20: file owner riêng chưa tồn tại trong skills/ — bảng destination canonical
+  đang sống tại §21.1 ALOUTE_SYSTEM_ARCHITECTURE.md cho tới khi file owner được tạo)
 
-Thymeleaf / Bootstrap / browser JavaScript (Giao diện chính thức SSR) & Vue 3 SPA (fe-vue mở rộng)
+Thymeleaf / Bootstrap / browser JavaScript (Giao diện chính thức SSR) & Flutter client mở rộng (aloute_mobile)
 → ALOUTE_FRONTEND_CONVENTION.md
+  (fe-vue: KHÔNG tồn tại trên master hiện tại — mọi claim về Vue 3 SPA chỉ là kế hoạch)
 
 Database Triggers, Stored Procedures & Index (Nguyễn Duy Ngọc phụ trách)
 → ALOUTE_DOMAIN_SYSTEM.md & ALOUTE_SPRING_BOOT_BACKEND_CONVENTION.md
@@ -76,11 +81,20 @@ Theo kế hoạch thực hiện 3 tuần chính thức nộp GVHD Th.S Nguyễn 
 
 > **Nguyên tắc phân định ranh giới cho AI Agent & Developer**:
 > 1. AI khi code feature nào phải bám đúng thành viên chịu trách nhiệm, không can thiệp chéo hoặc tự ý xóa bỏ code/tài liệu của thành viên khác.
-> 2. Giao diện chính để nghiệm thu đồ án môn học với thầy Văn là **Thymeleaf + Bootstrap (SSR)**. Thư mục `fe-vue` (Vue 3 SPA) đóng vai trò client mở rộng / nâng cao độc lập, không thay thế việc hoàn thiện các file template Thymeleaf trong `src/main/resources/templates/`.
+> 2. Giao diện chính để nghiệm thu đồ án môn học với thầy Văn là **Thymeleaf + Bootstrap (SSR)**. Thư mục `fe-vue` (Vue 3 SPA) **chưa tồn tại trên master hiện tại** — chỉ là kế hoạch mở rộng; client mở rộng thực tế đang là `aloute_mobile/` (Flutter). Cả hai đều không thay thế việc hoàn thiện các file template Thymeleaf trong `src/main/resources/templates/`.
 
 ---
 
 # 2. BỘ TÀI LIỆU CANONICAL
+
+> **CHÚ Ý 2026-10-20:** Các tên file bên dưới là tên "logic" của bộ tài liệu. Trên repo, file vật lý
+> nằm trong `skills/` với tên ngắn hơn (`domain_system.md` = ALOUTE_DOMAIN_SYSTEM.md,
+> `system_architecture.md` = ALOUTE_SYSTEM_ARCHITECTURE.md, `backend_rule.md` =
+> ALOUTE_SPRING_BOOT_BACKEND_CONVENTION.md, `author_rule.md` = SPRING_SECURITY_CONVENTION.md,
+> `frontend_rule.md` = ALOUTE_FRONTEND_CONVENTION.md, `docker_reverse_proxy_rule.md` =
+> ALOUTE_DOCKER_REVERSE_PROXY_CONVENTION.md). `RULE.md`, `README.md` gốc và hai file owner
+> MEDIA/REALTIME **chưa tồn tại** — đọc `AGENTS.md` thay RULE.md và phần boundary tương ứng trong
+> `system_architecture.md` (§20 Firebase, §21 WebSocket).
 
 Luôn dùng bộ tài liệu final:
 
