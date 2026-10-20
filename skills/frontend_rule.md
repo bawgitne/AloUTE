@@ -24,9 +24,10 @@ Hệ thống hỗ trợ 2 mô hình giao diện:
    - Server-side rendered pages được render trực tiếp bởi các `PageController`.
    - JavaScript chỉ đóng vai trò enhancement tương tác (like, comment, voting, WebSocket realtime stomp).
 2. **Model B (Extended REST Client — Mở rộng)**:
-   - **Vue 3 SPA** (nằm trong thư mục `fe-vue`).
-   - Hoạt động như một external client độc lập gọi REST API `/api/v1/*`.
-   - Không được làm ảnh hưởng hoặc làm xáo trộn kiến trúc Thymeleaf SSR chính thức.
+   - **Vue 3 SPA** (kế hoạch đặt tại `fe-vue/`) — **CHƯA TỒN TẠI trên master (2026-10-20)**.
+   - Client mở rộng thực tế hiện có là **`aloute_mobile/` (Flutter)**, gọi REST API `/api/*`
+     (không phải `/api/v1/*` — toàn bộ REST của ALOUTE mount tại `/api/*`).
+   - Client ngoài không được làm ảnh hưởng hoặc làm xáo trộn kiến trúc Thymeleaf SSR chính thức.
 
 ```text
 Browser
@@ -65,35 +66,35 @@ Frontend không copy lại các bảng/rule đó.
 
 # 3. RESOURCE FOLDER STRUCTURE
 
+Cây mục tiêu (canonical plan). Trạng thái thực tế trên master ghi chú ngay trong cây:
+
 ```text
 src/main/resources/
 ├── templates/
 │   ├── layouts/
-│   │   ├── default.html
-│   │   ├── auth.html
-│   │   ├── settings.html
-│   │   └── admin.html
+│   │   ├── default.html      # ✓ có
+│   │   ├── auth.html         # ✓ có
+│   │   ├── admin.html        # ✓ có
+│   │   └── settings.html     # ✗ CHƯA có (settings pages dùng layout default)
 │   │
 │   ├── fragments/
-│   │   ├── head.html
-│   │   ├── navbar.html
-│   │   ├── sidebar.html
-│   │   ├── flash.html
-│   │   ├── modal.html
-│   │   └── pagination.html
+│   │   ├── head.html, navbar.html, flash.html, modal.html, pagination.html, ...
+│   │   └── admin/            # sidebar, topbar, breadcrumbs, modals, pagination, status-badge
 │   │
-│   ├── auth/
+│   ├── auth/                 # login, register, verify-otp, forgot-password, reset-password
 │   ├── feed/
 │   ├── user/
 │   ├── post/
 │   ├── topic/
-│   ├── poll/
+│   ├── poll/                 # ✗ CHƯA có (poll render inline trong post/feed)
 │   ├── community/
 │   ├── messaging/
 │   ├── notification/
-│   ├── moderation/
+│   ├── admin/                # thay cho "moderation/": index (overview), users/, posts/,
+│   │                         #   reports/, moderation-actions/ — dùng index.html, không list.html
+│   ├── search/               # có, không nằm trong cây gốc
 │   ├── settings/
-│   └── error/
+│   └── error/                # 404.html, 500.html
 │
 └── static/
     ├── css/
@@ -105,18 +106,19 @@ src/main/resources/
     │
     ├── js/
     │   ├── core/
-    │   │   ├── http-client.js
-    │   │   ├── dom.js
-    │   │   ├── form.js
-    │   │   └── websocket-client.js
+    │   │   └── http-client.js      # ✓ có; dom.js/form.js/websocket-client.js CHƯA tách
     │   ├── features/
-    │   │   ├── post/
-    │   │   ├── community/
-    │   │   ├── messaging/
-    │   │   └── notification/
-    │   └── pages/
+    │   │   ├── post/               # post-like.js, post-composer.js, post-edit-delete.js
+    │   │   ├── messaging/          # messaging.js
+    │   │   ├── notification/       # notification.js
+    │   │   ├── admin/              # admin-actions.js
+    │   │   └── fcm-notification.js
+    │   ├── auth.js, page-actions.js # page-actions.js ~2.5k dòng: cần tách dần vào features/
+    │   └── pages/                   # ✗ CHƯA có
     │
     ├── images/
+    └── firebase-messaging-sw.js    # service worker nằm ở root của static/
+
     └── vendor/
 ```
 
@@ -1163,21 +1165,25 @@ Backend security vẫn phải có test riêng; UI hide/show test không thay th�
 ## 46.1. Cấu trúc Backoffice Template
 1. **Layout chuyên biệt:**
    - `templates/layouts/admin.html`: Giao diện quản trị riêng biệt với Sidebar cố định, Topbar điều hướng, Breadcrumbs, badge hiển thị số lượng Report đang chờ xử lý (`pendingReports`).
-2. **Hệ thống màn hình Admin:**
-   - `templates/admin/overview.html`: Thẻ KPI nhanh (`asOf`), biểu đồ tăng trưởng bài viết/người dùng, danh sách các báo cáo vi phạm cần duyệt gấp.
-   - `templates/admin/users/list.html` & `detail.html`: Bảng tra cứu tài khoản kèm bộ lọc trạng thái, chi tiết hồ sơ quản trị, lịch sử vi phạm.
-   - `templates/admin/posts/list.html` & `detail.html`: Bảng kiểm soát bài viết, xem trước nội dung, modal gỡ bài (`POST_REMOVE`) và khôi phục (`POST_RESTORE`).
-   - `templates/admin/reports/list.html` & `detail.html`: Hàng đợi duyệt báo cáo phân theo tab (`PENDING`, `REVIEWED`, `RESOLVED`, `REJECTED`), chi tiết vi phạm kèm đối tượng liên quan.
-   - `templates/admin/moderation-actions/list.html`: Nhật ký kiểm duyệt (Audit Log) chỉ đọc, không có nút xóa/sửa.
+2. **Hệ thống màn hình Admin** (tên file đúng theo master — dùng `index.html`, không `list.html`/`overview.html`):
+   - `templates/admin/index.html`: Thẻ KPI nhanh (`asOf`), biểu đồ tăng trưởng bài viết/người dùng, danh sách các báo cáo vi phạm cần duyệt gấp.
+   - `templates/admin/users/index.html` & `detail.html`: Bảng tra cứu tài khoản kèm bộ lọc trạng thái, chi tiết hồ sơ quản trị, lịch sử vi phạm.
+   - `templates/admin/posts/index.html` & `detail.html`: Bảng kiểm soát bài viết, xem trước nội dung, modal gỡ bài (`POST_REMOVE`) và khôi phục (`POST_RESTORE`).
+   - `templates/admin/reports/index.html` & `detail.html`: Hàng đợi duyệt báo cáo phân theo tab (`PENDING`, `REVIEWED`, `RESOLVED`, `REJECTED`), chi tiết vi phạm kèm đối tượng liên quan.
+   - `templates/admin/moderation-actions/index.html`: Nhật ký kiểm duyệt (Audit Log) chỉ đọc, không có nút xóa/sửa.
 
 ## 46.2. Inline Admin Controls trên Giao diện Người dùng
 Khi Quản trị viên (`SYSTEM_ADMIN`) lướt web như người dùng thông thường, giao diện hiển thị thêm các công cụ đặc quyền thông qua `sec:authorize="hasRole('SYSTEM_ADMIN')"`:
 1. **Trên thẻ bài viết (`_post-card.html`) & Trang chi tiết (`post/detail.html`):**
    - Menu 3 chấm (`...`) bổ sung khối thao tác quản trị màu đỏ:
-     - 🗑️ **Gỡ bài viết này (Admin)**: Mở modal xác nhận kèm ô nhập lý do gỡ bài.
-     - 🚫 **Khóa tài khoản tác giả (Ban User)**: Mở modal đình chỉ tài khoản tác giả.
+     - 🗑️ **Gỡ bài viết này (Admin)**: Mở modal xác nhận kèm ô nhập lý do gỡ bài
+       (`POST /api/admin/posts/{postId}/remove`) và khôi phục (`POST /api/admin/posts/{postId}/restore`).
+     - 🚫 **Khóa tài khoản tác giả (Ban User)**: **CHƯA IMPLEMENT (P2)** — backend chưa có
+       `account_suspensions` và API ban/unban (`GlobalAuthority.USER_SUSPEND` mới chỉ là authority
+       được cấp cho `SYSTEM_ADMIN`, chưa có endpoint nào tiêu thụ). UI mục này phải chờ
+       domain_system §59 (account_suspensions) implement xong mới dựng.
 2. **Trên trang cá nhân (`user/profile.html`):**
-   - Hiển thị **Admin Toolbar** phía trên đầu hồ sơ: Nút Khóa/Mở khóa tài khoản (`Ban/Unban`), Nút Hạn chế tương tác (cấm đăng bài/bình luận có thời hạn).
+   - **Admin Toolbar** (Ban/Unban, Hạn chế tương tác): **CHƯA IMPLEMENT (P2)** — cùng lý do trên.
 3. **Quy tắc UX bắt buộc:**
    - **Không Optimistic Update:** Đối với mọi thao tác gỡ bài, xóa nội dung, khóa tài khoản, UI **bắt buộc** phải chờ phản hồi HTTP `2xx` từ máy chủ mới tiến hành xóa phần tử khỏi DOM hoặc cập nhật trạng thái.
    - **Xác nhận & Lý do:** Mọi hành động can thiệp phải hiển thị Confirmation Modal, bắt buộc nhập lý do xử lý (`reasonDetail`, tối thiểu 10 ký tự).
