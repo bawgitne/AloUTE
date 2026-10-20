@@ -2152,6 +2152,13 @@ components:
         minimum: 1
 
   responses:
+    RateLimitExceeded:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
     BadRequest:
       description: Malformed or invalid request
       content:
@@ -2195,6 +2202,32 @@ components:
             $ref: '#/components/schemas/ErrorEnvelope'
 
   schemas:
+
+    ApiResponseNull:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          nullable: true
+          example: null
+
+    ApiResponseMessage:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          required: [message]
+          properties:
+            message:
+              type: string
+              example: "Thao tác thành công."
 
     ApiError:
       type: object
