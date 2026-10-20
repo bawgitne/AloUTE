@@ -41,11 +41,11 @@ public class FirebaseConfig {
             // Fallback: check standard locations for serviceAccountKey.json
             if (serviceAccount == null) {
                 File rootFile = new File("serviceAccountKey.json");
-                if (rootFile.exists()) {
+                if (rootFile.exists() && rootFile.length() > 10) {
                     serviceAccount = new FileInputStream(rootFile);
                 } else {
                     ClassPathResource classpathFile = new ClassPathResource("serviceAccountKey.json");
-                    if (classpathFile.exists()) {
+                    if (classpathFile.exists() && classpathFile.contentLength() > 10) {
                         serviceAccount = classpathFile.getInputStream();
                     }
                 }
