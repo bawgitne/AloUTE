@@ -9,6 +9,7 @@ import com.aloute.common.exception.ErrorCode;
 import com.aloute.repository.PasswordResetTokenRepository;
 import com.aloute.repository.UserRepository;
 import com.aloute.service.PasswordResetService;
+import com.aloute.service.email.DefaultEmailService;
 import com.aloute.service.email.EmailService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -127,7 +128,8 @@ public class PasswordResetServiceImpl implements PasswordResetService {
             try {
                 emailService.sendPasswordResetEmail(recipientEmail, finalResetUrl);
             } catch (Exception ex) {
-                log.warn("Failed to dispatch password reset email asynchronously: {}", ex.getClass().getSimpleName());
+                log.error("Failed to dispatch password reset email asynchronously for recipient {}: {}",
+                        DefaultEmailService.sanitizeForLog(recipientEmail), ex.getClass().getSimpleName());
             }
         };
 
@@ -137,7 +139,8 @@ public class PasswordResetServiceImpl implements PasswordResetService {
             } catch (RejectedExecutionException ex) {
                 // ponytail: in-memory bounded queue drops notifications when saturated or on process restart;
                 // upgrade path: transactional outbox table with polling worker.
-                log.warn("Password reset email execution rejected by bounded executor (queue capacity exceeded): {}", ex.getMessage());
+                log.error("Password reset email execution rejected by bounded executor (queue capacity exceeded) for recipient {}: {}",
+                        DefaultEmailService.sanitizeForLog(recipientEmail), ex.getMessage());
             }
         };
 
