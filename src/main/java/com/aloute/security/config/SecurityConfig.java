@@ -53,6 +53,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(a -> a
                         .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.FORWARD, jakarta.servlet.DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.POST, SecurityWhitelist.PUBLIC_POST).permitAll()
+                        .requestMatchers(HttpMethod.POST, SecurityWhitelist.PUBLIC_RECOVERY_POST).permitAll()
                         .requestMatchers(HttpMethod.GET, SecurityWhitelist.PUBLIC_GET).permitAll()
                         .requestMatchers(SecurityWhitelist.PUBLIC_WEB).permitAll()
                         .requestMatchers("/admin/**", "/api/admin/**").hasRole("SYSTEM_ADMIN")

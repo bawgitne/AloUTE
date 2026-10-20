@@ -9,6 +9,9 @@ import com.aloute.security.currentuser.CurrentUserProvider;
 import com.aloute.security.jwt.JwtAuthenticationFilter;
 import com.aloute.security.jwt.JwtTokenProvider;
 import com.aloute.service.AuthService;
+import com.aloute.dto.request.ForgotPasswordRequest;
+import com.aloute.dto.request.ResetPasswordRequest;
+import com.aloute.service.PasswordResetService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
@@ -26,6 +29,19 @@ public class AuthController {
     private final AuthService authService;
     private final JwtTokenProvider tokenProvider;
     private final CurrentUserProvider currentUserProvider;
+    private final PasswordResetService passwordResetService;
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        passwordResetService.initiateForgotPassword(request);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        passwordResetService.resetPassword(request);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<UserResponse>> register(@Valid @RequestBody RegisterRequest request) {

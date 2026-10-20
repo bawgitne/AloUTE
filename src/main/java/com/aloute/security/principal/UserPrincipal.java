@@ -19,10 +19,12 @@ public class UserPrincipal implements UserDetails {
     private final boolean active;
     private final Role role;
     private final Collection<? extends GrantedAuthority> authorities;
+    private final Long authVersion;
 
     private UserPrincipal(Long id, String username, String email, String password,
-                          boolean active, Role role, Collection<? extends GrantedAuthority> authorities) {
+                          boolean active, Role role, Collection<? extends GrantedAuthority> authorities, Long authVersion) {
         this.id=id; this.username=username; this.email=email; this.password=password; this.active=active; this.role=role; this.authorities=authorities;
+        this.authVersion = authVersion != null ? authVersion : 0L;
     }
 
     public static UserPrincipal from(User user) {
@@ -33,13 +35,15 @@ public class UserPrincipal implements UserDetails {
             auth.add(new SimpleGrantedAuthority(GlobalAuthority.REPORT_REVIEW.name()));
             auth.add(new SimpleGrantedAuthority(GlobalAuthority.USER_SUSPEND.name()));
         }
-        return new UserPrincipal(user.getId(), user.getUsername(), user.getEmail(), user.getPasswordHash(), user.isActive(), role, List.copyOf(auth));
+        Long version = user.getAuthVersion() != null ? user.getAuthVersion() : 0L;
+        return new UserPrincipal(user.getId(), user.getUsername(), user.getEmail(), user.getPasswordHash(), user.isActive(), role, List.copyOf(auth), version);
     }
 
     public Long getId() { return id; }
     public String getEmail() { return email; }
     public Role getRole() { return role; }
     public String getDisplayUsername() { return username; }
+    public Long getAuthVersion() { return authVersion; }
     @Override public Collection<? extends GrantedAuthority> getAuthorities() { return authorities; }
     @Override public String getPassword() { return password; }
     @Override public String getUsername() { return email; }
