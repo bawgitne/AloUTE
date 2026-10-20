@@ -45,5 +45,3 @@ public class WebSocketSessionRegistry {
         return sessions.get(sessionId);
     }
 }
-
-
