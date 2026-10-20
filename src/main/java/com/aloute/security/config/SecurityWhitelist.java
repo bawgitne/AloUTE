@@ -14,7 +14,9 @@ public final class SecurityWhitelist {
 
     public static final String[] PUBLIC_RECOVERY_POST = {
             "/api/auth/forgot-password",
-            "/api/auth/reset-password"
+            "/api/auth/reset-password",
+            "/api/auth/verify-registration-otp",
+            "/api/auth/resend-registration-otp"
     };
 
     public static final String[] PUBLIC_GET = {
@@ -48,6 +50,7 @@ public final class SecurityWhitelist {
             "/feed",
             "/login",
             "/register",
+            "/verify-otp",
             "/forgot-password",
             "/reset-password",
             "/explore",
@@ -63,35 +66,18 @@ public final class SecurityWhitelist {
             "/communities",
             "/communities/**",
             "/c/**",
-            "/t/**",
-            "/topic/**",
+            "/search",
             "/saved",
-            "/saved/**",
-            "/bookmarks",
-            "/bookmarks/**",
-            "/settings",
-            "/settings/**",
-            "/friends",
-            "/friends/**",
+            "/notifications",
             "/messages",
             "/messages/**",
-
-            "/notifications",
-            "/notifications/**",
-            "/search",
-            "/search/**",
+            "/settings",
+            "/error",
             "/css/**",
             "/js/**",
             "/images/**",
-            "/webjars/**",
             "/favicon.ico",
-            "/*.png",
-            "/*.svg",
-            "/*.ico",
-            "/error",
-            "/khoi-test",
-            "/khoi-test/**",
-            "/ws",
+            "/webjars/**",
             "/ws/**"
     };
 }
