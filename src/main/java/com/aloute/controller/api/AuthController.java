@@ -4,14 +4,17 @@ import lombok.RequiredArgsConstructor;
 import com.aloute.common.api.ApiResponse;
 import com.aloute.dto.request.LoginRequest;
 import com.aloute.dto.request.RegisterRequest;
+import com.aloute.dto.request.ForgotPasswordRequest;
+import com.aloute.dto.request.ResetPasswordRequest;
+import com.aloute.dto.request.VerifyRegistrationOtpRequest;
+import com.aloute.dto.request.ResendRegistrationOtpRequest;
 import com.aloute.dto.response.UserResponse;
 import com.aloute.security.currentuser.CurrentUserProvider;
 import com.aloute.security.jwt.JwtAuthenticationFilter;
 import com.aloute.security.jwt.JwtTokenProvider;
 import com.aloute.service.AuthService;
-import com.aloute.dto.request.ForgotPasswordRequest;
-import com.aloute.dto.request.ResetPasswordRequest;
 import com.aloute.service.PasswordResetService;
+import com.aloute.service.RegistrationOtpService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
@@ -21,6 +24,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -30,6 +34,7 @@ public class AuthController {
     private final JwtTokenProvider tokenProvider;
     private final CurrentUserProvider currentUserProvider;
     private final PasswordResetService passwordResetService;
+    private final RegistrationOtpService registrationOtpService;
 
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
@@ -41,6 +46,18 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         passwordResetService.resetPassword(request);
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PostMapping("/verify-registration-otp")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> verifyRegistrationOtp(@Valid @RequestBody VerifyRegistrationOtpRequest request) {
+        registrationOtpService.verifyOtp(request.email(), request.otp());
+        return ResponseEntity.ok(ApiResponse.success(Map.of("message", "Tài khoản đã được xác thực thành công.")));
+    }
+
+    @PostMapping("/resend-registration-otp")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> resendRegistrationOtp(@Valid @RequestBody ResendRegistrationOtpRequest request) {
+        registrationOtpService.resendOtp(request.email());
+        return ResponseEntity.ok(ApiResponse.success(Map.of("message", "Mã xác thực mới đã được gửi tới email của bạn.")));
     }
 
     @PostMapping("/register")

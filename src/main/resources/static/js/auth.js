@@ -7,19 +7,23 @@
 (function () {
     'use strict';
 
-    function statusBox(message, type) {
+    function statusBox(message, type, asHtml) {
         let box = document.getElementById('auth-status');
         if (!box) {
             box = document.createElement('div');
             box.id = 'auth-status';
             box.setAttribute('role', 'alert');
             box.setAttribute('aria-live', 'polite');
-            const form = document.querySelector('form[data-action="login"], form[data-action="register"], form[data-action="forgot-password"], form[data-action="reset-password"]');
+            const form = document.querySelector('form[data-action="login"], form[data-action="register"], form[data-action="forgot-password"], form[data-action="reset-password"], form[data-action="verify-otp"]');
             if (form) form.prepend(box);
             else document.body.prepend(box);
         }
         box.className = 'alert alert-' + (type || 'info') + ' py-2 small mb-3';
-        box.textContent = message;
+        if (asHtml) {
+            box.innerHTML = message;
+        } else {
+            box.textContent = message;
+        }
         box.classList.remove('d-none');
         box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
@@ -245,8 +249,16 @@
             setSubmitting(submitBtn, false, 'Đang đăng nhập...', 'Đăng nhập', 'login-icon', 'login-spinner');
 
             if (response.status === 401) {
-                const msg = translateError(body && body.error, 'Email hoặc mật khẩu không chính xác.');
-                statusBox(msg, 'danger');
+                const code = body && body.error && body.error.code;
+                if (code === 'AUTH_ACCOUNT_NOT_VERIFIED') {
+                    const emailVal = emailInput ? emailInput.value.trim() : '';
+                    const verifyUrl = '/verify-otp' + (emailVal ? '?email=' + encodeURIComponent(emailVal) : '');
+                    const linkHtml = 'Tài khoản chưa được xác thực email. <a href="' + verifyUrl + '" class="alert-link fw-semibold">Bấm vào đây để xác thực OTP</a>.';
+                    statusBox(linkHtml, 'warning', true);
+                } else {
+                    const msg = translateError(body && body.error, 'Email hoặc mật khẩu không chính xác.');
+                    statusBox(msg, 'danger');
+                }
                 if (passwordInput) {
                     passwordInput.value = '';
                     passwordInput.focus();
@@ -348,9 +360,9 @@
             const body = await readJson(response);
 
             if (response.status === 201 || (response.ok && response.status === 200)) {
-                statusBox('Đăng ký tài khoản thành công! Đang chuyển sang trang đăng nhập...', 'success');
+                statusBox('Đăng ký tài khoản thành công! Vui lòng hoàn tất xác thực OTP để kích hoạt tài khoản.', 'success');
                 window.setTimeout(function () {
-                    window.location.href = '/login?registered=1&email=' + encodeURIComponent(email);
+                    window.location.href = '/verify-otp?email=' + encodeURIComponent(email);
                 }, 400);
                 return;
             }
@@ -573,6 +585,192 @@
             event.preventDefault();
             resetPassword(resetForm);
         });
+    }
+
+
+    function maskEmail(email) {
+        if (!email) return '...';
+        const atIndex = email.indexOf('@');
+        if (atIndex <= 2) return '***' + (atIndex >= 0 ? email.substring(atIndex) : '');
+        return email.charAt(0) + '***' + email.charAt(atIndex - 1) + email.substring(atIndex);
+    }
+
+    let cooldownTimer = null;
+    function startResendCooldown(seconds) {
+        const btn = document.getElementById('resend-otp-btn');
+        const textSpan = document.getElementById('resend-btn-text');
+        if (!btn || !textSpan) return;
+
+        btn.disabled = true;
+        let remaining = seconds || 60;
+        textSpan.textContent = 'Gửi lại (' + remaining + 's)';
+
+        if (cooldownTimer) clearInterval(cooldownTimer);
+        cooldownTimer = setInterval(function () {
+            remaining--;
+            if (remaining <= 0) {
+                clearInterval(cooldownTimer);
+                cooldownTimer = null;
+                btn.disabled = false;
+                textSpan.textContent = 'Gửi lại mã';
+            } else {
+                textSpan.textContent = 'Gửi lại (' + remaining + 's)';
+            }
+        }, 1000);
+    }
+
+    async function verifyOtp(form) {
+        clearErrors(form);
+        const emailInput = document.getElementById('otp-email');
+        const otpInput = document.getElementById('otp');
+        const submitBtn = document.getElementById('verify-submit-btn');
+
+        const emailManualInput = document.getElementById('otp-email-input');
+        let email = emailInput ? emailInput.value.trim() : '';
+        if (!email && emailManualInput) {
+            email = emailManualInput.value.trim();
+            if (emailInput) emailInput.value = email;
+        }
+        const otp = otpInput ? otpInput.value.trim() : '';
+
+        let hasError = false;
+        if (!otp || !/^\d{6}$/.test(otp)) {
+            setFieldError('otp', 'Mã xác thực phải gồm đúng 6 chữ số.');
+            hasError = true;
+        }
+
+        if (hasError) {
+            if (otpInput) otpInput.focus();
+            return;
+        }
+
+        setSubmitting(submitBtn, true, 'Đang xác thực...', 'Xác thực tài khoản', 'verify-icon', 'verify-spinner');
+        statusBox('Đang kiểm tra mã xác thực...', 'info');
+
+        try {
+            const response = await fetch('/api/auth/verify-registration-otp', {
+                method: 'POST',
+                credentials: 'include',
+                headers: csrfHeaders({
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }),
+                body: JSON.stringify({ email: email, otp: otp })
+            });
+
+            const body = await readJson(response);
+
+            if (response.ok) {
+                statusBox('Xác thực tài khoản thành công! Đang chuyển sang trang đăng nhập...', 'success');
+                window.setTimeout(function () {
+                    window.location.href = '/login?verified=1&email=' + encodeURIComponent(email);
+                }, 500);
+                return;
+            }
+
+            setSubmitting(submitBtn, false, 'Đang xác thực...', 'Xác thực tài khoản', 'verify-icon', 'verify-spinner');
+            const msg = (body && body.error && body.error.message) || (body && body.message) || 'Mã xác thực không hợp lệ hoặc đã hết hạn.';
+            setFieldError('otp', msg);
+            statusBox(msg, 'danger');
+        } catch (err) {
+            setSubmitting(submitBtn, false, 'Đang xác thực...', 'Xác thực tài khoản', 'verify-icon', 'verify-spinner');
+            statusBox('Lỗi kết nối tới máy chủ. Vui lòng thử lại.', 'danger');
+        }
+    }
+
+    async function resendOtp() {
+        const emailInput = document.getElementById('otp-email');
+        const resendBtn = document.getElementById('resend-otp-btn');
+        const spinner = document.getElementById('resend-spinner');
+        const emailManualInput = document.getElementById('otp-email-input');
+        let email = emailInput ? emailInput.value.trim() : '';
+        if (!email && emailManualInput) {
+            email = emailManualInput.value.trim();
+            if (emailInput) emailInput.value = email;
+        }
+
+        if (!email) {
+            statusBox('Vui lòng nhập địa chỉ email để gửi lại mã xác thực.', 'danger');
+            if (emailManualInput) emailManualInput.focus();
+            return;
+        }
+
+        if (resendBtn) resendBtn.disabled = true;
+        if (spinner) spinner.classList.remove('d-none');
+        statusBox('Đang xử lý yêu cầu gửi lại mã xác thực...', 'info');
+
+        try {
+            const response = await fetch('/api/auth/resend-registration-otp', {
+                method: 'POST',
+                credentials: 'include',
+                headers: csrfHeaders({
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }),
+                body: JSON.stringify({ email: email })
+            });
+
+            const body = await readJson(response);
+            if (spinner) spinner.classList.add('d-none');
+
+            if (response.ok) {
+                statusBox('Yêu cầu gửi lại mã xác thực đã được xử lý. Vui lòng kiểm tra hộp thư của bạn.', 'info');
+                startResendCooldown(60);
+                const otpInput = document.getElementById('otp');
+                if (otpInput) { otpInput.value = ''; otpInput.focus(); }
+            } else if (response.status === 429) {
+                const msg = (body && body.error && body.error.message) || 'Vui lòng đợi trước khi gửi lại mã.';
+                statusBox(msg, 'warning');
+                startResendCooldown(60);
+            } else {
+                const msg = (body && body.error && body.error.message) || 'Không thể gửi lại mã xác thực. Vui lòng thử lại.';
+                statusBox(msg, 'danger');
+                if (resendBtn) resendBtn.disabled = false;
+            }
+        } catch (err) {
+            if (spinner) spinner.classList.add('d-none');
+            if (resendBtn) resendBtn.disabled = false;
+            statusBox('Lỗi kết nối tới máy chủ. Vui lòng thử lại.', 'danger');
+        }
+    }
+
+    const verifyForm = document.querySelector('form[data-action="verify-otp"]');
+    if (verifyForm) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const emailParam = urlParams.get('email') || '';
+        const emailInput = document.getElementById('otp-email');
+        const emailManualInput = document.getElementById('otp-email-input');
+        const displayEmail = document.getElementById('display-email');
+        const emailDisplayGroup = document.getElementById('email-display-group');
+        const emailManualGroup = document.getElementById('email-manual-group');
+
+        if (emailParam) {
+            if (emailInput) emailInput.value = emailParam;
+            if (displayEmail) displayEmail.textContent = maskEmail(emailParam);
+            if (emailDisplayGroup) emailDisplayGroup.classList.remove('d-none');
+            if (emailManualGroup) emailManualGroup.classList.add('d-none');
+        } else {
+            if (emailDisplayGroup) emailDisplayGroup.classList.add('d-none');
+            if (emailManualGroup) emailManualGroup.classList.remove('d-none');
+            if (emailManualInput && emailInput) {
+                emailManualInput.addEventListener('input', function () {
+                    emailInput.value = emailManualInput.value.trim();
+                });
+            }
+        }
+
+        verifyForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            verifyOtp(verifyForm);
+        });
+
+        const resendBtn = document.getElementById('resend-otp-btn');
+        if (resendBtn) {
+            resendBtn.addEventListener('click', function (event) {
+                event.preventDefault();
+                resendOtp();
+            });
+        }
     }
 
     // Navigation and helper button handlers

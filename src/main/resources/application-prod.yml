@@ -25,6 +25,8 @@ aloute:
     enabled: ${ALOUTE_FIREBASE_ENABLED:true}
     bucket: ${ALOUTE_FIREBASE_BUCKET:cnpm-f1a39.firebasestorage.app}
     credentials-path: ${ALOUTE_FIREBASE_CREDENTIALS_PATH:}
+  auth:
+    registration-otp-secret: ${ALOUTE_REGISTRATION_OTP_SECRET}
 
 ALOUTE_JWT_SECRET: ${ALOUTE_JWT_SECRET}
 ALOUTE_JWT_EXPIRATION_SECONDS: ${ALOUTE_JWT_EXPIRATION_SECONDS:86400}

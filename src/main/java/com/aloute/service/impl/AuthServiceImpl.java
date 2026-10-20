@@ -12,6 +12,7 @@ import com.aloute.repository.UserRepository;
 import com.aloute.security.authorization.Role;
 import com.aloute.security.principal.UserPrincipal;
 import com.aloute.service.AuthService;
+import com.aloute.service.RegistrationOtpService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -28,6 +29,7 @@ public class AuthServiceImpl implements AuthService {
     private final ProfileRepository profileRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
+    private final RegistrationOtpService registrationOtpService;
 
     @Override @Transactional
     public UserResponse register(RegisterRequest request) {
@@ -44,6 +46,7 @@ public class AuthServiceImpl implements AuthService {
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setVerified(false);
+        user.setVerificationRequired(true);
         user.setPrivateAccount(false);
         user.setActive(true);
         user.setRole(Role.USER);
@@ -53,6 +56,9 @@ public class AuthServiceImpl implements AuthService {
         profile.setUser(user);
         profile.setDisplayName(username);
         profileRepository.save(profile);
+
+        registrationOtpService.initiateRegistrationOtp(user);
+
         return toResponse(user);
     }
 
@@ -65,6 +71,12 @@ public class AuthServiceImpl implements AuthService {
             User user = userRepository.findById(principal.getId())
                     .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED,
                             "AUTH_INVALID_CREDENTIALS", "Invalid email or password"));
+
+            if (user.isVerificationRequired() && !user.isVerified()) {
+                throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_ACCOUNT_NOT_VERIFIED",
+                        "Tài khoản chưa được kích hoạt. Vui lòng xác thực email.");
+            }
+
             return new AuthenticatedUser(principal, toResponse(user));
         } catch (AuthenticationException ex) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_INVALID_CREDENTIALS", "Invalid email or password");

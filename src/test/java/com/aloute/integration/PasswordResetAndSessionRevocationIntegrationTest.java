@@ -22,6 +22,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.time.Duration;
@@ -83,6 +84,9 @@ class PasswordResetAndSessionRevocationIntegrationTest {
                 .andExpect(status().isCreated());
 
         User user = userRepository.findByEmailIgnoreCase(email).orElseThrow();
+        user.setVerified(true);
+        user.setVerificationRequired(false);
+        userRepository.saveAndFlush(user);
         assertThat(user.getAuthVersion()).isEqualTo(0L);
 
         // 2. Login to get Session 1 Token
@@ -825,19 +829,15 @@ class PasswordResetAndSessionRevocationIntegrationTest {
         knownUser.setRole(Role.USER);
         userRepository.saveAndFlush(knownUser);
 
-        CountDownLatch blockerLatch = new CountDownLatch(1);
-        List<Future<?>> blockers = new ArrayList<>();
-        try {
-            // Fill core (2) + max (2 additional) + queue (100) = 104 tasks to saturate executor
-            for (int i = 0; i < 104; i++) {
-                blockers.add(CompletableFuture.runAsync(() -> {
-                    try {
-                        blockerLatch.await(5, TimeUnit.SECONDS);
-                    } catch (InterruptedException ignored) {}
-                }, emailExecutor));
-            }
+        Executor originalExecutor = (Executor) ReflectionTestUtils.getField(passwordResetService, "emailExecutor");
+        Executor rejectingExecutor = r -> {
+            throw new RejectedExecutionException("Simulated executor queue saturation");
+        };
 
-            // Saturated executor triggers AbortPolicy (RejectedExecutionException).
+        try {
+            ReflectionTestUtils.setField(passwordResetService, "emailExecutor", rejectingExecutor);
+
+            // Rejection triggers RejectedExecutionException caught inside PasswordResetServiceImpl.
             // Service must catch rejection and preserve generic 200 anti-enumeration response.
             mockMvc.perform(post("/api/auth/forgot-password")
                             .with(csrf())
@@ -845,13 +845,10 @@ class PasswordResetAndSessionRevocationIntegrationTest {
                             .content(objectMapper.writeValueAsString(new ForgotPasswordRequest(knownUser.getEmail()))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true));
+
+            assertThat(emailSink.getEmailSink()).isEmpty();
         } finally {
-            blockerLatch.countDown();
-            for (Future<?> f : blockers) {
-                try {
-                    f.get(1, TimeUnit.SECONDS);
-                } catch (Exception ignored) {}
-            }
+            ReflectionTestUtils.setField(passwordResetService, "emailExecutor", originalExecutor);
         }
     }
 
