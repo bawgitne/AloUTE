@@ -102,6 +102,19 @@
                      alt="Hình ảnh đính kèm bài viết"
                      class="post-media-img"
                      loading="lazy">
+                <img th:if="${mediaItem.type != null and mediaItem.type.toString() == 'GIF'}"
+                     th:src="${mediaItem.url}"
+                     alt="Ảnh GIF đính kèm bài viết"
+                     class="post-media-img"
+                     loading="lazy">
+                <video th:if="${mediaItem.type != null and mediaItem.type.toString() == 'VIDEO'}"
+                       th:src="${mediaItem.url}"
+                       controls
+                       preload="metadata"
+                       class="post-media-img"
+                       style="max-height: 480px; width: 100%; object-fit: contain; background: #000;">
+                    Trình duyệt của bạn không hỗ trợ thẻ video.
+                </video>
             </div>
         </div>
 

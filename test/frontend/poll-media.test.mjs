@@ -1249,4 +1249,120 @@ describe('Media Composer Controller (post-composer.js)', () => {
         assert.equal(capturedPostsRequests.length, 1);
         assert.equal(capturedPostsRequests[0].body.mediaIds, undefined);
     });
+
+    it('valid 5MiB image upload succeeds in UI and renders img preview', async () => {
+        const env = createDOMEnvironment();
+        const dom = setupComposerDOM(env);
+
+        env.window.fetchHandler = async (url) => {
+            if (url === '/api/media') {
+                return {
+                    ok: true,
+                    status: 201,
+                    text: async () => JSON.stringify({ success: true, data: { id: 501, type: 'IMAGE', url: 'https://storage.example.com/uploads/photo.jpg' } })
+                };
+            }
+            return { ok: true, status: 200, text: async () => '{}' };
+        };
+
+        const ctx = vm.createContext(env.window);
+        vm.runInContext(postComposerSource, ctx);
+
+        dom.mediaInput.files = [{ name: 'photo.jpg', size: 5 * 1024 * 1024, type: 'image/jpeg' }];
+        dom.mediaInput.dispatchEvent(new MockEvent('change'));
+        await new Promise(r => setTimeout(r, 20));
+
+        assert.equal(dom.mediaPreviewList.children.length, 1);
+        const img = dom.mediaPreviewList.querySelector('img');
+        assert.ok(img, 'Expected <img> preview element for image file');
+        assert.ok(dom.mediaStatusBox.classList.contains('d-none'), 'Status box should remain hidden on success');
+    });
+
+    it('image exceeding 5MiB by 1 byte is rejected in UI with 5MB warning', async () => {
+        const env = createDOMEnvironment();
+        const dom = setupComposerDOM(env);
+
+        let uploadCalled = false;
+        env.window.fetchHandler = async (url) => {
+            if (url === '/api/media') uploadCalled = true;
+            return { ok: true, status: 200, text: async () => '{}' };
+        };
+
+        const ctx = vm.createContext(env.window);
+        vm.runInContext(postComposerSource, ctx);
+
+        dom.mediaInput.files = [{ name: 'too_large.jpg', size: 5 * 1024 * 1024 + 1, type: 'image/jpeg' }];
+        dom.mediaInput.dispatchEvent(new MockEvent('change'));
+        await new Promise(r => setTimeout(r, 20));
+
+        assert.equal(uploadCalled, false, 'Fetch /api/media must not be called when file exceeds limit');
+        assert.equal(dom.mediaPreviewList.children.length, 0);
+        assert.ok(dom.mediaStatusBox.textContent.includes('vượt quá giới hạn 5MB cho phép'));
+        assert.equal(dom.mediaStatusBox.classList.contains('d-none'), false);
+    });
+
+    it('valid 30MiB video upload succeeds in UI and renders video preview', async () => {
+        const env = createDOMEnvironment();
+        const dom = setupComposerDOM(env);
+
+        env.window.fetchHandler = async (url) => {
+            if (url === '/api/media') {
+                return {
+                    ok: true,
+                    status: 201,
+                    text: async () => JSON.stringify({ success: true, data: { id: 301, type: 'VIDEO', url: 'https://storage.example.com/uploads/clip.mp4' } })
+                };
+            }
+            return { ok: true, status: 200, text: async () => '{}' };
+        };
+
+        const ctx = vm.createContext(env.window);
+        vm.runInContext(postComposerSource, ctx);
+
+        dom.mediaInput.files = [{ name: 'clip.mp4', size: 30 * 1024 * 1024, type: 'video/mp4' }];
+        dom.mediaInput.dispatchEvent(new MockEvent('change'));
+        await new Promise(r => setTimeout(r, 20));
+
+        assert.equal(dom.mediaPreviewList.children.length, 1);
+        const video = dom.mediaPreviewList.querySelector('video');
+        assert.ok(video, 'Expected <video> preview element for video file');
+        const removeBtn = dom.mediaPreviewList.querySelector('button[title="Xóa video"]');
+        assert.ok(removeBtn, 'Expected button with title "Xóa video"');
+        assert.ok(dom.mediaStatusBox.classList.contains('d-none'));
+    });
+
+    it('video exceeding 30MiB by 1 byte is rejected in UI with 30MB warning', async () => {
+        const env = createDOMEnvironment();
+        const dom = setupComposerDOM(env);
+
+        let uploadCalled = false;
+        env.window.fetchHandler = async (url) => {
+            if (url === '/api/media') uploadCalled = true;
+            return { ok: true, status: 200, text: async () => '{}' };
+        };
+
+        const ctx = vm.createContext(env.window);
+        vm.runInContext(postComposerSource, ctx);
+
+        dom.mediaInput.files = [{ name: 'too_large_video.mp4', size: 30 * 1024 * 1024 + 1, type: 'video/mp4' }];
+        dom.mediaInput.dispatchEvent(new MockEvent('change'));
+        await new Promise(r => setTimeout(r, 20));
+
+        assert.equal(uploadCalled, false, 'Fetch /api/media must not be called when file exceeds limit');
+        assert.equal(dom.mediaPreviewList.children.length, 0);
+        assert.ok(dom.mediaStatusBox.textContent.includes('vượt quá giới hạn 30MB cho phép'));
+        assert.equal(dom.mediaStatusBox.classList.contains('d-none'), false);
+    });
+
+    it('composer template allows both image/* and video/* file selection', () => {
+        const templateHtml = fs.readFileSync(
+            path.resolve(repoRoot, 'src/main/resources/templates/post/_composer-form.html'),
+            'utf-8'
+        );
+        const match = templateHtml.match(/<input[^>]*id=["']post-media-input["'][^>]*accept=["']([^"']+)["']/);
+        assert.ok(match, 'Expected accept attribute on #post-media-input in _composer-form.html');
+        const acceptVal = match[1];
+        assert.ok(acceptVal.includes('video/'), 'accept attribute must allow video/* MIME types');
+        assert.ok(acceptVal.includes('image/'), 'accept attribute must allow image/* MIME types');
+    });
 });
