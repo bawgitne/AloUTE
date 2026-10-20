@@ -6,6 +6,7 @@ import com.aloute.entity.User;
 import com.aloute.repository.RegistrationOtpRepository;
 import com.aloute.repository.UserRepository;
 import com.aloute.service.RegistrationOtpService;
+import com.aloute.service.email.DefaultEmailService;
 import com.aloute.service.email.EmailService;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -360,7 +361,8 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
             try {
                 emailService.sendRegistrationOtpEmail(recipientEmail, otpForDispatch);
             } catch (Exception ex) {
-                log.warn("Failed to dispatch registration OTP email asynchronously: {}", ex.getClass().getSimpleName());
+                log.error("Failed to dispatch registration OTP email asynchronously for recipient {}: {}",
+                        DefaultEmailService.sanitizeForLog(recipientEmail), ex.getClass().getSimpleName());
             }
         };
 
@@ -368,7 +370,8 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
             try {
                 emailExecutor.execute(emailTask);
             } catch (RejectedExecutionException ex) {
-                log.warn("Registration OTP email execution rejected by bounded executor: {}", ex.getMessage());
+                log.error("Registration OTP email execution rejected by bounded executor (queue capacity exceeded) for recipient {}: {}",
+                        DefaultEmailService.sanitizeForLog(recipientEmail), ex.getMessage());
             }
         };
 
