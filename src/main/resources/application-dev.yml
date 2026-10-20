@@ -26,8 +26,8 @@ spring:
 
 aloute:
   firebase:
-    enabled: false
-    bucket: ${ALOUTE_FIREBASE_BUCKET:}
+    enabled: ${ALOUTE_FIREBASE_ENABLED:true}
+    bucket: ${ALOUTE_FIREBASE_BUCKET:cnpm-f1a39.firebasestorage.app}
     credentials-path: ${ALOUTE_FIREBASE_CREDENTIALS_PATH:}
 
 # Local development/test only. Production/VPS must override both values via environment variables.

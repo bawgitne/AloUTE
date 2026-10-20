@@ -2,13 +2,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebas
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-messaging.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCWDZpx9-VW5ODIlLfVMcvozkwvKOVoTVg",
-  authDomain: "dmeo-ae149.firebaseapp.com",
-  projectId: "dmeo-ae149",
-  storageBucket: "dmeo-ae149.firebasestorage.app",
-  messagingSenderId: "46799592398",
-  appId: "1:46799592398:web:b5560a829772c21094a99f",
-  measurementId: "G-6E2N8M2RE6"
+  apiKey: "AIzaSyCoE1xYkQbD6s4gAW4QnncvAOg5IPm2xOY",
+  authDomain: "cnpm-f1a39.firebaseapp.com",
+  projectId: "cnpm-f1a39",
+  storageBucket: "cnpm-f1a39.firebasestorage.app",
+  messagingSenderId: "536335604006",
+  appId: "1:536335604006:web:909fe5337f60cd0e7709e7",
+  measurementId: "G-VFTRKLRGCL"
 };
 
 const VAPID_KEY = "BCpqck5lGPEQC4k2LC0OV6dTJIcVNVGcgXs7EywUriQ9_36dztVvxnJA9EJ6l7eG6HVcD9QfC0dNOiGyIik4PTo";
