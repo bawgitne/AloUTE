@@ -26,17 +26,24 @@ public class JwtTokenProvider {
         properties.requireExpirationSeconds();
     }
     public String generate(UserPrincipal principal) {
-        Instant now=Instant.now(); long expiration=properties.requireExpirationSeconds();
-        List<String> authorities=principal.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList();
+        return generate(principal, properties.requireExpirationSeconds());
+    }
+    public String generate(UserPrincipal principal, long expirationSeconds) {
+        Instant now = Instant.now();
+        List<String> authorities = principal.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList();
+        Long authVersion = principal.getAuthVersion() != null ? principal.getAuthVersion() : 0L;
         return Jwts.builder().subject(principal.getId().toString())
+                .claim("v", authVersion)
                 .claim("roles", List.of(principal.getRole().name()))
                 .claim("authorities", authorities.stream().filter(a -> !a.startsWith("ROLE_")).toList())
-                .issuedAt(Date.from(now)).expiration(Date.from(now.plusSeconds(expiration)))
+                .issuedAt(Date.from(now)).expiration(Date.from(now.plusSeconds(expirationSeconds)))
                 .signWith(signingKey()).compact();
     }
+    public Claims parseClaims(String token) {
+        return Jwts.parser().verifyWith(signingKey()).build().parseSignedClaims(token).getPayload();
+    }
     public Long parseUserId(String token) {
-        Claims c=Jwts.parser().verifyWith(signingKey()).build().parseSignedClaims(token).getPayload();
-        return Long.valueOf(c.getSubject());
+        return Long.valueOf(parseClaims(token).getSubject());
     }
     public long expirationSeconds() { return properties.requireExpirationSeconds(); }
     private SecretKey signingKey() {
