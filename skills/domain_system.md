@@ -1609,18 +1609,48 @@ Không invent persistence implementation trong domain doc; chỉ ghi nhận capa
 
 ---
 
-# 60. KNOWN GAP — AUTH BUSINESS CAPABILITIES
+# 60. AUTH BUSINESS CAPABILITIES — PASSWORD RESET & SESSION INVALIDATION
 
-Domain hiện chưa mô tả đầy đủ lifecycle:
+### 60.1. Product & Security Lifecycle
+- **Durable Account Session Epoch (`User.authVersion`)**:
+  - `User.authVersion` (long, default `0L`) represents the durable credential version.
+  - JWT tokens encode `v: authVersion` as a signed claim from the authenticated `UserPrincipal` snapshot.
+  - Centralized validation seam: `JwtSessionService.authenticate(String token)` validates signature, expiration, active status, and enforces that token `v` strictly equals `user.authVersion`.
+  - Legacy tokens with missing `v` claim are accepted only when `user.authVersion == 0L`.
+  - Malformed, negative, fractional, or mismatched versions are rejected with `BadCredentialsException`.
 
-- Refresh session/token lifecycle.
-- Password reset.
-- Email verification token flow.
-- Session/device management.
+- **Password Recovery Request Flow (`POST /api/auth/forgot-password`)**:
+  - Requires valid CSRF (`X-XSRF-TOKEN`).
+  - Input: `{ email }`.
+  - Protection against account enumeration: If email does not exist or user is inactive, a constant-time dummy hash is executed and generic 200 `ApiResponse.success(null)` is returned.
+  - In-process bounded rate limiting: Enforces request cooldown (configurable, default 60s) and sliding window limits (max 5 requests per 15 minutes) returning 429 Too Many Requests (`RATE_LIMIT_EXCEEDED`).
+  - Cryptographically secure 32-byte hex token is generated. Only SHA-256 hash is persisted in `password_reset_tokens`.
+  - Expiry is configurable (default 20 minutes). At most one active reset token row per user.
+  - Recovery link is constructed with fragment `#token=...` using trusted environment base URL (`aloute.app.base-url`).
+  - Email notification delivery via `EmailService` is committed only `afterCommit` of the durable token transaction.
 
-JWT/token implementation thuộc Security Convention.
+- **Password Reset Execution Flow (`POST /api/auth/reset-password`)**:
+  - Requires valid CSRF (`X-XSRF-TOKEN`).
+  - Input: `{ token, password, confirmPassword }`.
+  - Validates passwords match and conform to standard constraint (8..128 characters).
+  - Verifies token hash exists and is unexpired; single-use (token row deleted upon consumption).
+  - Concurrency & Atomicity: Acquires `PESSIMISTIC_WRITE` lock on `User`, verifies `token.authVersion == user.authVersion`, replaces `passwordHash`, increments `authVersion`, and consumes token.
+  - Optimistic locking (`@Version`) and `@DynamicUpdate` protect `authVersion` and `passwordHash` against resurrection by unrelated concurrent user flushes.
 
-Domain chỉ cần chốt product behavior khi các feature này được đưa vào scope.
+- **Immediate Multi-Session Invalidation**:
+  - Resetting password immediately invalidates all active sessions (both HTTP and real-time STOMP WebSocket channels) because previously minted tokens have `v < user.authVersion`.
+  - Logging in with new credentials mints tokens with the newly incremented `authVersion`.
+
+- **SSR Views**:
+  - `GET /forgot-password`: semantic SSR form.
+  - `GET /reset-password`: served with `Referrer-Policy: no-referrer`. Client JS immediately clears `#token=...` from URL bar via `history.replaceState` before submitting via same-origin JSON POST.
+
+### 60.2. Production Schema Prerequisites & Backfill Prerequisite
+- **Deployment Status**: Feature is authorized for local/H2 runtime. Production rollout requires explicit owner-approved DDL migration before startup:
+  1. Add column `auth_version BIGINT NOT NULL DEFAULT 0` on `users`.
+  2. Add column `version BIGINT DEFAULT 0` on `users`.
+  3. Backfill all existing `users` rows: `UPDATE users SET auth_version = 0, version = 0 WHERE auth_version IS NULL`.
+  4. Create table `password_reset_tokens` with columns `id BIGINT AUTO_INCREMENT PRIMARY KEY`, `user_id BIGINT NOT NULL UNIQUE`, `token_hash VARCHAR(64) NOT NULL UNIQUE`, `auth_version BIGINT NOT NULL`, `expires_at TIMESTAMP NOT NULL`, `created_at TIMESTAMP NOT NULL`, and foreign key `fk_password_reset_tokens_user` to `users(id)`.
 
 ---
 
