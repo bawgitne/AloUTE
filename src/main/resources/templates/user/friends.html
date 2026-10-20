@@ -60,7 +60,6 @@
                         <i th:if="${u.isVerified}" class="bi bi-patch-check-fill text-primary small" aria-label="Đã xác minh"></i>
                     </div>
                     <small class="text-muted d-block text-truncate" th:text="'@' + ${u.username}">@user</small>
-                    <p th:if="${u.bio != null and !u.bio.isEmpty()}" class="small text-secondary mb-0 text-truncate mt-1" th:text="${u.bio}">Bio</p>
                 </div>
             </a>
             <div class="flex-shrink-0 d-flex gap-2 align-items-center">
