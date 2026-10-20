@@ -458,16 +458,23 @@ nhưng không over-engineer nếu chưa có requirement.
 
 Runtime config inject qua environment.
 
-Ví dụ:
+Catalog thực tế của ALOUTE (khớp `deploy/env/.env.example` + `docker-compose.yml`, verify 2026-10-20):
 
 ```text
-SPRING_PROFILES_ACTIVE
-DB_HOST
-DB_PORT
-DB_NAME
-DB_USERNAME
-DB_PASSWORD
-FIREBASE_*
+SPRING_PROFILES_ACTIVE              # dev | prod
+ALOUTE_DOMAIN
+ALOUTE_APP_BASE_URL
+
+MYSQL_DATABASE / MYSQL_USER / MYSQL_PASSWORD / MYSQL_ROOT_PASSWORD / MYSQL_PORT
+
+ALOUTE_JWT_SECRET                   # Base64 >= 32 bytes, bắt buộc ở prod (fail-closed)
+ALOUTE_JWT_EXPIRATION_SECONDS
+ALOUTE_REGISTRATION_OTP_SECRET      # HMAC key cho registration OTP, bắt buộc ở prod
+
+ALOUTE_FIREBASE_ENABLED / ALOUTE_FIREBASE_BUCKET / ALOUTE_FIREBASE_CREDENTIALS_PATH
+
+ALOUTE_MAIL_HOST / ALOUTE_MAIL_PORT / ALOUTE_MAIL_USERNAME /
+ALOUTE_MAIL_PASSWORD / ALOUTE_MAIL_FROM   # để trống HOST = simulated delivery
 ```
 
 JWT-specific property thuộc Security Convention.
@@ -481,7 +488,7 @@ Không hardcode production config vào Docker image.
 Repository chỉ commit:
 
 ```text
-.env.example
+.env.example   (tại deploy/env/.env.example)
 ```
 
 Không commit:
@@ -492,15 +499,9 @@ Không commit:
 production secret
 ```
 
-`.env.example` chỉ chứa placeholder:
-
-```text
-DB_HOST=db
-DB_PORT=5432
-DB_NAME=aloute
-DB_USERNAME=change-me
-DB_PASSWORD=change-me
-```
+`.env.example` chỉ chứa placeholder (xem catalog §17); secret thật
+(`MYSQL_PASSWORD`, `ALOUTE_JWT_SECRET`, `ALOUTE_REGISTRATION_OTP_SECRET`,
+`ALOUTE_MAIL_PASSWORD`) phải để rỗng trong example.
 
 ---
 
