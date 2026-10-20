@@ -33,6 +33,26 @@ public class LocalSmtpServer implements AutoCloseable {
     private final CountDownLatch messageReceivedLatch = new CountDownLatch(1);
     private SSLContext sslContext;
     private volatile boolean authenticated = false;
+    private volatile boolean simulateFailure = false;
+
+    public void setSimulateFailure(boolean simulateFailure) {
+        this.simulateFailure = simulateFailure;
+    }
+
+    public void clearMessages() {
+        receivedMessages.clear();
+    }
+
+    public boolean awaitMessageCount(int minCount, long timeout, TimeUnit unit) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + unit.toMillis(timeout);
+        while (System.currentTimeMillis() < deadline) {
+            if (receivedMessages.size() >= minCount) {
+                return true;
+            }
+            Thread.sleep(50);
+        }
+        return receivedMessages.size() >= minCount;
+    }
 
     public LocalSmtpServer() throws Exception {
         this("/test-smtp-keystore.p12");
@@ -93,6 +113,12 @@ public class LocalSmtpServer implements AutoCloseable {
     }
 
     private void handleConnection(Socket plainSocket) {
+        if (simulateFailure) {
+            try {
+                plainSocket.close();
+            } catch (Exception ignored) {}
+            return;
+        }
         new Thread(() -> {
             boolean connectionTlsStarted = false;
             boolean connectionAuthenticated = false;

@@ -26,11 +26,14 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 @Slf4j
@@ -45,6 +48,8 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
     @Value("${aloute.auth.registration-otp-secret:${ALOUTE_REGISTRATION_OTP_SECRET:}}")
     private String secretKey;
 
+    private byte[] decodedSecretKey;
+
     @Value("${aloute.auth.registration-otp-expiry-minutes:5}")
     private int expiryMinutes = 5;
 
@@ -55,6 +60,18 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
     private int maxAttempts = 5;
 
     private final SecureRandom secureRandom = new SecureRandom();
+
+    // Bounded thread-safe in-process recipient rate limiter (10 requests/minute, max 10,000 tracked keys)
+    private static final int MAX_TRACKED_RECIPIENTS = 10_000;
+    private static final int MAX_REQUESTS_PER_MINUTE = 10;
+    private static final long RATE_LIMIT_WINDOW_MILLIS = 60_000L;
+
+    private static class RequestBucket {
+        final AtomicInteger count = new AtomicInteger(0);
+        volatile long windowStart = System.currentTimeMillis();
+    }
+
+    private final ConcurrentHashMap<String, RequestBucket> recipientRateLimiter = new ConcurrentHashMap<>();
 
     public RegistrationOtpServiceImpl(
             UserRepository userRepository,
@@ -70,18 +87,87 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
     }
 
     @PostConstruct
-    public void validateSecret() {
+    public void validateConfiguration() {
+        // Safe limit boundaries validation: expiry <= 5m, attempts <= 5, cooldown >= 60s
+        if (expiryMinutes > 5 || expiryMinutes <= 0) {
+            throw new IllegalStateException("aloute.auth.registration-otp-expiry-minutes must be between 1 and 5 minutes");
+        }
+        if (maxAttempts > 5 || maxAttempts <= 0) {
+            throw new IllegalStateException("aloute.auth.registration-otp-max-attempts must be between 1 and 5");
+        }
+        if (cooldownSeconds < 60) {
+            throw new IllegalStateException("aloute.auth.registration-otp-cooldown-seconds must be at least 60 seconds");
+        }
+
         boolean isTest = environment.acceptsProfiles(Profiles.of("test"));
         if (!isTest) {
-            if (secretKey == null || secretKey.isBlank() || secretKey.getBytes(StandardCharsets.UTF_8).length < 32) {
-                throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET must be configured and contain at least 32 bytes in non-test environments");
-            }
-        } else {
-            if (secretKey != null && !secretKey.isBlank() && secretKey.getBytes(StandardCharsets.UTF_8).length < 32) {
-                throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET must contain at least 32 bytes");
-            }
             if (secretKey == null || secretKey.isBlank()) {
-                secretKey = "test-only-temporary-secret-key-at-least-32-bytes-long";
+                throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET must be configured as a Base64-encoded secret");
+            }
+            byte[] decoded;
+            try {
+                decoded = Base64.getDecoder().decode(secretKey.trim());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET must be valid Base64", e);
+            }
+            if (decoded.length < 32) {
+                throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET must decode to at least 32 bytes");
+            }
+            boolean allSame = true;
+            for (int i = 1; i < decoded.length; i++) {
+                if (decoded[i] != decoded[0]) {
+                    allSame = false;
+                    break;
+                }
+            }
+            if (allSame) {
+                throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET cannot be a trivial repeated-byte key");
+            }
+            this.decodedSecretKey = decoded;
+        } else {
+            if (secretKey != null && !secretKey.isBlank()) {
+                byte[] decoded = null;
+                try {
+                    decoded = Base64.getDecoder().decode(secretKey.trim());
+                } catch (IllegalArgumentException ignored) {
+                    // Raw UTF-8 bytes fallback for explicit test configuration
+                    decoded = secretKey.trim().getBytes(StandardCharsets.UTF_8);
+                }
+                if (decoded.length < 32) {
+                    throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET must contain at least 32 bytes");
+                }
+                boolean allSame = true;
+                for (int i = 1; i < decoded.length; i++) {
+                    if (decoded[i] != decoded[0]) {
+                        allSame = false;
+                        break;
+                    }
+                }
+                if (allSame) {
+                    throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET cannot be a trivial repeated-byte key");
+                }
+                this.decodedSecretKey = decoded;
+            } else {
+                // Test profile without explicit key uses test-only Base64 constant key
+                this.decodedSecretKey = Base64.getDecoder().decode("dGVzdC1vbmx5LXRlbXBvcmFyeS1zZWNyZXQta2V5LWF0LWxlYXN0LTMyLWJ5dGVzLWxvbmch");
+            }
+        }
+    }
+
+    private void checkRecipientRequestLimit(String cleanEmail) {
+        long now = System.currentTimeMillis();
+        // Atomic capacity bounding: reject new admissions if capacity reached and key is absent
+        if (recipientRateLimiter.size() >= MAX_TRACKED_RECIPIENTS && !recipientRateLimiter.containsKey(cleanEmail)) {
+            throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED", "Quá nhiều yêu cầu. Vui lòng thử lại sau.");
+        }
+        RequestBucket bucket = recipientRateLimiter.computeIfAbsent(cleanEmail, k -> new RequestBucket());
+        synchronized (bucket) {
+            if (now - bucket.windowStart > RATE_LIMIT_WINDOW_MILLIS) {
+                bucket.windowStart = now;
+                bucket.count.set(0);
+            }
+            if (bucket.count.incrementAndGet() > MAX_REQUESTS_PER_MINUTE) {
+                throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED", "Quá nhiều yêu cầu. Vui lòng đợi 1 phút trước khi thử lại.");
             }
         }
     }
@@ -104,12 +190,15 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
 
         String cleanEmail = email.trim().toLowerCase(Locale.ROOT);
 
+        // Bounded per-recipient request rate limit check BEFORE any account-state branching
+        checkRecipientRequestLimit(cleanEmail);
+
         // Consistent lock order: User row is ALWAYS locked first
         Optional<User> userOpt = userRepository.findByEmailForUpdate(cleanEmail);
         if (userOpt.isEmpty() || !userOpt.get().isActive() || userOpt.get().isVerified() || !userOpt.get().isVerificationRequired()) {
-            // Anti-enumeration: indistinguishable response and constant-time dummy HMAC for nonexistent, inactive, already verified, or legacy accounts
+            // Anti-enumeration: uniform error response and constant-time dummy HMAC
             computeHmac("000000", "00000000000000000000000000000000");
-            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_OTP", "Mã xác thực không hợp lệ hoặc đã được sử dụng");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_OTP", "Mã xác thực không hợp lệ hoặc đã hết hạn.");
         }
 
         User user = userOpt.get();
@@ -118,18 +207,16 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
         Optional<RegistrationOtp> otpOpt = otpRepository.findByUserIdForUpdate(user.getId());
         if (otpOpt.isEmpty()) {
             computeHmac("000000", "00000000000000000000000000000000");
-            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_OTP", "Mã xác thực không hợp lệ hoặc đã được sử dụng");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_OTP", "Mã xác thực không hợp lệ hoặc đã hết hạn.");
         }
 
         RegistrationOtp otpRecord = otpOpt.get();
         Instant now = Instant.now();
 
-        if (otpRecord.isExpired(now)) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "OTP_EXPIRED", "Mã xác thực đã hết hạn. Vui lòng yêu cầu mã mới.");
-        }
-
-        if (otpRecord.isMaxAttemptsReached()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "OTP_MAX_ATTEMPTS_EXCEEDED", "Đã vượt quá số lần thử tối đa (5 lần). Vui lòng yêu cầu mã xác thực mới.");
+        // Check expiration and max attempts
+        if (otpRecord.isExpired(now) || otpRecord.isMaxAttemptsReached()) {
+            computeHmac("000000", "00000000000000000000000000000000");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_OTP", "Mã xác thực không hợp lệ hoặc đã hết hạn.");
         }
 
         String computedHash = computeHmac(otp.trim(), otpRecord.getSalt());
@@ -142,11 +229,8 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
             int newAttempts = otpRecord.getAttempts() + 1;
             otpRecord.setAttempts(newAttempts);
             otpRepository.saveAndFlush(otpRecord);
-            int remaining = Math.max(0, otpRecord.getMaxAttempts() - newAttempts);
-            if (newAttempts >= otpRecord.getMaxAttempts()) {
-                throw new ApiException(HttpStatus.BAD_REQUEST, "OTP_MAX_ATTEMPTS_EXCEEDED", "Mã xác thực không chính xác. Đã vượt quá 5 lần thử tối đa. Vui lòng gửi lại mã mới.");
-            }
-            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_OTP", "Mã xác thực không chính xác. Bạn còn " + remaining + " lần thử.");
+            // Anti-enumeration: uniform error message without leaking remaining attempt count
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_OTP", "Mã xác thực không hợp lệ hoặc đã hết hạn.");
         }
 
         // OTP valid: atomically activate user and delete OTP record (single-use enforcement)
@@ -166,10 +250,13 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
         }
         String cleanEmail = email.trim().toLowerCase(Locale.ROOT);
 
+        // Bounded per-recipient request rate limit check BEFORE any account-state branching
+        checkRecipientRequestLimit(cleanEmail);
+
         // Consistent lock order: User row is ALWAYS locked first
         Optional<User> userOpt = userRepository.findByEmailForUpdate(cleanEmail);
         if (userOpt.isEmpty() || !userOpt.get().isActive() || userOpt.get().isVerified() || !userOpt.get().isVerificationRequired()) {
-            // Anti-enumeration: indistinguishable generic success for nonexistent, inactive, already verified, or legacy accounts
+            // Anti-enumeration: silent generic success without dispatching email
             computeHmac("000000", "00000000000000000000000000000000");
             log.info("Registration OTP resend requested for nonexistent, inactive, already verified, or legacy account");
             return;
@@ -184,8 +271,9 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
         if (existingOpt.isPresent()) {
             RegistrationOtp existing = existingOpt.get();
             if (!existing.isResendAllowed(now)) {
-                long secondsLeft = Math.max(1, Duration.between(now, existing.getResendAvailableAt()).getSeconds() + 1);
-                throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED", "Vui lòng đợi " + secondsLeft + " giây trước khi yêu cầu gửi lại mã.");
+                // Anti-enumeration: within 60s cooldown, return generic success silently without dispatching email
+                log.info("Registration OTP resend requested within active cooldown for userId {}", user.getId());
+                return;
             }
         }
 
@@ -256,7 +344,7 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
 
     private String computeHmac(String otp, String salt) {
         try {
-            SecretKeySpec keySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+            SecretKeySpec keySpec = new SecretKeySpec(decodedSecretKey, "HmacSHA256");
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(keySpec);
             byte[] bytes = mac.doFinal((salt + ":" + otp).getBytes(StandardCharsets.UTF_8));
