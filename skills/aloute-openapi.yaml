@@ -67,6 +67,64 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
 
+  /api/auth/verify-registration-otp:
+    post:
+      tags: [Auth]
+      summary: Verify registration 6-digit numeric OTP
+      description: |
+        Atomically verifies the keyed HMAC OTP and activates the user account (isVerified = true, verificationRequired = false),
+        consuming and deleting the registration OTP record.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyRegistrationOtpRequest'
+      responses:
+        '200':
+          description: Registration OTP verified and account activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseNull'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/auth/resend-registration-otp:
+    post:
+      tags: [Auth]
+      summary: Resend registration OTP
+      description: |
+        Generates and asynchronously dispatches a replacement 6-digit numeric registration OTP with rate limiting (60-second cooldown).
+        Returns generic success silently for nonexistent, inactive, already verified, or legacy accounts to prevent user enumeration.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendRegistrationOtpRequest'
+      responses:
+        '200':
+          description: Registration OTP dispatched or generic success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseNull'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
   /api/auth/login:
     post:
       tags: [Auth]
@@ -2829,6 +2887,28 @@ components:
           type: string
           minLength: 8
           maxLength: 128
+
+    VerifyRegistrationOtpRequest:
+      type: object
+      required: [email, otp]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        otp:
+          type: string
+          pattern: '^[0-9]{6}$'
+          example: '123456'
+
+    ResendRegistrationOtpRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
 
     UpdateProfileRequest:
       type: object

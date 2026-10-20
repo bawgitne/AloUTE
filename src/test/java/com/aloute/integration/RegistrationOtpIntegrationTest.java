@@ -487,4 +487,204 @@ class RegistrationOtpIntegrationTest {
                         .content(objectMapper.writeValueAsString(new VerifyRegistrationOtpRequest(email, deliveredOtp))))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    @DisplayName("Case 17: Anti-enumeration verify returns identical INVALID_OTP for nonexistent, inactive, already verified, and legacy accounts")
+    void antiEnumerationVerifyReturnsIdenticalResponse() throws Exception {
+        // 1. Nonexistent email
+        mockMvc.perform(post("/api/auth/verify-registration-otp")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new VerifyRegistrationOtpRequest("nonexistent_user@example.com", "123456"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_OTP"));
+
+        // 2. Inactive account
+        String inactiveEmail = generateEmail("inactive_user");
+        User inactiveUser = new User();
+        inactiveUser.setUsername(generateUsername("inactive"));
+        inactiveUser.setEmail(inactiveEmail);
+        inactiveUser.setPasswordHash(passwordEncoder.encode("Password123!"));
+        inactiveUser.setVerified(false);
+        inactiveUser.setVerificationRequired(true);
+        inactiveUser.setActive(false);
+        inactiveUser.setRole(Role.USER);
+        userRepository.saveAndFlush(inactiveUser);
+
+        mockMvc.perform(post("/api/auth/verify-registration-otp")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new VerifyRegistrationOtpRequest(inactiveEmail, "123456"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_OTP"));
+
+        // 3. Already verified account
+        String verifiedEmail = generateEmail("verified_user");
+        User verifiedUser = new User();
+        verifiedUser.setUsername(generateUsername("verified"));
+        verifiedUser.setEmail(verifiedEmail);
+        verifiedUser.setPasswordHash(passwordEncoder.encode("Password123!"));
+        verifiedUser.setVerified(true);
+        verifiedUser.setVerificationRequired(false);
+        verifiedUser.setActive(true);
+        verifiedUser.setRole(Role.USER);
+        userRepository.saveAndFlush(verifiedUser);
+
+        mockMvc.perform(post("/api/auth/verify-registration-otp")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new VerifyRegistrationOtpRequest(verifiedEmail, "123456"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_OTP"));
+
+        // 4. Legacy account (verificationRequired = false)
+        String legacyEmail = generateEmail("legacy_user");
+        User legacyUser = new User();
+        legacyUser.setUsername(generateUsername("legacy"));
+        legacyUser.setEmail(legacyEmail);
+        legacyUser.setPasswordHash(passwordEncoder.encode("Password123!"));
+        legacyUser.setVerified(false);
+        legacyUser.setVerificationRequired(false);
+        legacyUser.setActive(true);
+        legacyUser.setRole(Role.USER);
+        userRepository.saveAndFlush(legacyUser);
+
+        mockMvc.perform(post("/api/auth/verify-registration-otp")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new VerifyRegistrationOtpRequest(legacyEmail, "123456"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_OTP"));
+    }
+
+    @Test
+    @DisplayName("Case 18: Anti-enumeration resend returns silent generic 200 without email delivery for nonexistent, inactive, already verified, and legacy accounts")
+    void antiEnumerationResendReturnsSilentGenericSuccess() throws Exception {
+        emailSink.clearSink();
+
+        // 1. Nonexistent email
+        mockMvc.perform(post("/api/auth/resend-registration-otp")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ResendRegistrationOtpRequest("ghost_resend@example.com"))))
+                .andExpect(status().isOk());
+
+        // 2. Inactive account
+        String inactiveEmail = generateEmail("resend_inact");
+        User inactiveUser = new User();
+        inactiveUser.setUsername(generateUsername("inact"));
+        inactiveUser.setEmail(inactiveEmail);
+        inactiveUser.setPasswordHash(passwordEncoder.encode("Password123!"));
+        inactiveUser.setVerified(false);
+        inactiveUser.setVerificationRequired(true);
+        inactiveUser.setActive(false);
+        inactiveUser.setRole(Role.USER);
+        userRepository.saveAndFlush(inactiveUser);
+
+        mockMvc.perform(post("/api/auth/resend-registration-otp")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ResendRegistrationOtpRequest(inactiveEmail))))
+                .andExpect(status().isOk());
+
+        // 3. Already verified account
+        String verifiedEmail = generateEmail("resend_ver");
+        User verifiedUser = new User();
+        verifiedUser.setUsername(generateUsername("ver"));
+        verifiedUser.setEmail(verifiedEmail);
+        verifiedUser.setPasswordHash(passwordEncoder.encode("Password123!"));
+        verifiedUser.setVerified(true);
+        verifiedUser.setVerificationRequired(false);
+        verifiedUser.setActive(true);
+        verifiedUser.setRole(Role.USER);
+        userRepository.saveAndFlush(verifiedUser);
+
+        mockMvc.perform(post("/api/auth/resend-registration-otp")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ResendRegistrationOtpRequest(verifiedEmail))))
+                .andExpect(status().isOk());
+
+        // 4. Legacy account
+        String legacyEmail = generateEmail("resend_leg");
+        User legacyUser = new User();
+        legacyUser.setUsername(generateUsername("leg"));
+        legacyUser.setEmail(legacyEmail);
+        legacyUser.setPasswordHash(passwordEncoder.encode("Password123!"));
+        legacyUser.setVerified(false);
+        legacyUser.setVerificationRequired(false);
+        legacyUser.setActive(true);
+        legacyUser.setRole(Role.USER);
+        userRepository.saveAndFlush(legacyUser);
+
+        mockMvc.perform(post("/api/auth/resend-registration-otp")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ResendRegistrationOtpRequest(legacyEmail))))
+                .andExpect(status().isOk());
+
+        // Verify zero emails were dispatched for nonexistent/inactive/already-verified/legacy accounts
+        assertThat(emailSink.getOtpSink()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Case 19: Concurrent resend respects cooldown and eliminates duplicate dispatches")
+    void concurrentResendRespectsCooldown() throws Exception {
+        String email = generateEmail("conc_resend");
+        String username = generateUsername("cresend");
+        String password = "Password123!";
+
+        mockMvc.perform(post("/api/auth/register")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new RegisterRequest(username, email, password))))
+                .andExpect(status().isCreated());
+
+        assertThat(emailSink.awaitOtpCount(1, 3, TimeUnit.SECONDS)).isTrue();
+        emailSink.clearSink();
+
+        // Fast-forward cooldown so resend is initially permitted
+        User user = userRepository.findByEmailIgnoreCase(email).orElseThrow();
+        RegistrationOtp otpRecord = otpRepository.findByUser(user).orElseThrow();
+        otpRecord.setResendAvailableAt(Instant.now().minusSeconds(5));
+        otpRepository.saveAndFlush(otpRecord);
+
+        int threads = 4;
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        CyclicBarrier barrier = new CyclicBarrier(threads);
+        AtomicInteger successCount = new AtomicInteger(0);
+        AtomicInteger rateLimitCount = new AtomicInteger(0);
+
+        List<Future<?>> futures = new ArrayList<>();
+        for (int i = 0; i < threads; i++) {
+            futures.add(executor.submit(() -> {
+                try {
+                    barrier.await();
+                    MvcResult res = mockMvc.perform(post("/api/auth/resend-registration-otp")
+                                    .with(csrf())
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(new ResendRegistrationOtpRequest(email))))
+                            .andReturn();
+                    if (res.getResponse().getStatus() == 200) {
+                        successCount.incrementAndGet();
+                    } else if (res.getResponse().getStatus() == 429) {
+                        rateLimitCount.incrementAndGet();
+                    }
+                } catch (Exception e) {
+                    // ignore
+                }
+            }));
+        }
+
+        for (Future<?> f : futures) {
+            f.get(10, TimeUnit.SECONDS);
+        }
+        executor.shutdown();
+
+        // Exactly one concurrent resend succeeds; remaining concurrent requests are rate-limited with 429
+        assertThat(successCount.get()).isEqualTo(1);
+        assertThat(rateLimitCount.get()).isEqualTo(threads - 1);
+        assertThat(emailSink.awaitOtpCount(1, 3, TimeUnit.SECONDS)).isTrue();
+        assertThat(emailSink.getOtpSink()).hasSize(1);
+    }
 }
