@@ -408,7 +408,8 @@ class ProductionSecretsSafetyTest {
             Map<String, String> validDummySecrets = Map.of(
                     "MYSQL_PASSWORD", "safe_dummy_password",
                     "MYSQL_ROOT_PASSWORD", "safe_dummy_root_password",
-                    "ALOUTE_JWT_SECRET", VALID_TEST_SECRET
+                    "ALOUTE_JWT_SECRET", VALID_TEST_SECRET,
+                    "ALOUTE_REGISTRATION_OTP_SECRET", VALID_TEST_SECRET
             );
 
             // 1. Success case: all dummy secrets provided
@@ -418,7 +419,7 @@ class ProductionSecretsSafetyTest {
                     .isEqualTo(0);
 
             // 2. Missing and empty checks for each required secret
-            for (String secretVar : List.of("MYSQL_PASSWORD", "MYSQL_ROOT_PASSWORD", "ALOUTE_JWT_SECRET")) {
+            for (String secretVar : List.of("MYSQL_PASSWORD", "MYSQL_ROOT_PASSWORD", "ALOUTE_JWT_SECRET", "ALOUTE_REGISTRATION_OTP_SECRET")) {
                 // Missing case
                 Map<String, String> missingEnv = new HashMap<>(validDummySecrets);
                 missingEnv.remove(secretVar);
@@ -486,6 +487,7 @@ class ProductionSecretsSafetyTest {
             env.remove("MYSQL_PASSWORD");
             env.remove("MYSQL_ROOT_PASSWORD");
             env.remove("ALOUTE_JWT_SECRET");
+            env.remove("ALOUTE_REGISTRATION_OTP_SECRET");
             env.remove("MYSQL_USER");
             env.remove("MYSQL_DATABASE");
             env.remove("MYSQL_PORT");

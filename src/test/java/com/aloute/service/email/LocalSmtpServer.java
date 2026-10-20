@@ -73,6 +73,16 @@ public class LocalSmtpServer implements AutoCloseable {
         this("/test-smtp-keystore.p12");
     }
 
+    public LocalSmtpServer(int port, String keystoreResource) throws Exception {
+        this.serverSocket = new ServerSocket(port, 50, InetAddress.getByName("127.0.0.1"));
+        this.port = serverSocket.getLocalPort();
+        initSsl(keystoreResource);
+
+        this.acceptThread = new Thread(this::runServer, "local-smtp-server-" + port);
+        this.acceptThread.setDaemon(true);
+        this.acceptThread.start();
+    }
+
     public LocalSmtpServer(String keystoreResource) throws Exception {
         this.serverSocket = new ServerSocket(0, 50, InetAddress.getByName("127.0.0.1"));
         this.port = serverSocket.getLocalPort();
@@ -311,6 +321,32 @@ public class LocalSmtpServer implements AutoCloseable {
                 log.debug("SMTP connection terminated: {}", e.getMessage());
             }
         }, "smtp-worker-" + plainSocket.getPort()).start();
+    }
+
+    public static void main(String[] args) throws Exception {
+        int port = args.length > 0 ? Integer.parseInt(args[0]) : 2525;
+        java.io.File sinkDir = new java.io.File("target/smtp-sink");
+        sinkDir.mkdirs();
+        try (LocalSmtpServer server = new LocalSmtpServer(port, "/test-smtp-keystore.p12")) {
+            System.out.println("LocalSmtpServer listening on port " + server.getPort());
+            System.out.flush();
+            int seen = 0;
+            while (true) {
+                List<String> messages = server.getReceivedMessages();
+                while (seen < messages.size()) {
+                    String msg = messages.get(seen++);
+                    java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\b(\\d{6})\\b").matcher(msg);
+                    if (m.find()) {
+                        java.nio.file.Files.writeString(
+                                sinkDir.toPath().resolve("latest-otp.txt"),
+                                m.group(1),
+                                StandardCharsets.UTF_8
+                        );
+                    }
+                }
+                Thread.sleep(100);
+            }
+        }
     }
 
     @Override
