@@ -1,6 +1,9 @@
 -- =========================================================================
 -- AloUTE Safe Migration: Registration Email OTP Verification Support
--- Compatible with MySQL 8.0 and H2 (dev/test runtime)
+-- Compatible with MySQL 8.0 (via preflight) and H2 (dev/test runtime)
+-- For full MySQL 8.0 script with preflight information_schema checks,
+-- see mysql8_auth_and_registration_otp.sql in this directory.
+-- For H2 dev/test script, see h2_auth_and_registration_otp.sql.
 -- =========================================================================
 
 -- 1. Add verification_required column to users table with DEFAULT FALSE
@@ -8,6 +11,7 @@
 -- Existing accounts have verification_required = FALSE and are NOT locked out,
 -- preserving full access for existing demo and seed accounts.
 -- Newly registered accounts have verification_required = TRUE until OTP is verified.
+-- Note: MySQL 8.0 requires preflight column check; H2 supports IF NOT EXISTS.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_required BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- 2. Create registration_otps table for storing secure keyed OTP hashes

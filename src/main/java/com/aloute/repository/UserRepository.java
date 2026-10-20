@@ -22,6 +22,10 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     @org.springframework.data.jpa.repository.Query("SELECT u FROM User u WHERE u.id = :id")
     Optional<User> findByIdForUpdate(@org.springframework.data.repository.query.Param("id") Long id);
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("SELECT u FROM User u WHERE lower(u.email) = lower(:email)")
+    Optional<User> findByEmailForUpdate(@org.springframework.data.repository.query.Param("email") String email);
+
     @org.springframework.data.jpa.repository.Query("SELECT u.id FROM User u WHERE lower(u.email) = lower(:email)")
     Optional<Long> findIdByEmailIgnoreCase(@org.springframework.data.repository.query.Param("email") String email);
 }

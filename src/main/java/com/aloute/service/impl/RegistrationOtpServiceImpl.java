@@ -28,7 +28,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
@@ -43,9 +42,7 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
     private final Executor emailExecutor;
     private final Environment environment;
 
-    private static final String DEFAULT_INSECURE_SECRET = "default-insecure-test-registration-otp-secret-key-32b";
-
-    @Value("${aloute.auth.registration-otp-secret:${ALOUTE_REGISTRATION_OTP_SECRET:default-insecure-test-registration-otp-secret-key-32b}}")
+    @Value("${aloute.auth.registration-otp-secret:${ALOUTE_REGISTRATION_OTP_SECRET:}}")
     private String secretKey;
 
     @Value("${aloute.auth.registration-otp-expiry-minutes:5}")
@@ -74,9 +71,17 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
 
     @PostConstruct
     public void validateSecret() {
-        if (environment.acceptsProfiles(Profiles.of("prod"))) {
-            if (secretKey == null || secretKey.isBlank() || DEFAULT_INSECURE_SECRET.equals(secretKey)) {
-                throw new IllegalStateException("Production environment requires a secure non-default ALOUTE_REGISTRATION_OTP_SECRET");
+        boolean isTest = environment.acceptsProfiles(Profiles.of("test"));
+        if (!isTest) {
+            if (secretKey == null || secretKey.isBlank() || secretKey.getBytes(StandardCharsets.UTF_8).length < 32) {
+                throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET must be configured and contain at least 32 bytes in non-test environments");
+            }
+        } else {
+            if (secretKey != null && !secretKey.isBlank() && secretKey.getBytes(StandardCharsets.UTF_8).length < 32) {
+                throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET must contain at least 32 bytes");
+            }
+            if (secretKey == null || secretKey.isBlank()) {
+                secretKey = "test-only-temporary-secret-key-at-least-32-bytes-long";
             }
         }
     }
@@ -99,14 +104,19 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
 
         String cleanEmail = email.trim().toLowerCase(Locale.ROOT);
 
-        // Pessimistic lock on OTP record to prevent concurrent verification races
-        Optional<RegistrationOtp> otpOpt = otpRepository.findByEmailForUpdate(cleanEmail);
+        // Consistent lock order: User row is ALWAYS locked first
+        Optional<User> userOpt = userRepository.findByEmailForUpdate(cleanEmail);
+        if (userOpt.isEmpty() || !userOpt.get().isActive() || userOpt.get().isVerified() || !userOpt.get().isVerificationRequired()) {
+            // Anti-enumeration: indistinguishable response and constant-time dummy HMAC for nonexistent, inactive, already verified, or legacy accounts
+            computeHmac("000000", "00000000000000000000000000000000");
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_OTP", "Mã xác thực không hợp lệ hoặc đã được sử dụng");
+        }
+
+        User user = userOpt.get();
+
+        // Lock RegistrationOtp row second
+        Optional<RegistrationOtp> otpOpt = otpRepository.findByUserIdForUpdate(user.getId());
         if (otpOpt.isEmpty()) {
-            Optional<User> userOpt = userRepository.findByEmailIgnoreCase(cleanEmail);
-            if (userOpt.isPresent() && userOpt.get().isVerified()) {
-                throw new ApiException(HttpStatus.BAD_REQUEST, "ACCOUNT_ALREADY_VERIFIED", "Tài khoản đã được xác thực trước đó. Vui lòng đăng nhập.");
-            }
-            // Timing defense against user enumeration
             computeHmac("000000", "00000000000000000000000000000000");
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_OTP", "Mã xác thực không hợp lệ hoặc đã được sử dụng");
         }
@@ -140,7 +150,6 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
         }
 
         // OTP valid: atomically activate user and delete OTP record (single-use enforcement)
-        User user = otpRecord.getUser();
         user.setVerified(true);
         user.setVerificationRequired(false);
         userRepository.save(user);
@@ -157,20 +166,18 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
         }
         String cleanEmail = email.trim().toLowerCase(Locale.ROOT);
 
-        Optional<User> userOpt = userRepository.findByEmailIgnoreCase(cleanEmail);
-        if (userOpt.isEmpty() || !userOpt.get().isActive()) {
-            // Anti-enumeration: compute dummy hash and return silently
+        // Consistent lock order: User row is ALWAYS locked first
+        Optional<User> userOpt = userRepository.findByEmailForUpdate(cleanEmail);
+        if (userOpt.isEmpty() || !userOpt.get().isActive() || userOpt.get().isVerified() || !userOpt.get().isVerificationRequired()) {
+            // Anti-enumeration: indistinguishable generic success for nonexistent, inactive, already verified, or legacy accounts
             computeHmac("000000", "00000000000000000000000000000000");
-            log.info("Registration OTP resend requested for nonexistent or inactive email");
+            log.info("Registration OTP resend requested for nonexistent, inactive, already verified, or legacy account");
             return;
         }
 
         User user = userOpt.get();
-        if (user.isVerified()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "ACCOUNT_ALREADY_VERIFIED", "Tài khoản này đã được kích hoạt. Vui lòng đăng nhập.");
-        }
 
-        // Pessimistic lock for cooldown check and atomic replacement
+        // Lock RegistrationOtp row second
         Optional<RegistrationOtp> existingOpt = otpRepository.findByUserIdForUpdate(user.getId());
         Instant now = Instant.now();
 
@@ -197,7 +204,7 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
 
         String otpHash = computeHmac(rawOtp, salt);
 
-        Optional<RegistrationOtp> existingOpt = otpRepository.findByUser(user);
+        Optional<RegistrationOtp> existingOpt = otpRepository.findByUserIdForUpdate(user.getId());
         RegistrationOtp otpRecord = existingOpt.orElseGet(() -> {
             RegistrationOtp record = new RegistrationOtp();
             record.setUser(user);
@@ -213,7 +220,7 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
         otpRecord.setResendAvailableAt(now.plusSeconds(cooldownSeconds));
         otpRecord.setUpdatedAt(now);
 
-        otpRepository.save(otpRecord);
+        otpRepository.saveAndFlush(otpRecord);
 
         final String recipientEmail = user.getEmail();
         final String otpForDispatch = rawOtp;
