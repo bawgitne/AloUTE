@@ -25,6 +25,8 @@ public class User {
     private String passwordHash;
     @Column(name = "is_verified", nullable = false)
     private boolean verified;
+    @Column(name = "verification_required", nullable = false)
+    private boolean verificationRequired = false;
     @Column(name = "is_private", nullable = false)
     private boolean privateAccount;
     @Column(name = "is_active", nullable = false)

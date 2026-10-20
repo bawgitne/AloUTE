@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 public class LocalSmtpServer implements AutoCloseable {
@@ -33,9 +34,53 @@ public class LocalSmtpServer implements AutoCloseable {
     private final CountDownLatch messageReceivedLatch = new CountDownLatch(1);
     private SSLContext sslContext;
     private volatile boolean authenticated = false;
+    private volatile boolean simulateFailure = false;
+    private final AtomicInteger failedConnectionAttempts = new AtomicInteger(0);
+    private volatile CountDownLatch failedConnectionLatch = new CountDownLatch(1);
+
+    public void setSimulateFailure(boolean simulateFailure) {
+        this.simulateFailure = simulateFailure;
+    }
+
+    public int getFailedConnectionAttempts() {
+        return failedConnectionAttempts.get();
+    }
+
+    public boolean awaitFailedConnection(long timeout, TimeUnit unit) throws InterruptedException {
+        return failedConnectionLatch.await(timeout, unit);
+    }
+
+    public void resetFailedConnectionLatch() {
+        failedConnectionLatch = new CountDownLatch(1);
+    }
+
+    public void clearMessages() {
+        receivedMessages.clear();
+    }
+
+    public boolean awaitMessageCount(int minCount, long timeout, TimeUnit unit) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + unit.toMillis(timeout);
+        while (System.currentTimeMillis() < deadline) {
+            if (receivedMessages.size() >= minCount) {
+                return true;
+            }
+            Thread.sleep(50);
+        }
+        return receivedMessages.size() >= minCount;
+    }
 
     public LocalSmtpServer() throws Exception {
         this("/test-smtp-keystore.p12");
+    }
+
+    public LocalSmtpServer(int port, String keystoreResource) throws Exception {
+        this.serverSocket = new ServerSocket(port, 50, InetAddress.getByName("127.0.0.1"));
+        this.port = serverSocket.getLocalPort();
+        initSsl(keystoreResource);
+
+        this.acceptThread = new Thread(this::runServer, "local-smtp-server-" + port);
+        this.acceptThread.setDaemon(true);
+        this.acceptThread.start();
     }
 
     public LocalSmtpServer(String keystoreResource) throws Exception {
@@ -93,6 +138,14 @@ public class LocalSmtpServer implements AutoCloseable {
     }
 
     private void handleConnection(Socket plainSocket) {
+        if (simulateFailure) {
+            failedConnectionAttempts.incrementAndGet();
+            failedConnectionLatch.countDown();
+            try {
+                plainSocket.close();
+            } catch (Exception ignored) {}
+            return;
+        }
         new Thread(() -> {
             boolean connectionTlsStarted = false;
             boolean connectionAuthenticated = false;
@@ -268,6 +321,32 @@ public class LocalSmtpServer implements AutoCloseable {
                 log.debug("SMTP connection terminated: {}", e.getMessage());
             }
         }, "smtp-worker-" + plainSocket.getPort()).start();
+    }
+
+    public static void main(String[] args) throws Exception {
+        int port = args.length > 0 ? Integer.parseInt(args[0]) : 2525;
+        java.io.File sinkDir = new java.io.File("target/smtp-sink");
+        sinkDir.mkdirs();
+        try (LocalSmtpServer server = new LocalSmtpServer(port, "/test-smtp-keystore.p12")) {
+            System.out.println("LocalSmtpServer listening on port " + server.getPort());
+            System.out.flush();
+            int seen = 0;
+            while (true) {
+                List<String> messages = server.getReceivedMessages();
+                while (seen < messages.size()) {
+                    String msg = messages.get(seen++);
+                    java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\b(\\d{6})\\b").matcher(msg);
+                    if (m.find()) {
+                        java.nio.file.Files.writeString(
+                                sinkDir.toPath().resolve("latest-otp.txt"),
+                                m.group(1),
+                                StandardCharsets.UTF_8
+                        );
+                    }
+                }
+                Thread.sleep(100);
+            }
+        }
     }
 
     @Override
