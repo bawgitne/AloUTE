@@ -57,7 +57,7 @@ public class AuthController {
     @PostMapping("/resend-registration-otp")
     public ResponseEntity<ApiResponse<Map<String, Object>>> resendRegistrationOtp(@Valid @RequestBody ResendRegistrationOtpRequest request) {
         registrationOtpService.resendOtp(request.email());
-        return ResponseEntity.ok(ApiResponse.success(Map.of("message", "Mã xác thực mới đã được gửi tới email của bạn.")));
+        return ResponseEntity.ok(ApiResponse.success(Map.of("message", "Yêu cầu gửi lại mã xác thực đã được tiếp nhận. Vui lòng kiểm tra hộp thư nếu thông tin tài khoản hợp lệ.")));
     }
 
     @PostMapping("/register")

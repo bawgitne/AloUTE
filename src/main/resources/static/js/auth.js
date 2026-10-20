@@ -428,7 +428,7 @@
             setSubmitting(submitBtn, false, 'Đang gửi...', 'Gửi liên kết đặt lại', 'forgot-icon', 'forgot-spinner');
 
             if (response.ok) {
-                statusBox('Nếu địa chỉ email tồn tại trên hệ thống, liên kết đặt lại mật khẩu đã được gửi đến hòm thư của bạn.', 'success');
+                statusBox('Yêu cầu đặt lại mật khẩu đã được tiếp nhận. Vui lòng kiểm tra hộp thư (bao gồm mục spam) nếu thông tin tài khoản hợp lệ.', 'info');
                 if (emailInput) emailInput.value = '';
                 return;
             }

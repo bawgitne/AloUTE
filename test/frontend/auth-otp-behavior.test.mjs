@@ -70,8 +70,10 @@ function createMockHarness(initialUrl = 'http://localhost:8080/login') {
     const forms = {
         login: makeElement('form', 'login-form'),
         register: makeElement('form', 'register-form'),
-        verifyOtp: makeElement('form', 'verify-otp-form')
+        verifyOtp: makeElement('form', 'verify-otp-form'),
+        forgotPassword: makeElement('form', 'forgot-password-form')
     };
+    forms.forgotPassword.setAttribute('data-action', 'forgot-password');
     forms.login.setAttribute('data-action', 'login');
     forms.register.setAttribute('data-action', 'register');
     forms.verifyOtp.setAttribute('data-action', 'verify-otp');
@@ -87,6 +89,7 @@ function createMockHarness(initialUrl = 'http://localhost:8080/login') {
             if (sel.includes('login')) return forms.login;
             if (sel.includes('register')) return forms.register;
             if (sel.includes('verify-otp')) return forms.verifyOtp;
+            if (sel.includes('forgot-password')) return forms.forgotPassword;
             return null;
         },
         querySelectorAll(sel) {
@@ -267,5 +270,43 @@ describe('Auth & Registration OTP Frontend Behavior', () => {
 
         assert.ok(!manualGroup.classList.contains('d-none'), 'Manual email group should be visible when email param is absent');
         assert.ok(displayGroup.classList.contains('d-none'), 'Display group should be hidden when email param is absent');
+    });
+    it('uses delivery-neutral request-accepted copy without misleading delivery claims on forgot-password', async () => {
+        const harness = createMockHarness('http://localhost:8080/forgot-password');
+        const emailInput = harness.makeElement('input', 'email');
+        emailInput.value = 'user@aloute.local';
+        const submitBtn = harness.makeElement('button', 'forgot-submit-btn');
+
+        const mockBody = {
+            success: true,
+            message: 'Password reset link sent if account exists'
+        };
+
+        harness.window.fetch = async () => ({
+            status: 200,
+            ok: true,
+            headers: { get: () => 'application/json' },
+            text: async () => JSON.stringify(mockBody),
+            json: async () => mockBody
+        });
+
+        const context = vm.createContext({
+            window: harness.window,
+            document: harness.document,
+            fetch: harness.window.fetch,
+            URLSearchParams: URLSearchParams,
+            encodeURIComponent: encodeURIComponent,
+            decodeURIComponent: decodeURIComponent
+        });
+
+        vm.runInContext(authSource, context);
+        harness.forms.forgotPassword.dispatchEvent({ type: 'submit', preventDefault() {} });
+        await new Promise(r => setTimeout(r, 30));
+
+        const statusBox = harness.document.getElementById('auth-status');
+        assert.ok(statusBox, 'Status box should be created');
+        assert.ok(!statusBox.textContent.includes('đã được gửi'), 'Must not claim reset email has been sent');
+        assert.ok(statusBox.textContent.includes('Yêu cầu đặt lại mật khẩu đã được tiếp nhận'), 'Must state request is received');
+        assert.ok(statusBox.textContent.includes('hộp thư'), 'Must guide user to check inbox/spam');
     });
 });
