@@ -116,7 +116,8 @@
         messagesHasNext: false,
         isLoadingMessages: false,
         isSendingMessage: false,
-        lastFailedDraft: null
+        lastFailedDraft: null,
+        mutationSeq: 0
     };
 
     let messagesRequestId = 0;
@@ -320,11 +321,44 @@
     // API: Fetch Conversations
     // -------------------------------------------------------------------------
 
-    async function loadConversations(page, append) {
-        if (state.isLoadingConversations) return;
-        state.isLoadingConversations = true;
+    let pendingConversationsRefresh = false;
+    let conversationsRequestId = 0;
 
-        if (!append) {
+    function getMessageTimestamp(msg) {
+        if (!msg || !msg.createdAt) return 0;
+        const t = new Date(msg.createdAt).getTime();
+        return isNaN(t) ? 0 : t;
+    }
+
+    function compareMessages(msgA, msgB) {
+        if (!msgA && !msgB) return 0;
+        if (!msgA) return -1;
+        if (!msgB) return 1;
+        const tA = getMessageTimestamp(msgA);
+        const tB = getMessageTimestamp(msgB);
+        if (tA !== tB) {
+            return tA > tB ? 1 : -1;
+        }
+        const idA = typeof msgA.id === 'number' ? msgA.id : parseInt(msgA.id, 10) || 0;
+        const idB = typeof msgB.id === 'number' ? msgB.id : parseInt(msgB.id, 10) || 0;
+        if (idA !== idB) {
+            return idA > idB ? 1 : -1;
+        }
+        return 0;
+    }
+
+    async function loadConversations(page, append) {
+        if (state.isLoadingConversations) {
+            if (!append) {
+                pendingConversationsRefresh = true;
+            }
+            return;
+        }
+        state.isLoadingConversations = true;
+        const currentReqId = ++conversationsRequestId;
+        const requestDispatchedSeq = ++state.mutationSeq;
+
+        if (!append && state.conversations.length === 0) {
             if (elLoading) elLoading.classList.remove('d-none');
             if (elError) elError.classList.add('d-none');
             if (elEmpty) elEmpty.classList.add('d-none');
@@ -340,6 +374,11 @@
 
             const body = await readJson(response);
 
+            // Stale response guard: ignore if a newer request was dispatched while this was in flight
+            if (currentReqId !== conversationsRequestId) {
+                return;
+            }
+
             if (!response.ok || !body || !body.success) {
                 throw new Error(translateError(body && body.error, 'Không thể tải danh sách cuộc trò chuyện.'));
             }
@@ -349,6 +388,49 @@
 
             state.conversationsPage = meta.page != null ? meta.page : page;
             state.conversationsHasNext = Boolean(meta.hasNext);
+
+            // Reconcile conversation summaries without clobbering newer realtime state
+            for (const serverConv of data) {
+                const existing = state.conversations.find(c => c.id === serverConv.id);
+                if (!existing) {
+                    serverConv.summaryLastMessage = serverConv.lastMessage;
+                    serverConv.lastMutationSeq = requestDispatchedSeq;
+                    if (state.activeConversationId && serverConv.id === state.activeConversationId) {
+                        serverConv.unreadCount = 0;
+                        serverConv.lastMutationSeq = ++state.mutationSeq;
+                    }
+                } else {
+                    const cmp = compareMessages(serverConv.lastMessage, existing.lastMessage);
+
+                    // Reconcile preview: preserve existing if local is strictly newer (cmp < 0)
+                    if (cmp > 0) {
+                        existing.lastMessage = serverConv.lastMessage;
+                        existing.updatedAt = serverConv.updatedAt || (existing.lastMessage ? existing.lastMessage.createdAt : existing.updatedAt);
+                        existing.summaryLastMessage = serverConv.lastMessage;
+                    }
+
+                    // Reconcile unreadCount
+                    if (state.activeConversationId && existing.id === state.activeConversationId) {
+                        existing.unreadCount = 0;
+                        existing.lastMutationSeq = ++state.mutationSeq;
+                        existing.summaryLastMessage = existing.lastMessage;
+                    } else if (existing.lastMutationSeq && existing.lastMutationSeq > requestDispatchedSeq) {
+                        // Intervening local mutations (reads or live events) occurred after this request was dispatched:
+                        // preserve local unreadCount
+                    } else {
+                        // Authoritative fresh response with no intervening local mutations:
+                        existing.unreadCount = serverConv.unreadCount || 0;
+                        existing.summaryLastMessage = serverConv.lastMessage;
+                        existing.lastMutationSeq = requestDispatchedSeq;
+                    }
+
+                    serverConv.lastMessage = existing.lastMessage;
+                    serverConv.updatedAt = existing.updatedAt;
+                    serverConv.unreadCount = existing.unreadCount;
+                    serverConv.summaryLastMessage = existing.summaryLastMessage;
+                    serverConv.lastMutationSeq = existing.lastMutationSeq;
+                }
+            }
 
             if (append) {
                 state.conversations = state.conversations.concat(data);
@@ -388,6 +470,10 @@
             }
         } finally {
             state.isLoadingConversations = false;
+            if (pendingConversationsRefresh) {
+                pendingConversationsRefresh = false;
+                loadConversations(0, false);
+            }
         }
     }
 
@@ -429,6 +515,8 @@
         if (found) {
             state.activeConversationData = found;
             updateChatHeader(found);
+            found.lastMutationSeq = ++state.mutationSeq;
+            found.summaryLastMessage = found.lastMessage;
             if (found.unreadCount > 0) {
                 found.unreadCount = 0;
                 renderConversationsList();
@@ -562,13 +650,21 @@
                     }
                 }
             } else {
-                const seen = new Set();
-                state.messages = chronologicalBatch.filter(m => {
-                    if (m && m.id != null) {
-                        if (seen.has(m.id)) return false;
-                        seen.add(m.id);
-                    }
-                    return true;
+                // Reset to consistent newest page 0 from server, preserving only live arrivals during fetch
+                const batchIds = new Set(chronologicalBatch.map(m => m.id));
+                const latestBatchTime = chronologicalBatch.length > 0 && chronologicalBatch[chronologicalBatch.length - 1].createdAt
+                    ? new Date(chronologicalBatch[chronologicalBatch.length - 1].createdAt).getTime()
+                    : 0;
+                const liveArrivals = state.messages.filter(m =>
+                    m && m.id != null && !batchIds.has(m.id) &&
+                    (m.createdAt ? new Date(m.createdAt).getTime() >= latestBatchTime : true)
+                );
+                state.messages = chronologicalBatch.concat(liveArrivals);
+                state.messages.sort((a, b) => {
+                    const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                    const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                    if (tA !== tB) return tA - tB;
+                    return (a.id || 0) - (b.id || 0);
                 });
                 renderAllMessages();
                 if (elHistory) {
@@ -723,6 +819,7 @@
             if (conv) {
                 conv.lastMessage = sentMsg;
                 conv.updatedAt = sentMsg.createdAt;
+                conv.lastMutationSeq = ++state.mutationSeq;
                 renderConversationsList();
             }
         } catch (err) {
@@ -833,6 +930,17 @@
             });
         }
 
+        // Page lifecycle listeners for cleanup and bfcache restoration
+        if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+            window.addEventListener('pagehide', () => cleanupStomp(true));
+            window.addEventListener('beforeunload', () => cleanupStomp(true));
+            window.addEventListener('pageshow', (event) => {
+                if (event && event.persisted) {
+                    initStompClient();
+                }
+            });
+        }
+
         // Auto open initial conversation if target resolved from URL, path, or dataset
         const targetId = getTargetConversationId();
         if (targetId) {
@@ -840,10 +948,254 @@
         }
     }
 
+    // -------------------------------------------------------------------------
+    // STOMP WebSocket Realtime Integration
+    // -------------------------------------------------------------------------
+
+    let stompSocket = null;
+    let stompConnected = false;
+    let stompReconnectTimer = null;
+    let currentSocketId = 0;
+    let incomingBuffer = '';
+
+    function buildStompFrame(command, headers, body) {
+        let frame = command + '\n';
+        for (const [k, v] of Object.entries(headers || {})) {
+            if (v !== undefined && v !== null) {
+                frame += `${k}:${v}\n`;
+            }
+        }
+        frame += '\n' + (body || '') + '\0';
+        return frame;
+    }
+
+    function processIncomingStompData(rawChunk) {
+        incomingBuffer += rawChunk;
+        while (true) {
+            // Strip any leading heartbeats (single or repeated newlines/carriage returns)
+            while (incomingBuffer.startsWith('\r') || incomingBuffer.startsWith('\n')) {
+                incomingBuffer = incomingBuffer.slice(1);
+            }
+            if (!incomingBuffer) break;
+
+            const nullIdx = incomingBuffer.indexOf('\0');
+            if (nullIdx === -1) {
+                // Fragmented frame: wait for more chunks
+                break;
+            }
+
+            const rawFrame = incomingBuffer.slice(0, nullIdx);
+            incomingBuffer = incomingBuffer.slice(nullIdx + 1);
+
+            if (rawFrame.trim()) {
+                parseAndDispatchFrame(rawFrame);
+            }
+        }
+    }
+
+    function parseAndDispatchFrame(rawFrame) {         const nl = rawFrame.indexOf('\n');
+        if (nl === -1) return;
+        const command = rawFrame.slice(0, nl).trim();
+        const rest = rawFrame.slice(nl + 1);
+        const idx = rest.indexOf('\n\n');
+        const headerBlock = idx === -1 ? rest : rest.slice(0, idx);
+        const body = idx === -1 ? '' : rest.slice(idx + 2);
+
+        const headers = {};
+        for (const line of headerBlock.split('\n')) {
+            const colon = line.indexOf(':');
+            if (colon !== -1) {
+                const k = line.slice(0, colon).trim();
+                const v = line.slice(colon + 1).trim();
+                if (!(k in headers)) {
+                    headers[k] = v;
+                }
+            }
+        }
+
+        if (command === 'CONNECTED') {
+            stompConnected = true;
+            const isSocketOpen = stompSocket && (stompSocket.readyState === 1 || (typeof WebSocket !== 'undefined' && stompSocket.readyState === WebSocket.OPEN));
+            if (isSocketOpen) {
+                const subFrame = buildStompFrame('SUBSCRIBE', {
+                    id: 'sub-messages',
+                    destination: '/user/queue/messages'
+                });
+                stompSocket.send(subFrame);
+            }
+            // Refresh authoritative conversation summaries after reconnect
+            loadConversations(0, false);
+            // Reconnect / catchup for current active conversation
+            if (state.activeConversationId) {
+                loadMessages(state.activeConversationId, 0, false, messagesRequestId);
+            }
+        } else if (command === 'MESSAGE') {
+            handleIncomingStompMessage(body);
+        }
+    }
+
+    const recentMessageIds = new Set();
+    const recentMessageIdQueue = [];
+    const MAX_RECENT_MESSAGES = 200;
+
+    function recordRecentMessageId(id) {
+        if (!id || recentMessageIds.has(id)) return false;
+        recentMessageIds.add(id);
+        recentMessageIdQueue.push(id);
+        if (recentMessageIdQueue.length > MAX_RECENT_MESSAGES) {
+            const oldest = recentMessageIdQueue.shift();
+            recentMessageIds.delete(oldest);
+        }
+        return true;
+    }
+
+    function handleIncomingStompMessage(rawBody) {         if (!rawBody) return;
+        try {
+            const msg = JSON.parse(rawBody);
+            if (!msg || !msg.id) return;
+
+            // Bounded deduplication: ignore repeat delivery of already-reflected message
+            if (!recordRecentMessageId(msg.id)) {
+                return;
+            }
+
+            // Deliver immediately to active conversation if matches
+            if (state.activeConversationId && msg.conversationId === state.activeConversationId) {
+                if (!state.messages.some(m => m.id === msg.id)) {
+                    state.messages.push(msg);
+                    state.messages.sort(compareMessages);
+                    renderAllMessages();
+                    if (elHistory) {
+                        elHistory.scrollTop = elHistory.scrollHeight;
+                    }
+                    if (elMessagesEmpty) elMessagesEmpty.classList.add('d-none');
+                }
+
+                // Post read receipt to backend for visible active conversation
+                fetch(`/api/conversations/${state.activeConversationId}/read`, {
+                    method: 'POST',
+                    headers: csrfHeaders(),
+                    credentials: 'include'
+                }).catch(err => console.debug('Failed to send read receipt for incoming active message:', err));
+            }
+
+            // Update conversation snippet in left pane
+            const conv = state.conversations.find(c => c.id === msg.conversationId);
+            if (conv) {
+                conv.lastMutationSeq = ++state.mutationSeq;
+                if (state.activeConversationId && conv.id === state.activeConversationId) {
+                    conv.unreadCount = 0;
+                    conv.summaryLastMessage = conv.lastMessage;
+                } else {
+                    // Inactive conversation: compare against summaryLastMessage
+                    const isNewerThanSummary = !conv.summaryLastMessage || compareMessages(msg, conv.summaryLastMessage) > 0;
+                    if (isNewerThanSummary) {
+                        conv.unreadCount = (conv.unreadCount || 0) + 1;
+                    }
+                }
+
+                // Update preview only if strictly newer than current preview
+                if (!conv.lastMessage || compareMessages(msg, conv.lastMessage) > 0) {
+                    conv.lastMessage = msg;
+                    conv.updatedAt = msg.createdAt;
+                }
+
+                if (state.activeConversationId && conv.id === state.activeConversationId) {
+                    conv.unreadCount = 0;
+                }
+                renderConversationsList();
+            } else {
+                loadConversations(0, false);
+            }
+        } catch (e) {
+            console.error('[STOMP] Failed to parse message body:', e);
+        }
+    }
+
+    function initStompClient() {
+        const WS = (typeof WebSocket !== 'undefined') ? WebSocket : (typeof window !== 'undefined' && window.WebSocket ? window.WebSocket : null);
+        if (!WS) return;
+
+        cleanupStomp(false);
+
+        const socketId = ++currentSocketId;
+        const protocol = (typeof window !== 'undefined' && window.location && window.location.protocol === 'https:') ? 'wss:' : 'ws:';
+        const host = (typeof window !== 'undefined' && window.location && window.location.host) ? window.location.host : 'localhost';
+        const wsUrl = `${protocol}//${host}/ws`;
+
+        try {
+            const socket = new WS(wsUrl);
+            stompSocket = socket;
+
+            socket.onopen = () => {
+                if (socketId !== currentSocketId) return;
+                const connectFrame = buildStompFrame('CONNECT', {
+                    'accept-version': '1.1,1.2',
+                    'heart-beat': '0,0'
+                });
+                socket.send(connectFrame);
+            };
+
+            socket.onmessage = (event) => {
+                if (socketId !== currentSocketId) return;
+                const raw = typeof event.data === 'string' ? event.data : '';
+                processIncomingStompData(raw);
+            };
+
+            socket.onerror = () => {
+                if (socketId !== currentSocketId) return;
+                stompConnected = false;
+            };
+
+            socket.onclose = () => {
+                if (socketId !== currentSocketId) return;
+                stompConnected = false;
+                stompSocket = null;
+                scheduleStompReconnect();
+            };
+        } catch (e) {
+            console.warn('[STOMP] Socket creation failed:', e);
+            scheduleStompReconnect();
+        }
+    }
+
+    function scheduleStompReconnect() {
+        if (stompReconnectTimer) return;
+        const setTimer = (typeof window !== 'undefined' && window.setTimeout) ? window.setTimeout.bind(window) : (typeof setTimeout !== 'undefined' ? setTimeout : null);
+        if (!setTimer) return;
+        stompReconnectTimer = setTimer(() => {
+            stompReconnectTimer = null;
+            initStompClient();
+        }, 5000);
+    }
+
+    function cleanupStomp(fullTeardown) {
+        if (stompReconnectTimer) {
+            const clearTimer = (typeof window !== 'undefined' && window.clearTimeout) ? window.clearTimeout.bind(window) : (typeof clearTimeout !== 'undefined' ? clearTimeout : null);
+            if (clearTimer) clearTimer(stompReconnectTimer);
+            stompReconnectTimer = null;
+        }
+        if (stompSocket) {
+            const sock = stompSocket;
+            stompSocket = null;
+            sock.onopen = null;
+            sock.onmessage = null;
+            sock.onerror = null;
+            sock.onclose = null;
+            try { sock.close(); } catch (_) {}
+        }
+        stompConnected = false;
+        incomingBuffer = '';
+        if (fullTeardown) {
+            currentSocketId++;
+        }
+    }
+
     function init() {
         if (!initDomElements()) return;
         setupEventListeners();
         loadConversations(0, false);
+        initStompClient();
     }
 
     if (document.readyState === 'loading') {
