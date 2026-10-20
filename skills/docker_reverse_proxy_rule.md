@@ -113,7 +113,7 @@ project-root/
 │   ├── nginx/
 │   │   ├── nginx.conf
 │   │   └── conf.d/
-│   │       └── aloute.conf
+│   │       └── aloute.conf.template
 │   │
 │   ├── env/
 │   │   └── .env.example
@@ -876,9 +876,9 @@ proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 proxy_set_header X-Forwarded-Proto $scheme;
 ```
 
-Spring phải được config xử lý forwarded header phù hợp.
+Spring phải được config xử lý forwarded header phù hợp (`server.forward-headers-strategy: native` với `internal-proxies` giới hạn ở các dải IP private: 10/8, 172.16/12, 192.168/16, 127/8).
 
-Không trust forwarded header từ Internet nếu app có đường truy cập bypass proxy.
+Không trust forwarded header từ Internet nếu app có đường truy cập bypass proxy. Nginx phải luôn overwrite `X-Forwarded-Proto $scheme` và `X-Forwarded-Host $host` để vô hiệu hóa header giả mạo từ client. Database container (MySQL) không được publish port 3306 ra host interfaces trong production/compose để ngăn chặn database exposure.
 
 ---
 
@@ -1111,7 +1111,7 @@ Không invent limit ngẫu nhiên chưa có requirement.
 deploy/nginx/
 ├── nginx.conf
 └── conf.d/
-    └── aloute.conf
+    └── aloute.conf.template
 ```
 
 `nginx.conf`:
@@ -1123,7 +1123,7 @@ global runtime config
 `aloute.conf`:
 
 ```text
-ALOUTE virtual host
+ALOUTE virtual host (rendered from aloute.conf.template via render-nginx.sh into writable ephemeral /etc/nginx/conf.d)
 TLS
 proxy rules
 WebSocket route
