@@ -26,14 +26,18 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.Base64;
+import java.util.Deque;
+import java.util.HashMap;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 @Slf4j
@@ -61,17 +65,32 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
 
     private final SecureRandom secureRandom = new SecureRandom();
 
-    // Bounded thread-safe in-process recipient rate limiter (10 requests/minute, max 10,000 tracked keys)
-    private static final int MAX_TRACKED_RECIPIENTS = 10_000;
-    private static final int MAX_REQUESTS_PER_MINUTE = 10;
-    private static final long RATE_LIMIT_WINDOW_MILLIS = 60_000L;
+    private static final List<byte[]> KNOWN_PUBLIC_FIXTURE_BYTES = List.of(
+            Base64.getDecoder().decode("dGVzdC1yZWdpc3RyYXRpb24tb3RwLXNlY3JldC1rZXktMzJiLWxlbmd0aCE="),
+            Base64.getDecoder().decode("dGVzdC1vbmx5LXRlbXBvcmFyeS1zZWNyZXQta2V5LWF0LWxlYXN0LTMyLWJ5dGVzLWxvbmch"),
+            Base64.getDecoder().decode("YWxvdXRlLWRldi1qd3Qtc2VjcmV0LWtleS0zMi1ieXRlcyEh"),
+            Base64.getDecoder().decode("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
+    );
 
-    private static class RequestBucket {
-        final AtomicInteger count = new AtomicInteger(0);
-        volatile long windowStart = System.currentTimeMillis();
+    private static boolean isKnownPublicFixture(byte[] decoded) {
+        if (decoded == null) {
+            return false;
+        }
+        for (byte[] fixture : KNOWN_PUBLIC_FIXTURE_BYTES) {
+            if (MessageDigest.isEqual(decoded, fixture)) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    private final ConcurrentHashMap<String, RequestBucket> recipientRateLimiter = new ConcurrentHashMap<>();
+    // Bounded thread-safe in-process recipient rate limiter (10 requests/minute, max 10,000 tracked keys)
+    // Minimally reuses proven lock + stale entry cleanup pattern from PasswordResetServiceImpl
+    private static final int MAX_TRACKED_RECIPIENTS = 10_000;
+    private static final int MAX_REQUESTS_PER_MINUTE = 10;
+    private static final Duration RATE_LIMIT_WINDOW = Duration.ofMinutes(1);
+    private final Object rateLimiterLock = new Object();
+    private final Map<String, Deque<Instant>> recipientRequestHistory = new HashMap<>();
 
     public RegistrationOtpServiceImpl(
             UserRepository userRepository,
@@ -99,76 +118,100 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
             throw new IllegalStateException("aloute.auth.registration-otp-cooldown-seconds must be at least 60 seconds");
         }
 
-        boolean isTest = environment.acceptsProfiles(Profiles.of("test"));
-        if (!isTest) {
-            if (secretKey == null || secretKey.isBlank()) {
-                throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET must be configured as a Base64-encoded secret");
-            }
-            byte[] decoded;
-            try {
-                decoded = Base64.getDecoder().decode(secretKey.trim());
-            } catch (IllegalArgumentException e) {
-                throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET must be valid Base64", e);
-            }
-            if (decoded.length < 32) {
-                throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET must decode to at least 32 bytes");
-            }
-            boolean allSame = true;
-            for (int i = 1; i < decoded.length; i++) {
-                if (decoded[i] != decoded[0]) {
-                    allSame = false;
-                    break;
-                }
-            }
-            if (allSame) {
-                throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET cannot be a trivial repeated-byte key");
-            }
-            this.decodedSecretKey = decoded;
-        } else {
-            if (secretKey != null && !secretKey.isBlank()) {
-                byte[] decoded = null;
-                try {
-                    decoded = Base64.getDecoder().decode(secretKey.trim());
-                } catch (IllegalArgumentException ignored) {
-                    // Raw UTF-8 bytes fallback for explicit test configuration
-                    decoded = secretKey.trim().getBytes(StandardCharsets.UTF_8);
-                }
-                if (decoded.length < 32) {
-                    throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET must contain at least 32 bytes");
-                }
-                boolean allSame = true;
-                for (int i = 1; i < decoded.length; i++) {
-                    if (decoded[i] != decoded[0]) {
-                        allSame = false;
-                        break;
-                    }
-                }
-                if (allSame) {
-                    throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET cannot be a trivial repeated-byte key");
-                }
-                this.decodedSecretKey = decoded;
-            } else {
-                // Test profile without explicit key uses test-only Base64 constant key
-                this.decodedSecretKey = Base64.getDecoder().decode("dGVzdC1vbmx5LXRlbXBvcmFyeS1zZWNyZXQta2V5LWF0LWxlYXN0LTMyLWJ5dGVzLWxvbmch");
+        if (secretKey == null || secretKey.isBlank()) {
+            throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET must be configured as a Base64-encoded secret");
+        }
+
+        byte[] decoded;
+        try {
+            decoded = Base64.getDecoder().decode(secretKey.trim());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET must be valid Base64", e);
+        }
+
+        if (decoded.length < 32) {
+            throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET must decode to at least 32 bytes");
+        }
+
+        boolean allSame = true;
+        for (int i = 1; i < decoded.length; i++) {
+            if (decoded[i] != decoded[0]) {
+                allSame = false;
+                break;
             }
         }
+        if (allSame) {
+            throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET cannot be a trivial repeated-byte key");
+        }
+
+        boolean isProduction = environment.acceptsProfiles(Profiles.of("prod", "production"));
+        boolean isTest = environment.acceptsProfiles(Profiles.of("test"));
+        boolean isSafeTest = isTest && !isProduction;
+
+        if (!isSafeTest && isKnownPublicFixture(decoded)) {
+            throw new IllegalStateException("ALOUTE_REGISTRATION_OTP_SECRET cannot use known public test fixture outside safe test configuration");
+        }
+
+        this.decodedSecretKey = decoded;
     }
 
     private void checkRecipientRequestLimit(String cleanEmail) {
-        long now = System.currentTimeMillis();
-        // Atomic capacity bounding: reject new admissions if capacity reached and key is absent
-        if (recipientRateLimiter.size() >= MAX_TRACKED_RECIPIENTS && !recipientRateLimiter.containsKey(cleanEmail)) {
-            throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED", "Quá nhiều yêu cầu. Vui lòng thử lại sau.");
+        Instant now = Instant.now();
+        Instant windowStart = now.minus(RATE_LIMIT_WINDOW);
+
+        synchronized (rateLimiterLock) {
+            // If recipient is new and capacity reached, attempt to reclaim stale entries first
+            if (!recipientRequestHistory.containsKey(cleanEmail) && recipientRequestHistory.size() >= MAX_TRACKED_RECIPIENTS) {
+                evictStaleEntriesLocked(windowStart);
+            }
+
+            // Enforce hard bound at capacity (active keys are never evicted to bypass limits)
+            if (!recipientRequestHistory.containsKey(cleanEmail) && recipientRequestHistory.size() >= MAX_TRACKED_RECIPIENTS) {
+                throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED",
+                        "Hệ thống đang bận. Vui lòng thử lại sau.");
+            }
+
+            Deque<Instant> timestamps = recipientRequestHistory.computeIfAbsent(cleanEmail, k -> new ArrayDeque<>());
+
+            while (!timestamps.isEmpty() && timestamps.peekFirst().isBefore(windowStart)) {
+                timestamps.pollFirst();
+            }
+
+            if (timestamps.size() >= MAX_REQUESTS_PER_MINUTE) {
+                throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED",
+                        "Quá nhiều yêu cầu. Vui lòng đợi 1 phút trước khi thử lại.");
+            }
+
+            // Atomically reserve attempt for ALL recipients (known, unknown, inactive)
+            timestamps.addLast(now);
         }
-        RequestBucket bucket = recipientRateLimiter.computeIfAbsent(cleanEmail, k -> new RequestBucket());
-        synchronized (bucket) {
-            if (now - bucket.windowStart > RATE_LIMIT_WINDOW_MILLIS) {
-                bucket.windowStart = now;
-                bucket.count.set(0);
+    }
+
+    private void evictStaleEntriesLocked(Instant windowStart) {
+        recipientRequestHistory.entrySet().removeIf(entry -> {
+            Deque<Instant> deque = entry.getValue();
+            while (!deque.isEmpty() && deque.peekFirst().isBefore(windowStart)) {
+                deque.pollFirst();
             }
-            if (bucket.count.incrementAndGet() > MAX_REQUESTS_PER_MINUTE) {
-                throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED", "Quá nhiều yêu cầu. Vui lòng đợi 1 phút trước khi thử lại.");
-            }
+            return deque.isEmpty();
+        });
+    }
+
+    public int getTrackedRecipientsCount() {
+        synchronized (rateLimiterLock) {
+            return recipientRequestHistory.size();
+        }
+    }
+
+    public void clearRateLimiter() {
+        synchronized (rateLimiterLock) {
+            recipientRequestHistory.clear();
+        }
+    }
+
+    public void recordManualRequestForTesting(String email, Instant timestamp) {
+        synchronized (rateLimiterLock) {
+            recipientRequestHistory.computeIfAbsent(email, k -> new ArrayDeque<>()).addLast(timestamp);
         }
     }
 

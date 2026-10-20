@@ -17,12 +17,18 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import com.aloute.service.impl.RegistrationOtpServiceImpl;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,13 +36,16 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles({"dev", "test"})
 @TestPropertySource(properties = {
         "ALOUTE_JWT_SECRET=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
         "ALOUTE_JWT_EXPIRATION_SECONDS=3600",
@@ -53,6 +62,8 @@ class RegistrationOtpIntegrationTest {
     @Autowired private TestEmailSink emailSink;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private ObjectMapper objectMapper;
+    @Autowired private RegistrationOtpServiceImpl registrationOtpService;
+    @Autowired private PlatformTransactionManager transactionManager;
 
     @BeforeEach
     void setUp() {
@@ -103,8 +114,9 @@ class RegistrationOtpIntegrationTest {
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginReq)))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error.code").value("AUTH_ACCOUNT_NOT_VERIFIED"));
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("AUTH_ACCOUNT_NOT_VERIFIED"))
+                .andExpect(cookie().doesNotExist("aloute_access_token"));
 
         // Case 5: Correct OTP activates account
         VerifyRegistrationOtpRequest verifyReq = new VerifyRegistrationOtpRequest(email, rawOtp);
@@ -451,7 +463,32 @@ class RegistrationOtpIntegrationTest {
         legacyUser.setRole(Role.USER);
         userRepository.saveAndFlush(legacyUser);
 
-        // Legacy user can log in without verification requirement blocking them
+        // 1. Verify initial legacy flags in database
+        User legacyBefore = userRepository.findByEmailIgnoreCase(email).orElseThrow();
+        assertThat(legacyBefore.isVerified()).isFalse();
+        assertThat(legacyBefore.isVerificationRequired()).isFalse();
+
+        // 2. Submit verify and resend on legacy user (anti-enumeration behavior: verify returns 400, resend returns 200)
+        mockMvc.perform(post("/api/auth/verify-registration-otp")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new VerifyRegistrationOtpRequest(email, "123456"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_OTP"));
+
+        mockMvc.perform(post("/api/auth/resend-registration-otp")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ResendRegistrationOtpRequest(email))))
+                .andExpect(status().isOk());
+
+        // 3. Verify legacy flags remain completely unchanged after OTP endpoints
+        User legacyAfter = userRepository.findByEmailIgnoreCase(email).orElseThrow();
+        assertThat(legacyAfter.isVerified()).isFalse();
+        assertThat(legacyAfter.isVerificationRequired()).isFalse();
+        assertThat(otpRepository.findByUser(legacyAfter)).isEmpty();
+
+        // 4. Legacy user can log in without verification requirement blocking them
         LoginRequest loginReq = new LoginRequest(email, password);
         mockMvc.perform(post("/api/auth/login")
                         .with(csrf())
@@ -719,5 +756,154 @@ class RegistrationOtpIntegrationTest {
         assertThat(successCount.get()).isEqualTo(threads);
         assertThat(emailSink.awaitOtpCount(1, 3, TimeUnit.SECONDS)).isTrue();
         assertThat(emailSink.getOtpSink()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Case 20: Concurrent near-capacity limiter admissions and fair saturation")
+    void recipientRateLimiterCapacityEvictionAndSaturation() throws Exception {
+        registrationOtpService.clearRateLimiter();
+
+        // 1. Pre-fill to near capacity: 9,995 active recipients (5 slots remaining)
+        Instant fresh = Instant.now();
+        for (int i = 0; i < 9_995; i++) {
+            registrationOtpService.recordManualRequestForTesting("prefill_" + i + "@example.com", fresh);
+        }
+        assertThat(registrationOtpService.getTrackedRecipientsCount()).isEqualTo(9_995);
+
+        // 2. Real concurrent admission proof: burst of 20 concurrent unseen emails competing for 5 slots
+        int burstSize = 20;
+        int remainingSlots = 5;
+        ExecutorService executor = Executors.newFixedThreadPool(burstSize);
+        CyclicBarrier barrier = new CyclicBarrier(burstSize);
+        AtomicInteger successCount = new AtomicInteger(0);
+        AtomicInteger rateLimitCount = new AtomicInteger(0);
+        List<Future<?>> futures = new ArrayList<>();
+
+        for (int i = 0; i < burstSize; i++) {
+            final String burstEmail = generateEmail("burst_limiter_" + i);
+            futures.add(executor.submit(() -> {
+                try {
+                    barrier.await();
+                    MvcResult res = mockMvc.perform(post("/api/auth/resend-registration-otp")
+                                    .with(csrf())
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(new ResendRegistrationOtpRequest(burstEmail))))
+                            .andReturn();
+                    if (res.getResponse().getStatus() == 200) {
+                        successCount.incrementAndGet();
+                    } else if (res.getResponse().getStatus() == 429) {
+                        rateLimitCount.incrementAndGet();
+                    }
+                } catch (Exception ignored) {
+                }
+            }));
+        }
+
+        for (Future<?> f : futures) {
+            f.get(10, TimeUnit.SECONDS);
+        }
+        executor.shutdown();
+
+        // Exactly 5 admitted (200), exactly 15 rejected with 429
+        assertThat(successCount.get()).isEqualTo(remainingSlots);
+        assertThat(rateLimitCount.get()).isEqualTo(burstSize - remainingSlots);
+        // Hard map bound enforced at 10,000
+        assertThat(registrationOtpService.getTrackedRecipientsCount()).isEqualTo(10_000);
+
+        // 3. Clear and prove expired-state reclamation with 10,000 stale entries
+        registrationOtpService.clearRateLimiter();
+        Instant stale = Instant.now().minus(Duration.ofMinutes(2));
+        for (int i = 0; i < 10_000; i++) {
+            registrationOtpService.recordManualRequestForTesting("stale_" + i + "@example.com", stale);
+        }
+        assertThat(registrationOtpService.getTrackedRecipientsCount()).isEqualTo(10_000);
+
+        // A new recipient request evicts stale entries and succeeds
+        String freshEmail = generateEmail("evict_test");
+        mockMvc.perform(post("/api/auth/resend-registration-otp")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ResendRegistrationOtpRequest(freshEmail))))
+                .andExpect(status().isOk());
+
+        // Stale entries evicted, only freshEmail remains
+        assertThat(registrationOtpService.getTrackedRecipientsCount()).isEqualTo(1);
+
+        // 4. Clean up rate limiter
+        registrationOtpService.clearRateLimiter();
+    }
+
+    @Test
+    @DisplayName("Case 21: Transaction dispatch lifecycle: no email before commit, email after commit, no email on rollback")
+    void transactionControlledEmailDispatchLifecycle() throws Exception {
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+        emailSink.clearSink();
+
+        String email = generateEmail("tx_lifecycle");
+        String username = generateUsername("txl");
+        User user = new User();
+        user.setUsername(username);
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode("Password123!"));
+        user.setVerified(false);
+        user.setVerificationRequired(true);
+        user.setActive(true);
+        user.setRole(Role.USER);
+        userRepository.saveAndFlush(user);
+
+        Executor originalExecutor = (Executor) ReflectionTestUtils.getField(registrationOtpService, "emailExecutor");
+        List<Runnable> capturedTasks = new CopyOnWriteArrayList<>();
+        Executor controlledExecutor = capturedTasks::add;
+        ReflectionTestUtils.setField(registrationOtpService, "emailExecutor", controlledExecutor);
+        try {
+            // 1. Inside transaction: verify ZERO submissions to emailExecutor while transaction is open
+            transactionTemplate.execute(status -> {
+                registrationOtpService.initiateRegistrationOtp(user);
+                assertThat(capturedTasks).isEmpty();
+                assertThat(emailSink.getOtpSink()).isEmpty();
+                return null;
+            });
+
+            // 2. After commit: EXACTLY ONE task submitted to emailExecutor; execute it and verify receipt in emailSink
+            assertThat(capturedTasks).hasSize(1);
+            assertThat(emailSink.getOtpSink()).isEmpty();
+            capturedTasks.remove(0).run();
+            assertThat(emailSink.awaitOtpCount(1, 3, TimeUnit.SECONDS)).isTrue();
+            assertThat(emailSink.getOtpSink()).hasSize(1);
+            assertThat(emailSink.getOtpSink().get(0).toEmail()).isEqualTo(email);
+            emailSink.clearSink();
+
+            // Fast-forward cooldown for resend
+            RegistrationOtp otpRecord = otpRepository.findByUser(user).orElseThrow();
+            otpRecord.setResendAvailableAt(Instant.now().minusSeconds(5));
+            otpRepository.saveAndFlush(otpRecord);
+
+            // 3. Rollback scenario: exception forces rollback; verify ZERO submissions while open and after rollback
+            assertThatThrownBy(() -> {
+                transactionTemplate.execute(status -> {
+                    registrationOtpService.resendOtp(email);
+                    assertThat(capturedTasks).isEmpty();
+                    assertThat(emailSink.getOtpSink()).isEmpty();
+                    throw new RuntimeException("Simulated transaction rollback");
+                });
+            }).isInstanceOf(RuntimeException.class).hasMessage("Simulated transaction rollback");
+
+            assertThat(capturedTasks).isEmpty();
+            assertThat(emailSink.getOtpSink()).isEmpty();
+
+            // 4. Explicit rollback scenario: status.setRollbackOnly(); verify ZERO submissions while open and after rollback
+            transactionTemplate.execute(status -> {
+                registrationOtpService.resendOtp(email);
+                assertThat(capturedTasks).isEmpty();
+                assertThat(emailSink.getOtpSink()).isEmpty();
+                status.setRollbackOnly();
+                return null;
+            });
+
+            assertThat(capturedTasks).isEmpty();
+            assertThat(emailSink.getOtpSink()).isEmpty();
+        } finally {
+            ReflectionTestUtils.setField(registrationOtpService, "emailExecutor", originalExecutor);
+        }
     }
 }

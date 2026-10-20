@@ -12,6 +12,7 @@ import com.aloute.security.authorization.Role;
 import com.aloute.service.email.LocalSmtpServer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +23,9 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
@@ -42,6 +45,7 @@ import java.util.regex.Pattern;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles({"dev", "test"})
 @TestPropertySource(properties = {
         "ALOUTE_JWT_SECRET=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
         "ALOUTE_JWT_EXPIRATION_SECONDS=3600",
@@ -112,6 +116,11 @@ class RegistrationOtpRealHttpAndNetworkSmtpTest {
         registry.add("aloute.mail.ssl.checkserveridentity", () -> "true");
     }
 
+    @BeforeEach
+    void configureClient() {
+        restTemplate.getRestTemplate().setRequestFactory(new JdkClientHttpRequestFactory());
+    }
+
     private HttpHeaders createCsrfHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -178,8 +187,10 @@ class RegistrationOtpRealHttpAndNetworkSmtpTest {
                 loginEntity,
                 String.class
         );
-        assertThat(loginBlockedResp.getStatusCode().value()).isEqualTo(403);
+        assertThat(loginBlockedResp.getStatusCode().value()).isEqualTo(401);
         assertThat(loginBlockedResp.getBody()).contains("AUTH_ACCOUNT_NOT_VERIFIED");
+        List<String> blockedCookies = loginBlockedResp.getHeaders().get(HttpHeaders.SET_COOKIE);
+        assertThat(blockedCookies == null || blockedCookies.stream().noneMatch(c -> c.contains("aloute_access_token="))).isTrue();
 
         // Case 4: Email OTP dispatched over network loopback socket to LocalSmtpServer
         boolean received = localSmtpServer.awaitMessageCount(messagesBefore + 1, 10, TimeUnit.SECONDS);
@@ -557,13 +568,14 @@ class RegistrationOtpRealHttpAndNetworkSmtpTest {
 
         // Wrong attempt always receives 400
         assertThat(wrongStatus.get()).isEqualTo(400);
-        // Correct attempt received 200 (if verified before max attempts exceeded)
-        assertThat(correctStatus.get()).isIn(200, 400);
+        // Correct attempt received 200
+        assertThat(correctStatus.get()).isEqualTo(200);
 
+        // Decisive final state assertions: user is activated, verification required is false, OTP record deleted
         User user = userRepository.findByEmailIgnoreCase(email).orElseThrow();
-        if (correctStatus.get() == 200) {
-            assertThat(user.isVerified()).isTrue();
-        }
+        assertThat(user.isVerified()).isTrue();
+        assertThat(user.isVerificationRequired()).isFalse();
+        assertThat(otpRepository.findByUser(user)).isEmpty();
     }
 
     @Test
@@ -585,6 +597,9 @@ class RegistrationOtpRealHttpAndNetworkSmtpTest {
         // Fast-forward cooldown
         User user = userRepository.findByEmailIgnoreCase(email).orElseThrow();
         RegistrationOtp otpRecord = otpRepository.findByUser(user).orElseThrow();
+        String initialHash = otpRecord.getOtpHash();
+        String initialSalt = otpRecord.getSalt();
+        String initialOtp = correctOtp;
         otpRecord.setResendAvailableAt(Instant.now().minusSeconds(5));
         otpRepository.saveAndFlush(otpRecord);
 
@@ -625,6 +640,50 @@ class RegistrationOtpRealHttpAndNetworkSmtpTest {
         assertThat(resendStatus.get()).isEqualTo(200);
         // Verify returns either 200 (if executed before resend) or 400 (if executed after resend invalidated prior OTP)
         assertThat(verifyStatus.get()).isIn(200, 400);
+
+        // Decisive final state assertions matching the observed verify status
+        User finalUser = userRepository.findByEmailIgnoreCase(email).orElseThrow();
+        if (verifyStatus.get() == 200) {
+            assertThat(finalUser.isVerified()).isTrue();
+            assertThat(finalUser.isVerificationRequired()).isFalse();
+            assertThat(otpRepository.findByUser(finalUser)).isEmpty();
+        } else {
+            // Resend serialized before verify, so the prior OTP was invalidated
+            assertThat(finalUser.isVerified()).isFalse();
+            assertThat(finalUser.isVerificationRequired()).isTrue();
+            RegistrationOtp activeOtp = otpRepository.findByUser(finalUser).orElseThrow();
+            // Prove hash and salt were actively replaced by the winning resend operation
+            assertThat(activeOtp.getOtpHash()).isNotEqualTo(initialHash);
+            assertThat(activeOtp.getSalt()).isNotEqualTo(initialSalt);
+
+            // Prove a second email was delivered over loopback SMTP
+            assertThat(localSmtpServer.awaitMessageCount(messagesBefore + 2, 10, TimeUnit.SECONDS)).isTrue();
+            String latestEmail = localSmtpServer.getReceivedMessages().get(localSmtpServer.getReceivedMessages().size() - 1);
+            String replacementOtp = extractOtpFromEmail(latestEmail);
+            assertThat(replacementOtp).isNotEqualTo(initialOtp);
+
+            // Re-verify that old OTP fails
+            ResponseEntity<String> oldOtpRetryResp = restTemplate.postForEntity(
+                    "http://localhost:" + httpPort + "/api/auth/verify-registration-otp",
+                    new HttpEntity<>(new VerifyRegistrationOtpRequest(email, initialOtp), headers),
+                    String.class
+            );
+            assertThat(oldOtpRetryResp.getStatusCode().value()).isEqualTo(400);
+
+            // Prove that newly received replacement OTP successfully activates account
+            ResponseEntity<String> newOtpVerifyResp = restTemplate.postForEntity(
+                    "http://localhost:" + httpPort + "/api/auth/verify-registration-otp",
+                    new HttpEntity<>(new VerifyRegistrationOtpRequest(email, replacementOtp), headers),
+                    String.class
+            );
+            assertThat(newOtpVerifyResp.getStatusCode().value()).isEqualTo(200);
+
+            // Serialized outcome: user is now activated, and OTP row is deleted
+            User activatedUser = userRepository.findByEmailIgnoreCase(email).orElseThrow();
+            assertThat(activatedUser.isVerified()).isTrue();
+            assertThat(activatedUser.isVerificationRequired()).isFalse();
+            assertThat(otpRepository.findByUser(activatedUser)).isEmpty();
+        }
     }
 
     @Test
@@ -646,7 +705,33 @@ class RegistrationOtpRealHttpAndNetworkSmtpTest {
         legacyUser.setRole(Role.USER);
         userRepository.saveAndFlush(legacyUser);
 
-        // Legacy user logs in over real HTTP without verification requirement blocking them
+        // 1. Verify initial legacy flags in database
+        User legacyBefore = userRepository.findByEmailIgnoreCase(email).orElseThrow();
+        assertThat(legacyBefore.isVerified()).isFalse();
+        assertThat(legacyBefore.isVerificationRequired()).isFalse();
+
+        // 2. Submit verify and resend on legacy user (anti-enumeration behavior)
+        ResponseEntity<String> verifyResp = restTemplate.postForEntity(
+                "http://localhost:" + httpPort + "/api/auth/verify-registration-otp",
+                new HttpEntity<>(new VerifyRegistrationOtpRequest(email, "123456"), headers),
+                String.class
+        );
+        assertThat(verifyResp.getStatusCode().value()).isEqualTo(400);
+
+        ResponseEntity<String> resendResp = restTemplate.postForEntity(
+                "http://localhost:" + httpPort + "/api/auth/resend-registration-otp",
+                new HttpEntity<>(new ResendRegistrationOtpRequest(email), headers),
+                String.class
+        );
+        assertThat(resendResp.getStatusCode().value()).isEqualTo(200);
+
+        // 3. Verify legacy flags remain completely unchanged after OTP endpoints
+        User legacyAfter = userRepository.findByEmailIgnoreCase(email).orElseThrow();
+        assertThat(legacyAfter.isVerified()).isFalse();
+        assertThat(legacyAfter.isVerificationRequired()).isFalse();
+        assertThat(otpRepository.findByUser(legacyAfter)).isEmpty();
+
+        // 4. Legacy user logs in over real HTTP without verification requirement blocking them
         LoginRequest loginReq = new LoginRequest(email, password);
         ResponseEntity<String> loginResp = restTemplate.postForEntity(
                 "http://localhost:" + httpPort + "/api/auth/login",
@@ -694,6 +779,7 @@ class RegistrationOtpRealHttpAndNetworkSmtpTest {
 
         // 1. Simulate SMTP connection failure
         int messagesBeforeRegister = localSmtpServer.getReceivedMessages().size();
+        localSmtpServer.resetFailedConnectionLatch();
         localSmtpServer.setSimulateFailure(true);
 
         // Registration still returns 201 Created (mail failure does not roll back registration)
@@ -709,8 +795,10 @@ class RegistrationOtpRealHttpAndNetworkSmtpTest {
         assertThat(createdUser.isVerificationRequired()).isTrue();
         assertThat(createdUser.isVerified()).isFalse();
 
-        // Wait for asynchronous mail task to attempt connection and fail
-        Thread.sleep(600);
+        // Prove actual failing connection occurred on the SMTP socket before recovery (no fixed sleep)
+        boolean failedAttemptObserved = localSmtpServer.awaitFailedConnection(10, TimeUnit.SECONDS);
+        assertThat(failedAttemptObserved).isTrue();
+        assertThat(localSmtpServer.getFailedConnectionAttempts()).isGreaterThan(0);
         assertThat(localSmtpServer.getReceivedMessages()).hasSize(messagesBeforeRegister);
 
         // 2. Restore SMTP server and fast-forward cooldown
