@@ -83,6 +83,9 @@ class PasswordResetAndSessionRevocationIntegrationTest {
                 .andExpect(status().isCreated());
 
         User user = userRepository.findByEmailIgnoreCase(email).orElseThrow();
+        user.setVerified(true);
+        user.setVerificationRequired(false);
+        userRepository.saveAndFlush(user);
         assertThat(user.getAuthVersion()).isEqualTo(0L);
 
         // 2. Login to get Session 1 Token

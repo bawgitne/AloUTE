@@ -348,9 +348,9 @@
             const body = await readJson(response);
 
             if (response.status === 201 || (response.ok && response.status === 200)) {
-                statusBox('Đăng ký tài khoản thành công! Đang chuyển sang trang đăng nhập...', 'success');
+                statusBox('Đăng ký tài khoản thành công! Vui lòng kiểm tra email để xác thực...', 'success');
                 window.setTimeout(function () {
-                    window.location.href = '/login?registered=1&email=' + encodeURIComponent(email);
+                    window.location.href = '/verify-otp?email=' + encodeURIComponent(email);
                 }, 400);
                 return;
             }
@@ -573,6 +573,169 @@
             event.preventDefault();
             resetPassword(resetForm);
         });
+    }
+
+
+    function maskEmail(email) {
+        if (!email) return '...';
+        const atIndex = email.indexOf('@');
+        if (atIndex <= 2) return '***' + (atIndex >= 0 ? email.substring(atIndex) : '');
+        return email.charAt(0) + '***' + email.charAt(atIndex - 1) + email.substring(atIndex);
+    }
+
+    let cooldownTimer = null;
+    function startResendCooldown(seconds) {
+        const btn = document.getElementById('resend-otp-btn');
+        const textSpan = document.getElementById('resend-btn-text');
+        if (!btn || !textSpan) return;
+
+        btn.disabled = true;
+        let remaining = seconds || 60;
+        textSpan.textContent = 'Gửi lại (' + remaining + 's)';
+
+        if (cooldownTimer) clearInterval(cooldownTimer);
+        cooldownTimer = setInterval(function () {
+            remaining--;
+            if (remaining <= 0) {
+                clearInterval(cooldownTimer);
+                cooldownTimer = null;
+                btn.disabled = false;
+                textSpan.textContent = 'Gửi lại mã';
+            } else {
+                textSpan.textContent = 'Gửi lại (' + remaining + 's)';
+            }
+        }, 1000);
+    }
+
+    async function verifyOtp(form) {
+        clearErrors(form);
+        const emailInput = document.getElementById('otp-email');
+        const otpInput = document.getElementById('otp');
+        const submitBtn = document.getElementById('verify-submit-btn');
+
+        const email = emailInput ? emailInput.value.trim() : '';
+        const otp = otpInput ? otpInput.value.trim() : '';
+
+        let hasError = false;
+        if (!otp || !/^\d{6}$/.test(otp)) {
+            setFieldError('otp', 'Mã xác thực phải gồm đúng 6 chữ số.');
+            hasError = true;
+        }
+
+        if (hasError) {
+            if (otpInput) otpInput.focus();
+            return;
+        }
+
+        setSubmitting(submitBtn, true, 'Đang xác thực...', 'Xác thực tài khoản', 'verify-icon', 'verify-spinner');
+        statusBox('Đang kiểm tra mã xác thực...', 'info');
+
+        try {
+            const response = await fetch('/api/auth/verify-registration-otp', {
+                method: 'POST',
+                credentials: 'include',
+                headers: csrfHeaders({
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }),
+                body: JSON.stringify({ email: email, otp: otp })
+            });
+
+            const body = await readJson(response);
+
+            if (response.ok) {
+                statusBox('Xác thực tài khoản thành công! Đang chuyển sang trang đăng nhập...', 'success');
+                window.setTimeout(function () {
+                    window.location.href = '/login?verified=1&email=' + encodeURIComponent(email);
+                }, 500);
+                return;
+            }
+
+            setSubmitting(submitBtn, false, 'Đang xác thực...', 'Xác thực tài khoản', 'verify-icon', 'verify-spinner');
+            const msg = (body && body.error && body.error.message) || (body && body.message) || 'Mã xác thực không hợp lệ hoặc đã hết hạn.';
+            setFieldError('otp', msg);
+            statusBox(msg, 'danger');
+        } catch (err) {
+            setSubmitting(submitBtn, false, 'Đang xác thực...', 'Xác thực tài khoản', 'verify-icon', 'verify-spinner');
+            statusBox('Lỗi kết nối tới máy chủ. Vui lòng thử lại.', 'danger');
+        }
+    }
+
+    async function resendOtp() {
+        const emailInput = document.getElementById('otp-email');
+        const resendBtn = document.getElementById('resend-otp-btn');
+        const spinner = document.getElementById('resend-spinner');
+        const email = emailInput ? emailInput.value.trim() : '';
+
+        if (!email) {
+            statusBox('Không tìm thấy thông tin email để gửi lại mã.', 'danger');
+            return;
+        }
+
+        if (resendBtn) resendBtn.disabled = true;
+        if (spinner) spinner.classList.remove('d-none');
+        statusBox('Đang gửi lại mã xác thực...', 'info');
+
+        try {
+            const response = await fetch('/api/auth/resend-registration-otp', {
+                method: 'POST',
+                credentials: 'include',
+                headers: csrfHeaders({
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }),
+                body: JSON.stringify({ email: email })
+            });
+
+            const body = await readJson(response);
+            if (spinner) spinner.classList.add('d-none');
+
+            if (response.ok) {
+                statusBox('Mã xác thực mới đã được gửi tới email của bạn.', 'success');
+                startResendCooldown(60);
+                const otpInput = document.getElementById('otp');
+                if (otpInput) { otpInput.value = ''; otpInput.focus(); }
+            } else if (response.status === 429) {
+                const msg = (body && body.error && body.error.message) || 'Vui lòng đợi trước khi gửi lại mã.';
+                statusBox(msg, 'warning');
+                startResendCooldown(60);
+            } else {
+                const msg = (body && body.error && body.error.message) || 'Không thể gửi lại mã xác thực. Vui lòng thử lại.';
+                statusBox(msg, 'danger');
+                if (resendBtn) resendBtn.disabled = false;
+            }
+        } catch (err) {
+            if (spinner) spinner.classList.add('d-none');
+            if (resendBtn) resendBtn.disabled = false;
+            statusBox('Lỗi kết nối tới máy chủ. Vui lòng thử lại.', 'danger');
+        }
+    }
+
+    const verifyForm = document.querySelector('form[data-action="verify-otp"]');
+    if (verifyForm) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const emailParam = urlParams.get('email') || '';
+        const emailInput = document.getElementById('otp-email');
+        const displayEmail = document.getElementById('display-email');
+        if (emailInput && emailParam) {
+            emailInput.value = emailParam;
+        }
+        if (displayEmail && emailParam) {
+            displayEmail.textContent = maskEmail(emailParam);
+        }
+
+        verifyForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            verifyOtp(verifyForm);
+        });
+
+        const resendBtn = document.getElementById('resend-otp-btn');
+        if (resendBtn) {
+            resendBtn.addEventListener('click', function (event) {
+                event.preventDefault();
+                resendOtp();
+            });
+        }
     }
 
     // Navigation and helper button handlers
