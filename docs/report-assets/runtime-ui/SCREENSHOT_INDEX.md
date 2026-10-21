@@ -1,6 +1,6 @@
 # Mục lục ảnh chụp giao diện thực tế
 
-Ảnh chụp từ ứng dụng AloUTE đang chạy, nhánh `zcode/ui-runtime-capture-20261020`, commit baseline `4891554`.
+Ảnh chụp từ ứng dụng AloUTE đang chạy, nhánh `zcode/ui-runtime-capture-20261020`, commit baseline `4891554`. Phần bổ sung ngày 2026-10-21 chụp trên `master`, xem mục cuối.
 
 Danh sách xếp theo thứ tự chèn gợi ý cho báo cáo. Chú thích tiếng Việt tương ứng nằm trong `REPORT_CAPTIONS_VI.md`, đánh số "Hình X.X" theo cùng thứ tự.
 
@@ -32,8 +32,44 @@ Danh sách xếp theo thứ tự chèn gợi ý cho báo cáo. Chú thích tiế
 | 24 | `14-friends-broken.png` | Bạn bè & kết nối | 1440×900 | Trang lỗi, bị cắt |
 | 25 | `15-saved.png` | Bài viết đã lưu | 1440×900 | Khung nhìn chuẩn |
 
+## Bổ sung ngày 2026-10-21 (trên `master` sau PR #47)
+
+Chín ảnh dưới đây được chụp trên `master` tại commit `6be8a78767a289bc181f3f88a4dbbf832f3a0755`, sau khi PR #47 được hợp nhất, nên là ảnh của mã hiện hành.
+
+| STT | Tệp | Màn hình | Kích thước | Loại |
+| :-- | :--- | :--- | :--- | :--- |
+| 26 | `13-admin-reports-populated.png` | Hàng đợi báo cáo | 1440×900 | Có ba báo cáo thật |
+| 27 | `14-friends-following.png` | Bạn bè — Đang theo dõi | 1440×900 | Danh sách có dữ liệu |
+| 28 | `14-friends-followers.png` | Bạn bè — Người theo dõi | 1440×900 | Danh sách có dữ liệu |
+| 29 | `14-friends-empty.png` | Bạn bè — Đang theo dõi | 1440×900 | Trạng thái rỗng |
+| 30 | `14-friends-empty-followers.png` | Bạn bè — Người theo dõi | 1440×900 | Trạng thái rỗng |
+| 31 | `16-settings.png` | Cài đặt tài khoản | 1440×900 | Khung nhìn chuẩn |
+| 32 | `17-forgot-password.png` | Quên mật khẩu | 1440×900 | Khung nhìn chuẩn, khách |
+| 33 | `18-verify-otp.png` | Xác thực OTP | 1440×900 | Email đã nạp, đã che bớt |
+| 34 | `19-reset-password.png` | Đặt lại mật khẩu | 1440×900 | Mã đặt lại hợp lệ đã nạp |
+
+**Tổng sau bổ sung: 34 tệp ảnh.** Toàn bộ 25 tệp của đợt 2026-10-20 vẫn giữ nguyên, không ghi đè.
+
+### Kiểm định ảnh bổ sung
+
+Cả chín ảnh đều 1440×900, đã qua `png-inspect.cjs` với kết quả `OK` (không ảnh trắng), không trùng MD5 với bất kỳ ảnh nào khác trong thư mục.
+
+| Tệp | SHA-256 (16 ký tự đầu) |
+| :--- | :--- |
+| `13-admin-reports-populated.png` | `b768438e108f6323` |
+| `14-friends-following.png` | `b8a0ece52a61b618` |
+| `14-friends-followers.png` | `acebcbe1c336f3cb` |
+| `14-friends-empty.png` | `cb9bb44990d259d0` |
+| `14-friends-empty-followers.png` | `f6891ff79006932e` |
+| `16-settings.png` | `3cb037db4b21b024` |
+| `17-forgot-password.png` | `3ddf32fb818cafae` |
+| `18-verify-otp.png` | `1bfc0018cc539c32` |
+| `19-reset-password.png` | `01150f74dcceb01d` |
+
 ## Ảnh ưu tiên cho báo cáo ngắn
 
-Nếu báo cáo chỉ cần một ảnh cho mỗi màn hình trong danh mục wireframe, dùng các tệp sau: `01-login.png`, `02-register-b.png`, `03-home-feed-a.png`, `04-profile-a.png`, `05-create-post-b.png`, `06-post-detail-b.png`, `07-search-a.png`, `08-community-b.png`, `09-messaging-a.png`, `10-notifications-a.png`.
+Nếu báo cáo chỉ cần một ảnh cho mỗi màn hình trong danh mục wireframe, dùng các tệp sau: `01-login.png`, `02-register-b.png`, `03-home-feed-a.png`, `04-profile-a.png`, `05-create-post-b.png`, `06-post-detail-b.png`, `07-search-a.png`, `08-community-b.png`, `09-messaging-a.png`, `10-notifications-a.png`, `14-friends-following.png`.
+
+Với mục hàng đợi báo cáo, dùng `13-admin-reports-populated.png` làm ảnh chính; giữ `13-admin-reports.png` nếu báo cáo muốn đối chiếu trạng thái rỗng.
 
 Bỏ `14-friends-broken.png` khỏi phần minh họa giao diện nếu báo cáo không có mục riêng về lỗi.
