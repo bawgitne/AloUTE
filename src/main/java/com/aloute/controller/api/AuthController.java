@@ -1,7 +1,9 @@
 package com.aloute.controller.api;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import com.aloute.common.api.ApiResponse;
+import com.aloute.common.exception.ApiException;
 import com.aloute.dto.request.LoginRequest;
 import com.aloute.dto.request.RegisterRequest;
 import com.aloute.dto.request.ForgotPasswordRequest;
@@ -33,6 +35,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Slf4j
 public class AuthController {
     private final AuthService authService;
     private final TwoFactorService twoFactorService;
@@ -76,7 +79,15 @@ public class AuthController {
         if (outcome.twoFactorRequired()) {
             String ticket = tokenProvider.generateTwoFactorTicket(outcome.userId(), outcome.twoFactorType(), 300); // 5 minutes
             if ("EMAIL".equalsIgnoreCase(outcome.twoFactorType())) {
-                twoFactorService.sendEmailFallbackOtp(ticket);
+                try {
+                    twoFactorService.sendEmailFallbackOtp(ticket);
+                } catch (ApiException ex) {
+                    if (ex.getStatus() == HttpStatus.TOO_MANY_REQUESTS) {
+                        log.info("Email OTP already active within cooldown for user {}", outcome.userId());
+                    } else {
+                        throw ex;
+                    }
+                }
             }
             return ResponseEntity.ok(ApiResponse.success(LoginResponse.twoFactorRequired(ticket, outcome.twoFactorType(), outcome.maskedEmail())));
         }

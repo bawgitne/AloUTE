@@ -25,9 +25,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Service
 @RequiredArgsConstructor
@@ -35,7 +37,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TwoFactorServiceImpl implements TwoFactorService {
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
-    private static final long EMAIL_OTP_EXPIRY_SECONDS = 300; // 5 minutes
+    private static final long EMAIL_OTP_EXPIRY_SECONDS = 300; // 5 minutes validity
+    private static final long EMAIL_OTP_COOLDOWN_SECONDS = 60; // 60 seconds cooldown between resends
+    private static final int MAX_ACTIVE_EMAIL_OTPS_PER_USER = 3;
 
     private final UserRepository userRepository;
     private final UserBackupCodeRepository userBackupCodeRepository;
@@ -46,10 +50,10 @@ public class TwoFactorServiceImpl implements TwoFactorService {
     private final EmailService emailService;
 
     private final ConcurrentHashMap<String, Integer> ticketFailedAttempts = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, EmailOtpEntry> emailOtpCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, List<EmailOtpEntry>> emailOtpCache = new ConcurrentHashMap<>();
     private final SecureRandom secureRandom = new SecureRandom();
 
-    private record EmailOtpEntry(String otp, Instant expiresAt) {}
+    private record EmailOtpEntry(String otp, Instant createdAt, Instant expiresAt) {}
 
     @Override
     @Transactional
@@ -116,10 +120,7 @@ public class TwoFactorServiceImpl implements TwoFactorService {
                     "Tài khoản của bạn chưa có địa chỉ email để thiết lập xác thực qua email.");
         }
 
-        int number = 100000 + secureRandom.nextInt(900000);
-        String otpCode = String.valueOf(number);
-        emailOtpCache.put(userId, new EmailOtpEntry(otpCode, Instant.now().plusSeconds(EMAIL_OTP_EXPIRY_SECONDS)));
-
+        String otpCode = generateAndStoreEmailOtp(userId);
         emailService.sendTwoFactorFallbackOtpEmail(user.getEmail(), otpCode);
         log.info("Dispatched 2FA setup email OTP to user id {}", userId);
     }
@@ -128,18 +129,18 @@ public class TwoFactorServiceImpl implements TwoFactorService {
     @Transactional
     public TwoFactorEnableResponse enableTwoFactorEmail(Long userId, String code) {
         User user = requireUser(userId);
-        EmailOtpEntry entry = emailOtpCache.get(userId);
-        if (entry == null || Instant.now().isAfter(entry.expiresAt())) {
+        List<EmailOtpEntry> entries = emailOtpCache.get(userId);
+        Instant now = Instant.now();
+        boolean hasActiveOtp = entries != null && entries.stream().anyMatch(e -> e.expiresAt().isAfter(now));
+        if (!hasActiveOtp) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "AUTH_2FA_INVALID_CODE",
                     "Mã xác thực email đã hết hạn hoặc chưa được tạo. Vui lòng bấm gửi lại mã.");
         }
 
-        if (!entry.otp().equals(code != null ? code.trim() : "")) {
+        if (!verifyAndConsumeEmailOtp(userId, code)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "AUTH_2FA_INVALID_CODE",
                     "Mã xác thực email không chính xác. Vui lòng kiểm tra lại hộp thư.");
         }
-
-        emailOtpCache.remove(userId);
 
         user.setTwoFactorSecret(null);
         user.setTwoFactorTempSecret(null);
@@ -197,11 +198,7 @@ public class TwoFactorServiceImpl implements TwoFactorService {
 
         if (!codeValid) {
             // Check email OTP if active
-            EmailOtpEntry entry = emailOtpCache.get(userId);
-            if (entry != null && entry.expiresAt().isAfter(Instant.now()) && entry.otp().equals(code != null ? code.trim() : "")) {
-                codeValid = true;
-                emailOtpCache.remove(userId);
-            }
+            codeValid = verifyAndConsumeEmailOtp(userId, code);
         }
 
         if (!codeValid) {
@@ -310,11 +307,7 @@ public class TwoFactorServiceImpl implements TwoFactorService {
 
             // If TOTP failed, check fallback email OTP
             if (!verified) {
-                EmailOtpEntry entry = emailOtpCache.get(userId);
-                if (entry != null && entry.expiresAt().isAfter(Instant.now()) && entry.otp().equals(rawCode)) {
-                    verified = true;
-                    emailOtpCache.remove(userId);
-                }
+                verified = verifyAndConsumeEmailOtp(userId, rawCode);
             }
         }
 
@@ -356,12 +349,77 @@ public class TwoFactorServiceImpl implements TwoFactorService {
                     "Tài khoản không có email để nhận mã OTP.");
         }
 
-        // Generate 6-digit numeric OTP
-        int number = 100000 + secureRandom.nextInt(900000);
-        String otpCode = String.valueOf(number);
-
-        emailOtpCache.put(userId, new EmailOtpEntry(otpCode, Instant.now().plusSeconds(EMAIL_OTP_EXPIRY_SECONDS)));
+        String otpCode = generateAndStoreEmailOtp(userId);
         emailService.sendTwoFactorFallbackOtpEmail(user.getEmail(), otpCode);
+        log.info("Dispatched 2FA fallback email OTP to user id {}", userId);
+    }
+
+    private String generateAndStoreEmailOtp(Long userId) {
+        Instant now = Instant.now();
+        List<EmailOtpEntry> entries = emailOtpCache.compute(userId, (key, existing) -> {
+            List<EmailOtpEntry> list = (existing != null) ? existing : new CopyOnWriteArrayList<>();
+            // 1. Prune expired entries
+            list.removeIf(entry -> now.isAfter(entry.expiresAt()));
+
+            // 2. Cooldown check against the most recently issued OTP
+            if (!list.isEmpty()) {
+                EmailOtpEntry latest = list.get(list.size() - 1);
+                Instant cooldownEnd = latest.createdAt().plusSeconds(EMAIL_OTP_COOLDOWN_SECONDS);
+                if (now.isBefore(cooldownEnd)) {
+                    long remaining = Duration.between(now, cooldownEnd).toSeconds() + 1;
+                    throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "AUTH_OTP_COOLDOWN",
+                            "Vui lòng đợi " + remaining + " giây trước khi yêu cầu gửi lại mã xác thực.");
+                }
+            }
+
+            // 3. Keep at most (MAX_ACTIVE_EMAIL_OTPS_PER_USER - 1) before adding a new one
+            while (list.size() >= MAX_ACTIVE_EMAIL_OTPS_PER_USER) {
+                list.remove(0);
+            }
+
+            // 4. Generate fresh 6-digit numeric OTP
+            int number = 100000 + secureRandom.nextInt(900000);
+            String otpCode = String.valueOf(number);
+            list.add(new EmailOtpEntry(otpCode, now, now.plusSeconds(EMAIL_OTP_EXPIRY_SECONDS)));
+            return list;
+        });
+
+        return entries.get(entries.size() - 1).otp();
+    }
+
+    private boolean verifyAndConsumeEmailOtp(Long userId, String rawCode) {
+        if (rawCode == null || rawCode.isBlank()) {
+            return false;
+        }
+        String cleanCode = rawCode.trim();
+        Instant now = Instant.now();
+
+        List<EmailOtpEntry> entries = emailOtpCache.get(userId);
+        if (entries == null || entries.isEmpty()) {
+            return false;
+        }
+
+        boolean matched = entries.stream()
+                .anyMatch(entry -> entry.expiresAt().isAfter(now) && entry.otp().equals(cleanCode));
+
+        if (matched) {
+            // Single-use enforcement: purge all OTPs for this user immediately upon successful match
+            emailOtpCache.remove(userId);
+            return true;
+        }
+
+        return false;
+    }
+
+    @Override
+    public int getActiveOtpCount(Long userId) {
+        List<EmailOtpEntry> list = emailOtpCache.get(userId);
+        return list != null ? list.size() : 0;
+    }
+
+    @Override
+    public void clearEmailOtpCache() {
+        emailOtpCache.clear();
     }
 
     private User requireUser(Long id) {

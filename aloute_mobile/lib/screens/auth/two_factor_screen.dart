@@ -29,6 +29,9 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
   void initState() {
     super.initState();
     _codeController.addListener(_onCodeChanged);
+    if (widget.maskedEmail != null && widget.maskedEmail!.isNotEmpty) {
+      _startEmailCooldown();
+    }
   }
 
   void _onCodeChanged() {

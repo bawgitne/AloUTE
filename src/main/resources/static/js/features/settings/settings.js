@@ -778,9 +778,13 @@
         const btnConfirmEmail2fa = document.getElementById('btn-confirm-email-2fa');
 
         let emailCountdownTimer = null;
+        let emailCountdownActive = false;
+        let emailCooldownEndsAt = 0;
 
         function startEmailCountdown(seconds) {
             let left = seconds;
+            emailCooldownEndsAt = Date.now() + (seconds * 1000);
+            emailCountdownActive = true;
             if (btnSendEmailCode) btnSendEmailCode.disabled = true;
             if (emailCountdownTimer) clearInterval(emailCountdownTimer);
 
@@ -788,6 +792,7 @@
                 left--;
                 if (left <= 0) {
                     clearInterval(emailCountdownTimer);
+                    emailCountdownActive = false;
                     if (btnSendEmailCode) btnSendEmailCode.disabled = false;
                     if (sendEmailBtnText) sendEmailBtnText.textContent = 'Gửi lại mã';
                     if (emailStatusText) emailStatusText.textContent = 'Chưa nhận được? Bạn có thể gửi lại mã.';
@@ -835,7 +840,11 @@
                 emailModal.show();
                 if (emailCodeInput) emailCodeInput.value = '';
                 if (emailFeedback) emailFeedback.classList.add('d-none');
-                triggerSendEmail2faCode();
+                if (emailCountdownActive && Date.now() < emailCooldownEndsAt) {
+                    if (emailCodeInput) emailCodeInput.focus();
+                } else {
+                    triggerSendEmail2faCode();
+                }
             });
         }
 
@@ -971,22 +980,47 @@
 
         const btnDisableSendEmailOtp = document.getElementById('btn-disable-send-email-otp');
         const disableEmailSentFeedback = document.getElementById('disable-email-sent-feedback');
+        let disableEmailCooldownTimer = null;
+        function startDisableEmailCountdown(seconds) {
+            let left = seconds;
+            if (btnDisableSendEmailOtp) btnDisableSendEmailOtp.disabled = true;
+            if (disableEmailCooldownTimer) clearInterval(disableEmailCooldownTimer);
+            disableEmailCooldownTimer = setInterval(() => {
+                left--;
+                if (left <= 0) {
+                    clearInterval(disableEmailCooldownTimer);
+                    if (btnDisableSendEmailOtp) {
+                        btnDisableSendEmailOtp.disabled = false;
+                        btnDisableSendEmailOtp.innerHTML = '<i class="bi bi-envelope me-1"></i>Gửi lại mã qua Email';
+                    }
+                } else {
+                    if (btnDisableSendEmailOtp) {
+                        btnDisableSendEmailOtp.innerHTML = `<i class="bi bi-hourglass-split me-1"></i>Gửi lại (${left}s)`;
+                    }
+                }
+            }, 1000);
+        }
+
         if (btnDisableSendEmailOtp) {
             btnDisableSendEmailOtp.addEventListener('click', async function () {
                 btnDisableSendEmailOtp.disabled = true;
                 btnDisableSendEmailOtp.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang gửi...';
                 try {
                     const response = await window.alouteHttp.request('/api/users/me/2fa/email/send-code', { method: 'POST' });
+                    const result = await window.alouteHttp.readJson(response);
                     if (response.ok) {
                         if (disableEmailSentFeedback) disableEmailSentFeedback.classList.remove('d-none');
                         const codeInput = document.getElementById('disable-2fa-code');
                         if (codeInput) codeInput.focus();
+                        startDisableEmailCountdown(60);
                     } else {
-                        showAlert('Không thể gửi mã xác thực qua email.', 'danger');
+                        const msg = (result && result.error && result.error.message) || 'Không thể gửi mã xác thực qua email.';
+                        showAlert(msg, 'danger');
+                        btnDisableSendEmailOtp.disabled = false;
+                        btnDisableSendEmailOtp.innerHTML = '<i class="bi bi-envelope me-1"></i>Gửi lại mã qua Email';
                     }
                 } catch (e) {
                     showAlert('Lỗi kết nối khi gửi mã qua email.', 'danger');
-                } finally {
                     btnDisableSendEmailOtp.disabled = false;
                     btnDisableSendEmailOtp.innerHTML = '<i class="bi bi-envelope me-1"></i>Gửi lại mã qua Email';
                 }
