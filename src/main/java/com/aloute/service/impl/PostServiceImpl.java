@@ -84,7 +84,8 @@ public class PostServiceImpl implements PostService {
     @Transactional(readOnly = true)
     public ApiResponse<List<PostResponse>> getRecommendedFeed(Long viewerId, int page, int size) {
         Specification<Post> spec = (root, query, cb) -> cb.isNull(root.get("parentPost"));
-        spec = spec.and(buildVisibilitySpec(viewerId));
+        spec = spec.and(buildVisibilitySpec(viewerId))
+                .and(PostSpecifications.excludeMutedAuthors(viewerId));
         Page<Post> postPage = postRepository.findAll(
                 spec,
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
@@ -377,7 +378,8 @@ public class PostServiceImpl implements PostService {
                 cb.equal(root.get("community").get("id"), communityId),
                 cb.isNull(root.get("parentPost"))
         );
-        spec = spec.and(buildVisibilitySpec(viewerId, isOwner ? communityId : null));
+        spec = spec.and(buildVisibilitySpec(viewerId, isOwner ? communityId : null))
+                .and(PostSpecifications.excludeMutedAuthors(viewerId));
         Page<Post> postPage = postRepository.findAll(
                 spec,
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
@@ -402,7 +404,8 @@ public class PostServiceImpl implements PostService {
                     cb.isNull(root.get("parentPost"))
             );
         };
-        spec = spec.and(buildVisibilitySpec(viewerId));
+        spec = spec.and(buildVisibilitySpec(viewerId))
+                .and(PostSpecifications.excludeMutedAuthors(viewerId));
         Page<Post> postPage = postRepository.findAll(
                 spec,
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
