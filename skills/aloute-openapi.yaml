@@ -2703,6 +2703,10 @@ components:
           type: string
           format: uri
           nullable: true
+        coverUrl:
+          type: string
+          format: uri
+          nullable: true
         website:
           type: string
           format: uri
@@ -2752,6 +2756,7 @@ components:
         - POST
         - MESSAGE
         - USER_AVATAR
+        - USER_COVER
         - COMMUNITY_AVATAR
         - COMMUNITY_COVER
 

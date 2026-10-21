@@ -169,11 +169,29 @@ public class SocialServiceImpl implements SocialService {
     }
 
     @Override @Transactional
+    public SocialRelationResponse muteByUsername(Long currentUserId, String username) {
+        if (username == null || username.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_USERNAME", "Vui lòng nhập tên người dùng hợp lệ");
+        }
+        String clean = username.trim().startsWith("@") ? username.trim().substring(1) : username.trim();
+        User target = userRepository.findByUsernameIgnoreCase(clean)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng @" + clean));
+        return mute(currentUserId, target.getId());
+    }
+
+    @Override @Transactional
     public void unmute(Long currentUserId, Long targetUserId) {
         requireUser(targetUserId);
         com.aloute.entity.Mute m = muteRepository.findByMuterIdAndMutedId(currentUserId, targetUserId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "MUTE_NOT_FOUND", "Mute relationship not found"));
         muteRepository.delete(m);
+    }
+
+    @Override @Transactional(readOnly = true)
+    public ApiResponse<List<UserSummary>> mutedUsers(Long currentUserId, Pageable pageable) {
+        requireUser(currentUserId);
+        Page<com.aloute.entity.Mute> p = muteRepository.findByMuterId(currentUserId, pageable);
+        return ApiResponse.page(p.getContent().stream().map(com.aloute.entity.Mute::getMuted).map(this::summary).toList(), PageMeta.from(p));
     }
 
     @Override @Transactional

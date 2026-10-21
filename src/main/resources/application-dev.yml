@@ -32,7 +32,7 @@ aloute:
   auth:
     registration-otp-secret: ${ALOUTE_REGISTRATION_OTP_SECRET:YWxvdXRlLWRldi1yZWdpc3RyYXRpb24tb3RwLXNlY3JldC1rZXktMzJi}
   mail:
-    host: ${ALOUTE_MAIL_HOST:smtp.gmail.com}
+    host: ${ALOUTE_MAIL_HOST:}
     port: ${ALOUTE_MAIL_PORT:587}
     username: ${ALOUTE_MAIL_USERNAME:}
     password: ${ALOUTE_MAIL_PASSWORD:}

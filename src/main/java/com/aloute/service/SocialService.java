@@ -18,7 +18,9 @@ public interface SocialService {
     ApiResponse<List<UserSummary>> blockedUsers(Long currentUserId, Pageable pageable);
 
     SocialRelationResponse mute(Long currentUserId, Long targetUserId);
+    SocialRelationResponse muteByUsername(Long currentUserId, String username);
     void unmute(Long currentUserId, Long targetUserId);
+    ApiResponse<List<UserSummary>> mutedUsers(Long currentUserId, Pageable pageable);
 
     SocialRelationResponse restrict(Long currentUserId, Long targetUserId);
     void unrestrict(Long currentUserId, Long targetUserId);

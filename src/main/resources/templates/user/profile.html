@@ -6,8 +6,14 @@
     <!-- User Profile Header Card -->
     <header class="profile-header-card" aria-label="Thông tin hồ sơ cá nhân">
         <!-- Profile Cover Banner -->
-        <div class="profile-cover" aria-hidden="true">
-            <div class="profile-cover-placeholder"></div>
+        <div class="profile-cover position-relative overflow-hidden" aria-hidden="true" style="height: 180px; background-color: var(--bs-secondary-bg);">
+            <img th:if="${profile != null and profile.coverUrl != null and !profile.coverUrl.isEmpty()}"
+                 th:src="${profile.coverUrl}"
+                 src=""
+                 alt="Ảnh bìa trang cá nhân"
+                 class="w-100 h-100 object-fit-cover">
+            <div th:unless="${profile != null and profile.coverUrl != null and !profile.coverUrl.isEmpty()}"
+                 class="profile-cover-placeholder w-100 h-100"></div>
         </div>
 
         <div class="profile-header-body">

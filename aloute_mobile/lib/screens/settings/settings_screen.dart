@@ -219,6 +219,60 @@ class SettingsScreen extends StatelessWidget {
                 );
               },
             ),
+          ),
+          const SizedBox(height: 12),
+
+          _buildSettingCard(
+            context,
+            icon: Icons.notifications_off_outlined,
+            iconBg: AlouteColors.warningBg,
+            iconColor: AlouteColors.warning,
+            title: 'Tài khoản đã tắt thông báo (Mute)',
+            subtitle: 'Quản lý danh sách người dùng bạn không muốn nhận thông báo',
+            trailing: OutlinedButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Xem danh sách mute trên phiên bản Web')),
+                );
+              },
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AlouteColors.warning),
+                foregroundColor: AlouteColors.warning,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AlouteColors.radiusFull)),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('Quản lý', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          _buildSettingCard(
+            context,
+            icon: Icons.block_outlined,
+            iconBg: AlouteColors.dangerBg,
+            iconColor: AlouteColors.danger,
+            title: 'Người dùng đã chặn',
+            subtitle: 'Quản lý danh sách các tài khoản bạn đã chặn trên AloUTE',
+            trailing: OutlinedButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Xem danh sách chặn trên phiên bản Web')),
+                );
+              },
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AlouteColors.danger),
+                foregroundColor: AlouteColors.danger,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AlouteColors.radiusFull)),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('Quản lý', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
+          ),
+          const SizedBox(height: 12),
           _buildSettingCard(
             context,
             icon: Icons.shield_rounded,

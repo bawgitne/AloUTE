@@ -108,6 +108,22 @@
                         </div>
                     </a>
 
+                    <a th:href="@{/settings/muted}"
+                       href="/settings/muted"
+                       class="nav-link text-start d-flex align-items-center gap-3 py-2 px-3 rounded-3"
+                       th:classappend="${currentSection == 'muted'} ? 'active' : ''"
+                       id="tab-btn-muted"
+                       data-tab="muted"
+                       role="tab"
+                       aria-controls="pane-muted"
+                       th:attr="aria-selected=${currentSection == 'muted'} ? 'true' : 'false'">
+                        <i class="bi bi-bell-slash fs-5" aria-hidden="true"></i>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold small">Tài khoản đã tắt thông báo</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Quản lý danh sách mute</div>
+                        </div>
+                    </a>
+
                     <a th:href="@{/settings/notifications}"
                        href="/settings/notifications"
                        class="nav-link text-start d-flex align-items-center gap-3 py-2 px-3 rounded-3"
@@ -170,6 +186,42 @@
                     </h2>
                     <p class="small text-muted mb-4">Các thông tin này sẽ được hiển thị công khai trên trang cá nhân của bạn.</p>
 
+                    <!-- Cover Photo Upload Section -->
+                    <div class="pb-4 mb-4 border-bottom">
+                        <div class="fw-semibold small text-dark mb-1">Ảnh bìa trang cá nhân</div>
+                        <div class="text-muted small mb-3">Hiển thị ở đầu trang hồ sơ của bạn. Kích thước khuyến nghị: tỷ lệ 3:1 (1200 x 400). Dung lượng tối đa 5MB.</div>
+                        <div class="position-relative overflow-hidden rounded-3 border bg-light shadow-sm mb-3" style="height: 150px;">
+                            <img th:src="${currentUser != null and currentUser.coverUrl != null and !currentUser.coverUrl.isEmpty()} ? ${currentUser.coverUrl} : @{/images/cover-fallback.svg}"
+                                 src="/images/cover-fallback.svg"
+                                 alt="Ảnh bìa xem trước"
+                                 id="settings-cover-preview"
+                                 class="w-100 h-100 object-fit-cover">
+                            <div id="settings-cover-spinner"
+                                 class="position-absolute top-50 start-50 translate-middle d-none bg-dark bg-opacity-50 rounded-3 w-100 h-100 d-flex align-items-center justify-content-center text-white">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Đang tải...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <label for="settings-cover-file-input" class="btn btn-sm btn-primary rounded-pill px-3 d-inline-flex align-items-center gap-1 cursor-pointer">
+                                <i class="bi bi-image" aria-hidden="true"></i>
+                                <span>Tải ảnh bìa mới</span>
+                            </label>
+                            <input type="file"
+                                   id="settings-cover-file-input"
+                                   class="d-none"
+                                   accept="image/png, image/jpeg, image/webp">
+
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-danger rounded-pill px-3 d-inline-flex align-items-center gap-1"
+                                    id="settings-btn-remove-cover">
+                                <i class="bi bi-trash3" aria-hidden="true"></i>
+                                <span>Gỡ ảnh bìa</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Avatar Upload Section -->
                     <div class="d-flex align-items-center gap-4 pb-4 mb-4 border-bottom flex-wrap">
                         <div class="position-relative">
@@ -213,8 +265,9 @@
 
                     <!-- Profile Edit Form -->
                     <form id="settings-profile-form" novalidate>
-                        <!-- Hidden field to hold newly uploaded avatarMediaId -->
+                        <!-- Hidden field to hold newly uploaded avatarMediaId & coverMediaId -->
                         <input type="hidden" id="settings-avatar-media-id" value="">
+                        <input type="hidden" id="settings-cover-media-id" value="">
 
                         <!-- Display Name -->
                         <div class="mb-3">
@@ -731,7 +784,68 @@
             </div>
 
             <!-- ========================================== -->
-            <!-- PANE 6: CÀI ĐẶT THÔNG BÁO -->
+            <!-- PANE 6: TÀI KHOẢN ĐÃ TẮT THÔNG BÁO (MUTED) -->
+            <!-- ========================================== -->
+            <div class="tab-pane-content"
+                 id="pane-muted"
+                 th:classappend="${currentSection == 'muted'} ? '' : 'd-none'"
+                 role="tabpanel"
+                 aria-labelledby="tab-btn-muted">
+                <div class="aloute-card p-4 border-0 shadow-sm mb-3">
+                    <h2 class="fs-6 fw-bold mb-1 text-dark d-flex align-items-center gap-2">
+                        <i class="bi bi-bell-slash text-warning" aria-hidden="true"></i>
+                        <span>Quản lý danh sách tắt thông báo (Mute)</span>
+                    </h2>
+                    <p class="small text-muted mb-4">Khi bạn tắt thông báo một tài khoản, bạn sẽ không nhận được bất kỳ thông báo tương tác (thích, bình luận, nhắc tên, tin nhắn) nào từ họ. Họ sẽ không biết rằng bạn đã tắt thông báo của họ.</p>
+
+                    <!-- Quick Mute Form -->
+                    <form id="form-quick-mute" class="mb-4">
+                        <label for="input-mute-username" class="form-label small fw-semibold text-dark">Tắt thông báo tài khoản bằng username:</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0 text-muted">@</span>
+                            <input type="text"
+                                   id="input-mute-username"
+                                   class="form-control border-start-0"
+                                   placeholder="Nhập tên đăng nhập để tắt thông báo..."
+                                   required>
+                            <button type="submit" class="btn btn-warning px-4 d-inline-flex align-items-center gap-1 text-dark fw-semibold" id="btn-submit-quick-mute">
+                                <span class="spinner-border spinner-border-sm d-none" id="mute-user-spinner" role="status"></span>
+                                <span>Tắt thông báo</span>
+                            </button>
+                        </div>
+                        <div id="mute-feedback" class="small mt-2 d-none"></div>
+                    </form>
+
+                    <hr class="my-4 border-secondary-subtle">
+
+                    <!-- Muted Users List -->
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h3 class="fs-6 fw-bold mb-0 text-dark">Danh sách tài khoản đang tắt thông báo</h3>
+                        <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 text-primary small d-flex align-items-center gap-1" id="btn-refresh-muted-users">
+                            <i class="bi bi-arrow-clockwise"></i>
+                            <span>Làm mới danh sách</span>
+                        </button>
+                    </div>
+
+                    <div id="muted-users-loading" class="text-center py-4 d-none">
+                        <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+                        <span class="small text-muted ms-2">Đang tải danh sách...</span>
+                    </div>
+
+                    <div id="muted-users-empty" class="text-center py-5 bg-light rounded-3 d-none">
+                        <div class="rounded-circle bg-warning-subtle text-warning d-inline-flex align-items-center justify-content-center mb-2" style="width: 50px; height: 50px;">
+                            <i class="bi bi-bell fs-4"></i>
+                        </div>
+                        <h6 class="fw-bold text-dark mb-1">Chưa tắt thông báo tài khoản nào</h6>
+                        <p class="small text-muted mb-0">Tất cả thông báo từ bạn bè và người dùng sẽ luôn được gửi đến bạn bình thường.</p>
+                    </div>
+
+                    <div id="muted-users-list" class="d-flex flex-column gap-2"></div>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- PANE 7: CÀI ĐẶT THÔNG BÁO -->
             <!-- ========================================== -->
             <div class="tab-pane-content"
                  id="pane-notifications"
@@ -1184,6 +1298,34 @@
                         <button type="button" class="btn btn-sm btn-primary rounded-pill px-4 d-inline-flex align-items-center gap-1" id="btn-do-unblock">
                             <span class="spinner-border spinner-border-sm d-none" id="unblock-spinner" role="status"></span>
                             <span>Bỏ chặn</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 7: Confirm Unmute User -->
+    <div class="modal fade" id="modal-confirm-unmute" tabindex="-1" aria-labelledby="modalUnmuteLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fs-6 fw-bold text-dark d-flex align-items-center gap-2" id="modalUnmuteLabel">
+                        <i class="bi bi-bell text-warning"></i>
+                        <span>Bật lại thông báo</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <p class="small text-muted mb-3" id="unmute-confirm-text">
+                        Bạn có muốn bật lại thông báo cho người dùng này? Bạn sẽ nhận được thông báo khi họ tương tác với bạn.
+                    </p>
+                    <div id="unmute-feedback" class="text-danger small mb-2 d-none"></div>
+                    <div class="d-flex justify-content-center gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-sm btn-warning rounded-pill px-4 d-inline-flex align-items-center gap-1 text-dark fw-semibold" id="btn-do-unmute">
+                            <span class="spinner-border spinner-border-sm d-none" id="unmute-spinner" role="status"></span>
+                            <span>Bật lại</span>
                         </button>
                     </div>
                 </div>

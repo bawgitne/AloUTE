@@ -89,30 +89,99 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Avatar Edit Center
-            Center(
-              child: Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 46,
-                    backgroundImage: NetworkImage(
-                      widget.user.avatarUrl ?? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+            // Cover Photo & Avatar Edit Area
+            Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.bottomCenter,
+              children: [
+                // Cover photo preview
+                GestureDetector(
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Chọn ảnh bìa mới từ thư viện ảnh...')),
+                    );
+                  },
+                  child: Container(
+                    height: 140,
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 44),
+                    decoration: BoxDecoration(
+                      color: AlouteColors.bgBody,
+                      borderRadius: BorderRadius.circular(AlouteColors.radiusLg),
+                      border: Border.all(color: AlouteColors.borderColor),
+                      image: widget.user.coverUrl != null && widget.user.coverUrl!.isNotEmpty
+                          ? DecorationImage(
+                              image: NetworkImage(widget.user.coverUrl!),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: Stack(
+                      children: [
+                        if (widget.user.coverUrl == null || widget.user.coverUrl!.isEmpty)
+                          const Center(
+                            child: Icon(Icons.panorama_outlined, size: 40, color: AlouteColors.textMuted),
+                          ),
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.65),
+                              borderRadius: BorderRadius.circular(AlouteColors.radiusFull),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.camera_alt, color: Colors.white, size: 14),
+                                SizedBox(width: 4),
+                                Text('Đổi ảnh bìa', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: AlouteColors.accent,
-                        shape: BoxShape.circle,
+                ),
+                // Avatar preview
+                GestureDetector(
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Chọn ảnh đại diện mới từ thư viện...')),
+                    );
+                  },
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AlouteColors.bgSurface, width: 4),
+                        ),
+                        child: CircleAvatar(
+                          radius: 44,
+                          backgroundImage: NetworkImage(
+                            widget.user.avatarUrl ?? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+                          ),
+                        ),
                       ),
-                      child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
-                    ),
+                      Positioned(
+                        bottom: 4,
+                        right: 4,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: const BoxDecoration(
+                            color: AlouteColors.accent,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 15),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
 
@@ -133,16 +202,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   TextField(
                     controller: _displayNameController,
                     decoration: const InputDecoration(
+                      hintText: 'Nhập tên hiển thị...',
                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  const Text('Khoa / Chuyên ngành', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AlouteColors.textPrimary)),
+                  const Text('Liên kết Website / Trang cá nhân', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AlouteColors.textPrimary)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _facultyController,
                     decoration: const InputDecoration(
+                      hintText: 'https://...',
                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
                   ),
@@ -154,7 +225,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     controller: _bioController,
                     maxLines: 4,
                     decoration: const InputDecoration(
-                      hintText: 'Giới thiệu ngắn về bản thân, sở thích hoặc định hướng học tập...',
+                      hintText: 'Giới thiệu ngắn về bản thân, sở thích...',
                       contentPadding: EdgeInsets.all(12),
                     ),
                   ),
