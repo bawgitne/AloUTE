@@ -2,7 +2,7 @@
 
 Tệp này cung cấp chú thích tiếng Việt cho từng ảnh chụp giao diện thực tế. Các vị trí "Hình X.X" là chỗ trống, cần đánh số lại theo trình tự chương/mục của báo cáo Word cuối cùng.
 
-Thứ tự ảnh dưới đây bám theo danh mục màn hình trong wireframe Tuần 1, phục vụ mục "Giao diện hệ thống" của báo cáo. Mục cuối gồm ảnh bổ sung ngày 2026-10-21, chụp trên bản vá PR #47.
+Thứ tự ảnh dưới đây bám theo danh mục màn hình trong wireframe Tuần 1, phục vụ mục "Giao diện hệ thống" của báo cáo. Mục cuối gồm ảnh bổ sung ngày 2026-10-21, chụp trên `master` sau khi hợp nhất PR #47.
 
 ---
 
@@ -137,7 +137,7 @@ Trang tập hợp các bài viết người dùng đã đánh dấu lưu để x
 
 ## Bổ sung ngày 2026-10-21 — ảnh chụp lại sau khi vá lỗi
 
-Phần này bổ sung ảnh cho các màn hình trước đây thiếu hoặc lỗi. Ảnh được chụp trên mã nguồn của **PR #47** (commit `936b68542b0b94134fc4606b9bd31980c03ae114`, chưa hợp nhất vào `master` tại thời điểm chụp), nên khi chèn vào báo cáo cần ghi rõ nguồn là bản vá ứng viên.
+Phần này bổ sung ảnh cho các màn hình trước đây thiếu hoặc lỗi. Ảnh được chụp trên `master` tại commit `6be8a78767a289bc181f3f88a4dbbf832f3a0755`, sau khi PR #47 được hợp nhất. Có thể chèn như ảnh của mã hiện hành; nếu báo cáo kể lại quá trình khắc phục thì ghi rõ bản vá nằm ở PR #47.
 
 **`14-friends-following.png`**
 
