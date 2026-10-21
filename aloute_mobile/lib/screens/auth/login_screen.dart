@@ -5,6 +5,7 @@ import '../../widgets/aloute_button.dart';
 import '../main_navigation_screen.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
+import 'two_factor_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -47,7 +48,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (mounted) {
       setState(() => _isLoading = false);
-      if (success) {
+      if (_authService.isTwoFactorRequired) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => TwoFactorScreen(
+              maskedEmail: _authService.twoFactorMaskedEmail,
+            ),
+          ),
+        );
+      } else if (success) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
         );

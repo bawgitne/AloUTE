@@ -123,11 +123,29 @@ public class SocialServiceImpl implements SocialService {
     }
 
     @Override @Transactional
+    public SocialRelationResponse blockByUsername(Long currentUserId, String username) {
+        if (username == null || username.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_USERNAME", "Vui lòng nhập tên người dùng hợp lệ");
+        }
+        String clean = username.trim().startsWith("@") ? username.trim().substring(1) : username.trim();
+        User target = userRepository.findByUsernameIgnoreCase(clean)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng @" + clean));
+        return block(currentUserId, target.getId());
+    }
+
+    @Override @Transactional
     public void unblock(Long currentUserId, Long targetUserId) {
         requireUser(targetUserId);
         com.aloute.entity.Block b = blockRepository.findByBlockerIdAndBlockedId(currentUserId, targetUserId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "BLOCK_NOT_FOUND", "Block relationship not found"));
         blockRepository.delete(b);
+    }
+
+    @Override @Transactional(readOnly = true)
+    public ApiResponse<List<UserSummary>> blockedUsers(Long currentUserId, Pageable pageable) {
+        requireUser(currentUserId);
+        Page<com.aloute.entity.Block> p = blockRepository.findByBlockerId(currentUserId, pageable);
+        return ApiResponse.page(p.getContent().stream().map(com.aloute.entity.Block::getBlocked).map(this::summary).toList(), PageMeta.from(p));
     }
 
     @Override @Transactional

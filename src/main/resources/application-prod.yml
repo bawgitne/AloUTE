@@ -35,6 +35,16 @@ aloute:
     credentials-path: ${ALOUTE_FIREBASE_CREDENTIALS_PATH:}
   auth:
     registration-otp-secret: ${ALOUTE_REGISTRATION_OTP_SECRET}
+  mail:
+    host: ${ALOUTE_MAIL_HOST:smtp.gmail.com}
+    port: ${ALOUTE_MAIL_PORT:587}
+    username: ${ALOUTE_MAIL_USERNAME:}
+    password: ${ALOUTE_MAIL_PASSWORD:}
+    from: ${ALOUTE_MAIL_FROM:no-reply@aloute.local}
+    starttls:
+      enable: true
+    ssl:
+      checkserveridentity: true
 
 ALOUTE_JWT_SECRET: ${ALOUTE_JWT_SECRET}
 ALOUTE_JWT_EXPIRATION_SECONDS: ${ALOUTE_JWT_EXPIRATION_SECONDS:86400}
