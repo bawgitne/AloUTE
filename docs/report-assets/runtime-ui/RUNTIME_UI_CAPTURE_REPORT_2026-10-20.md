@@ -124,3 +124,96 @@ Không sửa `src/main`. Chỉ thêm tệp công cụ trong `uicleanup-qa-eviden
 - Ảnh: `docs/report-assets/runtime-ui/`
 - Chú thích tiếng Việt: `docs/report-assets/runtime-ui/REPORT_CAPTIONS_VI.md`
 - Mục lục ảnh: `docs/report-assets/runtime-ui/SCREENSHOT_INDEX.md`
+
+---
+
+# Phần bổ sung 2026-10-21 — chụp lại sau bản vá
+
+Phần trên giữ nguyên đúng như lần ghi nhận 2026-10-20, kể cả mục 4.1 mô tả lỗi. Phần dưới đây ghi kết quả chụp lại sau khi có bản vá, không viết lại sự cố cũ.
+
+## 9. Nguồn mã nguồn dùng để chụp
+
+| Mục | Giá trị |
+| :--- | :--- |
+| PR | #47 `fix(view): remove missing u.bio from friends.html and add render tests` |
+| Trạng thái PR tại thời điểm chụp | **OPEN — chưa hợp nhất** |
+| Commit runtime | `936b68542b0b94134fc4606b9bd31980c03ae114` |
+| Nhánh nguồn | `codex/friends-render-remediation-20261021` |
+| `origin/master` tham chiếu | `e46b920` (chưa chứa bản vá) |
+
+PR vẫn mở nên các ảnh dưới đây **là ảnh trên bản vá ứng viên, không phải ảnh của `master` hiện tại**. Runtime dựng trong worktree tách rời `D:/PROJECT/cnpm-project/AloUTE-pr47-runtime`, HEAD detach đúng SHA trên, không trộn với nhánh chụp ảnh.
+
+Cấu hình chạy giống lần trước: profile `dev`, H2 in-memory, cổng `8099`, JAR đóng từ chính commit đó.
+
+## 10. Kết quả kiểm thử trình duyệt
+
+### 10.1 `/friends` — PASS
+
+Dữ liệu thử tạo hoàn toàn qua API thật, không ghi thẳng cơ sở dữ liệu:
+
+- Hai tài khoản sinh viên dùng một lần (`minhquan`, `thaovy`) đăng ký qua `/api/auth/register`, xác thực qua `/api/auth/verify-registration-otp` với CSRF hợp lệ, rồi tạo quan hệ theo dõi hai chiều bằng `PUT /api/social/follows/{id}`.
+- Tài khoản `emptyuser` được đăng ký, xác thực rồi gỡ hết quan hệ bằng `DELETE /api/social/follows/{id}` để có trạng thái rỗng thật.
+- Các tab được tách nghĩa: `user` theo dõi 2 sinh viên nhưng có 4 người theo dõi, nên hai ảnh không trùng nội dung.
+
+Kiểm chứng ở tầng HTTP trước khi chụp: cả hai tab trả `200`, tài liệu HTML **trọn vẹn** (có `</body>` và `</html>`), không còn `EL1008E` hay `TemplateProcessingException`. Nhật ký máy chủ không ghi lỗi mẫu nào.
+
+Kiểm chứng trong trình duyệt thật (Chromium headless qua CDP, viewport 1440×900):
+
+| Tiêu chí | Following | Followers | Following (rỗng) | Followers (rỗng) |
+| :--- | :--- | :--- | :--- | :--- |
+| Đăng nhập bằng biểu mẫu thật | PASS | PASS | PASS | PASS |
+| `readyState` | `complete` | `complete` | `complete` | `complete` |
+| Danh sách render đầy đủ | 2 thẻ người dùng | 4 thẻ người dùng | thông báo rỗng đúng tab | thông báo rỗng đúng tab |
+| Cuộn trang | PASS | PASS | PASS | PASS |
+| Lỗi console | 0 | 0 | 0 | 0 |
+| Tài nguyên tải lỗi | 0 | 0 | 0 | 0 |
+| Ảnh đại diện, tên hiển thị, tên tài khoản, nút Xem hồ sơ | đủ | đủ | — | — |
+
+Hai trạng thái rỗng hiển thị đúng câu riêng của từng tab ("Chưa theo dõi người dùng nào" và "Chưa có người theo dõi"), không dùng chung một câu.
+
+Bộ kiểm thử hồi quy của chính PR #47 cũng chạy lại tại chỗ: `FriendsPageRenderIntegrationTest` **3/3 PASS**, 0 lỗi, 0 bỏ qua.
+
+Ảnh: `14-friends-following.png`, `14-friends-followers.png`, `14-friends-empty.png`, `14-friends-empty-followers.png`.
+
+`14-friends-broken.png` vẫn giữ nguyên làm bằng chứng lịch sử, không ghi đè.
+
+### 10.2 `/settings` — PASS
+
+Trang render đầy đủ với bốn nhóm thiết lập có thật: Hồ sơ cá nhân, Giao diện sinh viên, Thông báo, Bảo mật & Phiên đăng nhập. Điều hướng chính còn nguyên, không lỗi mẫu, không lỗi console. Nhóm "Giao diện sinh viên" chỉ nêu nhãn Light Campus đúng như đang cài, không có công tắc giả.
+
+Ảnh: `16-settings.png`.
+
+### 10.3 `/admin/reports` có dữ liệu — PASS
+
+Ba báo cáo vi phạm được gửi qua `POST /api/reports` bằng tài khoản quản trị, đúng giới hạn miền: hai báo cáo nhắm bài viết (`SPAM`, `MISINFORMATION`), một báo cáo nhắm người dùng (`HARASSMENT`). Không sửa mã nguồn, không chèn dòng cơ sở dữ liệu thủ công.
+
+Trang hiển thị đủ ba dòng kèm mã báo cáo, đối tượng, người gửi, lý do, mô tả, trạng thái "Chờ xử lý" và các nút thao tác. Bảng nằm trọn trong khung nhìn (365–612 px), không phải cuộn mới thấy.
+
+Ảnh: `13-admin-reports-populated.png`. `13-admin-reports.png` (trạng thái rỗng) vẫn giữ.
+
+### 10.4 Màn hình phụ — PASS
+
+Ba màn hình xác thực chưa từng có trong bộ cũ, render đầy đủ và bổ sung giá trị riêng cho mục bảo mật tài khoản. Chúng chỉ hiển thị khi là khách, vì người đã đăng nhập bị chuyển về `/feed`.
+
+- `17-forgot-password.png` — biểu mẫu yêu cầu liên kết đặt lại.
+- `18-verify-otp.png` — biểu mẫu OTP, email đã che bớt.
+- `19-reset-password.png` — biểu mẫu đặt mật khẩu mới, nạp mã đặt lại hợp lệ.
+
+Mã đặt lại trong ảnh 19 không phải chuỗi trang trí: mã thô được sinh và băm SHA-256 theo đúng cách dịch vụ làm, ghi vào bản ghi token, rồi gọi `POST /api/auth/reset-password` trả `200`.
+
+## 11. Tổng hợp ảnh mới và kiểm định
+
+**9 ảnh mới, tất cả 1440×900.** Tổng thư mục sau bổ sung: **34 ảnh** (25 ảnh cũ giữ nguyên, không sửa byte nào).
+
+Mọi ảnh mới đều qua `png-inspect.cjs` với kết quả `OK`, không ảnh trắng, không trùng MD5 với bất kỳ ảnh nào khác trong thư mục. SHA-256 từng tệp ghi ở `SCREENSHOT_INDEX.md`.
+
+## 12. Màn hình còn lại
+
+| Màn hình | Trạng thái | Lý do |
+| :--- | :--- | :--- |
+| Trang cài đặt theo từng mục `/settings/{section}` | Chưa chụp | Cả bốn mục đều trỏ về màn hình đã có hoặc chỉ là nhãn; không có nội dung riêng để chụp thêm. |
+| Chi tiết một báo cáo `/admin/reports/{id}` | Chưa chụp | Không nằm trong yêu cầu ba ưu tiên; hàng đợi đã đủ minh họa. |
+| Các màn hình Flutter | Ngoài phạm vi | Bộ ảnh này chỉ chụp giao diện web. |
+
+Không còn màn hình nào trong danh mục wireframe ở trạng thái thiếu ảnh dùng được.
+
