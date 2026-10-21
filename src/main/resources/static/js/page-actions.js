@@ -568,18 +568,18 @@
         btn.dataset.state = 'ready';
 
         if (isFollowing) {
-            btn.className = 'btn btn-sm btn-outline-primary aloute-follow-btn';
-            btn.innerHTML = '<i class="bi bi-person-check me-1" aria-hidden="true"></i><span>Đang theo dõi</span>';
+            btn.className = 'btn profile-action-btn-main profile-btn-following aloute-follow-btn';
+            btn.innerHTML = '<i class="bi bi-person-check-fill me-1" aria-hidden="true"></i><span>Đang theo dõi</span>';
         } else {
-            btn.className = 'btn btn-sm btn-primary aloute-follow-btn';
-            btn.innerHTML = '<i class="bi bi-person-plus me-1" aria-hidden="true"></i><span>Theo dõi</span>';
+            btn.className = 'btn profile-action-btn-main profile-btn-follow aloute-follow-btn';
+            btn.innerHTML = '<i class="bi bi-person-plus-fill me-1" aria-hidden="true"></i><span>Theo dõi</span>';
         }
     }
 
     function renderFollowError(btn) {
         btn.disabled = false;
         btn.dataset.state = 'error';
-        btn.className = 'btn btn-sm btn-outline-warning aloute-follow-btn';
+        btn.className = 'btn profile-action-btn-main btn-outline-warning aloute-follow-btn';
         btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i><span>Lỗi tải. Thử lại</span>';
     }
 
@@ -1598,7 +1598,8 @@
                         statusEl.textContent = 'Tạo cộng đồng thành công! Đang chuyển hướng...';
                     }
                     setTimeout(function () {
-                        window.location.href = '/communities/' + encodeURIComponent(newId);
+                        const newSlug = (body && body.data && body.data.slug) ? body.data.slug : newId;
+                        window.location.href = '/communities/' + encodeURIComponent(newSlug);
                     }, 500);
                 } else {
                     // Failure: unfreeze modal, preserve form draft, show diagnostic error
@@ -2237,11 +2238,13 @@
             return targetId ? ('/posts/' + encodeURIComponent(targetId)) : '/feed';
         }
         if (targetType === 'USER') {
+            if (item.actor && item.actor.username) return '/users/' + encodeURIComponent(item.actor.username);
             if (targetId) return '/users/' + encodeURIComponent(targetId);
             if (actorId) return '/users/' + encodeURIComponent(actorId);
             return '/friends';
         }
         if (targetType === 'COMMUNITY') {
+            if (item.community && item.community.slug) return '/communities/' + encodeURIComponent(item.community.slug);
             return targetId ? ('/communities/' + encodeURIComponent(targetId)) : '/communities';
         }
         if (targetType === 'MESSAGE') {

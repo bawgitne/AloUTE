@@ -38,6 +38,15 @@ public class ProfilePageController {
         if (currentUserId == null) {
             return "redirect:/login";
         }
+        try {
+            ProfileResponse current = userService.getProfile(currentUserId);
+            if (current != null && current.username() != null && !current.username().isBlank()) {
+                String query = (tab != null && !tab.equals("posts")) ? "?tab=" + tab : "";
+                return "redirect:/users/" + current.username() + query;
+            }
+        } catch (Exception e) {
+            log.warn("Could not retrieve profile for current user {}: {}", currentUserId, e.getMessage());
+        }
         return showUserProfileByIdentifier(String.valueOf(currentUserId), tab, page, size, model);
     }
 
@@ -49,6 +58,18 @@ public class ProfilePageController {
             @RequestParam(defaultValue = "20") int size,
             Model model
     ) {
+        // Canonical slug enforcement: if numeric ID is used in URL, redirect to /users/{username}
+        if (username != null && username.matches("\\d+")) {
+            try {
+                ProfileResponse target = userService.getProfile(Long.parseLong(username));
+                if (target != null && target.username() != null && !target.username().isBlank()) {
+                    String query = (tab != null && !tab.equals("posts")) ? "?tab=" + tab : "";
+                    return "redirect:/users/" + target.username() + query;
+                }
+            } catch (Exception e) {
+                log.warn("Profile not found by id for redirect: {}", username);
+            }
+        }
         return showUserProfileByIdentifier(username, tab, page, size, model);
     }
 

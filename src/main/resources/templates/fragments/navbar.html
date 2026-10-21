@@ -119,9 +119,9 @@
                         </a>
                     </li>
                     <li>
-                        <!-- Canonical user page: /users/{id} if id available, else fallback hook -->
+                        <!-- Canonical user profile: /users/{username} if username available, else /profile -->
                         <a class="dropdown-item d-flex align-items-center gap-2"
-                           th:href="${currentUser?.id != null} ? @{/users/{id}(id=${currentUser.id})} : '#'"
+                           th:href="${currentUser?.username != null} ? @{/users/{u}(u=${currentUser.username})} : @{/profile}"
                            data-page="user-profile"
                            data-action="navigate-profile">
                             <i class="bi bi-person text-secondary" aria-hidden="true"></i>

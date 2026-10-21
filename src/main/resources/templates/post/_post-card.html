@@ -7,8 +7,8 @@
         <!-- Post Header: Author info, timestamp, capabilities dropdown -->
         <header class="post-card-header">
             <div class="post-author-meta d-flex align-items-center gap-2">
-                <!-- Canonical /users/{id} route if author present, else fallback hook -->
-                <a th:href="${post.author != null and post.author.id != null} ? @{/users/{id}(id=${post.author.id})} : '#'"
+                <!-- Canonical /users/{username} route if author present, else fallback hook -->
+                <a th:href="${post.author != null and post.author.username != null} ? @{/users/{u}(u=${post.author.username})} : (${post.author != null and post.author.id != null} ? @{/users/{id}(id=${post.author.id})} : '#')"
                    data-page="user-profile"
                    data-action="navigate-profile"
                    class="text-decoration-none">
@@ -21,7 +21,7 @@
                 </a>
                 <div>
                     <div class="d-flex align-items-center gap-1">
-                        <a th:href="${post.author != null and post.author.id != null} ? @{/users/{id}(id=${post.author.id})} : '#'"
+                        <a th:href="${post.author != null and post.author.username != null} ? @{/users/{u}(u=${post.author.username})} : (${post.author != null and post.author.id != null} ? @{/users/{id}(id=${post.author.id})} : '#')"
                            data-page="user-profile"
                            data-action="navigate-profile"
                            class="text-decoration-none text-reset">

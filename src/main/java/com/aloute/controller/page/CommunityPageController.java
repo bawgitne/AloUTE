@@ -79,6 +79,10 @@ public class CommunityPageController {
         try {
             if (slug.matches("\\d+")) {
                 community = communityService.get(Long.parseLong(slug), currentUserId);
+                if (community != null && community.slug() != null && !community.slug().isBlank()) {
+                    String query = (page > 0 || size != 20) ? "?page=" + page + "&size=" + size : "";
+                    return "redirect:/communities/" + community.slug() + query;
+                }
             } else {
                 community = communityService.getBySlug(slug, currentUserId);
             }

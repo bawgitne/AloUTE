@@ -30,7 +30,7 @@
                     <p class="small text-muted mb-0">Quản lý thông tin cá nhân, quyền riêng tư và bảo mật trên AloUTE</p>
                 </div>
             </div>
-            <a th:href="${currentUser?.id != null} ? @{/users/{id}(id=${currentUser.id})} : @{/profile}"
+            <a th:href="${currentUser?.username != null} ? @{/users/{u}(u=${currentUser.username})} : @{/profile}"
                class="btn btn-sm btn-outline-secondary rounded-pill px-3 d-flex align-items-center gap-1">
                 <i class="bi bi-box-arrow-up-right small" aria-hidden="true"></i>
                 <span>Xem trang cá nhân</span>

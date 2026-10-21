@@ -85,18 +85,24 @@
                 <!-- Render Replies Loop -->
                 <div id="replies-list" class="d-flex flex-column gap-3" th:classappend="${replies == null or #lists.isEmpty(replies)} ? 'd-none' : ''">
                     <article th:each="reply : ${replies}" class="comment-card" th:attr="data-reply-id=${reply.id}">
-                        <img th:src="${reply.author != null and reply.author.avatarUrl != null and !reply.author.avatarUrl.isEmpty()} ? ${reply.author.avatarUrl} : @{/images/avatar-fallback.svg}"
-                             src="/images/avatar-fallback.svg"
-                             alt="Avatar người bình luận"
-                             class="avatar-img avatar-sm"
-                             width="36"
-                             height="36">
+                        <a th:href="${reply.author != null and reply.author.username != null} ? @{/users/{u}(u=${reply.author.username})} : (${reply.author != null and reply.author.id != null} ? @{/users/{id}(id=${reply.author.id})} : '#')"
+                           class="text-decoration-none">
+                            <img th:src="${reply.author != null and reply.author.avatarUrl != null and !reply.author.avatarUrl.isEmpty()} ? ${reply.author.avatarUrl} : @{/images/avatar-fallback.svg}"
+                                 src="/images/avatar-fallback.svg"
+                                 alt="Avatar người bình luận"
+                                 class="avatar-img avatar-sm"
+                                 width="36"
+                                 height="36">
+                        </a>
                         <div class="comment-body">
                             <div class="d-flex align-items-center justify-content-between mb-1">
-                                <span class="comment-author-name"
-                                      th:text="${reply.author != null ? (reply.author.displayName != null ? reply.author.displayName : reply.author.username) : 'Sinh viên AloUTE'}">
-                                    Tên người bình luận
-                                </span>
+                                <a th:href="${reply.author != null and reply.author.username != null} ? @{/users/{u}(u=${reply.author.username})} : (${reply.author != null and reply.author.id != null} ? @{/users/{id}(id=${reply.author.id})} : '#')"
+                                   class="text-decoration-none text-reset">
+                                    <span class="comment-author-name"
+                                          th:text="${reply.author != null ? (reply.author.displayName != null ? reply.author.displayName : reply.author.username) : 'Sinh viên AloUTE'}">
+                                        Tên người bình luận
+                                    </span>
+                                </a>
                                 <span class="text-muted small" th:text="${reply.createdAt != null ? #temporals.format(reply.createdAt.atZone(T(java.time.ZoneId).of('Asia/Ho_Chi_Minh')), 'dd/MM/yyyy HH:mm') : 'Vừa xong'}">5 phút trước</span>
                             </div>
                             <div class="comment-text" th:text="${reply.content}">
