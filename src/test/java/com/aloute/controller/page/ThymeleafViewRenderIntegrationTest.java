@@ -986,4 +986,132 @@ class ThymeleafViewRenderIntegrationTest {
         assertThat(html).contains("src=\"https://storage.ute.udn.vn/media/legacy.png?fallback=1&amp;type=null\"");
     }
 
+
+    @Test
+    @DisplayName("Community UI Cleanup: detail view renders correct buttons for Guest, Non-member, Member, Owner, and clean empty state")
+    void testCommunityDetailUiCleanupAndRoles() {
+        // 1. Guest: sees "Đăng nhập để tham gia", "Tất cả", no "Đăng bài", no "Rời cộng đồng", no "Tham gia"
+        WebContext ctxGuest = createWebContext();
+        CommunityResponse commGuest = new CommunityResponse(
+                10L, 1L, "Cộng đồng AI", "ai-comm", "Mô tả", null, null, false, 50L, 0L, null, false
+        );
+        ctxGuest.setVariable("community", commGuest);
+        ctxGuest.setVariable("posts", Collections.emptyList());
+        ctxGuest.setVariable("currentUser", null);
+
+        String htmlGuest = templateEngine.process("community/detail", ctxGuest);
+        assertThat(htmlGuest).contains("data-is-private=\"false\"");
+        assertThat(htmlGuest).contains("Tất cả");
+        assertThat(htmlGuest).contains("Đăng nhập để tham gia");
+        assertThat(htmlGuest).doesNotContain("id=\"btn-community-post\"");
+        assertThat(htmlGuest).doesNotContain("id=\"btn-leave-community\"");
+        assertThat(htmlGuest).doesNotContain("id=\"btn-join-community\"");
+        assertThat(htmlGuest).doesNotContain("Trưởng nhóm");
+        // Verify empty state has no redundant "Tạo bài viết ngay" button
+        assertThat(htmlGuest).contains("Chưa có bài viết nào");
+        assertThat(htmlGuest).doesNotContain("Tạo bài viết ngay");
+
+        // 2. Non-member: sees "Tham gia" (#btn-join-community), #btn-community-post with d-none, no "Rời cộng đồng"
+        WebContext ctxNonMember = createWebContext();
+        ProfileResponse userNonMember = new ProfileResponse(
+                20L, "nonmember", "Non Member", "bio", null, null, false, false, 0, 0, 0, null
+        );
+        CommunityResponse commNonMember = new CommunityResponse(
+                10L, 1L, "Cộng đồng AI", "ai-comm", "Mô tả", null, null, false, 50L, 0L, null, false
+        );
+        ctxNonMember.setVariable("community", commNonMember);
+        ctxNonMember.setVariable("posts", Collections.emptyList());
+        ctxNonMember.setVariable("currentUser", userNonMember);
+
+        String htmlNonMember = templateEngine.process("community/detail", ctxNonMember);
+        assertThat(htmlNonMember).contains("id=\"btn-join-community\"");
+        assertThat(htmlNonMember).contains("Tham gia");
+        assertThat(htmlNonMember).contains("id=\"btn-community-post\"");
+        assertThat(htmlNonMember).contains("btn-primary rounded-pill d-none");
+        assertThat(htmlNonMember).doesNotContain("id=\"btn-leave-community\"");
+        assertThat(htmlNonMember).doesNotContain("Trưởng nhóm");
+        assertThat(htmlNonMember).doesNotContain("Đăng nhập để tham gia");
+
+        // 3. Member: sees "Rời cộng đồng" (#btn-leave-community), visible "Đăng bài" (#btn-community-post), no "Tham gia"
+        WebContext ctxMember = createWebContext();
+        ProfileResponse userMember = new ProfileResponse(
+                21L, "memberuser", "Member User", "bio", null, null, false, false, 0, 0, 0, null
+        );
+        CommunityResponse commMember = new CommunityResponse(
+                10L, 1L, "Cộng đồng AI", "ai-comm", "Mô tả", null, null, false, 51L, 0L, CommunityRole.MEMBER, false
+        );
+        ctxMember.setVariable("community", commMember);
+        ctxMember.setVariable("posts", Collections.emptyList());
+        ctxMember.setVariable("currentUser", userMember);
+
+        String htmlMember = templateEngine.process("community/detail", ctxMember);
+        assertThat(htmlMember).contains("id=\"btn-leave-community\"");
+        assertThat(htmlMember).contains("Rời cộng đồng");
+        assertThat(htmlMember).contains("id=\"btn-community-post\"");
+        assertThat(htmlMember).contains("btn btn-sm btn-primary rounded-pill");
+        assertThat(htmlMember).doesNotContain("btn-primary rounded-pill d-none");
+        assertThat(htmlMember).doesNotContain("id=\"btn-join-community\"");
+        assertThat(htmlMember).doesNotContain("Trưởng nhóm");
+
+        // 4. Owner with membership: sees "Trưởng nhóm" badge, visible "Đăng bài", no "Rời cộng đồng", no "Tham gia"
+        WebContext ctxOwner = createWebContext();
+        ProfileResponse userOwner = new ProfileResponse(
+                1L, "owneruser", "Owner User", "bio", null, null, false, false, 0, 0, 0, null
+        );
+        CommunityResponse commOwner = new CommunityResponse(
+                10L, 1L, "Cộng đồng AI", "ai-comm", "Mô tả", null, null, false, 51L, 0L, CommunityRole.ADMIN, true
+        );
+        ctxOwner.setVariable("community", commOwner);
+        ctxOwner.setVariable("posts", Collections.emptyList());
+        ctxOwner.setVariable("currentUser", userOwner);
+
+        String htmlOwner = templateEngine.process("community/detail", ctxOwner);
+        assertThat(htmlOwner).contains("Trưởng nhóm");
+        assertThat(htmlOwner).contains("id=\"btn-community-post\"");
+        assertThat(htmlOwner).doesNotContain("btn-primary rounded-pill d-none");
+        assertThat(htmlOwner).doesNotContain("id=\"btn-leave-community\"");
+        assertThat(htmlOwner).doesNotContain("id=\"btn-join-community\"");
+
+        // 5. Owner WITHOUT membership regression: sees "Trưởng nhóm" badge, but "Đăng bài" is gated with d-none
+        WebContext ctxOwnerNoMember = createWebContext();
+        CommunityResponse commOwnerNoMember = new CommunityResponse(
+                10L, 1L, "Cộng đồng AI", "ai-comm", "Mô tả", null, null, false, 50L, 0L, null, true
+        );
+        ctxOwnerNoMember.setVariable("community", commOwnerNoMember);
+        ctxOwnerNoMember.setVariable("posts", Collections.emptyList());
+        ctxOwnerNoMember.setVariable("currentUser", userOwner);
+
+        String htmlOwnerNoMember = templateEngine.process("community/detail", ctxOwnerNoMember);
+        assertThat(htmlOwnerNoMember).contains("Trưởng nhóm");
+        assertThat(htmlOwnerNoMember).contains("id=\"btn-community-post\"");
+        assertThat(htmlOwnerNoMember).contains("btn-primary rounded-pill d-none");
+        assertThat(htmlOwnerNoMember).doesNotContain("id=\"btn-leave-community\"");
+        assertThat(htmlOwnerNoMember).doesNotContain("id=\"btn-join-community\"");
+    }
+
+    @Test
+    @DisplayName("Standalone Create Post: binds communityId to hidden input in composer form")
+    void testStandaloneCreatePostBindsCommunityId() {
+        WebContext ctx = createWebContext();
+        ctx.setVariable("communityId", 42L);
+        ctx.setVariable("currentUser", new ProfileResponse(1L, "user1", "User One", null, null, null, false, false, 0, 0, 0, null));
+
+        String html = templateEngine.process("post/create", ctx);
+        assertThat(html).contains("id=\"post-community-id\"");
+        assertThat(html).contains("value=\"42\"");
+    }
+
+    @Test
+    @DisplayName("Community UI Cleanup: Navbar suppresses Create Post when hideGlobalCreatePost or isCommunityDetailPage is true")
+    void testCommunityDetailNavbarSuppressed() {
+        WebContext ctx = createWebContext();
+        ctx.setVariable("activeNav", "communities");
+        ctx.setVariable("hideGlobalCreatePost", true);
+        ctx.setVariable("isCommunityDetailPage", true);
+        ctx.setVariable("currentUser", new UserSummary(1L, "testuser", "Test User", null, true));
+
+        String html = templateEngine.process("fragments/navbar", Collections.singleton("navbar"), ctx);
+        assertThat(html).doesNotContain("data-action=\"navigate-create-post\"");
+        assertThat(html).doesNotContain("Tạo bài viết");
+    }
 }

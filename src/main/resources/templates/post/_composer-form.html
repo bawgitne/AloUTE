@@ -4,7 +4,7 @@
 <div th:fragment="composerForm(isModal)">
     <form id="create-post-form" class="needs-validation" novalidate>
         <!-- Community Context (optional) -->
-        <input type="hidden" id="post-community-id" name="communityId" value="">
+        <input type="hidden" id="post-community-id" name="communityId" th:value="${communityId != null ? communityId : ''}" value="">
 
         <!-- Status Alert for feedback -->
         <div id="create-post-status" class="alert d-none mb-3" role="status" aria-live="polite"></div>
