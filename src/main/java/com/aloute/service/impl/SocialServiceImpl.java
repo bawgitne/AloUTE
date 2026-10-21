@@ -222,6 +222,23 @@ public class SocialServiceImpl implements SocialService {
         restrictionRepository.delete(r);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public com.aloute.dto.response.UserRelationStatusResponse getRelationStatus(Long currentUserId, Long targetUserId) {
+        if (targetUserId == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Target user not found");
+        }
+        requireUser(targetUserId);
+        if (currentUserId == null || currentUserId.equals(targetUserId)) {
+            return new com.aloute.dto.response.UserRelationStatusResponse(targetUserId, false, false, false, false);
+        }
+        boolean following = followRepository.existsById(new FollowId(currentUserId, targetUserId));
+        boolean blocked = blockRepository.existsByBlockerIdAndBlockedId(currentUserId, targetUserId);
+        boolean muted = muteRepository.existsByMuterIdAndMutedId(currentUserId, targetUserId);
+        boolean restricted = restrictionRepository.existsByRestricterIdAndRestrictedId(currentUserId, targetUserId);
+        return new com.aloute.dto.response.UserRelationStatusResponse(targetUserId, following, blocked, muted, restricted);
+    }
+
     private UserSummary summary(User u) { Profile p=requireProfile(u.getId()); return new UserSummary(u.getId(),u.getUsername(),p.getDisplayName(),p.getAvatarUrl(),u.isVerified()); }
     private User requireUser(Long id) { return userRepository.findById(id).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,"USER_NOT_FOUND","User not found")); }
     private Profile requireProfile(Long id) { return profileRepository.findById(id).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,"USER_NOT_FOUND","User profile not found")); }

@@ -85,4 +85,9 @@ public class SocialController {
         socialService.unrestrict(currentUserProvider.requireUserId(), userId);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/relations/{userId}")
+    public ApiResponse<com.aloute.dto.response.UserRelationStatusResponse> getRelationStatus(@PathVariable @Positive Long userId) {
+        return ApiResponse.success(socialService.getRelationStatus(currentUserProvider.requireUserId(), userId));
+    }
 }
