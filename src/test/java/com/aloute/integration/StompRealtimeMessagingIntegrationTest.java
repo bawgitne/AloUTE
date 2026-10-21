@@ -24,7 +24,12 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.messaging.simp.SimpMessageType;
+import org.springframework.messaging.simp.broker.SimpleBrokerMessageHandler;
 import org.springframework.messaging.simp.stomp.*;
+import org.springframework.messaging.simp.user.UserDestinationResolver;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -65,6 +70,8 @@ class StompRealtimeMessagingIntegrationTest {
     @Autowired private com.aloute.repository.PasswordResetTokenRepository resetTokenRepository;
     @Autowired private com.aloute.service.email.TestEmailSink testEmailSink;
     @Autowired(required = false) private com.aloute.service.email.DefaultEmailService defaultEmailService;
+    @Autowired private UserDestinationResolver userDestinationResolver;
+    @Autowired private SimpleBrokerMessageHandler simpleBrokerMessageHandler;
 
     private User alice;
     private User bob;
@@ -114,6 +121,30 @@ class StompRealtimeMessagingIntegrationTest {
     }
 
     @Autowired private com.aloute.config.WebSocketSessionRegistry webSocketSessionRegistry;
+
+    private void waitForMessageSubscription(Long userId) throws InterruptedException {
+        var userMessage = MessageBuilder.withPayload(new byte[0])
+                .setHeader(SimpMessageHeaderAccessor.MESSAGE_TYPE_HEADER, SimpMessageType.MESSAGE)
+                .setHeader(SimpMessageHeaderAccessor.DESTINATION_HEADER, "/user/" + userId + "/queue/messages")
+                .build();
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (System.nanoTime() < deadline) {
+            var resolved = userDestinationResolver.resolveDestination(userMessage);
+            if (resolved != null) {
+                for (String destination : resolved.getTargetDestinations()) {
+                    var brokerMessage = MessageBuilder.fromMessage(userMessage)
+                            .setHeader(SimpMessageHeaderAccessor.DESTINATION_HEADER, destination)
+                            .build();
+                    if (!simpleBrokerMessageHandler.getSubscriptionRegistry()
+                            .findSubscriptions(brokerMessage).isEmpty()) {
+                        return;
+                    }
+                }
+            }
+            Thread.sleep(10);
+        }
+        throw new AssertionError("Timed out waiting for broker message subscription: user=" + userId);
+    }
 
     private User createUser(String username, String email) {
         User u = new User();
@@ -227,6 +258,11 @@ class StompRealtimeMessagingIntegrationTest {
                 aliceReceivedMessages.add((MessageResponse) payload);
             }
         });
+
+        // Ensure async SUBSCRIBE frames reach broker registry before sending message
+        waitForMessageSubscription(bob.getId());
+        waitForMessageSubscription(eve.getId());
+        waitForMessageSubscription(alice.getId());
 
         // 3. Alice sends message via conversationService (simulating REST/mutation path)
         SendMessageRequest sendReq = new SendMessageRequest();
