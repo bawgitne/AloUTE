@@ -446,6 +446,7 @@
                         },
                         body: JSON.stringify({ twoFactorTicket: ticket })
                     });
+                    const resJson = await readJson(response);
                     if (response.ok) {
                         statusBox('Đã gửi mã xác thực đến email ' + (maskedEmail || 'sinh viên') + '. Vui lòng kiểm tra hộp thư.', 'success');
                         if (desc) desc.innerHTML = 'Đã gửi mã OTP qua email <strong>' + (maskedEmail || '') + '</strong>. Nhập mã 6 số để đăng nhập:';
@@ -455,7 +456,8 @@
                         }
                         startResendCountdown(60);
                     } else {
-                        statusBox('Không thể gửi mã qua email. Vui lòng thử lại sau.', 'warning');
+                        const errMsg = (resJson && resJson.error && resJson.error.message) || 'Không thể gửi mã qua email. Vui lòng thử lại sau.';
+                        statusBox(errMsg, 'warning');
                         btnRequestEmail.disabled = false;
                         btnRequestEmail.innerHTML = '<i class="bi bi-envelope me-1"></i>Gửi lại mã OTP qua Email sinh viên';
                     }

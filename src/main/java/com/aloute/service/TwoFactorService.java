@@ -29,4 +29,8 @@ public interface TwoFactorService {
     AuthenticatedSession verifyLogin(VerifyTwoFactorLoginRequest request);
 
     void sendEmailFallbackOtp(String twoFactorTicket);
+
+    void clearEmailOtpCache();
+
+    int getActiveOtpCount(Long userId);
 }
