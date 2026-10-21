@@ -158,7 +158,7 @@ public class PasswordResetServiceImpl implements PasswordResetService {
     }
 
     @Override
-    @Transactional
+    @Transactional(noRollbackFor = RejectedTokenCleanupException.class)
     public void resetPassword(ResetPasswordRequest request) {
         if (!Objects.equals(request.getPassword(), request.getConfirmPassword())) {
             throw new AppException(ErrorCode.VALIDATION_FAILED, "Mật khẩu xác nhận không khớp.");
@@ -209,14 +209,14 @@ public class PasswordResetServiceImpl implements PasswordResetService {
         // Verify token is not expired (now >= expiresAt)
         if (currentToken.isExpired(Instant.now())) {
             tokenRepository.delete(currentToken);
-            throw new AppException(ErrorCode.BAD_REQUEST, "Liên kết đặt lại mật khẩu đã hết hạn.");
+            throw new RejectedTokenCleanupException("Liên kết đặt lại mật khẩu đã hết hạn.");
         }
 
         // Verify matching authVersion
         Long currentAuthVersion = user.getAuthVersion() != null ? user.getAuthVersion() : 0L;
         if (!Objects.equals(currentToken.getAuthVersion(), currentAuthVersion)) {
             tokenRepository.delete(currentToken);
-            throw new AppException(ErrorCode.BAD_REQUEST, "Liên kết đặt lại mật khẩu không còn hiệu lực.");
+            throw new RejectedTokenCleanupException("Liên kết đặt lại mật khẩu không còn hiệu lực.");
         }
 
         // Atomically replace password hash, increment authVersion, and consume reset token
@@ -226,6 +226,13 @@ public class PasswordResetServiceImpl implements PasswordResetService {
 
         tokenRepository.delete(currentToken);
         log.info("Password reset completed successfully for userId {}", user.getId());
+    }
+
+    // Only rejected-token cleanup commits on rejection; other failures retain normal rollback.
+    private static final class RejectedTokenCleanupException extends AppException {
+        private RejectedTokenCleanupException(String message) {
+            super(ErrorCode.BAD_REQUEST, message);
+        }
     }
 
     private void recordAndCheckAbuseLimits(String email) {
