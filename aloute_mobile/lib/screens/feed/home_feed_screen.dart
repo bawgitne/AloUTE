@@ -100,29 +100,35 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> with SingleTickerProvid
         ),
         title: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AlouteColors.accent,
-                borderRadius: BorderRadius.circular(AlouteColors.radiusSm),
-              ),
-              child: const Text(
-                'AloUTE',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 16,
-                  letterSpacing: -0.5,
-                ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                'assets/images/logo.png',
+                width: 30,
+                height: 30,
+                fit: BoxFit.cover,
               ),
             ),
             const SizedBox(width: 8),
-            const Text(
-              'Campus Feed',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: AlouteColors.textSecondary,
+            Image.asset(
+              'assets/images/logo_text.png',
+              height: 18,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AlouteColors.accentSubtle,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'Campus',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: AlouteColors.accent,
+                ),
               ),
             ),
           ],

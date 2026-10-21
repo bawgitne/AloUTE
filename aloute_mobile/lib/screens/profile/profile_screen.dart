@@ -169,11 +169,17 @@ class _ProfileScreenState extends State<ProfileScreen>
               icon: const Icon(Icons.more_vert, color: AlouteColors.textPrimary),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               onSelected: (val) {
-                if (val == 'mute') _toggleMute();
-                else if (val == 'block') _toggleBlock();
-                else if (val == 'restrict') _toggleRestrict();
-                else if (val == 'copy') _copyLink();
-                else if (val == 'report') _reportUser();
+                if (val == 'mute') {
+                  _toggleMute();
+                } else if (val == 'block') {
+                  _toggleBlock();
+                } else if (val == 'restrict') {
+                  _toggleRestrict();
+                } else if (val == 'copy') {
+                  _copyLink();
+                } else if (val == 'report') {
+                  _reportUser();
+                }
               },
               itemBuilder: (ctx) => [
                 PopupMenuItem(

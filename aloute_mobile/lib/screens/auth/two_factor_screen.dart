@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/aloute_theme.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/aloute_button.dart';
-import '../main/main_navigation_screen.dart';
+import '../main_navigation_screen.dart';
 
 class TwoFactorScreen extends StatefulWidget {
   final String? maskedEmail;
@@ -275,7 +275,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
                         counterText: '',
                         hintText: _isBackupMode ? 'XXXX-XXXX' : '------',
                         hintStyle: TextStyle(
-                          color: AlouteColors.textSecondary.withOpacity(0.4),
+                          color: AlouteColors.textSecondary.withValues(alpha: 0.4),
                           letterSpacing: 6,
                         ),
                         filled: true,
