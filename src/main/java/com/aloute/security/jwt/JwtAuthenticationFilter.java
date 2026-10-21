@@ -25,7 +25,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtSessionService jwtSessionService;
 
     @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
-        String token=readCookie(request); if (token==null) token=readBearer(request);
+        String token=resolveToken(request);
         if (token!=null && SecurityContextHolder.getContext().getAuthentication()==null) {
             try {
                 UserPrincipal p = jwtSessionService.authenticate(token);
@@ -37,12 +37,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         chain.doFilter(request,response);
     }
-    private String readCookie(HttpServletRequest request) {
+
+    public static String resolveToken(HttpServletRequest request) {
+        String token = readCookie(request);
+        if (token == null) token = readBearer(request);
+        return token;
+    }
+
+    public static String readCookie(HttpServletRequest request) {
         Cookie[] cookies=request.getCookies(); if (cookies==null) return null;
         for (Cookie c:cookies) if (COOKIE_NAME.equals(c.getName()) && c.getValue()!=null && !c.getValue().isBlank()) return c.getValue();
         return null;
     }
-    private String readBearer(HttpServletRequest request) {
+
+    public static String readBearer(HttpServletRequest request) {
         String h=request.getHeader(HttpHeaders.AUTHORIZATION); if (h==null) return null;
         String prefix="Bearer "; return h.regionMatches(true,0,prefix,0,prefix.length()) && h.length()>prefix.length() ? h.substring(prefix.length()).trim() : null;
     }

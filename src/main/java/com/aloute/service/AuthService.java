@@ -9,6 +9,7 @@ public interface AuthService {
     UserResponse register(RegisterRequest request);
     AuthenticatedUser login(LoginRequest request);
     UserResponse getCurrentUser(Long userId);
+    void logout(String token, Long userId);
 
     record AuthenticatedUser(UserPrincipal principal, UserResponse user) {}
 }

@@ -21,6 +21,11 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import com.aloute.config.StompAuthChannelInterceptor;
+import com.aloute.security.jwt.JwtSessionService;
 
 @RequiredArgsConstructor
 @Service
@@ -30,6 +35,10 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final RegistrationOtpService registrationOtpService;
+    private final JwtSessionService jwtSessionService;
+
+    @Autowired(required = false)
+    private StompAuthChannelInterceptor stompAuthChannelInterceptor;
 
     @Override @Transactional
     public UserResponse register(RegisterRequest request) {
@@ -86,6 +95,34 @@ public class AuthServiceImpl implements AuthService {
     @Override @Transactional(readOnly = true)
     public UserResponse getCurrentUser(Long userId) {
         return toResponse(requireUser(userId));
+    }
+
+    @Override
+    @Transactional
+    public void logout(String token, Long userId) {
+        if (token == null || token.isBlank()) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_UNAUTHENTICATED", "Authentication required");
+        }
+
+        // Validate token before durable revocation
+        jwtSessionService.authenticate(token);
+
+        // Durably persist revocation fingerprint
+        jwtSessionService.revokeToken(token, userId);
+
+        // Close STOMP WebSocket session bound to this exact token after transaction commit
+        if (stompAuthChannelInterceptor != null) {
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        stompAuthChannelInterceptor.closeSessionsForToken(token);
+                    }
+                });
+            } else {
+                stompAuthChannelInterceptor.closeSessionsForToken(token);
+            }
+        }
     }
 
     private User requireUser(Long id) {

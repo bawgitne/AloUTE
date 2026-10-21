@@ -2,6 +2,7 @@ package com.aloute.security.jwt;
 
 import com.aloute.entity.User;
 import com.aloute.repository.UserRepository;
+import com.aloute.repository.RevokedTokenRepository;
 import com.aloute.security.principal.UserPrincipal;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -33,6 +34,9 @@ class JwtSessionServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private RevokedTokenRepository revokedTokenRepository;
+
     private JwtTokenProvider tokenProvider;
     private JwtSessionService sessionService;
     private SecretKey secretKey;
@@ -44,7 +48,7 @@ class JwtSessionServiceTest {
                 .withProperty("ALOUTE_JWT_EXPIRATION_SECONDS", String.valueOf(EXPIRATION_SECONDS));
         JwtProperties properties = new JwtProperties(env);
         tokenProvider = new JwtTokenProvider(properties);
-        sessionService = new JwtSessionService(tokenProvider, userRepository);
+        sessionService = new JwtSessionService(tokenProvider, userRepository, revokedTokenRepository);
         secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(BASE64_SECRET));
     }
 

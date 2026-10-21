@@ -35,6 +35,7 @@ import org.springframework.web.socket.messaging.WebSocketStompClient;
 import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -635,6 +636,148 @@ class StompRealtimeMessagingIntegrationTest {
                 .isInstanceOf(Exception.class);
         assertThatThrownBy(() -> connectBearerStompClient(expiredToken, null))
                 .isInstanceOf(Exception.class);
+    }
+
+    @Test
+    void logoutRevokesTargetStompSessionWhileLeavingOtherSessionActive() throws Exception {
+        String aliceToken1 = jwtTokenProvider.generate(UserPrincipal.from(alice));
+        String aliceToken2 = jwtTokenProvider.generate(UserPrincipal.from(alice));
+        assertThat(aliceToken1).isNotEqualTo(aliceToken2);
+
+        String aliceToken1Alias = aliceToken1 + "!";
+        String bobToken = jwtTokenProvider.generate(UserPrincipal.from(bob));
+
+        StompSession aliceSession1 = connectCookieOnlyStompClient(aliceToken1, null);
+        StompSession aliceAliasSession = connectBearerStompClient(aliceToken1Alias, null);
+        StompSession aliceSession2 = connectBearerStompClient(aliceToken2, null);
+        StompSession bobSession = connectBearerStompClient(bobToken, null);
+
+        BlockingQueue<MessageResponse> session1Messages = new LinkedBlockingQueue<>();
+        aliceSession1.subscribe("/user/queue/messages", new StompFrameHandler() {
+            @Override public Type getPayloadType(StompHeaders headers) { return MessageResponse.class; }
+            @Override public void handleFrame(StompHeaders headers, Object payload) { session1Messages.add((MessageResponse) payload); }
+        });
+
+        BlockingQueue<MessageResponse> session2Messages = new LinkedBlockingQueue<>();
+        aliceSession2.subscribe("/user/queue/messages", new StompFrameHandler() {
+            @Override public Type getPayloadType(StompHeaders headers) { return MessageResponse.class; }
+            @Override public void handleFrame(StompHeaders headers, Object payload) { session2Messages.add((MessageResponse) payload); }
+        });
+
+        BlockingQueue<Object> bobTypingQueue = new LinkedBlockingQueue<>();
+        bobSession.subscribe("/user/queue/typing", new StompFrameHandler() {
+            @Override public Type getPayloadType(StompHeaders headers) { return Map.class; }
+            @Override public void handleFrame(StompHeaders headers, Object payload) { bobTypingQueue.add(payload); }
+        });
+
+        BlockingQueue<Object> bobReadQueue = new LinkedBlockingQueue<>();
+        bobSession.subscribe("/user/queue/read-receipts", new StompFrameHandler() {
+            @Override public Type getPayloadType(StompHeaders headers) { return Map.class; }
+            @Override public void handleFrame(StompHeaders headers, Object payload) { bobReadQueue.add(payload); }
+        });
+
+        SendMessageRequest preMsg = new SendMessageRequest();
+        preMsg.setContent("Preflight test message");
+        conversationService.sendMessage(conversationId, bob.getId(), preMsg);
+        MessageResponse m1 = session1Messages.poll(3, TimeUnit.SECONDS);
+        MessageResponse m2 = session2Messages.poll(3, TimeUnit.SECONDS);
+        assertThat(m1).isNotNull();
+        assertThat(m2).isNotNull();
+
+        long messageCountBefore = messageRepository.count();
+
+        String csrfToken = fetchCsrfToken();
+        java.net.http.HttpClient httpClient = java.net.http.HttpClient.newHttpClient();
+        java.net.http.HttpRequest logoutReq = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("http://localhost:" + port + "/api/auth/logout"))
+                .header("Authorization", "Bearer " + aliceToken1)
+                .header("X-XSRF-TOKEN", csrfToken)
+                .header("Cookie", "XSRF-TOKEN=" + csrfToken)
+                .POST(java.net.http.HttpRequest.BodyPublishers.noBody())
+                .build();
+        java.net.http.HttpResponse<String> logoutResp = httpClient.send(logoutReq, java.net.http.HttpResponse.BodyHandlers.ofString());
+        assertThat(logoutResp.statusCode()).isEqualTo(204);
+
+        // Explicitly observe transport disconnect on both canonical and alias sessions
+        long deadline = System.currentTimeMillis() + 3000;
+        while ((aliceSession1.isConnected() || aliceAliasSession.isConnected()) && System.currentTimeMillis() < deadline) {
+            Thread.sleep(50);
+        }
+        assertThat(aliceSession1.isConnected()).as("Target canonical session transport must be closed").isFalse();
+        assertThat(aliceAliasSession.isConnected()).as("Target alias session transport must be closed").isFalse();
+
+        // 1. Post-logout SEND is rejected on closed transport and produces zero message persistence
+        SendMessageRequest rejectedSendReq = new SendMessageRequest();
+        rejectedSendReq.setContent("Illegal post-logout attempt");
+        assertThatThrownBy(() -> aliceSession1.send("/app/chat.send/" + conversationId, rejectedSendReq))
+                .isInstanceOf(Exception.class);
+        assertThat(messageRepository.count())
+                .as("Rejected post-logout SEND must not create any new message row")
+                .isEqualTo(messageCountBefore);
+        assertThat(messageRepository.findAll().stream().noneMatch(m -> "Illegal post-logout attempt".equals(m.getContent())))
+                .as("Rejected post-logout SEND payload must not be persisted")
+                .isTrue();
+
+        // 2. Post-logout typing and read attempts are rejected
+        assertThatThrownBy(() -> aliceSession1.send("/app/chat.typing/" + conversationId, Map.of("isTyping", true)))
+                .isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> aliceSession1.send("/app/chat.read/" + conversationId, Map.of()))
+                .isInstanceOf(Exception.class);
+
+        // 3. Post-logout SUBSCRIBE attempts are rejected (old SUBSCRIBE denied)
+        assertThatThrownBy(() -> aliceSession1.subscribe("/user/queue/messages", new StompFrameHandler() {
+            @Override public Type getPayloadType(StompHeaders headers) { return MessageResponse.class; }
+            @Override public void handleFrame(StompHeaders headers, Object payload) {}
+        })).isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> aliceSession1.subscribe("/user/queue/typing", new StompFrameHandler() {
+            @Override public Type getPayloadType(StompHeaders headers) { return Map.class; }
+            @Override public void handleFrame(StompHeaders headers, Object payload) {}
+        })).isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> aliceSession1.subscribe("/user/queue/read-receipts", new StompFrameHandler() {
+            @Override public Type getPayloadType(StompHeaders headers) { return Map.class; }
+            @Override public void handleFrame(StompHeaders headers, Object payload) {}
+        })).isInstanceOf(Exception.class);
+
+        // Also confirm rejected operations on alias session
+        assertThatThrownBy(() -> aliceAliasSession.send("/app/chat.send/" + conversationId, rejectedSendReq))
+                .isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> aliceAliasSession.send("/app/chat.typing/" + conversationId, Map.of("isTyping", true)))
+                .isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> aliceAliasSession.send("/app/chat.read/" + conversationId, Map.of()))
+                .isInstanceOf(Exception.class);
+
+        // 4. Bob sends message to conversation: outbound delivery to revoked session is suppressed
+        SendMessageRequest postMsg = new SendMessageRequest();
+        postMsg.setContent("Post-logout message");
+        conversationService.sendMessage(conversationId, bob.getId(), postMsg);
+
+        MessageResponse session1Post = session1Messages.poll(2, TimeUnit.SECONDS);
+        assertThat(session1Post).as("Revoked session 1 must receive no message delivery").isNull();
+
+        MessageResponse session2Post = session2Messages.poll(3, TimeUnit.SECONDS);
+        assertThat(session2Post).as("Active session 2 must receive message normally").isNotNull();
+        assertThat(session2Post.getContent()).isEqualTo("Post-logout message");
+
+        // Bob receives no private typing or read deliveries from revoked session
+        assertThat(bobTypingQueue.poll(1, TimeUnit.SECONDS)).isNull();
+        assertThat(bobReadQueue.poll(1, TimeUnit.SECONDS)).isNull();
+
+        // 5. Old tokens and alias tokens cannot establish new STOMP connections (new CONNECT denied)
+        assertThatThrownBy(() -> connectBearerStompClient(aliceToken1, null))
+                .isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> connectCookieOnlyStompClient(aliceToken1, null))
+                .isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> connectBearerStompClient(aliceToken1Alias, null))
+                .isInstanceOf(Exception.class);
+
+        // 6. Separate token remains valid and usable for new STOMP session
+        StompSession aliceSession3 = connectBearerStompClient(aliceToken2, null);
+        assertThat(aliceSession3.isConnected()).isTrue();
+        aliceSession3.disconnect();
+        try { aliceSession1.disconnect(); } catch (Exception ignored) {}
+        try { aliceAliasSession.disconnect(); } catch (Exception ignored) {}
+        aliceSession2.disconnect();
+        bobSession.disconnect();
     }
 
     @Test
