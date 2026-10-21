@@ -75,6 +75,16 @@ public class UserServiceImpl implements UserService {
                 media.setAttachedAt(Instant.now());
             }
         }
+        if (request.hasCoverMediaId()) {
+            if (request.getCoverMediaId() == null) {
+                profile.setCoverUrl(null);
+            } else {
+                MediaAsset media = mediaAssetRepository.findByIdAndOwner_IdAndDeletedAtIsNull(request.getCoverMediaId(), currentUserId)
+                        .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Cover media not found"));
+                profile.setCoverUrl(media.getUrl());
+                media.setAttachedAt(Instant.now());
+            }
+        }
         return toProfile(user, profile);
     }
 
@@ -165,7 +175,7 @@ public class UserServiceImpl implements UserService {
     }
     private ProfileResponse toProfile(User u, Profile p) {
         return new ProfileResponse(u.getId(), u.getUsername(), p.getDisplayName(), p.getBio(), p.getAvatarUrl(),
-                p.getWebsite(), u.isVerified(), u.isPrivateAccount(), p.getFollowersCount(), p.getFollowingCount(),
+                p.getCoverUrl(), p.getWebsite(), u.isVerified(), u.isPrivateAccount(), p.getFollowersCount(), p.getFollowingCount(),
                 p.getPostsCount(), null);
     }
 }

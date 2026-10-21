@@ -36,6 +36,9 @@ public class NotificationServiceImpl implements NotificationService {
     private com.aloute.repository.UserNotificationSettingRepository notificationSettingRepository;
 
     @Autowired(required = false)
+    private com.aloute.repository.MuteRepository muteRepository;
+
+    @Autowired(required = false)
     private SimpMessagingTemplate messagingTemplate;
 
     @Autowired(required = false)
@@ -102,6 +105,11 @@ public class NotificationServiceImpl implements NotificationService {
 
         User recipient = userRepository.findById(recipientId).orElse(null);
         if (recipient == null) {
+            return;
+        }
+
+        if (muteRepository != null && actorId != null && muteRepository.existsByMuterIdAndMutedId(recipientId, actorId)) {
+            log.debug("Notification skipped because actor {} is muted by recipient {}", actorId, recipientId);
             return;
         }
 

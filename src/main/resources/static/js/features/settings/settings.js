@@ -21,6 +21,7 @@
     function initSettings() {
         initTabs();
         initAlertClose();
+        initCoverUpload();
         initAvatarUpload();
         initBioCounter();
         initProfileForm();
@@ -32,6 +33,7 @@
         initLogoutButtons();
         initTwoFactorSettings();
         initBlockedUsers();
+        initMutedUsers();
         initNotificationSettings();
         initSessionAndDeactivation();
     }
@@ -111,6 +113,9 @@
             if (tabName === 'blocking' && typeof window.__alouteLoadBlockedUsers === 'function') {
                 window.__alouteLoadBlockedUsers();
             }
+            if (tabName === 'muted' && typeof window.__alouteLoadMutedUsers === 'function') {
+                window.__alouteLoadMutedUsers();
+            }
         }
 
         if (nav) {
@@ -155,7 +160,73 @@
     }
 
     // =========================================================================
-    // 3. Avatar Upload & Preview (Firebase Storage)
+    // 3. Cover Photo Upload & Preview (Firebase Storage)
+    // =========================================================================
+    function initCoverUpload() {
+        const fileInput = document.getElementById('settings-cover-file-input');
+        const previewImg = document.getElementById('settings-cover-preview');
+        const spinner = document.getElementById('settings-cover-spinner');
+        const mediaIdInput = document.getElementById('settings-cover-media-id');
+        const removeBtn = document.getElementById('settings-btn-remove-cover');
+
+        if (!fileInput || !previewImg) return;
+
+        fileInput.addEventListener('change', async function () {
+            const file = this.files && this.files[0];
+            if (!file) return;
+
+            if (file.size > 5 * 1024 * 1024) {
+                showAlert('Ảnh bìa vượt quá dung lượng tối đa cho phép (5MB). Vui lòng chọn ảnh khác.', 'danger');
+                this.value = '';
+                return;
+            }
+
+            const objectUrl = URL.createObjectURL(file);
+            previewImg.src = objectUrl;
+
+            if (spinner) spinner.classList.remove('d-none');
+            hideAlert();
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('purpose', 'USER_COVER');
+
+            try {
+                const response = await window.alouteHttp.request('/api/media', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await window.alouteHttp.readJson(response);
+
+                if (response.ok && result && result.data && result.data.id) {
+                    if (mediaIdInput) mediaIdInput.value = result.data.id;
+                    if (result.data.url) previewImg.src = result.data.url;
+                    showAlert('Ảnh bìa đã được tải lên thành công! Hãy bấm "Lưu thay đổi hồ sơ" để hoàn tất.', 'success');
+                } else {
+                    const errorMsg = (result && result.message) || 'Không thể tải ảnh bìa lên Firebase Storage.';
+                    showAlert(errorMsg, 'danger');
+                    if (mediaIdInput) mediaIdInput.value = '';
+                }
+            } catch (err) {
+                showAlert('Lỗi kết nối khi tải ảnh bìa: ' + err.message, 'danger');
+                if (mediaIdInput) mediaIdInput.value = '';
+            } finally {
+                if (spinner) spinner.classList.add('d-none');
+                fileInput.value = '';
+            }
+        });
+
+        if (removeBtn) {
+            removeBtn.addEventListener('click', function () {
+                previewImg.src = '/images/cover-fallback.svg';
+                if (mediaIdInput) mediaIdInput.value = 'null';
+                showAlert('Ảnh bìa đã được chọn để gỡ bỏ. Hãy bấm "Lưu thay đổi hồ sơ" để hoàn tất.', 'warning');
+            });
+        }
+    }
+
+    // =========================================================================
+    // 3b. Avatar Upload & Preview (Firebase Storage)
     // =========================================================================
     function initAvatarUpload() {
         const fileInput = document.getElementById('settings-avatar-file-input');
@@ -288,6 +359,15 @@
                     payload.avatarMediaId = null;
                 } else if (!isNaN(mediaIdInput.value)) {
                     payload.avatarMediaId = Number(mediaIdInput.value);
+                }
+            }
+
+            const coverMediaIdInput = document.getElementById('settings-cover-media-id');
+            if (coverMediaIdInput && coverMediaIdInput.value) {
+                if (coverMediaIdInput.value === 'null') {
+                    payload.coverMediaId = null;
+                } else if (!isNaN(coverMediaIdInput.value)) {
+                    payload.coverMediaId = Number(coverMediaIdInput.value);
                 }
             }
 
@@ -1217,6 +1297,188 @@
             if (pathParts.length >= 2 && pathParts[1].toLowerCase() === 'blocking') {
                 loadBlockedUsers();
             }
+        }
+
+        // =========================================================================
+        // 5b. Muted Users Management
+        // =========================================================================
+        function initMutedUsers() {
+            const mutedUsersLoading = document.getElementById('muted-users-loading');
+            const mutedUsersEmpty = document.getElementById('muted-users-empty');
+            const mutedUsersList = document.getElementById('muted-users-list');
+            const btnRefreshMuted = document.getElementById('btn-refresh-muted-users');
+            const formQuickMute = document.getElementById('form-quick-mute');
+            const inputMuteUsername = document.getElementById('input-mute-username');
+            const btnSubmitMute = document.getElementById('btn-submit-quick-mute');
+            const muteSpinner = document.getElementById('mute-user-spinner');
+            const muteFeedback = document.getElementById('mute-feedback');
+
+            const unmuteModalEl = document.getElementById('modal-confirm-unmute');
+            const unmuteModal = unmuteModalEl && window.bootstrap ? new window.bootstrap.Modal(unmuteModalEl) : null;
+            const unmuteConfirmText = document.getElementById('unmute-confirm-text');
+            const unmuteFeedback = document.getElementById('unmute-feedback');
+            const btnDoUnmute = document.getElementById('btn-do-unmute');
+            const unmuteSpinner = document.getElementById('unmute-spinner');
+            let pendingUnmuteUserId = null;
+            let pendingUnmuteUsername = null;
+
+            async function loadMutedUsers() {
+                if (!mutedUsersList) return;
+                if (mutedUsersLoading) mutedUsersLoading.classList.remove('d-none');
+                if (mutedUsersEmpty) mutedUsersEmpty.classList.add('d-none');
+                mutedUsersList.innerHTML = '';
+
+                try {
+                    const response = await window.alouteHttp.request('/api/social/mutes');
+                    const result = await window.alouteHttp.readJson(response);
+
+                    if (response.ok && result && result.data) {
+                        const list = result.data || [];
+                        if (list.length === 0) {
+                            if (mutedUsersEmpty) mutedUsersEmpty.classList.remove('d-none');
+                        } else {
+                            renderMutedUsers(list);
+                        }
+                    } else {
+                        mutedUsersList.innerHTML = '<div class="alert alert-warning small mb-0">Không thể tải danh sách mute. Vui lòng thử lại sau.</div>';
+                    }
+                } catch (err) {
+                    mutedUsersList.innerHTML = '<div class="alert alert-danger small mb-0">Lỗi kết nối khi tải danh sách mute.</div>';
+                } finally {
+                    if (mutedUsersLoading) mutedUsersLoading.classList.add('d-none');
+                }
+            }
+
+            function renderMutedUsers(users) {
+                mutedUsersList.innerHTML = '';
+                users.forEach(u => {
+                    const item = document.createElement('div');
+                    item.className = 'd-flex align-items-center justify-content-between p-3 bg-white border rounded-3 shadow-sm';
+                    const avatar = u.avatarUrl || '/images/avatar-fallback.svg';
+                    const dispName = u.displayName || u.username;
+                    item.innerHTML = `
+                        <div class="d-flex align-items-center gap-3">
+                            <img src="${avatar}" alt="${dispName}" class="rounded-circle border object-fit-cover" width="40" height="40">
+                            <div>
+                                <div class="fw-bold small text-dark d-flex align-items-center gap-1">
+                                    <span>${dispName}</span>
+                                    ${u.isVerified ? '<i class="bi bi-patch-check-fill text-primary" title="Đã xác thực"></i>' : ''}
+                                </div>
+                                <div class="text-muted small">@${u.username}</div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-warning text-dark rounded-pill px-3 btn-unmute-trigger" data-user-id="${u.id}" data-username="${u.username}">
+                            <i class="bi bi-bell me-1"></i>Bật lại thông báo
+                        </button>
+                    `;
+                    mutedUsersList.appendChild(item);
+                });
+            }
+
+            if (mutedUsersList) {
+                mutedUsersList.addEventListener('click', function(e) {
+                    const btn = e.target.closest('.btn-unmute-trigger');
+                    if (btn) {
+                        pendingUnmuteUserId = btn.dataset.userId;
+                        pendingUnmuteUsername = btn.dataset.username;
+                        if (unmuteConfirmText) {
+                            unmuteConfirmText.textContent = `Bạn có chắc chắn muốn bật lại thông báo cho @${pendingUnmuteUsername}? Bạn sẽ nhận lại thông báo khi họ tương tác.`;
+                        }
+                        if (unmuteFeedback) unmuteFeedback.classList.add('d-none');
+                        if (unmuteModal) unmuteModal.show();
+                    }
+                });
+            }
+
+            if (btnDoUnmute) {
+                btnDoUnmute.addEventListener('click', async function() {
+                    if (!pendingUnmuteUserId) return;
+                    btnDoUnmute.disabled = true;
+                    if (unmuteSpinner) unmuteSpinner.classList.remove('d-none');
+                    if (unmuteFeedback) unmuteFeedback.classList.add('d-none');
+
+                    try {
+                        const response = await window.alouteHttp.request('/api/social/mutes/' + pendingUnmuteUserId, { method: 'DELETE' });
+                        if (response.ok || response.status === 204) {
+                            if (unmuteModal) unmuteModal.hide();
+                            showAlert('Đã bật lại thông báo cho @' + pendingUnmuteUsername + ' thành công.', 'success');
+                            loadMutedUsers();
+                        } else {
+                            const res = await window.alouteHttp.readJson(response);
+                            if (unmuteFeedback) {
+                                unmuteFeedback.textContent = (res && res.error && res.error.message) || 'Không thể bật lại thông báo.';
+                                unmuteFeedback.classList.remove('d-none');
+                            }
+                        }
+                    } catch (err) {
+                        if (unmuteFeedback) {
+                            unmuteFeedback.textContent = 'Lỗi kết nối máy chủ.';
+                            unmuteFeedback.classList.remove('d-none');
+                        }
+                    } finally {
+                        btnDoUnmute.disabled = false;
+                        if (unmuteSpinner) unmuteSpinner.classList.add('d-none');
+                    }
+                });
+            }
+
+            if (formQuickMute) {
+                formQuickMute.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const username = inputMuteUsername ? inputMuteUsername.value.trim() : '';
+                    if (!username) return;
+
+                    if (btnSubmitMute) btnSubmitMute.disabled = true;
+                    if (muteSpinner) muteSpinner.classList.remove('d-none');
+                    if (muteFeedback) muteFeedback.classList.add('d-none');
+
+                    try {
+                        const clean = username.startsWith('@') ? username.substring(1) : username;
+                        const response = await window.alouteHttp.request('/api/social/mutes/by-username/' + encodeURIComponent(clean), {
+                            method: 'POST'
+                        });
+                        const result = await window.alouteHttp.readJson(response);
+
+                        if (response.ok) {
+                            if (inputMuteUsername) inputMuteUsername.value = '';
+                            if (muteFeedback) {
+                                muteFeedback.textContent = 'Đã tắt thông báo tài khoản @' + clean + ' thành công.';
+                                muteFeedback.className = 'small mt-2 text-success';
+                                muteFeedback.classList.remove('d-none');
+                            }
+                            showAlert('Đã tắt thông báo của @' + clean + '.', 'success');
+                            loadMutedUsers();
+                        } else {
+                            const errMsg = (result && result.error && result.error.message) || 'Không thể tắt thông báo tài khoản này.';
+                            if (muteFeedback) {
+                                muteFeedback.textContent = errMsg;
+                                muteFeedback.className = 'small mt-2 text-danger';
+                                muteFeedback.classList.remove('d-none');
+                            }
+                        }
+                    } catch (err) {
+                        if (muteFeedback) {
+                            muteFeedback.textContent = 'Lỗi kết nối máy chủ.';
+                            muteFeedback.className = 'small mt-2 text-danger';
+                            muteFeedback.classList.remove('d-none');
+                        }
+                    } finally {
+                        if (btnSubmitMute) btnSubmitMute.disabled = false;
+                        if (muteSpinner) muteSpinner.classList.add('d-none');
+                    }
+                });
+            }
+
+            if (btnRefreshMuted) {
+                btnRefreshMuted.addEventListener('click', loadMutedUsers);
+            }
+
+            const pathParts = window.location.pathname.split('/').filter(Boolean);
+            if (pathParts.length >= 2 && pathParts[1].toLowerCase() === 'muted') {
+                loadMutedUsers();
+            }
+
+            window.__alouteLoadMutedUsers = loadMutedUsers;
         }
 
         // =========================================================================

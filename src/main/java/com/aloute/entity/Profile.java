@@ -20,6 +20,8 @@ public class Profile {
     private String bio;
     @Column(name = "avatar_url", length = 2048)
     private String avatarUrl;
+    @Column(name = "cover_url", length = 2048)
+    private String coverUrl;
     @Column(length = 2048)
     private String website;
     @Column(name = "followers_count", nullable = false)
