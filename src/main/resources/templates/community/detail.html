@@ -4,11 +4,11 @@
 <body>
     <div id="community-detail-content">
         <!-- Community Present View -->
-        <div th:if="${community != null}" class="community-detail-wrapper" th:attr="data-community-id=${community.id}">
+        <div th:if="${community != null}" class="community-detail-wrapper" th:attr="data-community-id=${community.id},data-is-private=${community.isPrivate}">
             <!-- Header Card with Cover and Profile Information -->
             <div class="aloute-card p-0 mb-3 overflow-hidden">
                 <!-- Cover Image / Brand Gradient Banner -->
-                <div class="community-cover-box" style="height: 160px; background: linear-gradient(135deg, var(--aloute-accent, #2563eb), #0f172a); position: relative;">
+                <div class="community-cover-box">
                     <img th:if="${community.coverUrl != null and !community.coverUrl.isEmpty()}"
                          th:src="${community.coverUrl}"
                          class="w-100 h-100"
@@ -18,17 +18,23 @@
 
                 <!-- Detail Body with Avatar, Name, Counters -->
                 <div class="p-3 pt-0 position-relative" style="z-index: 1;">
-                    <div class="d-flex justify-content-between align-items-end flex-wrap gap-2" style="margin-top: -40px; margin-bottom: 12px;">
-                        <img th:src="${community.avatarUrl != null and !community.avatarUrl.isEmpty()} ? ${community.avatarUrl} : @{/images/avatar-fallback.svg}"
-                             src="/images/avatar-fallback.svg"
-                             class="avatar-img rounded-3 border border-4 border-white shadow-sm flex-shrink-0 bg-white"
-                             width="80"
-                             height="80"
-                             style="object-fit: cover;"
-                             alt="Avatar cộng đồng" />
-                        <div class="d-flex gap-2 align-items-center flex-wrap">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                        <div class="flex-shrink-0" style="margin-top: -36px;">
+                            <img th:src="${community.avatarUrl != null and !community.avatarUrl.isEmpty()} ? ${community.avatarUrl} : @{/images/avatar-fallback.svg}"
+                                 src="/images/avatar-fallback.svg"
+                                 class="avatar-img rounded-3 border border-4 border-white shadow-sm bg-white"
+                                 width="72"
+                                 height="72"
+                                 style="object-fit: cover;"
+                                 alt="Avatar cộng đồng" />
+                        </div>
+                        <div class="d-flex gap-2 align-items-center flex-wrap pt-2 mt-2">
+                            <a th:href="@{/communities}" class="btn btn-sm btn-outline-secondary rounded-pill">
+                                <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Tất cả
+                            </a>
+
                             <!-- Membership Action Controls -->
-                            <div id="community-membership-actions">
+                            <div id="community-membership-actions" class="d-inline-flex align-items-center gap-2">
                                 <span th:if="${currentUser != null and (community.isOwner == true or (community.ownerId != null and community.ownerId == currentUser.id))}"
                                       class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-3 py-2"
                                       title="Bạn là chủ sở hữu của cộng đồng này">
@@ -51,18 +57,23 @@
                                     <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Tham gia
                                 </button>
                                 <a th:if="${currentUser == null}"
-                                   href="#"
+                                   th:href="@{/login}"
+                                   href="/login"
                                    data-page="auth-login"
                                    data-action="navigate-login"
                                    class="btn btn-sm btn-primary rounded-pill px-3">
-                                    <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Tham gia
+                                    <i class="bi bi-box-arrow-in-right me-1" aria-hidden="true"></i>Đăng nhập để tham gia
                                 </a>
                             </div>
 
-                            <a th:href="@{/communities}" class="btn btn-sm btn-outline-secondary rounded-pill">
-                                <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Tất cả
-                            </a>
-                            <a th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" th:attr="data-community-id=${community.id}" class="btn btn-sm btn-primary rounded-pill">
+                            <a th:if="${currentUser != null}"
+                               th:href="@{/post/create(communityId=${community.id})}"
+                               href="/post/create"
+                               id="btn-community-post"
+                               data-page="post-create"
+                               data-action="navigate-create-post"
+                               th:attr="data-community-id=${community.id}"
+                               th:class="${community.currentUserRole != null} ? 'btn btn-sm btn-primary rounded-pill' : 'btn btn-sm btn-primary rounded-pill d-none'">
                                 <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Đăng bài
                             </a>
                         </div>
@@ -109,12 +120,30 @@
                         <i class="bi bi-chat-square-dots fs-1 text-muted" aria-hidden="true"></i>
                     </div>
                     <h2 class="fs-6 fw-bold mb-1">Chưa có bài viết nào</h2>
-                    <p class="small text-secondary mb-3">Hãy là người đầu tiên chia sẻ bài viết hoặc câu hỏi trong cộng đồng này!</p>
-                    <a th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" th:attr="data-community-id=${community.id}" class="btn btn-sm btn-primary rounded-pill px-3">
-                        <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Tạo bài viết ngay
-                    </a>
+                    <p class="small text-secondary mb-0">Hãy là người đầu tiên chia sẻ bài viết hoặc câu hỏi trong cộng đồng này!</p>
                 </div>
             </section>
+            <!-- Leave Community Confirmation Modal -->
+            <div class="modal fade" id="leaveCommunityModal" tabindex="-1" aria-labelledby="leaveCommunityModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-sm">
+                    <div class="modal-content border-0 shadow">
+                        <div class="modal-header border-0 pb-0">
+                            <h2 class="modal-title fs-6 fw-bold text-dark" id="leaveCommunityModalLabel">Xác nhận rời cộng đồng</h2>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                        </div>
+                        <div class="modal-body py-3 text-secondary small">
+                            Bạn có chắc chắn muốn rời khỏi cộng đồng này?
+                        </div>
+                        <div class="modal-footer border-0 pt-0 d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 flex-grow-1" data-bs-dismiss="modal" id="btn-cancel-leave-community">Hủy</button>
+                            <button type="button" class="btn btn-sm btn-danger rounded-pill px-3 flex-grow-1" id="btn-confirm-leave-community">
+                                <span id="leave-community-spinner" class="spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true"></span>
+                                <span id="leave-community-btn-text">Rời cộng đồng</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Community Not Found State -->

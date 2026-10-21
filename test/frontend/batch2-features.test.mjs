@@ -403,7 +403,15 @@ function createDOMEnvironment() {
                 }
                 hide() {
                     this.hideCalls++;
+                    if (this.el && typeof this.el.dispatchEvent === 'function') {
+                        const ev = new MockEvent('hide.bs.modal', { bubbles: true, cancelable: true });
+                        const notPrevented = this.el.dispatchEvent(ev);
+                        if (!notPrevented) return;
+                    }
                     this.isShown = false;
+                    if (this.el && typeof this.el.dispatchEvent === 'function') {
+                        this.el.dispatchEvent(new MockEvent('hidden.bs.modal', { bubbles: true, cancelable: false }));
+                    }
                 }
             }
         },
@@ -414,6 +422,29 @@ function createDOMEnvironment() {
 
     win.window = win;
     return { window: win, document: doc };
+}
+
+function attachLeaveCommunityModal(env) {
+    const modalEl = env.document.createElement('DIV');
+    modalEl.id = 'leaveCommunityModal';
+    modalEl.className = 'modal fade';
+
+    const confirmBtn = env.document.createElement('BUTTON');
+    confirmBtn.id = 'btn-confirm-leave-community';
+
+    const spinner = env.document.createElement('SPAN');
+    spinner.id = 'leave-community-spinner';
+    spinner.className = 'spinner-border d-none';
+
+    const cancelBtn = env.document.createElement('BUTTON');
+    cancelBtn.id = 'btn-cancel-leave-community';
+    cancelBtn.setAttribute('data-bs-dismiss', 'modal');
+
+    modalEl.appendChild(confirmBtn);
+    modalEl.appendChild(spinner);
+    modalEl.appendChild(cancelBtn);
+    env.document.body.appendChild(modalEl);
+    return { modalEl, confirmBtn, spinner, cancelBtn };
 }
 
 // -----------------------------------------------------------------------------
@@ -486,6 +517,7 @@ describe('AloUTE Batch 2 Frontend Features & Regressions', () => {
         });
 
         it('Leave Community: prompts confirmation, calls DELETE /api/communities/{id}/members/me on confirm', async () => {
+            const { modalEl, confirmBtn } = attachLeaveCommunityModal(env);
             const leaveBtn = env.document.createElement('BUTTON');
             leaveBtn.id = 'btn-leave-community';
             leaveBtn.setAttribute('data-action', 'leave-community');
@@ -504,7 +536,6 @@ describe('AloUTE Batch 2 Frontend Features & Regressions', () => {
             env.document.body.appendChild(memberCount);
             env.document.body.appendChild(statusAlert);
 
-            env.window.confirmReturn = true;
             env.window.fetchHandler = async (url, opts) => {
                 assert.equal(url, '/api/communities/42/members/me');
                 assert.equal(opts.method, 'DELETE');
@@ -522,11 +553,184 @@ describe('AloUTE Batch 2 Frontend Features & Regressions', () => {
             leaveBtn.click();
             await new Promise(r => setTimeout(r, 10));
 
-            assert.equal(env.window.confirmCalls.length, 1);
+            assert.equal(env.window.confirmCalls.length, 0); // Native confirm never called
+            assert.equal(modalEl._bsModal.showCalls, 1);
+
+            confirmBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            assert.equal(modalEl._bsModal.hideCalls, 1);
+            assert.equal(modalEl._bsModal.isShown, false);
+            assert.notEqual(modalEl.dataset.isFrozen, 'true');
             assert.equal(leaveBtn.getAttribute('data-action'), 'join-community');
             assert.equal(memberCount.textContent, '10');
             assert.match(statusAlert.textContent, /rời khỏi/);
             assert.equal(env.document.getElementById('aloute-toast-notice'), null);
+        });
+
+        it('Join Community: successful validated join reveals Post button (#btn-community-post) by removing d-none', async () => {
+            const joinBtn = env.document.createElement('BUTTON');
+            joinBtn.id = 'btn-join-community';
+            joinBtn.setAttribute('data-action', 'join-community');
+            joinBtn.setAttribute('data-community-id', '42');
+            joinBtn.textContent = 'Tham gia';
+
+            const postBtn = env.document.createElement('A');
+            postBtn.id = 'btn-community-post';
+            postBtn.className = 'btn btn-sm btn-primary rounded-pill d-none';
+            postBtn.textContent = 'Đăng bài';
+
+            env.document.body.setAttribute('data-current-user-id', '1');
+            env.document.body.appendChild(joinBtn);
+            env.document.body.appendChild(postBtn);
+
+            env.window.fetchHandler = async () => ({
+                ok: true,
+                status: 200,
+                text: async () => JSON.stringify({
+                    success: true,
+                    data: {
+                        communityId: 42,
+                        user: { id: 1, username: 'sinhvien1' },
+                        role: 'MEMBER',
+                        joinedAt: '2026-10-12T10:00:00Z'
+                    },
+                    meta: null
+                })
+            });
+
+            const context = vm.createContext(env.window);
+            vm.runInContext(pageActionsSource, context);
+
+            assert.equal(postBtn.classList.contains('d-none'), true);
+            joinBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            assert.equal(postBtn.classList.contains('d-none'), false);
+            assert.equal(joinBtn.getAttribute('data-action'), 'leave-community');
+        });
+
+        it('Leave Community: exact HTTP 204 leave hides Post button (#btn-community-post) by adding d-none', async () => {
+            const { confirmBtn } = attachLeaveCommunityModal(env);
+            const leaveBtn = env.document.createElement('BUTTON');
+            leaveBtn.id = 'btn-leave-community';
+            leaveBtn.setAttribute('data-action', 'leave-community');
+            leaveBtn.setAttribute('data-community-id', '42');
+            leaveBtn.textContent = 'Rời cộng đồng';
+
+            const postBtn = env.document.createElement('A');
+            postBtn.id = 'btn-community-post';
+            postBtn.className = 'btn btn-sm btn-primary rounded-pill';
+            postBtn.textContent = 'Đăng bài';
+
+            env.document.body.appendChild(leaveBtn);
+            env.document.body.appendChild(postBtn);
+
+            env.window.fetchHandler = async () => ({
+                ok: true,
+                status: 204,
+                text: async () => ''
+            });
+
+            const context = vm.createContext(env.window);
+            vm.runInContext(pageActionsSource, context);
+
+            assert.equal(postBtn.classList.contains('d-none'), false);
+            leaveBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+            confirmBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            assert.equal(postBtn.classList.contains('d-none'), true);
+            assert.equal(leaveBtn.getAttribute('data-action'), 'join-community');
+        });
+
+        it('Join/Leave Community: failed or malformed responses do not alter Post button permission state', async () => {
+            // Failed join keeps Post button hidden with d-none
+            const joinBtn = env.document.createElement('BUTTON');
+            joinBtn.id = 'btn-join-community';
+            joinBtn.setAttribute('data-action', 'join-community');
+            joinBtn.setAttribute('data-community-id', '42');
+
+            const postBtn = env.document.createElement('A');
+            postBtn.id = 'btn-community-post';
+            postBtn.className = 'btn btn-sm btn-primary rounded-pill d-none';
+
+            env.document.body.setAttribute('data-current-user-id', '1');
+            env.document.body.appendChild(joinBtn);
+            env.document.body.appendChild(postBtn);
+
+            env.window.fetchHandler = async () => ({
+                ok: false,
+                status: 400,
+                text: async () => JSON.stringify({ success: false, error: { code: 'INVALID_REQUEST' } })
+            });
+
+            const context = vm.createContext(env.window);
+            vm.runInContext(pageActionsSource, context);
+
+            joinBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            assert.equal(postBtn.classList.contains('d-none'), true);
+            assert.equal(joinBtn.getAttribute('data-action'), 'join-community');
+
+            // Failed leave keeps Post button visible
+            postBtn.classList.remove('d-none');
+            const { confirmBtn } = attachLeaveCommunityModal(env);
+            const leaveBtn = env.document.createElement('BUTTON');
+            leaveBtn.id = 'btn-leave-community';
+            leaveBtn.setAttribute('data-action', 'leave-community');
+            leaveBtn.setAttribute('data-community-id', '42');
+            env.document.body.appendChild(leaveBtn);
+
+            env.window.fetchHandler = async () => ({
+                ok: false,
+                status: 500,
+                text: async () => JSON.stringify({ success: false, error: { code: 'INTERNAL_ERROR' } })
+            });
+
+            leaveBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+            confirmBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            assert.equal(postBtn.classList.contains('d-none'), false);
+            assert.equal(leaveBtn.getAttribute('data-action'), 'leave-community');
+        });
+
+        it('Leave Community: leaving private community triggers window.location.reload() to clear stale private state', async () => {
+            const wrapper = env.document.createElement('DIV');
+            wrapper.className = 'community-detail-wrapper';
+            wrapper.setAttribute('data-is-private', 'true');
+            wrapper.setAttribute('data-community-id', '42');
+
+            const leaveBtn = env.document.createElement('BUTTON');
+            leaveBtn.id = 'btn-leave-community';
+            leaveBtn.setAttribute('data-action', 'leave-community');
+            leaveBtn.setAttribute('data-community-id', '42');
+            leaveBtn.textContent = 'Rời cộng đồng';
+
+            wrapper.appendChild(leaveBtn);
+            env.document.body.appendChild(wrapper);
+            const { confirmBtn } = attachLeaveCommunityModal(env);
+
+            env.window.fetchHandler = async () => ({
+                ok: true,
+                status: 204,
+                text: async () => ''
+            });
+
+            const context = vm.createContext(env.window);
+            vm.runInContext(pageActionsSource, context);
+
+            assert.equal(env.window.location.reloadCalls, 0);
+            leaveBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+            confirmBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            assert.equal(env.window.location.reloadCalls, 1);
         });
 
         it('Leave Community: falls back to toast notice when status alert element is absent', async () => {
@@ -537,8 +741,8 @@ describe('AloUTE Batch 2 Frontend Features & Regressions', () => {
             leaveBtn.textContent = 'Rời cộng đồng';
 
             env.document.body.appendChild(leaveBtn);
+            const { confirmBtn } = attachLeaveCommunityModal(env);
 
-            env.window.confirmReturn = true;
             env.window.fetchHandler = async (url, opts) => {
                 assert.equal(url, '/api/communities/42/members/me');
                 assert.equal(opts.method, 'DELETE');
@@ -554,8 +758,9 @@ describe('AloUTE Batch 2 Frontend Features & Regressions', () => {
 
             leaveBtn.click();
             await new Promise(r => setTimeout(r, 10));
+            confirmBtn.click();
+            await new Promise(r => setTimeout(r, 10));
 
-            assert.equal(env.window.confirmCalls.length, 1);
             assert.equal(leaveBtn.getAttribute('data-action'), 'join-community');
             const toast = env.document.getElementById('aloute-toast-notice');
             assert.notEqual(toast, null);
@@ -568,15 +773,18 @@ describe('AloUTE Batch 2 Frontend Features & Regressions', () => {
             leaveBtn.setAttribute('data-community-id', '42');
 
             env.document.body.appendChild(leaveBtn);
+            const { modalEl } = attachLeaveCommunityModal(env);
 
-            env.window.confirmReturn = false; // Cancel
             const context = vm.createContext(env.window);
             vm.runInContext(pageActionsSource, context);
 
             leaveBtn.click();
             await new Promise(r => setTimeout(r, 10));
 
-            assert.equal(env.window.confirmCalls.length, 1);
+            // User dismisses modal
+            modalEl.dispatchEvent(new MockEvent('hidden.bs.modal'));
+
+            assert.equal(env.window.confirmCalls.length, 0);
             assert.equal(env.window.fetchCalls.length, 0); // No network request made
         });
 
@@ -1099,8 +1307,8 @@ describe('AloUTE Batch 2 Frontend Features & Regressions', () => {
             env.document.body.appendChild(leaveBtn);
             env.document.body.appendChild(memberCount);
             env.document.body.appendChild(statusAlert);
+            const { confirmBtn } = attachLeaveCommunityModal(env);
 
-            env.window.confirmReturn = true;
             // Server responds with 200 instead of 204
             env.window.fetchHandler = async () => ({
                 ok: true,
@@ -1112,6 +1320,8 @@ describe('AloUTE Batch 2 Frontend Features & Regressions', () => {
             vm.runInContext(pageActionsSource, context);
 
             leaveBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+            confirmBtn.click();
             await new Promise(r => setTimeout(r, 10));
 
             // Must NOT switch to join-community, count remains 10
@@ -3125,6 +3335,363 @@ describe('AloUTE Batch 2 Frontend Features & Regressions', () => {
             // Modal hide is invoked!
             assert.equal(modalEl._bsModal.hideCalls, 1);
             assert.equal(env.window.location.reloadCalls, 1);
+        });
+    });
+
+    // -------------------------------------------------------------------------
+    // Community Leave In-Page Modal Tests (D-01 & Appended Steering)
+    // -------------------------------------------------------------------------
+    describe('Community Leave In-Page Modal UI', () => {
+        let env;
+
+        beforeEach(() => {
+            env = createDOMEnvironment();
+        });
+
+        function setupLeaveModalDOM() {
+            const wrapper = env.document.createElement('DIV');
+            wrapper.className = 'community-detail-wrapper';
+            wrapper.setAttribute('data-community-id', '42');
+
+            const leaveBtn = env.document.createElement('BUTTON');
+            leaveBtn.id = 'btn-leave-community';
+            leaveBtn.setAttribute('data-action', 'leave-community');
+            leaveBtn.setAttribute('data-community-id', '42');
+            leaveBtn.textContent = 'Rời cộng đồng';
+            leaveBtn.innerHTML = 'Rời cộng đồng';
+
+            const memberCount = env.document.createElement('STRONG');
+            memberCount.id = 'community-member-count';
+            memberCount.textContent = '10';
+
+            const postBtn = env.document.createElement('BUTTON');
+            postBtn.id = 'btn-community-post';
+
+            const statusAlert = env.document.createElement('DIV');
+            statusAlert.id = 'community-action-status';
+            statusAlert.className = 'alert d-none';
+
+            const modalEl = env.document.createElement('DIV');
+            modalEl.id = 'leaveCommunityModal';
+            modalEl.className = 'modal fade';
+
+            const confirmBtn = env.document.createElement('BUTTON');
+            confirmBtn.id = 'btn-confirm-leave-community';
+            confirmBtn.textContent = 'Xác nhận rời';
+
+            const spinner = env.document.createElement('SPAN');
+            spinner.id = 'leave-community-spinner';
+            spinner.className = 'spinner-border d-none';
+
+            const cancelBtn = env.document.createElement('BUTTON');
+            cancelBtn.setAttribute('data-bs-dismiss', 'modal');
+
+            modalEl.appendChild(confirmBtn);
+            modalEl.appendChild(spinner);
+            modalEl.appendChild(cancelBtn);
+
+            wrapper.appendChild(leaveBtn);
+            wrapper.appendChild(memberCount);
+            wrapper.appendChild(postBtn);
+            wrapper.appendChild(statusAlert);
+
+            env.document.body.appendChild(wrapper);
+            env.document.body.appendChild(modalEl);
+
+            return { wrapper, leaveBtn, memberCount, postBtn, statusAlert, modalEl, confirmBtn, spinner, cancelBtn };
+        }
+
+        it('Leave modal: clicking leave button shows #leaveCommunityModal without calling native confirm()', async () => {
+            const { leaveBtn, modalEl } = setupLeaveModalDOM();
+
+            const context = vm.createContext(env.window);
+            vm.runInContext(pageActionsSource, context);
+
+            leaveBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            assert.equal(env.window.confirmCalls.length, 0); // Native confirm() never invoked
+            assert.equal(modalEl._bsModal.showCalls, 1);
+            assert.equal(modalEl._triggerBtn, leaveBtn);
+            assert.equal(modalEl._communityId, 42);
+        });
+
+        it('Leave modal: cancelling or hiding modal makes 0 fetch calls and restores focus to trigger', async () => {
+            const { leaveBtn, modalEl } = setupLeaveModalDOM();
+
+            const context = vm.createContext(env.window);
+            vm.runInContext(pageActionsSource, context);
+
+            leaveBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            // Modal is showing; user cancels / modal hidden
+            modalEl.dispatchEvent(new MockEvent('hidden.bs.modal'));
+
+            assert.equal(env.window.fetchCalls.length, 0); // No network request made
+            assert.equal(leaveBtn._focused, true); // Focus restored to leave button
+        });
+
+        it('Leave modal: confirm button sends DELETE request, hides modal, decrements count, and switches UI', async () => {
+            const { leaveBtn, memberCount, postBtn, statusAlert, modalEl, confirmBtn } = setupLeaveModalDOM();
+
+            env.window.fetchHandler = async (url, opts) => {
+                assert.equal(url, '/api/communities/42/members/me');
+                assert.equal(opts.method, 'DELETE');
+                return {
+                    ok: true,
+                    status: 204,
+                    text: async () => ''
+                };
+            };
+
+            const context = vm.createContext(env.window);
+            vm.runInContext(pageActionsSource, context);
+
+            // Open modal
+            leaveBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            // Click confirm in modal
+            confirmBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            assert.equal(env.window.fetchCalls.length, 1);
+            assert.equal(modalEl._bsModal.hideCalls, 1);
+            assert.equal(modalEl._bsModal.isShown, false);
+            assert.notEqual(modalEl.dataset.isFrozen, 'true');
+            assert.equal(memberCount.textContent, '9');
+            assert.equal(postBtn.classList.contains('d-none'), true);
+            assert.equal(leaveBtn.getAttribute('data-action'), 'join-community');
+            assert.equal(statusAlert.classList.contains('d-none'), false);
+            assert.match(statusAlert.textContent, /rời khỏi cộng đồng/i);
+        });
+
+        it('Leave modal: freeze protection cancels hide.bs.modal while in-flight and unfreezes before programmatic hide', async () => {
+            const { leaveBtn, modalEl, confirmBtn } = setupLeaveModalDOM();
+
+            let resolveFetch;
+            env.window.fetchHandler = () => new Promise(resolve => {
+                resolveFetch = resolve;
+            });
+
+            const context = vm.createContext(env.window);
+            vm.runInContext(pageActionsSource, context);
+
+            // Open modal
+            leaveBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+            assert.equal(modalEl._bsModal.isShown, true);
+
+            // Click confirm to start in-flight DELETE request
+            confirmBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            // While in flight, modal MUST be frozen
+            assert.equal(modalEl.dataset.isFrozen, 'true');
+
+            // Attempting to hide via Bootstrap instance while frozen must be cancelled by hide.bs.modal protection
+            modalEl._bsModal.hide();
+            assert.equal(modalEl._bsModal.isShown, true); // Still shown because hide was cancelled!
+
+            // Now resolve the fetch with 204
+            resolveFetch({ ok: true, status: 204, text: async () => '' });
+            await new Promise(r => setTimeout(r, 20));
+
+            // Upon completion, modal is unfrozen before hide(), so hide() succeeds
+            assert.notEqual(modalEl.dataset.isFrozen, 'true');
+            assert.equal(modalEl._bsModal.isShown, false);
+        });
+
+        it('Leave modal: non-204 error response keeps leave button enabled, shows error alert, and unlocks', async () => {
+            const { leaveBtn, memberCount, statusAlert, modalEl, confirmBtn } = setupLeaveModalDOM();
+
+            env.window.fetchHandler = async () => ({
+                ok: false,
+                status: 400,
+                text: async () => JSON.stringify({
+                    success: false,
+                    error: {
+                        code: 'COMMUNITY_OWNER_CANNOT_LEAVE',
+                        message: 'Chủ sở hữu không thể rời cộng đồng.'
+                    }
+                })
+            });
+
+            const context = vm.createContext(env.window);
+            vm.runInContext(pageActionsSource, context);
+
+            leaveBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            confirmBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            assert.equal(modalEl._bsModal.hideCalls, 1);
+            assert.equal(modalEl._bsModal.isShown, false);
+            assert.notEqual(modalEl.dataset.isFrozen, 'true');
+            assert.equal(leaveBtn.getAttribute('data-action'), 'leave-community');
+            assert.equal(leaveBtn.disabled, false);
+            assert.equal(memberCount.textContent, '10'); // Count unchanged
+            assert.equal(statusAlert.classList.contains('d-none'), false);
+            assert.match(statusAlert.textContent, /Chủ sở hữu/i);
+        });
+
+        it('Leave modal: rejected request recovers safely, hides modal, restores trigger, shows connection notice, and releases lock for retry', async () => {
+            const { leaveBtn, memberCount, postBtn, modalEl, confirmBtn } = setupLeaveModalDOM();
+
+            let shouldFail = true;
+            let attempts = 0;
+            env.window.fetchHandler = async (url, opts) => {
+                attempts++;
+                if (shouldFail) {
+                    throw new Error('Network error');
+                }
+                return {
+                    ok: true,
+                    status: 204,
+                    text: async () => ''
+                };
+            };
+
+            const context = vm.createContext(env.window);
+            vm.runInContext(pageActionsSource, context);
+
+            // 1. Open modal and confirm (will reject)
+            leaveBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+            confirmBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            // Verify rejected request recovery
+            assert.equal(attempts, 1);
+            // Modal hides and unfreezes
+            assert.equal(modalEl._bsModal.hideCalls, 1);
+            assert.equal(modalEl._bsModal.isShown, false);
+            assert.notEqual(modalEl.dataset.isFrozen, 'true');
+            // Zero state/membership/Post/count mutation
+            assert.equal(leaveBtn.getAttribute('data-action'), 'leave-community');
+            assert.equal(memberCount.textContent, '10');
+            assert.equal(postBtn.classList.contains('d-none'), false);
+            // Trigger restored, enabled, focused
+            assert.equal(leaveBtn.disabled, false);
+            assert.match(leaveBtn.innerHTML, /Rời cộng đồng/);
+            assert.equal(leaveBtn._focused, true);
+            // Vietnamese connection notice displayed
+            const toast = env.document.getElementById('aloute-toast-notice');
+            assert.notEqual(toast, null);
+            assert.match(toast.textContent, /Lỗi kết nối khi rời cộng đồng/i);
+
+            // 2. Lock is released: reopening and retrying succeeds
+            shouldFail = false;
+            leaveBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+            assert.equal(modalEl._bsModal.showCalls, 2);
+
+            confirmBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            assert.equal(attempts, 2);
+            assert.equal(leaveBtn.getAttribute('data-action'), 'join-community');
+            assert.equal(memberCount.textContent, '9');
+            assert.equal(postBtn.classList.contains('d-none'), true);
+        });
+
+        it('Leave modal: leaving private community triggers window.location.reload() on 204', async () => {
+            const { wrapper, leaveBtn, modalEl, confirmBtn } = setupLeaveModalDOM();
+            wrapper.setAttribute('data-is-private', 'true');
+
+            env.window.fetchHandler = async () => ({
+                ok: true,
+                status: 204,
+                text: async () => ''
+            });
+
+            const context = vm.createContext(env.window);
+            vm.runInContext(pageActionsSource, context);
+
+            leaveBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            assert.equal(env.window.location.reloadCalls, 0);
+
+            confirmBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            assert.equal(env.window.location.reloadCalls, 1);
+        });
+
+        it('Leave modal: confirm-once sends exactly 1 request and guards against repeated clicks', async () => {
+            const { leaveBtn, modalEl, confirmBtn } = setupLeaveModalDOM();
+
+            let fetchCount = 0;
+            env.window.fetchHandler = async () => {
+                fetchCount++;
+                return { ok: true, status: 204, text: async () => '' };
+            };
+
+            const context = vm.createContext(env.window);
+            vm.runInContext(pageActionsSource, context);
+
+            leaveBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            // Fast repeated clicks
+            confirmBtn.click();
+            confirmBtn.click();
+            await new Promise(r => setTimeout(r, 20));
+
+            assert.equal(fetchCount, 1);
+            assert.equal(env.window.fetchCalls.length, 1);
+        });
+
+        it('Leave modal: reopen after dismiss does not duplicate listeners and executes single request', async () => {
+            const { leaveBtn, modalEl, confirmBtn } = setupLeaveModalDOM();
+
+            let fetchCount = 0;
+            env.window.fetchHandler = async () => {
+                fetchCount++;
+                return { ok: true, status: 204, text: async () => '' };
+            };
+
+            const context = vm.createContext(env.window);
+            vm.runInContext(pageActionsSource, context);
+
+            // First open and dismiss
+            leaveBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+            modalEl.dispatchEvent(new MockEvent('hidden.bs.modal'));
+
+            // Second open and confirm
+            leaveBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+            confirmBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            assert.equal(fetchCount, 1);
+            assert.equal(env.window.fetchCalls.length, 1);
+        });
+
+        it('Leave modal: unavailable dependency fails closed with warning notice, 0 requests, and no native prompt', async () => {
+            const leaveBtn = env.document.createElement('BUTTON');
+            leaveBtn.id = 'btn-leave-community';
+            leaveBtn.setAttribute('data-action', 'leave-community');
+            leaveBtn.setAttribute('data-community-id', '42');
+            env.document.body.appendChild(leaveBtn);
+
+            // Modal is NOT attached to DOM!
+            const context = vm.createContext(env.window);
+            vm.runInContext(pageActionsSource, context);
+
+            leaveBtn.click();
+            await new Promise(r => setTimeout(r, 10));
+
+            assert.equal(env.window.confirmCalls.length, 0); // Native confirm never called
+            assert.equal(env.window.fetchCalls.length, 0); // No request sent
+            assert.equal(leaveBtn.getAttribute('data-action'), 'leave-community'); // State untouched
+            const toast = env.document.getElementById('aloute-toast-notice');
+            assert.notEqual(toast, null);
+            assert.match(toast.textContent, /hộp thoại/i);
         });
     });
 });
