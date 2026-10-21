@@ -300,7 +300,7 @@ class DeploymentBoundaryAndForwardedHeadersIntegrationTest {
 
         // 4. Verify deploy/nginx/conf.d/aloute.conf.template
         String tlsTemplate = Files.readString(Path.of("deploy/nginx/conf.d/aloute.conf.template"));
-        assertThat(tlsTemplate).contains("client_max_body_size 20M;");
+        assertThat(tlsTemplate).contains("client_max_body_size 40M;");
         assertThat(tlsTemplate).contains("proxy_set_header Upgrade $http_upgrade;");
         assertThat(tlsTemplate).contains("proxy_set_header Connection \"upgrade\";");
         assertThat(tlsTemplate).contains("proxy_set_header X-Forwarded-Proto $scheme;");
