@@ -179,6 +179,7 @@
         if (code === 'COMMUNITY_SLUG_DUPLICATED' || code === 'COMMUNITY_SLUG_ALREADY_EXISTS') return 'Đường dẫn (slug) cộng đồng đã được sử dụng.';
         if (code === 'COMMUNITY_MEMBER_ALREADY_EXISTS') return 'Bạn đã là thành viên của cộng đồng này.';
         if (code === 'COMMUNITY_MEMBER_NOT_FOUND') return 'Bạn chưa tham gia cộng đồng này.';
+        if (code === 'OWNER_CANNOT_LEAVE' || code === 'COMMUNITY_OWNER_CANNOT_LEAVE') return 'Chủ sở hữu không thể rời cộng đồng khi chưa chuyển quyền sở hữu.';
         if (code === 'POST_NOT_FOUND') return 'Bài viết không tồn tại.';
         if (code === 'REPORT_ALREADY_EXISTS') return 'Bạn đã gửi báo cáo cho nội dung này trước đó.';
 
@@ -956,7 +957,13 @@
                         target.removeAttribute('disabled');
                         target.className = 'btn btn-sm btn-outline-danger rounded-pill px-3';
                         target.setAttribute('data-action', 'leave-community');
+                        target.setAttribute('id', 'btn-leave-community');
                         target.innerHTML = '<i class="bi bi-box-arrow-right me-1" aria-hidden="true"></i>Rời cộng đồng';
+
+                        const postBtn = document.getElementById('btn-community-post');
+                        if (postBtn) {
+                            postBtn.classList.remove('d-none');
+                        }
 
                         const countEl = document.getElementById('community-member-count');
                         if (countEl) {
@@ -994,19 +1001,52 @@
             return;
         }
 
-        // P1-B: Leave Community
+        if (action === 'confirm-leave-community') {
+            event.preventDefault();
+            return;
+        }
+
+        // P1-B: Leave Community (Accessible Bootstrap in-page confirmation modal)
         if (action === 'leave-community') {
             event.preventDefault();
             const communityId = parseInt(target.getAttribute('data-community-id'), 10);
             if (!isPositiveSafeInteger(communityId)) return;
 
-            const lockKey = 'community:leave:' + communityId;
-            if (!acquireLock(lockKey)) return;
-
-            if (!confirm('Bạn có chắc chắn muốn rời khỏi cộng đồng này?')) {
-                releaseLock(lockKey);
+            const modalEl = document.getElementById('leaveCommunityModal');
+            if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+                modalEl._triggerBtn = target;
+                modalEl._communityId = communityId;
+                if (!modalEl.dataset.initializedListeners) {
+                    modalEl.dataset.initializedListeners = 'true';
+                    attachModalFreezeProtection(modalEl);
+                    modalEl.addEventListener('hidden.bs.modal', function () {
+                        if (modalEl._triggerBtn && typeof modalEl._triggerBtn.focus === 'function') {
+                            modalEl._triggerBtn.focus();
+                        }
+                    });
+                    const confirmBtn = modalEl.querySelector('#btn-confirm-leave-community, [data-action="confirm-leave-community"]');
+                    if (confirmBtn) {
+                        confirmBtn.addEventListener('click', function (e) {
+                            e.preventDefault();
+                            if (typeof e.stopPropagation === 'function') e.stopPropagation();
+                            executeLeaveCommunity(modalEl._communityId, modalEl._triggerBtn, modalEl);
+                        });
+                    }
+                }
+                const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
                 return;
             }
+
+            // Fail closed: modal dependency absent, never fallback to native confirm or auto-accept
+            notice('Không thể mở hộp thoại xác nhận rời cộng đồng.', 'warning');
+            return;
+        }
+
+        function executeLeaveCommunity(communityId, target, modalEl) {
+            if (!isPositiveSafeInteger(communityId)) return;
+            const lockKey = 'community:leave:' + communityId;
+            if (!acquireLock(lockKey)) return;
 
             const http = getHttp();
             if (!http) {
@@ -1015,11 +1055,34 @@
                 return;
             }
 
-            target.setAttribute('disabled', 'true');
-            const originalHtml = target.innerHTML;
-            target.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Đang rời...';
+            const confirmBtn = modalEl ? modalEl.querySelector('#btn-confirm-leave-community, [data-action="confirm-leave-community"]') : null;
+            const spinner = modalEl ? modalEl.querySelector('#leave-community-spinner') : null;
+            if (confirmBtn) {
+                confirmBtn.setAttribute('disabled', 'true');
+                if (spinner) spinner.classList.remove('d-none');
+            }
+            if (modalEl) {
+                freezeModal(modalEl, true);
+            }
+
+            let originalTargetHtml = '';
+            if (target) {
+                target.setAttribute('disabled', 'true');
+                originalTargetHtml = target.innerHTML;
+                target.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Đang rời...';
+            }
 
             (async function () {
+                function hideModalIfPresent() {
+                    if (modalEl) {
+                        freezeModal(modalEl, false);
+                        if (window.bootstrap && window.bootstrap.Modal) {
+                            const modalInstance = window.bootstrap.Modal.getInstance(modalEl);
+                            if (modalInstance) modalInstance.hide();
+                        }
+                    }
+                }
+
                 try {
                     const response = await http.request('/api/communities/' + encodeURIComponent(communityId) + '/members/me', {
                         method: 'DELETE'
@@ -1028,10 +1091,28 @@
                     // Strict confirmation:
                     // MUST be exact HTTP 204 No Content! Reject 200 HTML/JSON/201!
                     if (response.status === 204) {
-                        target.removeAttribute('disabled');
-                        target.className = 'btn btn-sm btn-primary rounded-pill px-3';
-                        target.setAttribute('data-action', 'join-community');
-                        target.innerHTML = '<i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Tham gia';
+                        hideModalIfPresent();
+
+                        const wrapper = document.querySelector('.community-detail-wrapper');
+                        const isPrivate = wrapper && wrapper.getAttribute('data-is-private') === 'true';
+                        if (isPrivate) {
+                            window.location.reload();
+                            return;
+                        }
+
+                        if (target) {
+                            target.removeAttribute('disabled');
+                            target.className = 'btn btn-sm btn-primary rounded-pill px-3';
+                            target.setAttribute('data-action', 'join-community');
+                            target.setAttribute('id', 'btn-join-community');
+                            target.innerHTML = '<i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Tham gia';
+                            if (typeof target.focus === 'function') target.focus();
+                        }
+
+                        const postBtn = document.getElementById('btn-community-post');
+                        if (postBtn) {
+                            postBtn.classList.add('d-none');
+                        }
 
                         const countEl = document.getElementById('community-member-count');
                         if (countEl) {
@@ -1047,8 +1128,12 @@
                             notice('Đã rời khỏi cộng đồng.', 'info');
                         }
                     } else {
-                        target.removeAttribute('disabled');
-                        target.innerHTML = originalHtml;
+                        hideModalIfPresent();
+                        if (target) {
+                            target.removeAttribute('disabled');
+                            target.innerHTML = originalTargetHtml;
+                            if (typeof target.focus === 'function') target.focus();
+                        }
                         const body = await http.readJson(response);
                         const msg = translateError(body && body.error, 'Không thể rời cộng đồng (phản hồi không hợp lệ).');
                         const statusEl = document.getElementById('community-action-status');
@@ -1060,14 +1145,24 @@
                         notice(msg, 'danger');
                     }
                 } catch (_) {
-                    target.removeAttribute('disabled');
-                    target.innerHTML = originalHtml;
+                    hideModalIfPresent();
+                    if (target) {
+                        target.removeAttribute('disabled');
+                        target.innerHTML = originalTargetHtml;
+                        if (typeof target.focus === 'function') target.focus();
+                    }
                     notice('Lỗi kết nối khi rời cộng đồng.', 'danger');
                 } finally {
+                    if (modalEl) {
+                        freezeModal(modalEl, false);
+                    }
+                    if (confirmBtn) {
+                        confirmBtn.removeAttribute('disabled');
+                        if (spinner) spinner.classList.add('d-none');
+                    }
                     releaseLock(lockKey);
                 }
             })();
-            return;
         }
 
         // P1-C: Open Report Modal

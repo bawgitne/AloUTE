@@ -8,6 +8,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
@@ -19,9 +20,10 @@ public class PostPageController {
     private final PostService postService;
 
     @GetMapping("/post/create")
-    public String create(Model model) {
+    public String create(@RequestParam(required = false) Long communityId, Model model) {
         Long userId = currentUserProvider.requireUserId();
         model.addAttribute("currentUser", userService.getProfile(userId));
+        model.addAttribute("communityId", communityId);
         model.addAttribute("activeNav", "create-post");
         return "post/create";
     }
