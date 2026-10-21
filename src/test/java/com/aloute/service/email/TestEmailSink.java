@@ -100,6 +100,42 @@ public class TestEmailSink implements EmailService {
         }
     }
 
+    @Override
+    public void sendTwoFactorFallbackOtpEmail(String toEmail, String otpCode) {
+        invocationCount.incrementAndGet();
+
+        CountDownLatch started = this.deliveryStartedLatch;
+        CountDownLatch hold = this.deliveryHoldLatch;
+        CountDownLatch completed = this.deliveryCompletedLatch;
+        RuntimeException failure = this.deliveryFailureException;
+
+        try {
+            if (started != null) {
+                started.countDown();
+            }
+            if (failure != null) {
+                throw failure;
+            }
+            if (hold != null) {
+                try {
+                    hold.await(10, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            otpSink.add(new SentOtp(toEmail, otpCode));
+            if (defaultEmailService != null) {
+                try {
+                    defaultEmailService.sendTwoFactorFallbackOtpEmail(toEmail, otpCode);
+                } catch (Exception ignored) {}
+            }
+        } finally {
+            if (completed != null) {
+                completed.countDown();
+            }
+        }
+    }
+
     public List<SentEmail> getEmailSink() {
         return List.copyOf(emailSink);
     }

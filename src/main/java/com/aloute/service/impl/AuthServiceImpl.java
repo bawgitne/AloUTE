@@ -63,7 +63,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override @Transactional(readOnly = true)
-    public AuthenticatedUser login(LoginRequest request) {
+    public LoginOutcome login(LoginRequest request) {
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.email().trim(), request.password()));
@@ -77,10 +77,28 @@ public class AuthServiceImpl implements AuthService {
                         "Tài khoản chưa được kích hoạt. Vui lòng xác thực email.");
             }
 
-            return new AuthenticatedUser(principal, toResponse(user));
+            if (!user.isActive()) {
+                throw new ApiException(HttpStatus.FORBIDDEN, "AUTH_ACCOUNT_DEACTIVATED",
+                        "Tài khoản của bạn đang bị vô hiệu hóa. Vui lòng liên hệ ban quản trị để kích hoạt lại.");
+            }
+
+            if (user.isTwoFactorEnabled()) {
+                String masked = maskEmail(user.getEmail());
+                String type = user.getTwoFactorType() != null ? user.getTwoFactorType() : "TOTP";
+                return LoginOutcome.twoFactorRequired(user.getId(), type, masked);
+            }
+
+            return LoginOutcome.success(principal, toResponse(user));
         } catch (AuthenticationException ex) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_INVALID_CREDENTIALS", "Invalid email or password");
         }
+    }
+
+    private String maskEmail(String email) {
+        if (email == null || email.isBlank()) return "";
+        int at = email.indexOf('@');
+        if (at <= 1) return "***" + email.substring(Math.max(0, at));
+        return email.charAt(0) + "***" + email.substring(at);
     }
 
     @Override @Transactional(readOnly = true)
@@ -95,6 +113,6 @@ public class AuthServiceImpl implements AuthService {
 
     private UserResponse toResponse(User user) {
         return new UserResponse(user.getId(), user.getUsername(), user.getEmail(), user.isVerified(),
-                user.isPrivateAccount(), user.isActive());
+                user.isPrivateAccount(), user.isActive(), user.isTwoFactorEnabled());
     }
 }

@@ -17,5 +17,7 @@ public interface BlockRepository extends JpaRepository<Block, Long> {
 
     java.util.List<Block> findByBlockerId(Long blockerId);
 
+    org.springframework.data.domain.Page<Block> findByBlockerId(Long blockerId, org.springframework.data.domain.Pageable pageable);
+
     java.util.List<Block> findByBlockedId(Long blockedId);
 }

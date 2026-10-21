@@ -9,7 +9,9 @@ public final class SecurityWhitelist {
 
     public static final String[] PUBLIC_POST = {
             "/api/auth/register",
-            "/api/auth/login"
+            "/api/auth/login",
+            "/api/auth/2fa/verify-login",
+            "/api/auth/2fa/send-email-fallback"
     };
 
     public static final String[] PUBLIC_RECOVERY_POST = {

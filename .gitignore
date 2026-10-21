@@ -32,3 +32,10 @@ desktop.ini
 .vscode/
 *.swp
 *.swo
+
+# Sub-repositories & Local Run Scripts
+Build_Chatbot_Cloud/
+current/
+fe-mobile/
+run.bat
+run.ps1

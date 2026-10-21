@@ -33,6 +33,9 @@ public class NotificationServiceImpl implements NotificationService {
     private final ProfileRepository profileRepository;
 
     @Autowired(required = false)
+    private com.aloute.repository.UserNotificationSettingRepository notificationSettingRepository;
+
+    @Autowired(required = false)
     private SimpMessagingTemplate messagingTemplate;
 
     @Autowired(required = false)
@@ -100,6 +103,17 @@ public class NotificationServiceImpl implements NotificationService {
         User recipient = userRepository.findById(recipientId).orElse(null);
         if (recipient == null) {
             return;
+        }
+
+        if (notificationSettingRepository != null) {
+            com.aloute.entity.UserNotificationSetting setting = notificationSettingRepository.findById(recipientId).orElse(null);
+            if (setting != null) {
+                String t = type != null ? type.toUpperCase() : "";
+                if (t.contains("LIKE") && !setting.isLikesEnabled()) return;
+                if ((t.contains("REPLY") || t.contains("COMMENT")) && !setting.isCommentsEnabled()) return;
+                if (t.contains("FOLLOW") && !setting.isFollowsEnabled()) return;
+                if (t.contains("MENTION") && !setting.isMentionsEnabled()) return;
+            }
         }
 
         User actor = actorId != null ? userRepository.findById(actorId).orElse(null) : null;

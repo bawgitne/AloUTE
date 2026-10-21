@@ -13,10 +13,17 @@ class AuthService extends ChangeNotifier {
   final ApiClient _api = ApiClient();
   User? _currentUser;
   bool _isLoading = false;
+  String? _twoFactorTicket;
+  String? _twoFactorMaskedEmail;
+  String? _twoFactorType;
 
   User? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
   bool get isLoading => _isLoading;
+  bool get isTwoFactorRequired => _twoFactorTicket != null;
+  String? get twoFactorTicket => _twoFactorTicket;
+  String? get twoFactorMaskedEmail => _twoFactorMaskedEmail;
+  String? get twoFactorType => _twoFactorType;
 
   Future<void> init() async {
     await _api.init();
@@ -32,6 +39,8 @@ class AuthService extends ChangeNotifier {
 
   Future<bool> login(String usernameOrEmail, String password) async {
     _isLoading = true;
+    _twoFactorTicket = null;
+    _twoFactorMaskedEmail = null;
     notifyListeners();
 
     try {
@@ -41,6 +50,16 @@ class AuthService extends ChangeNotifier {
       );
 
       if (response.success && response.data != null) {
+        // Kiểm tra nếu tài khoản yêu cầu xác thực 2 lớp (2FA Challenge)
+        if (response.data!['twoFactorRequired'] == true) {
+          _twoFactorTicket = response.data!['twoFactorTicket'] as String?;
+          _twoFactorMaskedEmail = response.data!['maskedEmail'] as String?;
+          _twoFactorType = response.data!['twoFactorType'] as String? ?? 'TOTP';
+          _isLoading = false;
+          notifyListeners();
+          return false;
+        }
+
         final token = response.data!['token'] as String? ?? response.data!['accessToken'] as String?;
         if (token != null) {
           await _api.setAuthToken(token);
@@ -79,6 +98,61 @@ class AuthService extends ChangeNotifier {
     _isLoading = false;
     notifyListeners();
     return false;
+  }
+
+  Future<bool> verifyTwoFactorLogin(String code, {bool isBackupCode = false}) async {
+    if (_twoFactorTicket == null) return false;
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final response = await _api.post<Map<String, dynamic>>(
+        ApiConstants.verify2fa,
+        body: {
+          'twoFactorTicket': _twoFactorTicket,
+          'code': code.trim(),
+          'isBackupCode': isBackupCode,
+        },
+      );
+
+      if (response.success && response.data != null) {
+        final token = response.data!['token'] as String? ?? response.data!['accessToken'] as String?;
+        if (token != null) {
+          await _api.setAuthToken(token);
+        }
+        final userData = response.data!['user'] as Map<String, dynamic>? ?? response.data!;
+        _currentUser = User.fromJson(userData);
+        await _saveUserLocally(_currentUser!);
+        _twoFactorTicket = null;
+        _twoFactorMaskedEmail = null;
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+    } catch (_) {}
+
+    _isLoading = false;
+    notifyListeners();
+    return false;
+  }
+
+  Future<bool> sendEmailFallbackOtp() async {
+    if (_twoFactorTicket == null) return false;
+    try {
+      final response = await _api.post<Map<String, dynamic>>(
+        ApiConstants.send2faEmailFallback,
+        body: {'twoFactorTicket': _twoFactorTicket},
+      );
+      return response.success;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void cancelTwoFactor() {
+    _twoFactorTicket = null;
+    _twoFactorMaskedEmail = null;
+    notifyListeners();
   }
 
   Future<bool> register(String username, String email, String password) async {

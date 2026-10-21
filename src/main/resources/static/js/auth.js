@@ -239,6 +239,11 @@
             const body = await readJson(response);
 
             if (response.ok && (response.status === 200 || response.status === 204)) {
+                if (body && body.data && body.data.twoFactorRequired) {
+                    setSubmitting(submitBtn, false, 'Đang đăng nhập...', 'Đăng nhập', 'login-icon', 'login-spinner');
+                    handleTwoFactorChallenge(body.data);
+                    return;
+                }
                 statusBox('Đăng nhập thành công! Đang chuyển hướng đến bảng tin...', 'success');
                 window.setTimeout(function () {
                     window.location.href = '/feed';
@@ -281,6 +286,227 @@
         } catch (error) {
             setSubmitting(submitBtn, false, 'Đang đăng nhập...', 'Đăng nhập', 'login-icon', 'login-spinner');
             statusBox('Lỗi kết nối tới máy chủ. Vui lòng kiểm tra mạng và thử lại.', 'danger');
+        }
+    }
+
+    function handleTwoFactorChallenge(data) {
+        const ticket = data.twoFactorTicket;
+        const maskedEmail = data.maskedEmail;
+        const twoFactorType = data.twoFactorType;
+        const credsSection = document.getElementById('login-credentials-section');
+        const twoFaSection = document.getElementById('login-2fa-section');
+        const codeInput = document.getElementById('two-factor-code');
+        const submit2faBtn = document.getElementById('login-2fa-submit-btn');
+        const spinner = document.getElementById('login-2fa-spinner');
+        const feedback = document.getElementById('two-factor-feedback');
+        const desc = document.getElementById('login-2fa-desc');
+        const label = document.getElementById('label-2fa-code');
+        const btnRequestEmail = document.getElementById('btn-request-email-otp');
+        const btnToggleBackup = document.getElementById('btn-toggle-backup-mode');
+        const btnBack = document.getElementById('btn-back-to-credentials');
+
+        if (!credsSection || !twoFaSection) return;
+
+        credsSection.classList.add('d-none');
+        twoFaSection.classList.remove('d-none');
+
+        let isBackupMode = false;
+        let resendTimer = null;
+
+        function startResendCountdown(seconds) {
+            let left = seconds;
+            if (btnRequestEmail) btnRequestEmail.disabled = true;
+            if (resendTimer) clearInterval(resendTimer);
+            resendTimer = setInterval(() => {
+                left--;
+                if (left <= 0) {
+                    clearInterval(resendTimer);
+                    if (btnRequestEmail) {
+                        btnRequestEmail.disabled = false;
+                        btnRequestEmail.innerHTML = '<i class="bi bi-envelope me-1"></i>Gửi lại mã OTP qua Email sinh viên';
+                    }
+                } else {
+                    if (btnRequestEmail) {
+                        btnRequestEmail.innerHTML = `<i class="bi bi-hourglass-split me-1"></i>Gửi lại sau (${left}s)`;
+                    }
+                }
+            }, 1000);
+        }
+
+        if (twoFactorType === 'EMAIL') {
+            statusBox('Tài khoản bảo vệ bởi 2FA qua Email. Mã xác thực đã được gửi về hộp thư của bạn.', 'info');
+            if (desc) {
+                desc.innerHTML = `Mã xác thực OTP gồm 6 số đã được gửi tự động đến email sinh viên <strong>${maskedEmail || ''}</strong>. Vui lòng kiểm tra hộp thư (cả thư rác nếu cần) và nhập mã:`;
+            }
+            if (btnRequestEmail) {
+                startResendCountdown(60);
+            }
+        } else {
+            statusBox('Tài khoản đã bật bảo mật 2 lớp. Vui lòng nhập mã để hoàn tất đăng nhập.', 'info');
+            if (desc) {
+                desc.innerHTML = 'Mở ứng dụng <strong>Google Authenticator</strong> trên điện thoại và nhập mã 6 số:';
+            }
+        }
+
+        if (codeInput) {
+            codeInput.value = '';
+            setTimeout(() => codeInput.focus(), 200);
+        }
+
+        async function submit2FaVerification() {
+            const rawCode = codeInput ? codeInput.value.trim() : '';
+            if (!rawCode) {
+                if (feedback) {
+                    feedback.textContent = 'Vui lòng nhập mã xác thực.';
+                    feedback.classList.remove('d-none');
+                }
+                return;
+            }
+
+            if (feedback) feedback.classList.add('d-none');
+            if (submit2faBtn) submit2faBtn.disabled = true;
+            if (spinner) spinner.classList.remove('d-none');
+            statusBox('Đang xác minh mã xác thực...', 'info');
+
+            try {
+                const response = await fetch('/api/auth/2fa/verify-login', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        twoFactorTicket: ticket,
+                        code: rawCode,
+                        isBackupCode: isBackupMode
+                    })
+                });
+
+                const verifyBody = await readJson(response);
+
+                if (response.ok && response.status === 200) {
+                    statusBox('Xác thực 2 lớp thành công! Đang chuyển hướng...', 'success');
+                    window.setTimeout(function () {
+                        window.location.href = '/feed';
+                    }, 300);
+                    return;
+                }
+
+                if (submit2faBtn) submit2faBtn.disabled = false;
+                if (spinner) spinner.classList.add('d-none');
+
+                const errMsg = (verifyBody && verifyBody.error && verifyBody.error.message) || 'Mã xác thực không chính xác hoặc đã hết hạn.';
+                if (feedback) {
+                    feedback.textContent = errMsg;
+                    feedback.classList.remove('d-none');
+                }
+                statusBox(errMsg, 'danger');
+                if (codeInput) {
+                    codeInput.value = '';
+                    codeInput.focus();
+                }
+            } catch (err) {
+                if (submit2faBtn) submit2faBtn.disabled = false;
+                if (spinner) spinner.classList.add('d-none');
+                statusBox('Lỗi kết nối máy chủ khi xác thực.', 'danger');
+            }
+        }
+
+        if (submit2faBtn) {
+            submit2faBtn.onclick = submit2FaVerification;
+        }
+
+        if (codeInput) {
+            codeInput.onkeydown = function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    submit2FaVerification();
+                }
+            };
+            codeInput.oninput = function () {
+                const val = codeInput.value.trim();
+                if (!isBackupMode && val.length === 6 && /^\d{6}$/.test(val)) {
+                    submit2FaVerification();
+                }
+            };
+        }
+
+        // Request Email Fallback
+        if (btnRequestEmail) {
+            btnRequestEmail.onclick = async function () {
+                btnRequestEmail.disabled = true;
+                btnRequestEmail.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang gửi OTP...';
+                try {
+                    const response = await fetch('/api/auth/2fa/send-email-fallback', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ twoFactorTicket: ticket })
+                    });
+                    if (response.ok) {
+                        statusBox('Đã gửi mã xác thực đến email ' + (maskedEmail || 'sinh viên') + '. Vui lòng kiểm tra hộp thư.', 'success');
+                        if (desc) desc.innerHTML = 'Đã gửi mã OTP qua email <strong>' + (maskedEmail || '') + '</strong>. Nhập mã 6 số để đăng nhập:';
+                        if (codeInput) {
+                            codeInput.value = '';
+                            codeInput.focus();
+                        }
+                        startResendCountdown(60);
+                    } else {
+                        statusBox('Không thể gửi mã qua email. Vui lòng thử lại sau.', 'warning');
+                        btnRequestEmail.disabled = false;
+                        btnRequestEmail.innerHTML = '<i class="bi bi-envelope me-1"></i>Gửi lại mã OTP qua Email sinh viên';
+                    }
+                } catch (e) {
+                    statusBox('Lỗi kết nối khi yêu cầu gửi email.', 'danger');
+                    btnRequestEmail.disabled = false;
+                    btnRequestEmail.innerHTML = '<i class="bi bi-envelope me-1"></i>Gửi lại mã OTP qua Email sinh viên';
+                }
+            };
+        }
+
+        // Toggle Backup Mode
+        if (btnToggleBackup) {
+            btnToggleBackup.onclick = function () {
+                isBackupMode = !isBackupMode;
+                if (isBackupMode) {
+                    if (label) label.textContent = 'Mã khôi phục dự phòng (8 ký tự)';
+                    if (desc) desc.textContent = 'Nhập 1 trong 8 mã dự phòng bạn đã lưu (ví dụ: XXXX-XXXX):';
+                    if (codeInput) {
+                        codeInput.placeholder = 'XXXX-XXXX';
+                        codeInput.maxLength = 10;
+                    }
+                    btnToggleBackup.innerHTML = '<i class="bi bi-phone me-1"></i>Quay lại nhập mã Authenticator 6 số';
+                } else {
+                    if (label) label.textContent = 'Mã bảo mật 6 số';
+                    if (desc) desc.textContent = 'Mở ứng dụng Google Authenticator trên điện thoại và nhập mã 6 số:';
+                    if (codeInput) {
+                        codeInput.placeholder = '------';
+                        codeInput.maxLength = 6;
+                    }
+                    btnToggleBackup.innerHTML = '<i class="bi bi-key me-1"></i>Sử dụng mã dự phòng (Backup Code)';
+                }
+                if (codeInput) {
+                    codeInput.value = '';
+                    codeInput.focus();
+                }
+            };
+        }
+
+        // Back to Credentials
+        if (btnBack) {
+            btnBack.onclick = function () {
+                twoFaSection.classList.add('d-none');
+                credsSection.classList.remove('d-none');
+                statusBox('', '');
+                const pw = document.getElementById('password');
+                if (pw) {
+                    pw.value = '';
+                    pw.focus();
+                }
+            };
         }
     }
 

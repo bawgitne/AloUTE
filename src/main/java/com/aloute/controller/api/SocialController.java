@@ -28,6 +28,17 @@ public class SocialController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/blocks")
+    public ApiResponse<java.util.List<com.aloute.dto.response.UserSummary>> getBlockedUsers(
+            @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
+        return socialService.blockedUsers(currentUserProvider.requireUserId(), pageable);
+    }
+
+    @PostMapping("/blocks/by-username/{username}")
+    public ApiResponse<SocialRelationResponse> blockByUsername(@PathVariable String username) {
+        return ApiResponse.success(socialService.blockByUsername(currentUserProvider.requireUserId(), username));
+    }
+
     @PutMapping("/blocks/{userId}")
     public ApiResponse<SocialRelationResponse> block(@PathVariable @Positive Long userId) {
         return ApiResponse.success(socialService.block(currentUserProvider.requireUserId(), userId));

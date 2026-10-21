@@ -39,6 +39,27 @@ public class JwtTokenProvider {
                 .issuedAt(Date.from(now)).expiration(Date.from(now.plusSeconds(expirationSeconds)))
                 .signWith(signingKey()).compact();
     }
+
+    public String generateTwoFactorTicket(Long userId, String type, long expirationSeconds) {
+        Instant now = Instant.now();
+        return Jwts.builder()
+                .subject(userId.toString())
+                .claim("purpose", "2FA_CHALLENGE")
+                .claim("type", type != null ? type : "TOTP")
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plusSeconds(expirationSeconds)))
+                .signWith(signingKey())
+                .compact();
+    }
+
+    public Claims parseTwoFactorTicket(String ticket) {
+        Claims claims = parseClaims(ticket);
+        if (!"2FA_CHALLENGE".equals(claims.get("purpose"))) {
+            throw new IllegalArgumentException("Invalid 2FA challenge ticket purpose");
+        }
+        return claims;
+    }
+
     public Claims parseClaims(String token) {
         return Jwts.parser().verifyWith(signingKey()).build().parseSignedClaims(token).getPayload();
     }

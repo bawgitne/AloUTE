@@ -18,7 +18,19 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import com.aloute.dto.request.ChangePasswordRequest;
+import com.aloute.entity.User;
+import com.aloute.security.jwt.JwtAuthenticationFilter;
+import com.aloute.security.jwt.JwtTokenProvider;
+import com.aloute.security.principal.UserPrincipal;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
+
+import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
@@ -30,6 +42,7 @@ public class UserController {
     private final PostService postService;
     private final SocialService socialService;
     private final CurrentUserProvider currentUserProvider;
+    private final JwtTokenProvider tokenProvider;
 
     @GetMapping("/{userId}")
     public ApiResponse<ProfileResponse> getProfile(@PathVariable @Positive Long userId) {
@@ -50,6 +63,62 @@ public class UserController {
     @RequestMapping(value = {"/me/profile", "/profile"}, method = {RequestMethod.PATCH, RequestMethod.PUT})
     public ApiResponse<ProfileResponse> update(@Valid @RequestBody UpdateProfileRequest request) {
         return ApiResponse.success(userService.updateCurrentProfile(currentUserProvider.requireUserId(), request));
+    }
+
+    @PostMapping({"/me/password", "/password"})
+    public ResponseEntity<ApiResponse<Map<String, String>>> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        Long currentUserId = currentUserProvider.requireUserId();
+        User user = userService.changePassword(currentUserId, request);
+        UserPrincipal principal = UserPrincipal.from(user);
+        String token = tokenProvider.generate(principal);
+        ResponseCookie cookie = authCookie(token, tokenProvider.expirationSeconds(), servletRequest.isSecure());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(ApiResponse.success(Map.of("message", "Đổi mật khẩu thành công.")));
+    }
+
+    @PostMapping("/me/sessions/logout-others")
+    public ResponseEntity<ApiResponse<Map<String, String>>> logoutOtherSessions(HttpServletRequest servletRequest) {
+        Long currentUserId = currentUserProvider.requireUserId();
+        User user = userService.logoutOtherSessions(currentUserId);
+        UserPrincipal principal = UserPrincipal.from(user);
+        String token = tokenProvider.generate(principal);
+        ResponseCookie cookie = authCookie(token, tokenProvider.expirationSeconds(), servletRequest.isSecure());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(ApiResponse.success(Map.of("message", "Đã đăng xuất khỏi tất cả các thiết bị khác thành công.")));
+    }
+
+    @PostMapping("/me/deactivate")
+    public ResponseEntity<ApiResponse<Map<String, String>>> deactivateAccount(
+            @Valid @RequestBody com.aloute.dto.request.DeactivateAccountRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        Long currentUserId = currentUserProvider.requireUserId();
+        userService.deactivateAccount(currentUserId, request.password());
+        ResponseCookie clearCookie = authCookie("", 0, servletRequest.isSecure());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, clearCookie.toString())
+                .body(ApiResponse.success(Map.of("message", "Tài khoản của bạn đã được vô hiệu hóa tạm thời.")));
+    }
+
+    @GetMapping("/me/notifications/settings")
+    public ApiResponse<com.aloute.dto.response.NotificationSettingsResponse> getNotificationSettings() {
+        return ApiResponse.success(userService.getNotificationSettings(currentUserProvider.requireUserId()));
+    }
+
+    @PutMapping("/me/notifications/settings")
+    public ApiResponse<com.aloute.dto.response.NotificationSettingsResponse> updateNotificationSettings(
+            @Valid @RequestBody com.aloute.dto.request.UpdateNotificationSettingsRequest request) {
+        return ApiResponse.success(userService.updateNotificationSettings(currentUserProvider.requireUserId(), request));
+    }
+
+    private ResponseCookie authCookie(String value, long maxAgeSeconds, boolean secure) {
+        return ResponseCookie.from(JwtAuthenticationFilter.COOKIE_NAME, value).httpOnly(true).secure(secure)
+                .sameSite("Lax").path("/").maxAge(Duration.ofSeconds(maxAgeSeconds)).build();
     }
 
     @GetMapping("/{userId}/posts")
