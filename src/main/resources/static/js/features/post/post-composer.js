@@ -176,9 +176,12 @@
                 if (files.length === 0) return;
 
                 for (const file of files) {
-                    if (file.size > 5 * 1024 * 1024) {
+                    const isVideo = file.type && file.type.startsWith('video/');
+                    const maxBytes = isVideo ? 30 * 1024 * 1024 : 5 * 1024 * 1024;
+                    const limitLabel = isVideo ? '30MB' : '5MB';
+                    if (file.size > maxBytes) {
                         if (mediaStatusBox) {
-                            mediaStatusBox.textContent = 'Tệp "' + file.name + '" vượt quá giới hạn 5MB cho phép.';
+                            mediaStatusBox.textContent = 'Tệp "' + file.name + '" vượt quá giới hạn ' + limitLabel + ' cho phép.';
                             mediaStatusBox.classList.remove('d-none');
                         }
                         continue;
@@ -190,11 +193,20 @@
                     previewCard.style.width = '96px';
                     previewCard.style.height = '96px';
 
-                    const img = document.createElement('img');
-                    img.src = URL.createObjectURL(file);
-                    img.alt = file.name;
-                    img.className = 'w-100 h-100 object-fit-cover';
-                    previewCard.appendChild(img);
+                    let previewMedia;
+                    if (isVideo) {
+                        previewMedia = document.createElement('video');
+                        previewMedia.src = URL.createObjectURL(file);
+                        previewMedia.className = 'w-100 h-100 object-fit-cover';
+                        previewMedia.muted = true;
+                        previewMedia.playsInline = true;
+                    } else {
+                        previewMedia = document.createElement('img');
+                        previewMedia.src = URL.createObjectURL(file);
+                        previewMedia.alt = file.name;
+                        previewMedia.className = 'w-100 h-100 object-fit-cover';
+                    }
+                    previewCard.appendChild(previewMedia);
 
                     const overlay = document.createElement('div');
                     overlay.className = 'position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-50 text-white';
@@ -235,7 +247,7 @@
                                 removeBtn.style.width = '22px';
                                 removeBtn.style.height = '22px';
                                 removeBtn.innerHTML = '<i class="bi bi-x small" aria-hidden="true"></i>';
-                                removeBtn.title = 'Xóa ảnh';
+                                removeBtn.title = isVideo ? 'Xóa video' : 'Xóa ảnh';
 
                                 removeBtn.addEventListener('click', async function (e) {
                                     e.preventDefault();
