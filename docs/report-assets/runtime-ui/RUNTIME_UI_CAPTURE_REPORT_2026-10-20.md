@@ -135,15 +135,16 @@ Phần trên giữ nguyên đúng như lần ghi nhận 2026-10-20, kể cả m�
 
 | Mục | Giá trị |
 | :--- | :--- |
-| PR | #47 `fix(view): remove missing u.bio from friends.html and add render tests` |
-| Trạng thái PR tại thời điểm chụp | **OPEN — chưa hợp nhất** |
-| Commit runtime | `936b68542b0b94134fc4606b9bd31980c03ae114` |
-| Nhánh nguồn | `codex/friends-render-remediation-20261021` |
-| `origin/master` tham chiếu | `e46b920` (chưa chứa bản vá) |
+| PR nguồn | #47 `fix(view): remove missing u.bio from friends.html and add render tests` |
+| Trạng thái PR lúc bắt đầu chụp | OPEN — chưa hợp nhất |
+| Trạng thái PR lúc kết thúc | **MERGED** lúc `2026-10-21T00:51:52Z`, merge commit `55e9369` |
+| Commit runtime dùng cho toàn bộ ảnh | **`6be8a78767a289bc181f3f88a4dbbf832f3a0755` (`master`, đã chứa bản vá)** |
 
-PR vẫn mở nên các ảnh dưới đây **là ảnh trên bản vá ứng viên, không phải ảnh của `master` hiện tại**. Runtime dựng trong worktree tách rời `D:/PROJECT/cnpm-project/AloUTE-pr47-runtime`, HEAD detach đúng SHA trên, không trộn với nhánh chụp ảnh.
+Ban đầu runtime dựng ở worktree tách rời trên đúng head PR `936b685`. Trong lúc chụp, PR #47 được hợp nhất vào `master`, nên toàn bộ chín ảnh được **dựng lại và chụp lại trên `master` mới** (`6be8a78`) để ảnh phản ánh mã đã hợp nhất thay vì bản vá ứng viên.
 
-Cấu hình chạy giống lần trước: profile `dev`, H2 in-memory, cổng `8099`, JAR đóng từ chính commit đó.
+`master` tại thời điểm chụp còn hai lần hợp nhất không liên quan (upload limits, vòng đời token đặt lại mật khẩu); cả hai không đụng tới các màn hình trong bộ ảnh này.
+
+Cấu hình chạy: profile `dev`, H2 in-memory, cổng `8099`, JAR đóng từ chính commit `6be8a78`. Nhánh chụp ảnh vẫn tách rời runtime.
 
 ## 10. Kết quả kiểm thử trình duyệt
 
