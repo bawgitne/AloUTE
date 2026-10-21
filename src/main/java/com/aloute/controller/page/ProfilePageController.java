@@ -24,6 +24,7 @@ public class ProfilePageController {
 
     private final UserService userService;
     private final PostService postService;
+    private final com.aloute.service.SocialService socialService;
     private final CurrentUserProvider currentUserProvider;
 
     @GetMapping("/profile")
@@ -112,6 +113,22 @@ public class ProfilePageController {
             }
         }
 
+        boolean isBlocked = false;
+        boolean isMuted = false;
+        boolean isRestricted = false;
+        boolean isFollowing = false;
+        if (currentUserId != null && targetProfile != null && !isSelf) {
+            try {
+                var rel = socialService.getRelationStatus(currentUserId, targetProfile.id());
+                isBlocked = rel.blocked();
+                isMuted = rel.muted();
+                isRestricted = rel.restricted();
+                isFollowing = rel.following();
+            } catch (Exception e) {
+                log.warn("Failed to check social relation status between user {} and target {}: {}", currentUserId, targetProfile.id(), e.getMessage());
+            }
+        }
+
         model.addAttribute("profile", targetProfile);
         model.addAttribute("targetUser", targetProfile);
         model.addAttribute("currentUser", currentUser);
@@ -123,6 +140,10 @@ public class ProfilePageController {
         model.addAttribute("savedPostsError", savedPostsError);
         model.addAttribute("pageMeta", pageMeta);
         model.addAttribute("isSelf", isSelf);
+        model.addAttribute("isBlocked", isBlocked);
+        model.addAttribute("isMuted", isMuted);
+        model.addAttribute("isRestricted", isRestricted);
+        model.addAttribute("isFollowing", isFollowing);
         model.addAttribute("currentTab", tab);
         model.addAttribute("activeNav", "profile");
         model.addAttribute("activeTab", "profile");

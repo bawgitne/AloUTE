@@ -549,6 +549,24 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/social/relations/{userId}:
+    get:
+      tags: [Social]
+      summary: Get social relationship status between current user and target user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Relationship status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRelationStatusEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/social/blocks/{userId}:
     put:
       tags: [Social]
@@ -3182,6 +3200,31 @@ components:
           format: int64
         active:
           type: boolean
+
+    UserRelationStatusResponse:
+      type: object
+      required: [targetUserId, following, blocked, muted, restricted]
+      properties:
+        targetUserId:
+          type: integer
+          format: int64
+        following:
+          type: boolean
+        blocked:
+          type: boolean
+        muted:
+          type: boolean
+        restricted:
+          type: boolean
+
+    UserRelationStatusEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccess'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/UserRelationStatusResponse'
 
     PostInteractionResponse:
       type: object

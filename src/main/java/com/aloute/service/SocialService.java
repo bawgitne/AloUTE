@@ -2,6 +2,7 @@ package com.aloute.service;
 
 import com.aloute.common.api.ApiResponse;
 import com.aloute.dto.response.SocialRelationResponse;
+import com.aloute.dto.response.UserRelationStatusResponse;
 import com.aloute.dto.response.UserSummary;
 import org.springframework.data.domain.Pageable;
 import java.util.List;
@@ -24,4 +25,6 @@ public interface SocialService {
 
     SocialRelationResponse restrict(Long currentUserId, Long targetUserId);
     void unrestrict(Long currentUserId, Long targetUserId);
+
+    UserRelationStatusResponse getRelationStatus(Long currentUserId, Long targetUserId);
 }
