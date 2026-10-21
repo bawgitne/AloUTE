@@ -2,7 +2,7 @@
 
 Tệp này cung cấp chú thích tiếng Việt cho từng ảnh chụp giao diện thực tế. Các vị trí "Hình X.X" là chỗ trống, cần đánh số lại theo trình tự chương/mục của báo cáo Word cuối cùng.
 
-Thứ tự ảnh dưới đây bám theo danh mục màn hình trong wireframe Tuần 1, phục vụ mục "Giao diện hệ thống" của báo cáo.
+Thứ tự ảnh dưới đây bám theo danh mục màn hình trong wireframe Tuần 1, phục vụ mục "Giao diện hệ thống" của báo cáo. Mục cuối gồm ảnh bổ sung ngày 2026-10-21, chụp trên bản vá PR #47.
 
 ---
 
@@ -135,8 +135,61 @@ Trang tập hợp các bài viết người dùng đã đánh dấu lưu để x
 
 ---
 
+## Bổ sung ngày 2026-10-21 — ảnh chụp lại sau khi vá lỗi
+
+Phần này bổ sung ảnh cho các màn hình trước đây thiếu hoặc lỗi. Ảnh được chụp trên mã nguồn của **PR #47** (commit `936b68542b0b94134fc4606b9bd31980c03ae114`, chưa hợp nhất vào `master` tại thời điểm chụp), nên khi chèn vào báo cáo cần ghi rõ nguồn là bản vá ứng viên.
+
+**`14-friends-following.png`**
+
+Hình X.X. Trang Bạn bè & Kết nối — tab Đang theo dõi.
+Danh sách hiển thị đầy đủ từng người đang theo dõi kèm ảnh đại diện, tên hiển thị, tên tài khoản và nút Xem hồ sơ. Trang render trọn vẹn sau khi bỏ biểu thức `u.bio` sai trong mẫu.
+
+**`14-friends-followers.png`**
+
+Hình X.X. Trang Bạn bè & Kết nối — tab Người theo dõi.
+Danh sách hiển thị những người đang theo dõi tài khoản hiện tại, cùng bố cục thẻ và nút Xem hồ sơ như tab Đang theo dõi.
+
+**`14-friends-empty.png`**
+
+Hình X.X. Trạng thái rỗng của tab Đang theo dõi.
+Tài khoản chưa theo dõi ai nên trang hiển thị khối thông báo "Chưa theo dõi người dùng nào" kèm gợi ý khám phá thành viên và nút Tìm bạn mới.
+
+**`14-friends-empty-followers.png`**
+
+Hình X.X. Trạng thái rỗng của tab Người theo dõi.
+Khi chưa có ai theo dõi, trang hiển thị thông báo "Chưa có người theo dõi" thay cho danh sách thẻ.
+
+**`13-admin-reports-populated.png`**
+
+Hình X.X. Hàng đợi báo cáo vi phạm có dữ liệu thật.
+Bảng liệt kê ba báo cáo do quản trị viên gửi qua API thật, gồm mã báo cáo, đối tượng bị báo cáo (bài viết hoặc người dùng), người gửi, lý do, mô tả, trạng thái "Chờ xử lý" và các nút Xem, Nhận.
+
+**`16-settings.png`**
+
+Hình X.X. Trang cài đặt tài khoản.
+Bốn nhóm thiết lập hiện có: Hồ sơ cá nhân, Giao diện sinh viên, Thông báo và Bảo mật & Phiên đăng nhập, mỗi nhóm kèm nút dẫn tới màn hình tương ứng.
+
+**`17-forgot-password.png`**
+
+Hình X.X. Biểu mẫu yêu cầu đặt lại mật khẩu.
+Người dùng nhập email trường để nhận liên kết đặt lại mật khẩu; thông báo bảo mật cho biết phản hồi luôn giống nhau dù email tồn tại hay không.
+
+**`18-verify-otp.png`**
+
+Hình X.X. Biểu mẫu xác thực tài khoản bằng mã OTP.
+Email đã được che bớt, người dùng nhập mã sáu chữ số và có nút gửi lại mã khi cần.
+
+**`19-reset-password.png`**
+
+Hình X.X. Biểu mẫu đặt mật khẩu mới.
+Hai ô mật khẩu mới và xác nhận mật khẩu; mã đặt lại đã được nạp sẵn từ liên kết trong email nên biểu mẫu ở trạng thái sẵn sàng gửi.
+
+---
+
 ## Lưu ý khi chèn ảnh
 
 - Đặt ảnh cùng cỡ 1440×900 để bố cục báo cáo đồng đều; ảnh toàn trang (các tệp `-b`) nên thu nhỏ theo bề rộng trang giấy để không tràn lề.
 - Ảnh `14-friends-broken.png` nên đặt cạnh một đoạn mô tả lỗi, vì bản thân ảnh thể hiện trạng thái chưa hoàn chỉnh.
-- Không chèn `13-admin-reports.png` như minh chứng có dữ liệu, vì hàng đợi trong ảnh đang rỗng.
+- Không chèn `13-admin-reports.png` như minh chứng có dữ liệu, vì hàng đợi trong ảnh đang rỗng; dùng `13-admin-reports-populated.png` khi cần ảnh có dữ liệu.
+- Với màn hình bạn bè, dùng `14-friends-following.png` và `14-friends-followers.png` làm ảnh minh họa chính. Chỉ giữ `14-friends-broken.png` nếu báo cáo có mục riêng kể lại lỗi và cách khắc phục.
+
