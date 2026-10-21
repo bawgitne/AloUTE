@@ -42,47 +42,47 @@
                                 <i class="bi bi-lock-fill me-1" aria-hidden="true"></i>Riêng tư
                             </span>
                         </div>
-                        <p class="text-muted mb-1 small text-truncate"
+                        <p class="text-muted mb-0 small text-truncate"
                            id="profile-username"
-                           th:text="'@' + ${profile?.username ?: 'sinhvien'}">@sinhvien</p>
-                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle small py-1 px-2">Sinh viên HCMUTE</span>
+                           th:text="'@' + ${profile?.username ?: 'user'}">@user</p>
                     </div>
                 </div>
 
                 <!-- Profile Actions: Derived from actual currentUser.id and profile.id -->
-                <div class="profile-actions d-flex gap-2 flex-wrap align-items-center">
+                <div class="profile-actions d-flex align-items-center gap-2">
                     <!-- Edit Profile (Owner only: currentUser.id == profile.id) -->
                     <button th:if="${currentUser != null and profile != null and currentUser.id == profile.id}"
                             type="button"
-                            class="btn btn-sm btn-outline-secondary aloute-action-btn"
+                            class="btn profile-action-btn-main profile-btn-following"
                             id="btn-edit-profile"
                             data-action="edit-profile"
                             data-bs-toggle="modal"
                             data-bs-target="#editProfileModal">
-                        <i class="bi bi-pencil me-1" aria-hidden="true"></i>
+                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
                         <span>Chỉnh sửa hồ sơ</span>
                     </button>
 
-                    <!-- Follow Button (Other user: currentUser.id != profile.id; stable >=44px touch target) -->
+                    <!-- Follow Button (Other user: currentUser.id != profile.id) -->
                     <button th:if="${currentUser != null and profile != null and currentUser.id != profile.id}"
                             type="button"
-                            class="btn btn-sm btn-primary aloute-follow-btn"
+                            class="btn profile-action-btn-main aloute-follow-btn"
+                            th:classappend="${isFollowing} ? 'profile-btn-following' : 'profile-btn-follow'"
                             id="btn-follow"
                             data-action="toggle-follow"
                             th:attr="data-user-id=${profile.id}, data-current-user-id=${currentUser.id}, data-following=${isFollowing}"
                             th:aria-pressed="${isFollowing} ? 'true' : 'false'">
-                        <i class="bi" th:classappend="${isFollowing} ? 'bi-person-check me-1' : 'bi-person-plus me-1'"></i>
+                        <i class="bi" th:classappend="${isFollowing} ? 'bi-person-check-fill' : 'bi-person-plus-fill'"></i>
                         <span th:text="${isFollowing} ? 'Đang theo dõi' : 'Theo dõi'">Theo dõi</span>
                     </button>
 
-                    <!-- Direct Message Button (Other user: currentUser.id != profile.id; initiates direct conversation via REST) -->
+                    <!-- Direct Message Button (Other user: currentUser.id != profile.id) -->
                     <button th:if="${currentUser != null and profile != null and currentUser.id != profile.id}"
                             type="button"
-                            class="btn btn-sm btn-outline-primary aloute-action-btn"
+                            class="btn profile-action-btn-main profile-btn-message"
                             id="btn-direct-message"
                             data-action="create-direct-conversation"
                             th:attr="data-target-user-id=${profile.id}, data-username=${profile.username}">
-                        <i class="bi bi-chat-dots me-1" aria-hidden="true"></i>
+                        <i class="bi bi-chat-dots-fill text-primary" aria-hidden="true"></i>
                         <span>Nhắn tin</span>
                     </button>
 
@@ -90,7 +90,7 @@
                     <div th:if="${currentUser != null and profile != null and currentUser.id != profile.id}"
                          class="dropdown d-inline-block"
                          id="profile-more-dropdown-container">
-                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle aloute-action-btn px-2"
+                        <button class="btn profile-btn-more"
                                 type="button"
                                 id="dropdownProfileMore"
                                 data-bs-toggle="dropdown"
@@ -98,15 +98,15 @@
                                 title="Tùy chọn khác">
                             <i class="bi bi-three-dots" aria-hidden="true"></i>
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 py-2" aria-labelledby="dropdownProfileMore" style="min-width: 220px;">
+                        <ul class="dropdown-menu dropdown-menu-end profile-dropdown-menu" aria-labelledby="dropdownProfileMore">
                             <!-- Mute User -->
                             <li>
-                                <button class="dropdown-item d-flex align-items-center py-2 px-3"
+                                <button class="dropdown-item d-flex align-items-center"
                                         type="button"
                                         id="btn-profile-toggle-mute"
                                         data-action="toggle-mute-user"
                                         th:attr="data-user-id=${profile.id}, data-username=${profile.username}, data-muted=${isMuted}">
-                                    <i class="bi me-2 text-secondary" id="icon-profile-mute" th:classappend="${isMuted} ? 'bi-bell text-primary' : 'bi-bell-slash'"></i>
+                                    <i class="bi me-2.5 fs-6" id="icon-profile-mute" th:classappend="${isMuted} ? 'bi-bell text-primary' : 'bi-bell-slash text-secondary'"></i>
                                     <span id="text-profile-mute" th:text="${isMuted} ? 'Bật lại thông báo' : 'Tắt thông báo'">Tắt thông báo</span>
                                 </button>
                             </li>
@@ -323,7 +323,7 @@
                     </div>
 
                     <div th:if="${pageMeta != null}">
-                        <div th:replace="~{fragments/pagination :: pagination(pageMeta=${pageMeta}, baseUrl=${profile != null and profile.id != null ? '/users/' + profile.id : '#'})}"></div>
+                        <div th:replace="~{fragments/pagination :: pagination(pageMeta=${pageMeta}, baseUrl=${profile != null and profile.username != null ? '/users/' + profile.username : (profile != null and profile.id != null ? '/users/' + profile.id : '#')})}"></div>
                     </div>
                 </div>
             </section>

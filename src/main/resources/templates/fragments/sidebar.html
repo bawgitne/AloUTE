@@ -4,7 +4,7 @@
 <div th:fragment="sidebar" class="sidebar-wrapper">
     <!-- User Profile Summary (Authenticated) -->
     <div th:if="${currentUser != null}" class="aloute-card p-3 mb-3">
-        <a th:href="${currentUser?.id != null} ? @{/users/{id}(id=${currentUser.id})} : '#'"
+        <a th:href="${currentUser?.username != null} ? @{/users/{u}(u=${currentUser.username})} : (${currentUser?.id != null} ? @{/users/{id}(id=${currentUser.id})} : '#')"
            data-page="user-profile"
            data-action="navigate-profile"
            class="d-flex align-items-center gap-3 text-decoration-none text-reset">
@@ -18,7 +18,7 @@
                 <h2 class="sidebar-user-name text-truncate fs-6 mb-0"
                     th:text="${currentUser?.displayName ?: (currentUser?.username ?: 'Sinh viên')}">Tên sinh viên</h2>
                 <p class="sidebar-user-handle text-truncate mb-1 small text-muted"
-                   th:text="'@' + ${currentUser?.username ?: 'sinhvien'}">@sinhvien</p>
+                    th:text="'@' + ${currentUser?.username ?: 'sinhvien'}">@sinhvien</p>
                 <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle small py-0 px-2">UTE Member</span>
             </div>
         </a>
@@ -46,8 +46,8 @@
                     </a>
                 </li>
                 <li>
-                    <!-- Canonical /users/{id} route if user authenticated, else fallback -->
-                    <a th:href="${currentUser != null and currentUser.id != null} ? @{/users/{id}(id=${currentUser.id})} : '#'"
+                    <!-- Canonical /users/{username} profile route if user authenticated, else fallback -->
+                    <a th:href="${currentUser != null and currentUser.username != null} ? @{/users/{u}(u=${currentUser.username})} : (${currentUser != null and currentUser.id != null} ? @{/users/{id}(id=${currentUser.id})} : '#')"
                        data-page="user-profile"
                        data-action="navigate-profile"
                        class="sidebar-nav-link"

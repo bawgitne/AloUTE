@@ -50,6 +50,10 @@ public class TopicPageController {
         try {
             if (identifier.matches("\\d+")) {
                 topic = topicService.get(Long.parseLong(identifier));
+                if (topic != null && topic.slug() != null && !topic.slug().isBlank()) {
+                    String query = (page > 0 || size != 20) ? "?page=" + page + "&size=" + size : "";
+                    return "redirect:/topics/" + topic.slug() + query;
+                }
             } else {
                 topic = topicService.getByName(identifier);
             }

@@ -127,7 +127,7 @@
             <div th:if="${communities != null and !communities.isEmpty()}" class="row g-3">
                 <div class="col-12 col-md-6" th:each="comm : ${communities}">
                     <div class="aloute-card h-100 p-3 d-flex flex-column">
-                        <a th:href="@{'/communities/' + ${comm.id}}" class="d-flex align-items-center gap-3 text-decoration-none text-reset mb-2">
+                        <a th:href="@{'/communities/' + ${comm.slug != null ? comm.slug : comm.id}}" class="d-flex align-items-center gap-3 text-decoration-none text-reset mb-2">
                             <img th:src="${comm.avatarUrl != null and !comm.avatarUrl.isEmpty()} ? ${comm.avatarUrl} : @{/images/avatar-fallback.svg}"
                                  src="/images/avatar-fallback.svg"
                                  class="avatar-img rounded-3 flex-shrink-0"
@@ -146,7 +146,7 @@
                                 <i class="bi bi-people me-1" aria-hidden="true"></i>
                                 <strong class="text-dark" th:text="${comm.memberCount != null ? comm.memberCount : 0}">0</strong> thành viên
                             </span>
-                            <a th:href="@{'/communities/' + ${comm.id}}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                            <a th:href="@{'/communities/' + ${comm.slug != null ? comm.slug : comm.id}}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
                                 Khám phá
                             </a>
                         </div>
@@ -207,7 +207,7 @@
             <div th:if="${topics != null and !topics.isEmpty()}" class="aloute-card p-3">
                 <div class="d-flex flex-wrap gap-2">
                     <a th:each="t : ${topics}"
-                       th:href="@{'/topics/' + ${t.id}}"
+                       th:href="@{'/topics/' + ${t.slug != null ? t.slug : t.id}}"
                        class="btn btn-sm btn-light border rounded-pill d-inline-flex align-items-center gap-1 text-decoration-none py-1 px-3">
                         <i class="bi bi-hash text-primary" aria-hidden="true"></i>
                         <span class="fw-semibold text-dark" th:text="${t.name}">tên</span>
@@ -264,7 +264,7 @@
 
             <div th:if="${people != null and !people.isEmpty()}" class="d-flex flex-column gap-2">
                 <div th:each="userItem : ${people}" class="aloute-card p-3 d-flex justify-content-between align-items-center">
-                    <a th:href="@{'/users/' + ${userItem.id}}" class="d-flex align-items-center gap-3 text-decoration-none text-reset">
+                    <a th:href="@{'/users/' + ${userItem.username != null ? userItem.username : userItem.id}}" class="d-flex align-items-center gap-3 text-decoration-none text-reset">
                         <img th:src="${userItem.avatarUrl != null and !userItem.avatarUrl.isEmpty()} ? ${userItem.avatarUrl} : @{/images/avatar-fallback.svg}"
                              src="/images/avatar-fallback.svg"
                              class="avatar-img rounded-circle flex-shrink-0"
@@ -274,10 +274,9 @@
                         <div class="aloute-min-w-0">
                             <h3 class="fs-6 fw-bold mb-0 text-dark text-truncate" th:text="${userItem.displayName ?: userItem.username}">Tên</h3>
                             <small class="text-muted d-block text-truncate" th:text="'@' + ${userItem.username}">@user</small>
-                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle small py-0 px-2 mt-1">Sinh viên HCMUTE</span>
                         </div>
                     </a>
-                    <a th:href="@{'/users/' + ${userItem.id}}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                    <a th:href="@{'/users/' + ${userItem.username != null ? userItem.username : userItem.id}}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
                         Xem hồ sơ
                     </a>
                 </div>

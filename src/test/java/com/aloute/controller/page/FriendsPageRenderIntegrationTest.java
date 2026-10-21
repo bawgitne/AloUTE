@@ -110,10 +110,10 @@ class FriendsPageRenderIntegrationTest {
 
         assertThat(html).contains("Nguyễn Văn Sinh Viên");
         assertThat(html).contains("@sinhvien_ute");
-        assertThat(html).contains("/users/10");
+        assertThat(html).contains("/users/sinhvien_ute");
         assertThat(html).contains("Trần Thị B");
         assertThat(html).contains("@tran_thi_b");
-        assertThat(html).contains("/users/11");
+        assertThat(html).contains("/users/tran_thi_b");
         assertThat(html).contains("Xem hồ sơ");
         assertThat(html).contains("</html>");
     }
@@ -133,7 +133,7 @@ class FriendsPageRenderIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Following User")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("@following_user")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("/users/20")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/users/following_user")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("</html>")));
 
         UserSummary followerUser = new UserSummary(21L, "follower_user", "Follower User", null, false);
@@ -144,7 +144,7 @@ class FriendsPageRenderIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Follower User")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("@follower_user")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("/users/21")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/users/follower_user")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("</html>")));
     }
 }
