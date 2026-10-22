@@ -42,6 +42,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
+import org.awaitility.Awaitility;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -144,6 +145,76 @@ class StompRealtimeMessagingIntegrationTest {
             Thread.sleep(10);
         }
         throw new AssertionError("Timed out waiting for broker message subscription: user=" + userId);
+    }
+
+    private record CorrelationEvidence(
+            String clientSession1,
+            String clientSession2,
+            String serverSession1,
+            String serverSession2,
+            String subId1,
+            String subId2,
+            java.util.Set<String> targetDestinations
+    ) {}
+
+    private CorrelationEvidence waitForDistinctSessionSubscriptions(
+            Long userId,
+            String destinationQueue,
+            String subIdA,
+            String subIdB,
+            StompSession clientSessionA,
+            StompSession clientSessionB) {
+        java.util.concurrent.atomic.AtomicReference<CorrelationEvidence> evidenceRef = new java.util.concurrent.atomic.AtomicReference<>();
+        Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .pollInterval(10, TimeUnit.MILLISECONDS)
+                .until(() -> {
+                    var userMessage = MessageBuilder.withPayload(new byte[0])
+                            .setHeader(SimpMessageHeaderAccessor.MESSAGE_TYPE_HEADER, SimpMessageType.MESSAGE)
+                            .setHeader(SimpMessageHeaderAccessor.DESTINATION_HEADER, "/user/" + userId + destinationQueue)
+                            .build();
+                    var resolved = userDestinationResolver.resolveDestination(userMessage);
+                    if (resolved == null || resolved.getTargetDestinations().isEmpty()) {
+                        return false;
+                    }
+                    String serverSessionA = null;
+                    String serverSessionB = null;
+                    for (String targetDest : resolved.getTargetDestinations()) {
+                        var brokerMessage = MessageBuilder.fromMessage(userMessage)
+                                .setHeader(SimpMessageHeaderAccessor.DESTINATION_HEADER, targetDest)
+                                .build();
+                        var subs = simpleBrokerMessageHandler.getSubscriptionRegistry().findSubscriptions(brokerMessage);
+                        for (Map.Entry<String, List<String>> entry : subs.entrySet()) {
+                            if (entry.getValue().contains(subIdA)) {
+                                serverSessionA = entry.getKey();
+                            }
+                            if (entry.getValue().contains(subIdB)) {
+                                serverSessionB = entry.getKey();
+                            }
+                        }
+                    }
+                    if (serverSessionA != null && serverSessionB != null && !serverSessionA.equals(serverSessionB)) {
+                        evidenceRef.set(new CorrelationEvidence(
+                                clientSessionA.getSessionId(),
+                                clientSessionB.getSessionId(),
+                                serverSessionA,
+                                serverSessionB,
+                                subIdA,
+                                subIdB,
+                                resolved.getTargetDestinations()
+                        ));
+                        return true;
+                    }
+                    return false;
+                });
+
+        CorrelationEvidence evidence = evidenceRef.get();
+        assertThat(evidence).as("Correlation evidence must be captured").isNotNull();
+        assertThat(evidence.serverSession1()).as("Server sessions must be distinct").isNotEqualTo(evidence.serverSession2());
+        assertThat(evidence.clientSession1()).as("Client UUID must not match server session ID").isNotEqualTo(evidence.serverSession1());
+        assertThat(evidence.clientSession2()).as("Client UUID must not match server session ID").isNotEqualTo(evidence.serverSession2());
+        System.out.println("[CORRELATION EVIDENCE] clientSession1=" + evidence.clientSession1() + ", clientSession2=" + evidence.clientSession2() + ", serverSession1=" + evidence.serverSession1() + ", serverSession2=" + evidence.serverSession2() + ", subId1=" + evidence.subId1() + ", subId2=" + evidence.subId2() + ", targetDestinations=" + evidence.targetDestinations());
+        return evidence;
     }
 
     private User createUser(String username, String email) {
@@ -682,17 +753,28 @@ class StompRealtimeMessagingIntegrationTest {
         StompSession aliceSession2 = connectBearerStompClient(aliceToken2, null);
         StompSession bobSession = connectBearerStompClient(bobToken, null);
 
+        String aliceSubId1 = "alice-sub1-" + System.currentTimeMillis();
+        String aliceSubId2 = "alice-sub2-" + (System.currentTimeMillis() + 1);
+
         BlockingQueue<MessageResponse> session1Messages = new LinkedBlockingQueue<>();
-        aliceSession1.subscribe("/user/queue/messages", new StompFrameHandler() {
+        StompHeaders h1 = new StompHeaders();
+        h1.setDestination("/user/queue/messages");
+        h1.setId(aliceSubId1);
+        StompSession.Subscription sub1 = aliceSession1.subscribe(h1, new StompFrameHandler() {
             @Override public Type getPayloadType(StompHeaders headers) { return MessageResponse.class; }
             @Override public void handleFrame(StompHeaders headers, Object payload) { session1Messages.add((MessageResponse) payload); }
         });
+        assertThat(sub1.getSubscriptionId()).isEqualTo(aliceSubId1);
 
         BlockingQueue<MessageResponse> session2Messages = new LinkedBlockingQueue<>();
-        aliceSession2.subscribe("/user/queue/messages", new StompFrameHandler() {
+        StompHeaders h2 = new StompHeaders();
+        h2.setDestination("/user/queue/messages");
+        h2.setId(aliceSubId2);
+        StompSession.Subscription sub2 = aliceSession2.subscribe(h2, new StompFrameHandler() {
             @Override public Type getPayloadType(StompHeaders headers) { return MessageResponse.class; }
             @Override public void handleFrame(StompHeaders headers, Object payload) { session2Messages.add((MessageResponse) payload); }
         });
+        assertThat(sub2.getSubscriptionId()).isEqualTo(aliceSubId2);
 
         BlockingQueue<Object> bobTypingQueue = new LinkedBlockingQueue<>();
         bobSession.subscribe("/user/queue/typing", new StompFrameHandler() {
@@ -705,6 +787,10 @@ class StompRealtimeMessagingIntegrationTest {
             @Override public Type getPayloadType(StompHeaders headers) { return Map.class; }
             @Override public void handleFrame(StompHeaders headers, Object payload) { bobReadQueue.add(payload); }
         });
+
+        CorrelationEvidence evidence = waitForDistinctSessionSubscriptions(
+                alice.getId(), "/queue/messages", aliceSubId1, aliceSubId2, aliceSession1, aliceSession2);
+        assertThat(evidence).isNotNull();
 
         SendMessageRequest preMsg = new SendMessageRequest();
         preMsg.setContent("Preflight test message");
