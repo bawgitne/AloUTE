@@ -2,8 +2,12 @@ package com.aloute.controller.page;
 
 import com.aloute.common.api.ApiResponse;
 import com.aloute.common.api.PageMeta;
+import com.aloute.dto.response.PostCapabilitiesResponse;
 import com.aloute.dto.response.PostResponse;
+import com.aloute.dto.response.PostViewerStateResponse;
+import com.aloute.dto.response.UserSummary;
 import com.aloute.dto.response.ProfileResponse;
+import com.aloute.entity.PostVisibility;
 import com.aloute.security.currentuser.CurrentUserProvider;
 import com.aloute.service.PostService;
 import com.aloute.service.UserService;
@@ -27,7 +31,9 @@ import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 import org.thymeleaf.web.IWebExchange;
 import org.thymeleaf.web.servlet.JakartaServletWebApplication;
 
+import java.time.Instant;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -458,6 +464,167 @@ class FeedPageControllerTest {
         List<PostResponse> posts1 = (List<PostResponse>) res1.getModelAndView().getModel().get("posts");
         assertThat(posts1.get(0)).isSameAs(postB);
         assertThat(posts0.get(0)).isNotSameAs(posts1.get(0));
+    }
+
+    private PostResponse createSamplePost(Long id, String content, Instant createdAt) {
+        UserSummary author = new UserSummary(10L, "sinhvien_ute", "Nguyễn Văn Sinh Viên", "/images/avatar-fallback.svg", true);
+        PostCapabilitiesResponse capabilities = new PostCapabilitiesResponse(true, true, true, true);
+        PostViewerStateResponse viewerState = new PostViewerStateResponse(false, false, false);
+        return new PostResponse(
+                id,
+                author,
+                content,
+                null,
+                null,
+                null,
+                PostVisibility.PUBLIC,
+                true,
+                true,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                null,
+                5L,
+                2L,
+                1L,
+                0L,
+                100L,
+                viewerState,
+                capabilities,
+                createdAt,
+                createdAt
+        );
+    }
+
+    private String renderFeed(Map<String, Object> model) {
+        SpringTemplateEngine engine = createTemplateEngine();
+        WebContext ctx = createWebContext();
+        model.forEach(ctx::setVariable);
+        return engine.process("feed/index", ctx);
+    }
+
+    /** Visible text of the out-of-range notice, with markup removed. */
+    private String noticeText(String html) {
+        return extractNotice(html).replaceAll("<[^>]*>", " ").replaceAll("\s+", " ").trim();
+    }
+
+    private String extractNotice(String html) {
+        int start = html.indexOf("id=\"feed-page-out-of-range\"");
+        assertThat(start).as("out-of-range notice must be present").isGreaterThanOrEqualTo(0);
+        int end = html.indexOf("</section>", start);
+        return end > start ? html.substring(start, end) : html.substring(start);
+    }
+
+    private Map<String, Object> feedModel(List<PostResponse> posts, PageMeta pageMeta, boolean feedError) {
+        Map<String, Object> model = new HashMap<>();
+        model.put("feedError", feedError);
+        model.put("posts", posts);
+        model.put("activeNav", "feed");
+        model.put("isFeedPage", true);
+        if (pageMeta != null) {
+            model.put("pageMeta", pageMeta);
+        }
+        return model;
+    }
+
+    @Test
+    @DisplayName("Render: /feed with a genuinely empty feed keeps the first-time empty state and shows no out-of-range notice")
+    void renderFeedGenuinelyEmpty_keepsEmptyStateAndNoOutOfRangeNotice() {
+        String html = renderFeed(feedModel(Collections.emptyList(), null, false));
+
+        assertThat(html).contains("id=\"feed-empty-state\"");
+        assertThat(html).contains("Chưa có bài viết nào");
+        assertThat(html).doesNotContain("id=\"feed-page-out-of-range\"");
+    }
+
+    @Test
+    @DisplayName("Render: /feed with zero total elements but pagination metadata present keeps the genuine empty state")
+    void renderFeedZeroTotalElements_keepsGenuineEmptyState() {
+        PageMeta pageMeta = new PageMeta(0, 20, 0L, 0, false, false);
+        String html = renderFeed(feedModel(Collections.emptyList(), pageMeta, false));
+
+        assertThat(html).contains("id=\"feed-empty-state\"");
+        assertThat(html).doesNotContain("id=\"feed-page-out-of-range\"");
+    }
+
+    @Test
+    @DisplayName("Render: /feed with posts renders the post cards and the pagination component, and neither empty variant")
+    void renderFeedWithPosts_rendersCardsAndPaginationAndNoEmptyVariant() {
+        PostResponse post = createSamplePost(101L, "Bài viết kiểm thử hiển thị", Instant.now());
+        PageMeta pageMeta = new PageMeta(0, 20, 33L, 2, true, false);
+        String html = renderFeed(feedModel(List.of(post), pageMeta, false));
+
+        assertThat(html).contains("Bài viết kiểm thử hiển thị");
+        assertThat(html).contains("aria-label=\"Điều hướng phân trang\"");
+        assertThat(html).contains("href=\"/feed?page=1\"");
+        assertThat(html).doesNotContain("id=\"feed-empty-state\"");
+        assertThat(html).doesNotContain("id=\"feed-page-out-of-range\"");
+    }
+
+    @Test
+    @DisplayName("Render: /feed beyond the last page explains the empty page and links back to the last available page")
+    void renderFeedOutOfRangePage_explainsAndLinksToLastAvailablePage() {
+        PageMeta pageMeta = new PageMeta(2, 20, 33L, 2, false, true);
+        String html = renderFeed(feedModel(Collections.emptyList(), pageMeta, false));
+
+        assertThat(html).contains("id=\"feed-page-out-of-range\"");
+        assertThat(html).contains("Trang này không có bài viết");
+        assertThat(html).doesNotContain("Chưa có bài viết nào");
+        assertThat(html).doesNotContain("id=\"feed-empty-state\"");
+        // Last available page is totalPages - 1 (page index 1 for a 2-page feed).
+        assertThat(html).contains("href=\"/feed?page=1\"");
+        assertThat(html).contains("id=\"btn-feed-last-page\"");
+        assertThat(html).contains("id=\"btn-feed-first-page\"");
+        // Scope the href assertions to the notice block: the sidebar also renders href="/feed".
+        assertThat(extractNotice(html)).contains("href=\"/feed?page=1\"");
+        assertThat(extractNotice(html)).contains("href=\"/feed\"");
+    }
+
+    @Test
+    @DisplayName("Render: /feed beyond the last page of a single-page feed offers only the first-page link")
+    void renderFeedOutOfRangeSinglePageFeed_offersOnlyFirstPageLink() {
+        PageMeta pageMeta = new PageMeta(1, 20, 13L, 1, false, true);
+        String html = renderFeed(feedModel(Collections.emptyList(), pageMeta, false));
+
+        assertThat(html).contains("id=\"feed-page-out-of-range\"");
+        assertThat(html).doesNotContain("id=\"btn-feed-last-page\"");
+        assertThat(html).contains("id=\"btn-feed-first-page\"");
+        assertThat(extractNotice(html)).contains("href=\"/feed\"");
+    }
+
+    @Test
+    @DisplayName("Render: /feed with a large but valid page index is treated as out of range and links to the last page")
+    void renderFeedLargeValidPageIndex_isOutOfRangeAndLinksToLastPage() {
+        PageMeta pageMeta = new PageMeta(1000000, 20, 21L, 2, false, true);
+        String html = renderFeed(feedModel(Collections.emptyList(), pageMeta, false));
+
+        assertThat(html).contains("id=\"feed-page-out-of-range\"");
+        assertThat(html).contains("href=\"/feed?page=1\"");
+        assertThat(html).doesNotContain("id=\"feed-empty-state\"");
+    }
+
+    @Test
+    @DisplayName("Render: /feed beyond the last page after a mute reflects the reduced page count in the out-of-range notice")
+    void renderFeedOutOfRangeAfterMute_usesReducedPageCount() {
+        // 20 eligible posts left after the mute: 1 page, so page index 1 is out of range.
+        PageMeta pageMeta = new PageMeta(1, 20, 20L, 1, false, true);
+        String html = renderFeed(feedModel(Collections.emptyList(), pageMeta, false));
+
+        assertThat(html).contains("id=\"feed-page-out-of-range\"");
+        // Scope the count assertion to the notice text: a bare "20" in the page would also match "© 2026 AloUTE".
+        assertThat(noticeText(html)).contains("20 bài viết");
+        assertThat(noticeText(html)).contains("trong 1 trang");
+        assertThat(html).doesNotContain("id=\"btn-feed-last-page\"");
+    }
+
+    @Test
+    @DisplayName("Render: /feed load failure keeps the error state and shows neither empty state variant")
+    void renderFeedErrorState_keepsErrorStateOnly() {
+        String html = renderFeed(feedModel(Collections.emptyList(), null, true));
+
+        assertThat(html).contains("id=\"feed-error-state\"");
+        assertThat(html).contains("id=\"btn-retry-feed\"");
+        assertThat(html).doesNotContain("id=\"feed-empty-state\"");
+        assertThat(html).doesNotContain("id=\"feed-page-out-of-range\"");
     }
 
     @Test
