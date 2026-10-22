@@ -43,13 +43,50 @@
             </a>
         </div>
 
-        <!-- Feed Empty State (Clean helpful text, single primary composer above) -->
-        <div th:if="${(feedError == null or !feedError) and (posts == null or #lists.isEmpty(posts))}" class="empty-state">
+        <!-- Feed Empty State (Clean helpful text, single primary composer above)
+             Only when the feed genuinely has no eligible posts (pageMeta absent or 0 elements). -->
+        <div th:if="${(feedError == null or !feedError) and (posts == null or #lists.isEmpty(posts)) and (pageMeta == null or pageMeta.totalElements == 0)}"
+             class="empty-state"
+             id="feed-empty-state">
             <div class="empty-state-icon">
                 <i class="bi bi-chat-square-dots" aria-hidden="true"></i>
             </div>
             <h2 class="empty-state-title">Chưa có bài viết nào</h2>
             <p class="empty-state-desc">Hãy là người đầu tiên chia sẻ thông tin, tài liệu học tập hoặc đặt câu hỏi trên AloUTE!</p>
+        </div>
+
+        <!-- Feed Out-of-range Page State
+             The requested page holds no posts, but the feed does contain eligible posts. -->
+        <div th:if="${(feedError == null or !feedError) and (posts == null or #lists.isEmpty(posts)) and pageMeta != null and pageMeta.totalElements > 0}"
+             class="empty-state"
+             id="feed-page-out-of-range"
+             role="status">
+            <div class="empty-state-icon">
+                <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+            </div>
+            <h2 class="empty-state-title">Trang này không có bài viết</h2>
+            <p class="empty-state-desc">
+                Trang <span th:text="${pageMeta.page + 1}">1</span> bạn yêu cầu hiện không có bài viết.
+                Bảng tin đang có <span th:text="${pageMeta.totalElements}">0</span> bài viết
+                trong <span th:text="${pageMeta.totalPages}">1</span> trang.
+            </p>
+            <div class="d-flex flex-wrap justify-content-center gap-2 mt-3">
+                <a th:if="${pageMeta.totalPages > 1}"
+                   th:href="@{/feed(page=${pageMeta.totalPages - 1})}"
+                   href="/feed"
+                   class="btn btn-sm btn-primary"
+                   id="btn-feed-last-page">
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                    <span>Về trang cuối (trang <span th:text="${pageMeta.totalPages}">1</span>)</span>
+                </a>
+                <a th:href="@{/feed}"
+                   href="/feed"
+                   class="btn btn-sm btn-outline-secondary"
+                   id="btn-feed-first-page">
+                    <i class="bi bi-house" aria-hidden="true"></i>
+                    <span>Về trang đầu</span>
+                </a>
+            </div>
         </div>
 
         <!-- Render Post Cards -->
