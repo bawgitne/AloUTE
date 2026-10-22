@@ -86,19 +86,32 @@ class PostService extends ChangeNotifier {
 
   Future<List<Map<String, dynamic>>> getReplies(int postId) async {
     try {
-      final response = await _api.get<List<dynamic>>(ApiConstants.postReplies(postId));
+      final response = await _api.get<dynamic>(ApiConstants.postReplies(postId));
       if (response.success && response.data != null) {
-        return response.data!.map((item) {
-          final map = item as Map<String, dynamic>;
-          final author = map['author'] as Map<String, dynamic>? ?? {};
+        final rawData = response.data;
+        final List<dynamic> list = rawData is List
+            ? rawData
+            : (rawData is Map && rawData['content'] is List
+                ? rawData['content'] as List<dynamic>
+                : (rawData is Map && rawData['data'] is List
+                    ? rawData['data'] as List<dynamic>
+                    : []));
+
+        return list.map((item) {
+          final map = item is Map ? Map<String, dynamic>.from(item) : <String, dynamic>{};
+          final author = map['author'] is Map
+              ? Map<String, dynamic>.from(map['author'] as Map)
+              : <String, dynamic>{};
           return {
             'id': map['id'],
-            'authorName': author['displayName'] ?? author['username'] ?? 'Người dùng',
-            'username': author['username'] ?? 'user',
-            'faculty': author['faculty'] ?? '',
-            'avatarUrl': author['avatarUrl'],
-            'content': map['content'] ?? '',
-            'createdAt': map['createdAt'] ?? 'Vừa xong',
+            'authorName': author['displayName']?.toString() ??
+                author['username']?.toString() ??
+                'Người dùng',
+            'username': author['username']?.toString() ?? 'user',
+            'faculty': author['faculty']?.toString() ?? '',
+            'avatarUrl': author['avatarUrl']?.toString(),
+            'content': map['content']?.toString() ?? '',
+            'createdAt': map['createdAt']?.toString() ?? 'Vừa xong',
           };
         }).toList();
       }
@@ -108,7 +121,10 @@ class PostService extends ChangeNotifier {
     return [];
   }
 
-  Future<String?> createReply(int postId, String content) async {
+  Future<({String? error, Map<String, dynamic>? reply})> createReply(
+    int postId,
+    String content,
+  ) async {
     try {
       final response = await _api.post<dynamic>(
         ApiConstants.postReplies(postId),
@@ -120,12 +136,43 @@ class PostService extends ChangeNotifier {
         },
       );
       if (response.success) {
-        return null;
+        Map<String, dynamic>? replyMap;
+        if (response.data != null && response.data is Map) {
+          final map = Map<String, dynamic>.from(response.data as Map);
+          final author = map['author'] is Map
+              ? Map<String, dynamic>.from(map['author'] as Map)
+              : <String, dynamic>{};
+          replyMap = {
+            'id': map['id'],
+            'authorName': author['displayName']?.toString() ??
+                author['username']?.toString() ??
+                'Tôi',
+            'username': author['username']?.toString() ?? 'user',
+            'faculty': author['faculty']?.toString() ?? '',
+            'avatarUrl': author['avatarUrl']?.toString(),
+            'content': map['content']?.toString() ?? content.trim(),
+            'createdAt': 'Vừa xong',
+          };
+        } else {
+          replyMap = {
+            'id': DateTime.now().millisecondsSinceEpoch,
+            'authorName': 'Tôi',
+            'username': 'me',
+            'faculty': '',
+            'avatarUrl': null,
+            'content': content.trim(),
+            'createdAt': 'Vừa xong',
+          };
+        }
+        return (error: null, reply: replyMap);
       }
-      return response.error?.message ?? 'Không thể gửi bình luận. Vui lòng thử lại!';
+      return (
+        error: response.error?.message ?? 'Không thể gửi bình luận. Vui lòng thử lại!',
+        reply: null
+      );
     } catch (e) {
       debugPrint('[PostService] Create reply failed: $e');
-      return 'Lỗi gửi bình luận: $e';
+      return (error: 'Lỗi gửi bình luận: $e', reply: null);
     }
   }
 

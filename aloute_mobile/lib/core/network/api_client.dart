@@ -110,7 +110,7 @@ class ApiClient {
       final uri = Uri.parse(_formatUrl(endpoint));
       final response = await http
           .get(uri, headers: _buildHeaders())
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 10));
 
       return _handleResponse<T>(response, parser);
     } on SocketException {
