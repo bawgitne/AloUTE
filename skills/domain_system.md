@@ -1656,7 +1656,8 @@ Không invent persistence implementation trong domain doc; chỉ ghi nhận capa
 - **Lifecycle & Cryptographic Verification**:
   - Upon registration (`POST /api/auth/register`), new accounts are created with `isVerified = false` and `verificationRequired = true`.
   - A cryptographically random 6-digit numeric OTP (100000–999999) is generated and hashed using HMAC-SHA256 with a per-record 16-byte random salt and server secret.
-  - The plaintext OTP is dispatched asynchronously via bounded executor `emailExecutor` after transaction commit (`afterCommit`), and is NEVER stored or logged.
+  - The plaintext OTP is delivered via `EmailService` in the request thread only after transaction commit (`afterCommit`). Registration and resend responses wait for the SMTP attempt to finish so delivery stays within the CPU allocation window of Cloud Run request-based billing. The plaintext OTP is NEVER stored or logged.
+  - An SMTP failure is logged without undoing the committed account/OTP or exposing account state in the generic resend response. The existing resend cooldown remains in effect for recovery.
   - Verification (`POST /api/auth/verify-registration-otp`):
     - Pessimistic locking order: Transactions MUST acquire lock on the `User` record first (`userRepository.findByEmailForUpdate`) before acquiring lock on `RegistrationOtp` (`otpRepository.findByUserIdForUpdate`) to guarantee deadlock-free execution under concurrent requests.
     - Single-use: Upon correct OTP match, `user.isVerified` is set to `true`, `user.verificationRequired` is set to `false`, and the `registration_otps` record is atomically deleted.

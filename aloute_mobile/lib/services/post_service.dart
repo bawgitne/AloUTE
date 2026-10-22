@@ -59,9 +59,10 @@ class PostService extends ChangeNotifier {
     String audience = 'PUBLIC',
   }) async {
     try {
+      final validAudience = (audience == 'FOLLOWERS') ? 'FOLLOWERS' : 'PUBLIC';
       final body = {
-        'content': content,
-        'visibility': audience,
+        'content': content.trim(),
+        'visibility': validAudience,
         'allowReply': true,
         'allowQuote': true,
       };
@@ -111,7 +112,12 @@ class PostService extends ChangeNotifier {
     try {
       final response = await _api.post<Map<String, dynamic>>(
         ApiConstants.postReplies(postId),
-        body: {'content': content},
+        body: {
+          'content': content.trim(),
+          'visibility': 'PUBLIC',
+          'allowReply': true,
+          'allowQuote': true,
+        },
       );
       return response.success;
     } catch (e) {

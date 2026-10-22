@@ -56,3 +56,34 @@
 - Never commit `.env` or echo secrets in console output, logs, or command-line arguments.
 - `scripts/run-local.ps1` parses `.env` literally line-by-line without executing code (`eval` / `Invoke-Expression`).
 - If launched in `prod` profile, missing `ALOUTE_JWT_SECRET` or `ALOUTE_REGISTRATION_OTP_SECRET` fails closed immediately.
+
+## 4. Registration OTP on Cloud Run
+
+Registration and resend attempts commit the account/OTP first, then finish the SMTP
+attempt in the request thread before returning HTTP. This supports Cloud Run
+request-based billing without relying on CPU after the response. Delivery failures
+leave the committed OTP available for recovery through resend after its 60-second
+cooldown. A successful API response is not a guarantee of inbox delivery.
+
+Keep request-based billing and minimum instances at 0 to allow scaling to zero.
+If instance-based billing was enabled during troubleshooting, switch back with:
+
+```bash
+gcloud run services update aloute-app \
+  --project=cnpm-f1a39 \
+  --region=asia-southeast1 \
+  --cpu-throttling
+```
+
+Set mail variables on the Cloud Run service; exporting them in Cloud Shell alone
+does not configure the deployed container. Gmail supports port 465 (implicit TLS)
+and 587 (STARTTLS); set `ALOUTE_MAIL_FROM` to the authenticated Gmail account or an
+authorized sender address.
+
+After deployment, request an OTP or wait 60 seconds and use **Resend**. Opening the
+verification page alone does not send email. Inspect container logs for
+`Registration OTP notification dispatched` or `Failed to deliver external email`.
+SMTP acceptance does not guarantee inbox placement; check the spam folder as well.
+
+The password reset flow still uses a background executor and is outside this
+registration OTP fix.

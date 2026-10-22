@@ -326,30 +326,43 @@
             hideAlert();
 
             const displayNameInput = document.getElementById('settings-input-display-name');
+            const usernameInput = document.getElementById('settings-input-username');
             const bioInput = document.getElementById('settings-input-bio');
             const websiteInput = document.getElementById('settings-input-website');
             const mediaIdInput = document.getElementById('settings-avatar-media-id');
 
-            const displayName = displayNameInput ? displayNameInput.value.trim() : '';
-            if (!displayName) {
-                if (displayNameInput) displayNameInput.classList.add('is-invalid');
-                showAlert('Vui lòng nhập Họ và tên hiển thị.', 'danger');
-                return;
-            } else if (displayNameInput) {
+            const rawDisplayName = displayNameInput ? displayNameInput.value.trim() : '';
+            const username = usernameInput ? usernameInput.value.trim() : '';
+            // Auto fallback to username (ID) just like Instagram when display name is blank
+            const finalDisplayName = rawDisplayName || username;
+
+            if (displayNameInput) {
                 displayNameInput.classList.remove('is-invalid');
+            }
+            const displayNameFb = document.getElementById('settings-display-name-feedback');
+            if (displayNameFb) displayNameFb.classList.add('d-none');
+
+            if (finalDisplayName.length > 100) {
+                if (displayNameInput) displayNameInput.classList.add('is-invalid');
+                if (displayNameFb) displayNameFb.classList.remove('d-none');
+                showAlert('Tên hiển thị tối đa 100 ký tự.', 'danger');
+                return;
             }
 
             const website = websiteInput ? websiteInput.value.trim() : '';
+            const websiteFb = document.getElementById('settings-website-feedback');
             if (website && !/^https?:\/\/.+/i.test(website)) {
                 if (websiteInput) websiteInput.classList.add('is-invalid');
+                if (websiteFb) websiteFb.classList.remove('d-none');
                 showAlert('Địa chỉ liên kết cá nhân phải là URL hợp lệ (bắt đầu bằng http:// hoặc https://).', 'danger');
                 return;
-            } else if (websiteInput) {
-                websiteInput.classList.remove('is-invalid');
+            } else {
+                if (websiteInput) websiteInput.classList.remove('is-invalid');
+                if (websiteFb) websiteFb.classList.add('d-none');
             }
 
             const payload = {
-                displayName: displayName,
+                displayName: finalDisplayName,
                 bio: bioInput ? bioInput.value.trim() : '',
                 website: website ? website : null
             };

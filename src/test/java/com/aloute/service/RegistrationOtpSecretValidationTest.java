@@ -29,7 +29,6 @@ class RegistrationOtpSecretValidationTest {
     private final UserRepository userRepository = mock(UserRepository.class);
     private final RegistrationOtpRepository otpRepository = mock(RegistrationOtpRepository.class);
     private final EmailService emailService = mock(EmailService.class);
-    private final Executor emailExecutor = mock(Executor.class);
 
     private static final String VALID_BASE64_32B = Base64.getEncoder().encodeToString(
             "random-secure-high-entropy-bytes-length-32b!".getBytes()
@@ -48,7 +47,7 @@ class RegistrationOtpSecretValidationTest {
         prodEnv.setActiveProfiles("prod");
 
         RegistrationOtpServiceImpl service = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, prodEnv
+                userRepository, otpRepository, emailService, prodEnv
         );
         ReflectionTestUtils.setField(service, "secretKey", "");
 
@@ -64,7 +63,7 @@ class RegistrationOtpSecretValidationTest {
         prodEnv.setActiveProfiles("prod");
 
         RegistrationOtpServiceImpl service = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, prodEnv
+                userRepository, otpRepository, emailService, prodEnv
         );
         ReflectionTestUtils.setField(service, "secretKey", "not-a-valid-base64-string!@#$%");
 
@@ -80,7 +79,7 @@ class RegistrationOtpSecretValidationTest {
         devEnv.setActiveProfiles("dev");
 
         RegistrationOtpServiceImpl service = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, devEnv
+                userRepository, otpRepository, emailService, devEnv
         );
         ReflectionTestUtils.setField(service, "secretKey", SHORT_BASE64);
 
@@ -96,7 +95,7 @@ class RegistrationOtpSecretValidationTest {
         devEnv.setActiveProfiles("dev");
 
         RegistrationOtpServiceImpl service = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, devEnv
+                userRepository, otpRepository, emailService, devEnv
         );
         ReflectionTestUtils.setField(service, "secretKey", REPEATED_BYTE_BASE64);
 
@@ -112,7 +111,7 @@ class RegistrationOtpSecretValidationTest {
         prodEnv.setActiveProfiles("prod");
 
         RegistrationOtpServiceImpl service = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, prodEnv
+                userRepository, otpRepository, emailService, prodEnv
         );
         ReflectionTestUtils.setField(service, "secretKey", VALID_BASE64_32B);
 
@@ -126,7 +125,7 @@ class RegistrationOtpSecretValidationTest {
         testEnv.setActiveProfiles("test");
 
         RegistrationOtpServiceImpl service = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, testEnv
+                userRepository, otpRepository, emailService, testEnv
         );
         ReflectionTestUtils.setField(service, "expiryMinutes", 6);
 
@@ -142,7 +141,7 @@ class RegistrationOtpSecretValidationTest {
         testEnv.setActiveProfiles("test");
 
         RegistrationOtpServiceImpl service = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, testEnv
+                userRepository, otpRepository, emailService, testEnv
         );
         ReflectionTestUtils.setField(service, "maxAttempts", 10);
 
@@ -158,7 +157,7 @@ class RegistrationOtpSecretValidationTest {
         testEnv.setActiveProfiles("test");
 
         RegistrationOtpServiceImpl service = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, testEnv
+                userRepository, otpRepository, emailService, testEnv
         );
         ReflectionTestUtils.setField(service, "cooldownSeconds", 30);
 
@@ -174,7 +173,7 @@ class RegistrationOtpSecretValidationTest {
         env.setActiveProfiles("prod", "test");
 
         RegistrationOtpServiceImpl service = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, env
+                userRepository, otpRepository, emailService, env
         );
         ReflectionTestUtils.setField(service, "secretKey", "");
 
@@ -190,7 +189,7 @@ class RegistrationOtpSecretValidationTest {
         prodEnv.setActiveProfiles("prod");
 
         RegistrationOtpServiceImpl servicePadded = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, prodEnv
+                userRepository, otpRepository, emailService, prodEnv
         );
         ReflectionTestUtils.setField(servicePadded, "secretKey", "dGVzdC1yZWdpc3RyYXRpb24tb3RwLXNlY3JldC1rZXktMzJiLWxlbmd0aCE=");
 
@@ -199,7 +198,7 @@ class RegistrationOtpSecretValidationTest {
                 .hasMessageContaining("cannot use known public test fixture");
 
         RegistrationOtpServiceImpl serviceUnpadded = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, prodEnv
+                userRepository, otpRepository, emailService, prodEnv
         );
         // Unpadded Base64 without trailing '='
         ReflectionTestUtils.setField(serviceUnpadded, "secretKey", "dGVzdC1yZWdpc3RyYXRpb24tb3RwLXNlY3JldC1rZXktMzJiLWxlbmd0aCE");
@@ -216,7 +215,7 @@ class RegistrationOtpSecretValidationTest {
         env.setActiveProfiles("prod", "test");
 
         RegistrationOtpServiceImpl service = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, env
+                userRepository, otpRepository, emailService, env
         );
         ReflectionTestUtils.setField(service, "secretKey", "dGVzdC1yZWdpc3RyYXRpb24tb3RwLXNlY3JldC1rZXktMzJiLWxlbmd0aCE=");
 
@@ -238,7 +237,7 @@ class RegistrationOtpSecretValidationTest {
         devEnv.setActiveProfiles("dev");
 
         RegistrationOtpServiceImpl service = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, devEnv
+                userRepository, otpRepository, emailService, devEnv
         );
         ReflectionTestUtils.setField(service, "secretKey", "dGVzdC1yZWdpc3RyYXRpb24tb3RwLXNlY3JldC1rZXktMzJiLWxlbmd0aCE=");
 
@@ -259,7 +258,7 @@ class RegistrationOtpSecretValidationTest {
         MockEnvironment defaultEnv = new MockEnvironment();
 
         RegistrationOtpServiceImpl service = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, defaultEnv
+                userRepository, otpRepository, emailService, defaultEnv
         );
         ReflectionTestUtils.setField(service, "secretKey", "dGVzdC1yZWdpc3RyYXRpb24tb3RwLXNlY3JldC1rZXktMzJiLWxlbmd0aCE=");
 
@@ -281,13 +280,13 @@ class RegistrationOtpSecretValidationTest {
         testEnv.setActiveProfiles("test");
 
         RegistrationOtpServiceImpl servicePadded = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, testEnv
+                userRepository, otpRepository, emailService, testEnv
         );
         ReflectionTestUtils.setField(servicePadded, "secretKey", "dGVzdC1yZWdpc3RyYXRpb24tb3RwLXNlY3JldC1rZXktMzJiLWxlbmd0aCE=");
         assertThatCode(servicePadded::validateConfiguration).doesNotThrowAnyException();
 
         RegistrationOtpServiceImpl serviceUnpadded = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, testEnv
+                userRepository, otpRepository, emailService, testEnv
         );
         ReflectionTestUtils.setField(serviceUnpadded, "secretKey", "dGVzdC1yZWdpc3RyYXRpb24tb3RwLXNlY3JldC1rZXktMzJiLWxlbmd0aCE");
         assertThatCode(serviceUnpadded::validateConfiguration).doesNotThrowAnyException();
@@ -300,7 +299,7 @@ class RegistrationOtpSecretValidationTest {
         env.setActiveProfiles("dev", "test");
 
         RegistrationOtpServiceImpl service = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, env
+                userRepository, otpRepository, emailService, env
         );
         ReflectionTestUtils.setField(service, "secretKey", "dGVzdC1yZWdpc3RyYXRpb24tb3RwLXNlY3JldC1rZXktMzJiLWxlbmd0aCE=");
         assertThatCode(service::validateConfiguration).doesNotThrowAnyException();
@@ -316,7 +315,7 @@ class RegistrationOtpSecretValidationTest {
         testEnv.setActiveProfiles("test");
 
         RegistrationOtpServiceImpl service = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, testEnv
+                userRepository, otpRepository, emailService, testEnv
         );
         ReflectionTestUtils.setField(service, "secretKey", null);
 
@@ -332,7 +331,7 @@ class RegistrationOtpSecretValidationTest {
         testEnv.setActiveProfiles("test");
 
         RegistrationOtpServiceImpl service = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, testEnv
+                userRepository, otpRepository, emailService, testEnv
         );
         ReflectionTestUtils.setField(service, "secretKey", "raw-plain-non-base64-secret-string!");
 
@@ -347,7 +346,7 @@ class RegistrationOtpSecretValidationTest {
         MockEnvironment testEnv = new MockEnvironment();
         testEnv.setActiveProfiles("test");
         RegistrationOtpServiceImpl service = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, testEnv
+                userRepository, otpRepository, emailService, testEnv
         );
         ReflectionTestUtils.setField(service, "secretKey", VALID_BASE64_32B);
         service.validateConfiguration();
@@ -377,7 +376,7 @@ class RegistrationOtpSecretValidationTest {
         MockEnvironment testEnv = new MockEnvironment();
         testEnv.setActiveProfiles("test");
         RegistrationOtpServiceImpl service = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, testEnv
+                userRepository, otpRepository, emailService, testEnv
         );
         ReflectionTestUtils.setField(service, "secretKey", VALID_BASE64_32B);
         service.validateConfiguration();
@@ -413,7 +412,7 @@ class RegistrationOtpSecretValidationTest {
         MockEnvironment testEnv = new MockEnvironment();
         testEnv.setActiveProfiles("test");
         RegistrationOtpServiceImpl service = new RegistrationOtpServiceImpl(
-                userRepository, otpRepository, emailService, emailExecutor, testEnv
+                userRepository, otpRepository, emailService, testEnv
         );
         ReflectionTestUtils.setField(service, "secretKey", VALID_BASE64_32B);
         service.validateConfiguration();

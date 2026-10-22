@@ -421,23 +421,26 @@
 
                         <!-- Display Name -->
                         <div class="mb-3">
-                            <label for="edit-display-name" class="form-label fw-semibold small">Tên hiển thị</label>
+                            <label for="edit-display-name" class="form-label fw-semibold small">
+                                Tên hiển thị <span class="text-muted fw-normal">(Không bắt buộc)</span>
+                            </label>
                             <input type="text"
                                    class="form-control"
                                    id="edit-display-name"
                                    name="displayName"
                                    maxlength="100"
                                    th:value="${profile?.displayName}"
-                                   placeholder="Nhập tên hiển thị (tối đa 100 ký tự)"
+                                   placeholder="Nhập tên hiển thị (mặc định theo ID nếu để trống)"
                                    aria-describedby="edit-displayName-error"
-                                   aria-invalid="false"
-                                   required>
-                            <div class="invalid-feedback d-none" id="edit-displayName-error">Tên hiển thị không được để trống khi gửi.</div>
+                                   aria-invalid="false">
+                            <div class="invalid-feedback d-none" id="edit-displayName-error">Tên hiển thị tối đa 100 ký tự.</div>
                         </div>
 
                         <!-- Bio -->
                         <div class="mb-3">
-                            <label for="edit-bio" class="form-label fw-semibold small">Giới thiệu ngắn (Bio)</label>
+                            <label for="edit-bio" class="form-label fw-semibold small">
+                                Giới thiệu ngắn (Bio) <span class="text-muted fw-normal">(Không bắt buộc)</span>
+                            </label>
                             <textarea class="form-control"
                                       id="edit-bio"
                                       name="bio"
@@ -456,7 +459,9 @@
 
                         <!-- Website -->
                         <div class="mb-3">
-                            <label for="edit-website" class="form-label fw-semibold small">Website / Trang cá nhân</label>
+                            <label for="edit-website" class="form-label fw-semibold small">
+                                Website / Trang cá nhân <span class="text-muted fw-normal">(Không bắt buộc)</span>
+                            </label>
                             <input type="url"
                                    class="form-control"
                                    id="edit-website"
@@ -465,7 +470,7 @@
                                    th:value="${profile?.website}"
                                    aria-describedby="edit-website-help edit-website-error"
                                    aria-invalid="false">
-                            <div id="edit-website-help" class="form-text small text-muted">URL hợp lệ bắt đầu bằng http:// hoặc https://</div>
+                            <div id="edit-website-help" class="form-text small text-muted">Không bắt buộc. Nếu nhập, vui lòng dùng URL bắt đầu bằng http:// hoặc https://</div>
                             <div class="invalid-feedback d-none" id="edit-website-error">Website phải là URL hợp lệ.</div>
                         </div>
 

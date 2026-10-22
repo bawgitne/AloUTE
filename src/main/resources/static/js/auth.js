@@ -204,10 +204,7 @@
 
         let hasError = false;
         if (!email) {
-            setFieldError('email', 'Vui lòng nhập email.');
-            hasError = true;
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            setFieldError('email', 'Email không đúng định dạng.');
+            setFieldError('email', 'Vui lòng nhập email hoặc tên đăng nhập.');
             hasError = true;
         }
 

@@ -100,8 +100,7 @@ class RegistrationOtpIntegrationTest {
         assertThat(createdUser.isVerified()).isFalse();
         assertThat(createdUser.isVerificationRequired()).isTrue();
 
-        // Case 4: Email OTP is dispatched asynchronously
-        assertThat(emailSink.awaitOtpCount(1, 3, TimeUnit.SECONDS)).isTrue();
+        // Case 4: The committed OTP is delivered before the registration response returns.
         List<TestEmailSink.SentOtp> sentOtps = emailSink.getOtpSink();
         assertThat(sentOtps).hasSize(1);
         assertThat(sentOtps.get(0).toEmail()).isEqualTo(email);
@@ -851,59 +850,43 @@ class RegistrationOtpIntegrationTest {
         user.setRole(Role.USER);
         userRepository.saveAndFlush(user);
 
-        Executor originalExecutor = (Executor) ReflectionTestUtils.getField(registrationOtpService, "emailExecutor");
-        List<Runnable> capturedTasks = new CopyOnWriteArrayList<>();
-        Executor controlledExecutor = capturedTasks::add;
-        ReflectionTestUtils.setField(registrationOtpService, "emailExecutor", controlledExecutor);
-        try {
-            // 1. Inside transaction: verify ZERO submissions to emailExecutor while transaction is open
-            transactionTemplate.execute(status -> {
-                registrationOtpService.initiateRegistrationOtp(user);
-                assertThat(capturedTasks).isEmpty();
-                assertThat(emailSink.getOtpSink()).isEmpty();
-                return null;
-            });
-
-            // 2. After commit: EXACTLY ONE task submitted to emailExecutor; execute it and verify receipt in emailSink
-            assertThat(capturedTasks).hasSize(1);
+        transactionTemplate.execute(status -> {
+            registrationOtpService.initiateRegistrationOtp(user);
+            assertThat(emailSink.getInvocationCount()).isZero();
             assertThat(emailSink.getOtpSink()).isEmpty();
-            capturedTasks.remove(0).run();
-            assertThat(emailSink.awaitOtpCount(1, 3, TimeUnit.SECONDS)).isTrue();
-            assertThat(emailSink.getOtpSink()).hasSize(1);
-            assertThat(emailSink.getOtpSink().get(0).toEmail()).isEqualTo(email);
-            emailSink.clearSink();
+            return null;
+        });
 
-            // Fast-forward cooldown for resend
-            RegistrationOtp otpRecord = otpRepository.findByUser(user).orElseThrow();
-            otpRecord.setResendAvailableAt(Instant.now().minusSeconds(5));
-            otpRepository.saveAndFlush(otpRecord);
+        // Delivery has already finished when commit returns; there is no background task left.
+        assertThat(emailSink.getInvocationCount()).isEqualTo(1);
+        assertThat(emailSink.getOtpSink()).hasSize(1);
+        assertThat(emailSink.getOtpSink().get(0).toEmail()).isEqualTo(email);
+        emailSink.clearSink();
 
-            // 3. Rollback scenario: exception forces rollback; verify ZERO submissions while open and after rollback
-            assertThatThrownBy(() -> {
-                transactionTemplate.execute(status -> {
-                    registrationOtpService.resendOtp(email);
-                    assertThat(capturedTasks).isEmpty();
-                    assertThat(emailSink.getOtpSink()).isEmpty();
-                    throw new RuntimeException("Simulated transaction rollback");
-                });
-            }).isInstanceOf(RuntimeException.class).hasMessage("Simulated transaction rollback");
+        RegistrationOtp otpRecord = otpRepository.findByUser(user).orElseThrow();
+        otpRecord.setResendAvailableAt(Instant.now().minusSeconds(5));
+        otpRepository.saveAndFlush(otpRecord);
+        String committedHash = otpRecord.getOtpHash();
 
-            assertThat(capturedTasks).isEmpty();
-            assertThat(emailSink.getOtpSink()).isEmpty();
+        assertThatThrownBy(() -> transactionTemplate.execute(status -> {
+            registrationOtpService.resendOtp(email);
+            assertThat(emailSink.getInvocationCount()).isZero();
+            throw new RuntimeException("Simulated transaction rollback");
+        })).isInstanceOf(RuntimeException.class).hasMessage("Simulated transaction rollback");
 
-            // 4. Explicit rollback scenario: status.setRollbackOnly(); verify ZERO submissions while open and after rollback
-            transactionTemplate.execute(status -> {
-                registrationOtpService.resendOtp(email);
-                assertThat(capturedTasks).isEmpty();
-                assertThat(emailSink.getOtpSink()).isEmpty();
-                status.setRollbackOnly();
-                return null;
-            });
+        assertThat(emailSink.getInvocationCount()).isZero();
+        assertThat(emailSink.getOtpSink()).isEmpty();
+        assertThat(otpRepository.findByUser(user).orElseThrow().getOtpHash()).isEqualTo(committedHash);
 
-            assertThat(capturedTasks).isEmpty();
-            assertThat(emailSink.getOtpSink()).isEmpty();
-        } finally {
-            ReflectionTestUtils.setField(registrationOtpService, "emailExecutor", originalExecutor);
-        }
+        transactionTemplate.execute(status -> {
+            registrationOtpService.resendOtp(email);
+            assertThat(emailSink.getInvocationCount()).isZero();
+            status.setRollbackOnly();
+            return null;
+        });
+
+        assertThat(emailSink.getInvocationCount()).isZero();
+        assertThat(emailSink.getOtpSink()).isEmpty();
+        assertThat(otpRepository.findByUser(user).orElseThrow().getOtpHash()).isEqualTo(committedHash);
     }
 }
