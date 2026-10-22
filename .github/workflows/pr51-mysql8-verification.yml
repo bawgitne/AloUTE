@@ -1,0 +1,227 @@
+name: PR51 MySQL 8 Verification
+
+on:
+  push:
+    branches:
+      - 'codex/pr51-mysql8-verification-20261022'
+
+permissions:
+  contents: read
+
+jobs:
+  mysql8-verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Generate ephemeral credential and launch disposable MySQL 8
+        id: mysql_init
+        run: |
+          # 1. Generate cryptographically secure random password
+          EPHEMERAL_PASS=$(openssl rand -hex 16)
+
+          # 2. Register mask with GitHub Actions runner immediately
+          echo "::add-mask::$EPHEMERAL_PASS"
+
+          # 3. Export to shell environment (pass by NAME, not value in argv)
+          export MYSQL_ROOT_PASSWORD="$EPHEMERAL_PASS"
+          export MYSQL_DATABASE="aloutedb_test"
+          export MYSQL_PWD="$EPHEMERAL_PASS"
+
+          # 4. Start disposable container bound strictly to loopback
+          CONTAINER_ID=$(docker run -d \
+            --name mysql8-disposable \
+            -p 127.0.0.1:3306:3306 \
+            -e MYSQL_ROOT_PASSWORD \
+            -e MYSQL_DATABASE \
+            mysql:8.0)
+          echo "CONTAINER_ID=$CONTAINER_ID" >> "$GITHUB_ENV"
+
+          # 5. Authenticated TCP health check loop: wait until root accepts TCP connection on aloutedb_test
+          echo "Waiting for MySQL 8 TCP network server to be ready on 127.0.0.1:3306..."
+          READY=false
+          for i in {1..30}; do
+            if printf "SELECT 1;\n" | docker exec -i -e MYSQL_PWD "$CONTAINER_ID" mysql --protocol=TCP -h127.0.0.1 -u root aloutedb_test >/dev/null 2>&1; then
+              READY=true
+              break
+            fi
+            sleep 2
+          done
+
+          if [ "$READY" != "true" ]; then
+            echo "ERROR: MySQL 8 failed authenticated TCP root check within 60s."
+            exit 1
+          fi
+
+          # 6. Configure dedicated test DB user with schema-only permissions via stdin pipe and TCP
+          printf "CREATE USER IF NOT EXISTS 'aloute_test'@'%%' IDENTIFIED BY '%s';\nGRANT ALL PRIVILEGES ON aloutedb_test.* TO 'aloute_test'@'%%';\nFLUSH PRIVILEGES;\n" "$EPHEMERAL_PASS" | docker exec -i -e MYSQL_PWD "$CONTAINER_ID" mysql --protocol=TCP -h127.0.0.1 -u root
+
+          # 7. Authenticated test-user verification against task database via stdin pipe and TCP
+          if ! printf "SELECT 1;\n" | docker exec -i -e MYSQL_PWD "$CONTAINER_ID" mysql --protocol=TCP -h127.0.0.1 -u aloute_test aloutedb_test >/dev/null 2>&1; then
+            echo "ERROR: Dedicated test user aloute_test failed to authenticate against aloutedb_test over TCP."
+            exit 1
+          fi
+
+          # 8. Export connection variables for subsequent steps
+          echo "MYSQL_HOST=127.0.0.1" >> "$GITHUB_ENV"
+          echo "MYSQL_PORT=3306" >> "$GITHUB_ENV"
+          echo "MYSQL_DATABASE=aloutedb_test" >> "$GITHUB_ENV"
+          echo "MYSQL_USER=aloute_test" >> "$GITHUB_ENV"
+          echo "MYSQL_PASSWORD=$EPHEMERAL_PASS" >> "$GITHUB_ENV"
+
+          # 9. Log engine version and storage engine metadata safely without credentials
+          printf "SELECT VERSION() AS version, @@default_storage_engine AS default_engine;\n" | docker exec -i -e MYSQL_PWD "$CONTAINER_ID" mysql --protocol=TCP -h127.0.0.1 -u aloute_test aloutedb_test
+
+      - name: Build candidate application JAR
+        id: build_jar
+        run: |
+          mvn -B -DskipTests package
+          sha256sum target/aloute-app-*.jar
+
+      - name: Run candidate security regression suite (71 focused tests)
+        id: regression_suite
+        env:
+          ALOUTE_JWT_SECRET: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          ALOUTE_JWT_EXPIRATION_SECONDS: '3600'
+        run: |
+          mvn test -B \
+            "-Dtest=Pr51AuthenticationCompatibilityIntegrationTest,DurableLogoutRevocationIntegrationTest,TwoFactorCredentialIsolationIntegrationTest,JwtSessionServiceTest,H2MigrationScriptVerificationTest,StompRealtimeMessagingIntegrationTest,PasswordResetAndSessionRevocationIntegrationTest,TwoFactorAuthenticationIntegrationTest,UserAuthVersionDurabilityTest"
+
+      - name: Execute MySQL 8 Revocation & Process Restart Verification
+        id: mysql8_verification
+        env:
+          ALOUTE_JWT_SECRET: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          ALOUTE_JWT_EXPIRATION_SECONDS: '3600'
+          MYSQL_HOST: 127.0.0.1
+          MYSQL_PORT: 3306
+          MYSQL_DATABASE: aloutedb_test
+          MYSQL_USER: aloute_test
+          MYSQL_PASSWORD: ${{ env.MYSQL_PASSWORD }}
+        run: |
+          mvn test -B -Dtest=MySql8RevocationVerificationTest -Daloute.mysql8.enabled=true
+
+      - name: Generate sanitized verification evidence summary
+        if: always()
+        run: |
+          INIT_STATUS="${{ steps.mysql_init.outcome }}"
+          BUILD_STATUS="${{ steps.build_jar.outcome }}"
+          REGRESSION_STATUS="${{ steps.regression_suite.outcome }}"
+          MYSQL8_STATUS="${{ steps.mysql8_verification.outcome }}"
+
+          JAR_SHA=$(sha256sum target/aloute-app-*.jar 2>/dev/null | awk '{print $1}' || echo "N/A")
+          MIGRATION_SHA=$(sha256sum src/main/resources/db/migration/mysql8_revoked_tokens.sql 2>/dev/null | awk '{print $1}' || echo "N/A")
+
+          export MYSQL_PWD="${{ env.MYSQL_PASSWORD }}"
+          ACTUAL_ENGINE="UNVERIFIED"
+          if [ -n "$CONTAINER_ID" ]; then
+            ACTUAL_ENGINE=$(printf "SELECT VERSION();\n" | docker exec -i -e MYSQL_PWD "$CONTAINER_ID" mysql --protocol=TCP -h127.0.0.1 -u aloute_test -N -s aloutedb_test 2>/dev/null || echo "UNVERIFIED")
+          fi
+
+          REG_TESTS_RUN=0
+          REG_FAILURES=0
+          REG_ERRORS=0
+          REG_SKIPPED=0
+          XML_FOUND=false
+
+          for f in target/surefire-reports/TEST-com.aloute.*.xml; do
+            [ -f "$f" ] || continue
+            case "$f" in
+              *MySql8RevocationVerificationTest*) continue ;;
+              *)
+                XML_FOUND=true
+                T=$(grep -o 'tests="[0-9]*"' "$f" | head -1 | cut -d'"' -f2 || echo 0)
+                F=$(grep -o 'failures="[0-9]*"' "$f" | head -1 | cut -d'"' -f2 || echo 0)
+                E=$(grep -o 'errors="[0-9]*"' "$f" | head -1 | cut -d'"' -f2 || echo 0)
+                S=$(grep -o 'skipped="[0-9]*"' "$f" | head -1 | cut -d'"' -f2 || echo 0)
+                REG_TESTS_RUN=$((REG_TESTS_RUN + ${T:-0}))
+                REG_FAILURES=$((REG_FAILURES + ${F:-0}))
+                REG_ERRORS=$((REG_ERRORS + ${E:-0}))
+                REG_SKIPPED=$((REG_SKIPPED + ${S:-0}))
+                ;;
+            esac
+          done
+
+          if [ "$XML_FOUND" != "true" ]; then
+            ACTUAL_REG_RUN="UNVERIFIED"
+            ACTUAL_REG_FAILURES="UNVERIFIED"
+            ACTUAL_REG_ERRORS="UNVERIFIED"
+            ACTUAL_REG_SKIPPED="UNVERIFIED"
+          else
+            ACTUAL_REG_RUN="$REG_TESTS_RUN"
+            ACTUAL_REG_FAILURES="$REG_FAILURES"
+            ACTUAL_REG_ERRORS="$REG_ERRORS"
+            ACTUAL_REG_SKIPPED="$REG_SKIPPED"
+          fi
+
+          MYSQL_XML="target/surefire-reports/TEST-com.aloute.integration.MySql8RevocationVerificationTest.xml"
+          if [ -f "$MYSQL_XML" ]; then
+            T=$(grep -o 'tests="[0-9]*"' "$MYSQL_XML" | head -1 | cut -d'"' -f2 || echo 0)
+            F=$(grep -o 'failures="[0-9]*"' "$MYSQL_XML" | head -1 | cut -d'"' -f2 || echo 0)
+            E=$(grep -o 'errors="[0-9]*"' "$MYSQL_XML" | head -1 | cut -d'"' -f2 || echo 0)
+            S=$(grep -o 'skipped="[0-9]*"' "$MYSQL_XML" | head -1 | cut -d'"' -f2 || echo 0)
+            MYSQL_TESTS_RUN="${T:-0}"
+            MYSQL_FAILURES="${F:-0}"
+            MYSQL_ERRORS="${E:-0}"
+            MYSQL_SKIPPED="${S:-0}"
+          else
+            MYSQL_TESTS_RUN="UNVERIFIED"
+            MYSQL_FAILURES="UNVERIFIED"
+            MYSQL_ERRORS="UNVERIFIED"
+            MYSQL_SKIPPED="UNVERIFIED"
+          fi
+
+          cat <<EOF > mysql8-verification-summary.json
+          {
+            "commitSha": "${{ github.sha }}",
+            "workflow": "${{ github.workflow }}",
+            "ref": "${{ github.ref }}",
+            "expectedEngine": "MySQL 8.0.x",
+            "actualEngine": "$ACTUAL_ENGINE",
+            "database": "aloutedb_test",
+            "provisioningStatus": "${INIT_STATUS:-unexecuted}",
+            "buildStatus": "${BUILD_STATUS:-unexecuted}",
+            "regressionSuiteStatus": "${REGRESSION_STATUS:-unexecuted}",
+            "expectedRegressionTests": 71,
+            "actualRegressionTestsRun": "$ACTUAL_REG_RUN",
+            "actualRegressionFailures": "$ACTUAL_REG_FAILURES",
+            "actualRegressionErrors": "$ACTUAL_REG_ERRORS",
+            "actualRegressionSkipped": "$ACTUAL_REG_SKIPPED",
+            "mysql8VerificationStatus": "${MYSQL8_STATUS:-unexecuted}",
+            "mysql8TestsRun": "$MYSQL_TESTS_RUN",
+            "mysql8Failures": "$MYSQL_FAILURES",
+            "mysql8Errors": "$MYSQL_ERRORS",
+            "mysql8Skipped": "$MYSQL_SKIPPED",
+            "candidateJarSha256": "$JAR_SHA",
+            "migrationSqlSha256": "$MIGRATION_SHA",
+            "concurrentLogout": "UNVERIFIED (deferred per preflight directive)",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+          cat mysql8-verification-summary.json
+
+      - name: Upload sanitized verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mysql8-verification-summary
+          path: mysql8-verification-summary.json
+          if-no-files-found: error
+
+      - name: Cleanup disposable MySQL 8 container
+        if: always()
+        run: |
+          if [ -n "$CONTAINER_ID" ]; then
+            echo "Stopping and removing container $CONTAINER_ID..."
+            docker stop "$CONTAINER_ID"
+            docker rm "$CONTAINER_ID"
+          fi

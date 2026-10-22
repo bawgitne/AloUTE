@@ -76,4 +76,31 @@ class H2MigrationScriptVerificationTest {
             ScriptUtils.executeSqlScript(conn, scriptResource);
         }
     }
+
+    @Test
+    @DisplayName("H2 migration script for revoked_tokens executes safely and idempotently")
+    void verifyH2RevokedTokensMigrationScript() throws Exception {
+        String dbUrl = "jdbc:h2:mem:revoked_tokens_migration_test_" + System.currentTimeMillis() + ";DB_CLOSE_DELAY=-1";
+        try (Connection conn = DriverManager.getConnection(dbUrl, "sa", "")) {
+            Statement stmt = conn.createStatement();
+            stmt.execute("""
+                CREATE TABLE users (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    username VARCHAR(50) NOT NULL UNIQUE,
+                    email VARCHAR(254) NOT NULL UNIQUE,
+                    password_hash VARCHAR(255) NOT NULL
+                );
+            """);
+
+            ClassPathResource scriptResource = new ClassPathResource("db/migration/h2_revoked_tokens.sql");
+            ScriptUtils.executeSqlScript(conn, scriptResource);
+
+            ResultSet tableRs = stmt.executeQuery("SELECT COUNT(*) FROM revoked_tokens");
+            assertThat(tableRs.next()).isTrue();
+            assertThat(tableRs.getInt(1)).isEqualTo(0);
+
+            // Test idempotency
+            ScriptUtils.executeSqlScript(conn, scriptResource);
+        }
+    }
 }
