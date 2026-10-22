@@ -141,24 +141,45 @@ public class DefaultEmailService implements EmailService {
         if (smtpPort == 465) {
             props.put("mail.transport.protocol", "smtps");
 
+            // smtps.* properties for SMTPS provider
             props.put("mail.smtps.host", hostStr);
             props.put("mail.smtps.port", "465");
             props.put("mail.smtps.user", userStr);
             props.put("mail.smtps.auth", "true");
             props.put("mail.smtps.ssl.enable", "true");
+            props.put("mail.smtps.starttls.enable", "false");
+            props.put("mail.smtps.starttls.required", "false");
+            props.put("mail.smtps.ssl.protocols", "TLSv1.2 TLSv1.3");
+            props.put("mail.smtps.ssl.trust", "*");
             props.put("mail.smtps.ssl.checkserveridentity", String.valueOf(sslCheckServerIdentity));
+            props.put("mail.smtps.socketFactory.port", "465");
+            props.put("mail.smtps.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+            props.put("mail.smtps.socketFactory.fallback", "false");
+            props.put("mail.smtps.ssl.socketFactory.port", "465");
+            props.put("mail.smtps.ssl.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
             props.put("mail.smtps.connectiontimeout", "10000");
             props.put("mail.smtps.timeout", "10000");
             props.put("mail.smtps.writetimeout", "10000");
 
+            // smtp.* mirror properties for SMTP with SSL socket factory
             props.put("mail.smtp.host", hostStr);
             props.put("mail.smtp.port", "465");
             props.put("mail.smtp.user", userStr);
+            props.put("mail.smtp.auth", "true");
             props.put("mail.smtp.ssl.enable", "true");
+            props.put("mail.smtp.starttls.enable", "false");
+            props.put("mail.smtp.starttls.required", "false");
+            props.put("mail.smtp.ssl.protocols", "TLSv1.2 TLSv1.3");
+            props.put("mail.smtp.ssl.trust", "*");
             props.put("mail.smtp.ssl.checkserveridentity", String.valueOf(sslCheckServerIdentity));
             props.put("mail.smtp.socketFactory.port", "465");
             props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
             props.put("mail.smtp.socketFactory.fallback", "false");
+            props.put("mail.smtp.ssl.socketFactory.port", "465");
+            props.put("mail.smtp.ssl.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+            props.put("mail.smtp.connectiontimeout", "10000");
+            props.put("mail.smtp.timeout", "10000");
+            props.put("mail.smtp.writetimeout", "10000");
         } else {
             props.put("mail.transport.protocol", "smtp");
             props.put("mail.smtp.host", hostStr);
@@ -167,7 +188,7 @@ public class DefaultEmailService implements EmailService {
             props.put("mail.smtp.starttls.enable", "true");
             props.put("mail.smtp.starttls.required", "true");
             props.put("mail.smtp.ssl.enable", "false");
-            props.put("mail.smtp.ssl.protocols", "TLSv1.2");
+            props.put("mail.smtp.ssl.protocols", "TLSv1.2 TLSv1.3");
             props.put("mail.smtp.ssl.trust", "*");
             props.put("mail.smtp.ssl.checkserveridentity", String.valueOf(sslCheckServerIdentity));
         }
@@ -216,12 +237,27 @@ public class DefaultEmailService implements EmailService {
             message.saveChanges();
 
             String protocol = (smtpPort == 465) ? "smtps" : "smtp";
-            Transport transport = session.getTransport(protocol);
+            Transport transport = null;
             try {
+                transport = session.getTransport(protocol);
                 transport.connect(smtpHost, smtpPort, smtpUsername, smtpPassword);
                 transport.sendMessage(message, message.getAllRecipients());
+            } catch (Exception ex) {
+                if (smtpPort == 465 && "smtps".equals(protocol)) {
+                    log.warn("SMTPS direct connect failed ({} - {}), attempting fallback via SMTP with SSL socket factory", ex.getClass().getSimpleName(), ex.getMessage());
+                    if (transport != null) {
+                        try { transport.close(); } catch (Exception ignored) {}
+                    }
+                    transport = session.getTransport("smtp");
+                    transport.connect(smtpHost, smtpPort, smtpUsername, smtpPassword);
+                    transport.sendMessage(message, message.getAllRecipients());
+                } else {
+                    throw ex;
+                }
             } finally {
-                transport.close();
+                if (transport != null) {
+                    try { transport.close(); } catch (Exception ignored) {}
+                }
             }
 
             log.info("{} notification dispatched via SMTP host {}:{}", logDescription, smtpHost, smtpPort);
