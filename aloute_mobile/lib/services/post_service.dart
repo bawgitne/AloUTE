@@ -108,9 +108,9 @@ class PostService extends ChangeNotifier {
     return [];
   }
 
-  Future<bool> createReply(int postId, String content) async {
+  Future<String?> createReply(int postId, String content) async {
     try {
-      final response = await _api.post<Map<String, dynamic>>(
+      final response = await _api.post<dynamic>(
         ApiConstants.postReplies(postId),
         body: {
           'content': content.trim(),
@@ -119,10 +119,13 @@ class PostService extends ChangeNotifier {
           'allowQuote': true,
         },
       );
-      return response.success;
+      if (response.success) {
+        return null;
+      }
+      return response.error?.message ?? 'Không thể gửi bình luận. Vui lòng thử lại!';
     } catch (e) {
       debugPrint('[PostService] Create reply failed: $e');
-      return false;
+      return 'Lỗi gửi bình luận: $e';
     }
   }
 

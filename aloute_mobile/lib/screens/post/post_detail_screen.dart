@@ -25,6 +25,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   final FocusNode _focusNode = FocusNode();
   List<Map<String, dynamic>> _replies = [];
   bool _isLoadingReplies = false;
+  bool _isSending = false;
 
   @override
   void initState() {
@@ -56,23 +57,42 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 
   Future<void> _sendReply() async {
+    if (_isSending) return;
     final text = _replyController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng nhập nội dung bình luận!'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
 
-    final success = await PostService().createReply(widget.post.id, text);
-    if (mounted) {
-      if (success) {
-        _replyController.clear();
-        widget.post.replyCount++;
-        await _loadReplies();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không thể gửi bình luận. Vui lòng thử lại!'),
-            backgroundColor: AlouteColors.danger,
-          ),
-        );
-      }
+    setState(() => _isSending = true);
+    final error = await PostService().createReply(widget.post.id, text);
+    if (!mounted) return;
+    setState(() => _isSending = false);
+
+    if (error == null) {
+      _replyController.clear();
+      _focusNode.unfocus();
+      widget.post.replyCount++;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã gửi bình luận thành công!'),
+          backgroundColor: AlouteColors.success,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      await _loadReplies();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: AlouteColors.danger,
+        ),
+      );
     }
   }
 
@@ -184,20 +204,47 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               child: TextField(
                 controller: _replyController,
                 focusNode: _focusNode,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _sendReply(),
+                enabled: !_isSending,
                 decoration: InputDecoration(
                   hintText: 'Viết bình luận của bạn...',
+                  hintStyle: const TextStyle(fontSize: 14, color: AlouteColors.textMuted),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  filled: true,
+                  fillColor: AlouteColors.bgBody,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AlouteColors.radiusFull),
                     borderSide: const BorderSide(color: AlouteColors.borderColor),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AlouteColors.radiusFull),
+                    borderSide: const BorderSide(color: AlouteColors.borderColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AlouteColors.radiusFull),
+                    borderSide: const BorderSide(color: AlouteColors.accent),
                   ),
                 ),
               ),
             ),
             const SizedBox(width: 8),
-            IconButton(
-              icon: const Icon(Icons.send, color: AlouteColors.accent),
-              onPressed: _sendReply,
+            Container(
+              decoration: const BoxDecoration(
+                color: AlouteColors.accent,
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: _isSending
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.send, color: Colors.white, size: 18),
+                onPressed: _isSending ? null : _sendReply,
+                tooltip: 'Gửi bình luận',
+              ),
             ),
           ],
         ),
