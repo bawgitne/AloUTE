@@ -12,13 +12,27 @@
 (function () {
     'use strict';
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initSettings);
-    } else {
+    // This bundle is loaded with `defer` from templates/settings/index.html, while the shared
+    // transport client (core/http-client.js) is loaded later in templates/layouts/single.html.
+    // Deferred scripts execute in document order, so at this point `document.readyState` is already
+    // 'interactive' and `window.alouteHttp` does not exist yet. DOMContentLoaded is the only
+    // deterministic point where every deferred dependency has executed.
+    if (document.readyState === 'complete') {
         initSettings();
+    } else {
+        document.addEventListener('DOMContentLoaded', initSettings, { once: true });
     }
 
     function initSettings() {
+        // Duplicate-evaluation guard, same convention as post-composer.js: the settings page root
+        // records that this bundle already initialized, so a second evaluation cannot attach the
+        // event listeners twice or load the Muted/Blocked Users lists twice.
+        const root = document.getElementById('settings-content');
+        if (root) {
+            if (root.dataset.settingsInitialized === 'true') return;
+            root.dataset.settingsInitialized = 'true';
+        }
+
         initTabs();
         initAlertClose();
         initCoverUpload();
