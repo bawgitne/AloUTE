@@ -76,6 +76,29 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         }
     }
 
+    public void closeSessionsForToken(String token) {
+        if (token == null || token.isBlank()) return;
+        String tokenHash = null;
+        try {
+            tokenHash = JwtSessionService.computeFingerprint(token);
+        } catch (Exception ignored) {}
+
+        for (Map.Entry<String, String> entry : sessionTokenMap.entrySet()) {
+            String boundToken = entry.getValue();
+            if (boundToken == null) continue;
+            boolean matches = token.equals(boundToken);
+            if (!matches && tokenHash != null) {
+                try {
+                    matches = tokenHash.equals(JwtSessionService.computeFingerprint(boundToken));
+                } catch (Exception ignored) {}
+            }
+            if (matches) {
+                log.info("Closing STOMP session {} bound to revoked token", entry.getKey());
+                closeSession(entry.getKey());
+            }
+        }
+    }
+
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);

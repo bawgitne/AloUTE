@@ -744,3 +744,36 @@ ALOUTE_FRONTEND_CONVENTION.md
 4. **Không tin cậy Client Identity:**
    - Thông tin Admin thực hiện (`actorUserId`) **bắt buộc** lấy trực tiếp từ `CurrentUserProvider.requireUserId()`, tuyệt đối không đọc từ Request Body hay Request Header do client gửi lên.
 
+---
+
+# 31. DURABLE SINGLE-SESSION LOGOUT & CENTRALIZED SESSION VALIDATION
+
+### 31.1. Durable Current-Token Invalidation vs Password Reset All-Session Invalidation
+- **Current-Token Durable Logout (`POST /api/auth/logout`)**:
+  - Invalidates only the current active JWT presented in the cookie (`aloute_access_token`) or `Authorization: Bearer` header.
+  - Leaves other independent sessions for the same user active.
+  - Clears `aloute_access_token` cookie via `ResponseCookie`.
+- **Password Reset / Account Invalidation (`auth_version`)**:
+  - Increments `users.auth_version` under pessimistic row lock.
+  - Atomically invalidates all existing issued tokens for that account (`v < user.authVersion`).
+
+### 31.2. Centralized Verification (`JwtSessionService.authenticate`)
+- All JWT authentication (HTTP `JwtAuthenticationFilter` and STOMP `StompAuthChannelInterceptor`) delegates to centralized `JwtSessionService.authenticate(token)`.
+- Centralized validation sequence:
+  1. Cryptographic signature and expiration verification via `JwtTokenProvider.parseClaims(token)`.
+  2. Durable blacklist verification: checks `revokedTokenRepository.existsByTokenHash(computeFingerprint(token))`.
+  3. User existence and account active status check (`user.isActive()`).
+  4. Account session version check: `claims.get("v") == user.getAuthVersion()`.
+
+### 31.3. Database Row Lock Serialization Order
+- During token revocation (`JwtSessionService.revokeToken`):
+  - Consistent lock order: acquire row-level lock on `User` row FIRST (`userRepository.findByIdForUpdate(userId)`) inside `@Transactional` boundary before querying/inserting into `revoked_tokens`.
+  - Serializes concurrent revocation requests across transactions/threads/replicas through surrounding transaction commit, preventing race conditions or 500 errors.
+  - Never relies on process-local locks (`synchronized(tokenHash.intern())`) which release before database transaction commit.
+
+### 31.4. After-Commit Real-Time WebSocket Closure
+- Upon successful logout transaction commit (`TransactionSynchronization.afterCommit`):
+  - `StompAuthChannelInterceptor.closeSessionsForToken(token)` disconnects active WebSocket transports associated with the revoked token fingerprint.
+  - Post-logout frames (SEND, typing, read, SUBSCRIBE) on closed transports are immediately rejected.
+  - Zero message persistence is guaranteed for any rejected post-logout sends.
+
