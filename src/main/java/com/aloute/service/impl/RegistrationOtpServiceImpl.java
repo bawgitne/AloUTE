@@ -10,7 +10,6 @@ import com.aloute.service.email.DefaultEmailService;
 import com.aloute.service.email.EmailService;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
@@ -37,8 +36,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.Executor;
-import java.util.concurrent.RejectedExecutionException;
 
 @Service
 @Slf4j
@@ -47,7 +44,6 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
     private final UserRepository userRepository;
     private final RegistrationOtpRepository otpRepository;
     private final EmailService emailService;
-    private final Executor emailExecutor;
     private final Environment environment;
 
     @Value("${aloute.auth.registration-otp-secret:${ALOUTE_REGISTRATION_OTP_SECRET:}}")
@@ -97,12 +93,10 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
             UserRepository userRepository,
             RegistrationOtpRepository otpRepository,
             EmailService emailService,
-            @Qualifier("emailExecutor") Executor emailExecutor,
             Environment environment) {
         this.userRepository = userRepository;
         this.otpRepository = otpRepository;
         this.emailService = emailService;
-        this.emailExecutor = emailExecutor;
         this.environment = environment;
     }
 
@@ -361,30 +355,22 @@ public class RegistrationOtpServiceImpl implements RegistrationOtpService {
             try {
                 emailService.sendRegistrationOtpEmail(recipientEmail, otpForDispatch);
             } catch (Exception ex) {
-                log.error("Failed to dispatch registration OTP email asynchronously for recipient {}: {}",
+                log.error("Failed to dispatch registration OTP email after commit for recipient {}: {}",
                         DefaultEmailService.sanitizeForLog(recipientEmail), ex.getClass().getSimpleName());
             }
         };
 
-        Runnable submitTask = () -> {
-            try {
-                emailExecutor.execute(emailTask);
-            } catch (RejectedExecutionException ex) {
-                log.error("Registration OTP email execution rejected by bounded executor (queue capacity exceeded) for recipient {}: {}",
-                        DefaultEmailService.sanitizeForLog(recipientEmail), ex.getMessage());
-            }
-        };
-
-        // Dispatch email ONLY after transaction successfully commits
+        // Finish SMTP in the request thread: request-based Cloud Run can suspend CPU after the response.
+        // Keep delivery after commit so a rollback never sends an unusable OTP.
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    submitTask.run();
+                    emailTask.run();
                 }
             });
         } else {
-            submitTask.run();
+            emailTask.run();
         }
     }
 

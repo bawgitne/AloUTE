@@ -2,6 +2,7 @@ package com.aloute.service.email;
 
 import com.aloute.dto.request.ForgotPasswordRequest;
 import com.aloute.dto.request.RegisterRequest;
+import com.aloute.dto.request.ResendRegistrationOtpRequest;
 import com.aloute.entity.RegistrationOtp;
 import com.aloute.entity.User;
 import com.aloute.repository.PasswordResetTokenRepository;
@@ -11,10 +12,12 @@ import com.aloute.security.authorization.Role;
 import com.aloute.service.PasswordResetService;
 import com.aloute.service.RegistrationOtpService;
 import com.aloute.service.impl.PasswordResetServiceImpl;
-import com.aloute.service.impl.RegistrationOtpServiceImpl;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -28,12 +31,18 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -54,6 +63,9 @@ class SmtpSafetyTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     private UserRepository userRepository;
@@ -130,29 +142,47 @@ class SmtpSafetyTest {
         assertThat(otp.isExpired(Instant.now())).isFalse();
     }
 
-    @Test
-    @DisplayName("Executor queue rejection during OTP dispatch leaves OTP record intact for resend recovery")
-    void otpExecutorRejectionPreservesOtpRecord() {
-        String email = uniqueEmail("otp_reject");
-        User user = createTestUser(email);
-
-        Executor saturatingExecutor = runnable -> {
-            throw new RejectedExecutionException("Bounded queue is full");
-        };
-
-        // Temporarily inject rejecting executor
-        Object originalExecutor = ReflectionTestUtils.getField(registrationOtpService, "emailExecutor");
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName("Registration and resend commit OTP before sending and wait for delivery before HTTP response")
+    void otpHttpResponseWaitsForDelivery(boolean registration) throws Exception {
+        String email = uniqueEmail("otp_wait");
+        if (!registration) {
+            createTestUser(email);
+        }
+        CountDownLatch deliveryStarted = new CountDownLatch(1);
+        CountDownLatch releaseDelivery = new CountDownLatch(1);
+        testEmailSink.setDeliveryStartedLatch(deliveryStarted);
+        testEmailSink.setDeliveryHoldLatch(releaseDelivery);
+        String path = registration ? "/api/auth/register" : "/api/auth/resend-registration-otp";
+        Object payload = registration
+                ? new RegisterRequest("wait_" + System.currentTimeMillis(), email, "Password123!")
+                : new ResendRegistrationOtpRequest(email);
+        String body = objectMapper.writeValueAsString(payload);
+        ExecutorService requests = Executors.newSingleThreadExecutor();
         try {
-            ReflectionTestUtils.setField(registrationOtpService, "emailExecutor", saturatingExecutor);
+            Future<Integer> response = requests.submit(() -> mockMvc.perform(post(path)
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andReturn().getResponse().getStatus());
+            assertThat(deliveryStarted.await(5, TimeUnit.SECONDS)).isTrue();
 
-            assertThatCode(() -> registrationOtpService.initiateRegistrationOtp(user))
-                    .doesNotThrowAnyException();
+            // A separate connection can see the committed account and OTP while SMTP is held.
+            User persisted = userRepository.findByEmailIgnoreCase(email).orElseThrow();
+            assertThat(otpRepository.findByUser(persisted)).isPresent();
+            assertThat(testEmailSink.getOtpSink()).isEmpty();
+            assertThatThrownBy(() -> response.get(200, TimeUnit.MILLISECONDS))
+                    .isInstanceOf(TimeoutException.class);
 
-            // OTP record must still be committed safely
-            Optional<RegistrationOtp> otpOpt = otpRepository.findByUser(user);
-            assertThat(otpOpt).isPresent();
+            releaseDelivery.countDown();
+            assertThat(response.get(5, TimeUnit.SECONDS)).isEqualTo(registration ? 201 : 200);
+            assertThat(testEmailSink.getOtpSink()).hasSize(1);
+            assertThat(testEmailSink.getOtpSink().get(0).toEmail()).isEqualTo(email);
         } finally {
-            ReflectionTestUtils.setField(registrationOtpService, "emailExecutor", originalExecutor);
+            releaseDelivery.countDown();
+            requests.shutdownNow();
+            requests.awaitTermination(5, TimeUnit.SECONDS);
         }
     }
 

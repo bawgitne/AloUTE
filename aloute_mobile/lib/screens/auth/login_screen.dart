@@ -31,16 +31,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _handleLogin() async {
-    final email = _usernameController.text.trim();
+    final identifier = _usernameController.text.trim();
     final password = _passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
-      setState(() => _errorMessage = 'Vui lòng nhập email và mật khẩu.');
-      return;
-    }
-
-    if (!email.contains('@')) {
-      setState(() => _errorMessage = 'Vui lòng nhập địa chỉ email hợp lệ.');
+    if (identifier.isEmpty || password.isEmpty) {
+      setState(() => _errorMessage = 'Vui lòng nhập email hoặc tên người dùng và mật khẩu.');
       return;
     }
 
@@ -49,7 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
-    final success = await _authService.login(username, password);
+    final success = await _authService.login(identifier, password);
 
     if (mounted) {
       setState(() => _isLoading = false);
@@ -66,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
           MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
         );
       } else {
-        setState(() => _errorMessage = 'Tên đăng nhập hoặc mật khẩu không chính xác.');
+        setState(() => _errorMessage = 'Email/tên người dùng hoặc mật khẩu không chính xác.');
       }
     }
   }
@@ -182,18 +177,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 16),
                     ],
 
-                    // Email Input
+                    // Email or Username Input
                     const Text(
-                      'Email tài khoản',
+                      'Email hoặc Tên người dùng',
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AlouteColors.textPrimary),
                     ),
                     const SizedBox(height: 6),
                     TextField(
                       controller: _usernameController,
-                      keyboardType: TextInputType.emailAddress,
+                      keyboardType: TextInputType.text,
                       decoration: const InputDecoration(
-                        hintText: 'Nhập email (ví dụ: user@student.hcmute.edu.vn)',
-                        prefixIcon: Icon(Icons.email_outlined, size: 20),
+                        hintText: 'Nhập email hoặc username',
+                        prefixIcon: Icon(Icons.person_outline, size: 20),
                       ),
                     ),
                     const SizedBox(height: 16),

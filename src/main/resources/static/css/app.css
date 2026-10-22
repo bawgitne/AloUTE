@@ -675,6 +675,13 @@ p {
   color: var(--aloute-danger);
   font-size: var(--aloute-font-size-sm);
   margin-top: 0.25rem;
+  display: none;
+}
+
+.is-invalid ~ .invalid-feedback,
+.form-control.is-invalid ~ .invalid-feedback,
+.form-select.is-invalid ~ .invalid-feedback,
+.was-validated :invalid ~ .invalid-feedback {
   display: block;
 }
 

@@ -60,10 +60,19 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     if (text.isEmpty) return;
 
     final success = await PostService().createReply(widget.post.id, text);
-    if (success) {
-      _replyController.clear();
-      widget.post.replyCount++;
-      await _loadReplies();
+    if (mounted) {
+      if (success) {
+        _replyController.clear();
+        widget.post.replyCount++;
+        await _loadReplies();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Không thể gửi bình luận. Vui lòng thử lại!'),
+            backgroundColor: AlouteColors.danger,
+          ),
+        );
+      }
     }
   }
 

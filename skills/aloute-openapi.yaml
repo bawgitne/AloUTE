@@ -57,6 +57,8 @@ paths:
     post:
       tags: [Auth]
       summary: Register account
+      description: |
+        Creates the account and registration OTP, commits the transaction, then attempts email delivery before returning.
       security: []
       requestBody:
         required: true
@@ -111,7 +113,8 @@ paths:
       tags: [Auth]
       summary: Resend registration OTP
       description: |
-        Generates and asynchronously dispatches a replacement 6-digit numeric registration OTP with rate limiting (60-second cooldown).
+        Generates a replacement 6-digit numeric registration OTP with rate limiting (60-second cooldown).
+        Email delivery is attempted after transaction commit and finishes before the response is returned.
         Returns generic success silently for nonexistent, inactive, already verified, or legacy accounts to prevent user enumeration.
       security: []
       requestBody:
@@ -3259,7 +3262,7 @@ components:
       properties:
         email:
           type: string
-          format: email
+          description: User email address or username
         password:
           type: string
 
@@ -3370,7 +3373,7 @@ components:
 
     CreatePostRequest:
       type: object
-      required: [content, visibility]
+      required: [content]
       properties:
         content:
           type: string
