@@ -17,7 +17,7 @@
 
             <a class="navbar-brand d-flex align-items-center gap-2" th:href="@{/feed}" href="/feed">
                 <img th:src="@{/images/logo.png}" src="/images/logo.png" alt="AloUTE" width="30" height="30" class="rounded-2 d-inline-block align-text-top shadow-xs">
-                <span class="fs-4 fw-bold">Alo<span class="text-primary">UTE</span></span>
+                <span class="fs-4 fw-bold aloute-navbar-wordmark">Alo<span class="text-primary">UTE</span></span>
                 <span class="badge-brand d-none d-sm-inline-block">Campus</span>
             </a>
 
@@ -105,7 +105,7 @@
                          width="32"
                          height="32">
                     <span class="d-none d-md-inline fw-medium small" th:text="${currentUser?.displayName ?: (currentUser?.username ?: 'Sinh viên')}">Quân</span>
-                    <i class="bi bi-chevron-down text-muted small" aria-hidden="true"></i>
+                    <i class="bi bi-chevron-down text-muted small aloute-user-dropdown-chevron" aria-hidden="true"></i>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-lg" aria-labelledby="userNavbarDropdown">
                     <li class="px-3 py-2 border-bottom border-secondary-subtle">

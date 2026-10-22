@@ -1362,7 +1362,11 @@ p {
 
   .aloute-navbar .aloute-search-box {
     max-width: 240px;
-    min-width: 180px;
+    /* Let the search box shrink instead of forcing the navbar row wider than the
+       viewport. It keeps its 180px preferred width but may shrink when the row
+       is tight, so the navbar row never exceeds the viewport width. */
+    min-width: 0;
+    flex: 1 1 180px;
   }
 
   .auth-card {
@@ -1959,6 +1963,12 @@ p {
     align-items: center;
     justify-content: center;
   }
+  /* The avatar alone identifies the account menu on small screens, so the chevron is
+     redundant there. The button keeps its 44px minimum width, so this returns roughly
+     10px to a navbar row that is already tight. */
+  .aloute-navbar .aloute-user-dropdown-chevron {
+    display: none !important;
+  }
   .aloute-notification-preview-menu {
     position: fixed !important;
     top: 56px !important;
@@ -1967,6 +1977,42 @@ p {
     width: auto !important;
     max-width: none !important;
     transform: none !important;
+  }
+}
+/* ==========================================================================
+   Small Tablet / Large Phone Navbar (< 640px)
+   Between the mobile navbar (< 576px) and the desktop navbar (>= 768px) the row
+   still carries the "Campus" badge next to the logo, which pushes the row wider
+   than the viewport on 576-639px screens. The badge is decorative (the wordmark
+   already carries the brand), so it is dropped on these widths as well.
+   ========================================================================== */
+
+@media (max-width: 639.98px) {
+  .aloute-navbar .badge-brand {
+    display: none !important;
+  }
+}
+
+/* ==========================================================================
+   Very Narrow Mobile Navbar (< 420px)
+   The navbar row needs ~410px of content (hamburger + brand + search icon on the
+   left, create post + messages + notifications + account on the right). Below
+   ~420px the row no longer fits and the right-hand controls are pushed past the
+   viewport edge. Because the page body already hides horizontal overflow, those
+   controls are clipped rather than scrolled, which left the account menu (profile,
+   saved posts, logout) unreachable on a 320px screen.
+   Hide the brand wordmark (the logo mark and the /feed link stay, and the logo
+   keeps alt="AloUTE" for assistive technology) and tighten the outer padding so
+   the row fits down to 320px.
+   ========================================================================== */
+
+@media (max-width: 419.98px) {
+  .aloute-navbar {
+    padding-left: 0.25rem !important;
+    padding-right: 0.25rem !important;
+  }
+  .aloute-navbar .aloute-navbar-wordmark {
+    display: none !important;
   }
 }
 /* ==========================================================================
