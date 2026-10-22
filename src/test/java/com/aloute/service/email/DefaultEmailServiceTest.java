@@ -213,7 +213,7 @@ class DefaultEmailServiceTest {
             assertThat(received).isTrue();
             assertThat(smtpServer.isAuthenticated()).isTrue();
             assertThat(smtpServer.getReceivedMessages()).hasSize(1);
-            String rawEmail = smtpServer.getReceivedMessages().get(0);
+            String rawEmail = smtpServer.getReceivedMessages().get(0).replace("=3D", "=");
             assertThat(rawEmail).contains("To: alice@example.com");
             assertThat(rawEmail).contains(resetUrl);
         } finally {

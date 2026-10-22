@@ -425,7 +425,7 @@ class StompRealtimeMessagingIntegrationTest {
 
             // Extract reset token directly from loopback SMTP STARTTLS network payload
             assertThat(smtpServer.getReceivedMessages()).isNotEmpty();
-            String rawSmtpMessage = smtpServer.getReceivedMessages().get(0);
+            String rawSmtpMessage = smtpServer.getReceivedMessages().get(0).replace("=3D", "=");
             assertThat(rawSmtpMessage).contains("#token=");
             int tokenStart = rawSmtpMessage.indexOf("#token=") + "#token=".length();
             String resetToken = rawSmtpMessage.substring(tokenStart).trim().split("[\\s\\r\\n]+")[0];
@@ -460,7 +460,7 @@ class StompRealtimeMessagingIntegrationTest {
             Thread.sleep(100);
         }
         assertThat(smtpServer.getReceivedMessages().size()).isGreaterThanOrEqualTo(2);
-        String freshRawSmtpMessage = smtpServer.getReceivedMessages().get(1);
+        String freshRawSmtpMessage = smtpServer.getReceivedMessages().get(1).replace("=3D", "=");
         assertThat(freshRawSmtpMessage).contains("#token=");
         int freshTokenStart = freshRawSmtpMessage.indexOf("#token=") + "#token=".length();
         String freshToken = freshRawSmtpMessage.substring(freshTokenStart).trim().split("[\\s\\r\\n]+")[0];
