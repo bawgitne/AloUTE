@@ -9,3 +9,7 @@ target
 node_modules
 checkpoints
 docs
+aloute_mobile
+.agents
+current
+tmp
