@@ -12,6 +12,9 @@
 (function () {
     'use strict';
 
+    // Bundled placeholder used whenever a stored avatar URL is missing or unsafe.
+    const AVATAR_FALLBACK_URL = '/images/avatar-fallback.svg';
+
     // This bundle is loaded with `defer` from templates/settings/index.html, while the shared
     // transport client (core/http-client.js) is loaded later in templates/layouts/single.html.
     // Deferred scripts execute in document order, so at this point `document.readyState` is already
@@ -1167,6 +1170,94 @@
     // =========================================================================
     // 5. Blocked Users Management
     // =========================================================================
+
+    /**
+     * Resolve a stored avatar URL to a value that is safe to place in an <img src>.
+     * Only same-origin absolute paths and absolute http/https media URLs are accepted.
+     * javascript:, data:, vbscript:, blob:, protocol-relative and malformed values
+     * are rejected and fall back to the bundled placeholder.
+     */
+    function resolveSafeAvatarUrl(value) {
+        if (typeof value !== 'string') return AVATAR_FALLBACK_URL;
+        const url = value.trim();
+        if (url === '') return AVATAR_FALLBACK_URL;
+        if (url.charAt(0) === '/') {
+            // Same-origin path. Reject protocol-relative "//host/path" and the backslash
+            // variant "/\host/path", which browsers also resolve as protocol-relative.
+            if (url.indexOf('\\') !== -1) return AVATAR_FALLBACK_URL;
+            return url.charAt(1) === '/' ? AVATAR_FALLBACK_URL : url;
+        }
+        let parsed = null;
+        try {
+            parsed = new URL(url);
+        } catch (e) {
+            return AVATAR_FALLBACK_URL;
+        }
+        return (parsed.protocol === 'https:' || parsed.protocol === 'http:') ? url : AVATAR_FALLBACK_URL;
+    }
+
+    /**
+     * Build a Blocked/Muted user row without interpolating any API value into HTML.
+     * Every user-controlled value is written with textContent or setAttribute, so a
+     * display name, username or avatar URL can never be interpreted as markup.
+     */
+    function buildUserListRow(user, options) {
+        const item = document.createElement('div');
+        item.className = options.itemClass;
+
+        const identity = document.createElement('div');
+        identity.className = 'd-flex align-items-center gap-3';
+
+        const avatar = document.createElement('img');
+        avatar.src = resolveSafeAvatarUrl(user.avatarUrl);
+        avatar.alt = user.displayName || user.username || '';
+        avatar.className = 'rounded-circle border object-fit-cover';
+        avatar.setAttribute('width', String(options.avatarSize));
+        avatar.setAttribute('height', String(options.avatarSize));
+        identity.appendChild(avatar);
+
+        const meta = document.createElement('div');
+
+        const nameRow = document.createElement('div');
+        nameRow.className = 'fw-bold small text-dark d-flex align-items-center gap-1';
+        const nameEl = document.createElement('span');
+        nameEl.textContent = user.displayName || user.username || '';
+        nameRow.appendChild(nameEl);
+        if (user.isVerified) {
+            const verifiedIcon = document.createElement('i');
+            verifiedIcon.className = 'bi bi-patch-check-fill text-primary';
+            verifiedIcon.title = 'Đã xác thực';
+            verifiedIcon.setAttribute('role', 'img');
+            verifiedIcon.setAttribute('aria-label', 'Đã xác thực');
+            nameRow.appendChild(verifiedIcon);
+        }
+        meta.appendChild(nameRow);
+
+        const usernameRow = document.createElement('div');
+        usernameRow.className = 'text-muted small';
+        usernameRow.textContent = '@' + (user.username || '');
+        meta.appendChild(usernameRow);
+
+        identity.appendChild(meta);
+
+        const action = document.createElement('button');
+        action.type = 'button';
+        action.className = options.actionClass;
+        const rawId = user.id === null || user.id === undefined ? '' : String(user.id);
+        action.dataset.userId = /^\d+$/.test(rawId) && Number(rawId) > 0 ? rawId : '';
+        action.dataset.username = user.username || '';
+        if (options.actionIcon) {
+            const actionIcon = document.createElement('i');
+            actionIcon.className = options.actionIcon;
+            action.appendChild(actionIcon);
+        }
+        action.appendChild(document.createTextNode(options.actionLabel));
+
+        item.appendChild(identity);
+        item.appendChild(action);
+        return item;
+    }
+
     function initBlockedUsers() {
             const blockedUsersLoading = document.getElementById('blocked-users-loading');
             const blockedUsersEmpty = document.getElementById('blocked-users-empty');
@@ -1219,26 +1310,12 @@
             function renderBlockedUsers(users) {
                 blockedUsersList.innerHTML = '';
                 users.forEach(u => {
-                    const item = document.createElement('div');
-                    item.className = 'p-3 border rounded-3 bg-white d-flex align-items-center justify-content-between gap-3 shadow-sm';
-                    const avatar = u.avatarUrl || '/images/avatar-fallback.svg';
-                    const dispName = u.displayName || u.username;
-                    item.innerHTML = `
-                        <div class="d-flex align-items-center gap-3">
-                            <img src="${avatar}" alt="${dispName}" class="rounded-circle border object-fit-cover" width="44" height="44">
-                            <div>
-                                <div class="fw-bold small text-dark d-flex align-items-center gap-1">
-                                    <span>${dispName}</span>
-                                    ${u.isVerified ? '<i class="bi bi-patch-check-fill text-primary" title="Đã xác thực"></i>' : ''}
-                                </div>
-                                <div class="text-muted small">@${u.username}</div>
-                            </div>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 btn-unblock-trigger" data-user-id="${u.id}" data-username="${u.username}">
-                            Bỏ chặn
-                        </button>
-                    `;
-                    blockedUsersList.appendChild(item);
+                    blockedUsersList.appendChild(buildUserListRow(u, {
+                        itemClass: 'p-3 border rounded-3 bg-white d-flex align-items-center justify-content-between gap-3 shadow-sm',
+                        avatarSize: 44,
+                        actionClass: 'btn btn-sm btn-outline-secondary rounded-pill px-3 btn-unblock-trigger',
+                        actionLabel: 'Bỏ chặn'
+                    }));
                 });
             }
 
@@ -1400,26 +1477,13 @@
             function renderMutedUsers(users) {
                 mutedUsersList.innerHTML = '';
                 users.forEach(u => {
-                    const item = document.createElement('div');
-                    item.className = 'd-flex align-items-center justify-content-between p-3 bg-white border rounded-3 shadow-sm';
-                    const avatar = u.avatarUrl || '/images/avatar-fallback.svg';
-                    const dispName = u.displayName || u.username;
-                    item.innerHTML = `
-                        <div class="d-flex align-items-center gap-3">
-                            <img src="${avatar}" alt="${dispName}" class="rounded-circle border object-fit-cover" width="40" height="40">
-                            <div>
-                                <div class="fw-bold small text-dark d-flex align-items-center gap-1">
-                                    <span>${dispName}</span>
-                                    ${u.isVerified ? '<i class="bi bi-patch-check-fill text-primary" title="Đã xác thực"></i>' : ''}
-                                </div>
-                                <div class="text-muted small">@${u.username}</div>
-                            </div>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-outline-warning text-dark rounded-pill px-3 btn-unmute-trigger" data-user-id="${u.id}" data-username="${u.username}">
-                            <i class="bi bi-bell me-1"></i>Bật lại thông báo
-                        </button>
-                    `;
-                    mutedUsersList.appendChild(item);
+                    mutedUsersList.appendChild(buildUserListRow(u, {
+                        itemClass: 'd-flex align-items-center justify-content-between p-3 bg-white border rounded-3 shadow-sm',
+                        avatarSize: 40,
+                        actionClass: 'btn btn-sm btn-outline-warning text-dark rounded-pill px-3 btn-unmute-trigger',
+                        actionIcon: 'bi bi-bell me-1',
+                        actionLabel: 'Bật lại thông báo'
+                    }));
                 });
             }
 
