@@ -1670,6 +1670,33 @@ Không invent persistence implementation trong domain doc; chỉ ghi nhận capa
   - Existing accounts created prior to registration OTP enforcement have `verificationRequired = false` (or `isVerified = true`).
   - Legacy users are NOT locked out and can log in normally via `/api/auth/login` without being redirected to OTP gating.
 
+### 60.4. Durable Current-Token Revocation (`revoked_tokens`) & Session Invalidation Architecture
+- **Distinction Between Logout and Password Reset**:
+  - **Password Reset (`auth_version`)**: Invalidates ALL active tokens and sessions across all devices for the account simultaneously by incrementing `users.auth_version`.
+  - **Logout (`revoked_tokens`)**: Invalidates ONLY the current active token/session used to issue the logout request, preserving other concurrent active sessions on other devices or tabs.
+- **Cryptographic Token Fingerprinting**:
+  - Durable revocation storage contains only token fingerprints, never raw compact JWT strings. Existing transient STOMP connection credentials are retained for signature and expiry revalidation.
+  - When a token is presented for revocation or validation, the signature is cryptographically verified first using HMAC-SHA256 with the server key.
+  - The `token_hash` stored in `revoked_tokens` is the SHA-256 hex digest of the verified decoded signature bytes (`MessageDigest.getInstance("SHA-256").digest(Decoders.BASE64URL.decode(signaturePart))`).
+  - This prevents signature malleability / alias attacks (such as padding variation or trailing characters ignored by base64 parsers) from evading revocation.
+- **Table Schema & Indices (`revoked_tokens`)**:
+  - Columns:
+    - `id BIGINT AUTO_INCREMENT PRIMARY KEY`
+    - `token_hash VARCHAR(64) NOT NULL UNIQUE` (SHA-256 hex digest of verified decoded signature bytes)
+    - `user_id BIGINT NULL` (Foreign key referencing `users(id)` with `ON DELETE CASCADE`)
+    - `expires_at TIMESTAMP NOT NULL` (Expiration timestamp matching token expiration)
+    - `created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP`
+  - Indices:
+    - `uk_revoked_tokens_token_hash` UNIQUE on `token_hash`
+    - `idx_revoked_tokens_expires_at` on `expires_at` (for cleanup query efficiency)
+- **Lifecycle & Cleanup Owner**:
+  - Owner: `RevokedTokenCleanupService` (`@Scheduled(cron = "${aloute.auth.revoked-token-cleanup-cron:0 0 * * * *}")`).
+  - Automatically purges expired entries using `DELETE FROM RevokedToken r WHERE r.expiresAt <= :now`. Expired tokens can no longer authenticate anyway due to standard JWT expiration validation.
+- **Concurrency & Pessimistic Lock Serialization**:
+  - In `JwtSessionService.revokeToken(token, userId)`:
+  - Row-level lock `userRepository.findByIdForUpdate(userId)` on `users` table is acquired FIRST inside `@Transactional` boundary before checking `existsByTokenHash` and inserting into `revoked_tokens`.
+  - This database-backed serialization lock holds across the surrounding transaction commit, preventing duplicate key violations (HTTP 500) or race conditions across concurrent requests, threads, and application replicas.
+
 ---
 
 # 61. KNOWN GAP — NOTIFICATION PREFERENCES

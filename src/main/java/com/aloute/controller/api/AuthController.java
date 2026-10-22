@@ -119,8 +119,17 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletRequest request) {
-        currentUserProvider.requireUserId();
-        return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE,authCookie("",0,request.isSecure()).toString()).build();
+        Long userId = currentUserProvider.requireUserId();
+        String token = JwtAuthenticationFilter.resolveToken(request);
+        if (token == null || token.isBlank()) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_UNAUTHENTICATED", "Authentication required");
+        }
+
+        authService.logout(token, userId);
+
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, authCookie("", 0, request.isSecure()).toString())
+                .build();
     }
 
     @GetMapping("/me")

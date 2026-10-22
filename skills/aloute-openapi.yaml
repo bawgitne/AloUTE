@@ -301,7 +301,7 @@ paths:
       summary: Logout current user
       responses:
         '204':
-          description: Logged out; authentication cookie cleared
+          description: Logged out successfully. The current JWT session is durably revoked (stored token_hash is SHA-256 digest of verified decoded signature bytes in revoked_tokens table, cryptographically verified before lookup/writes), associated active STOMP WebSocket transports closed after transaction commit, and authentication cookie cleared.
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
