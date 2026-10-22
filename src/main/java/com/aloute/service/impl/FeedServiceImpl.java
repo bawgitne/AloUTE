@@ -7,6 +7,7 @@ import com.aloute.entity.Follow;
 import com.aloute.entity.Post;
 import com.aloute.entity.User;
 import com.aloute.repository.FollowRepository;
+import com.aloute.repository.PostSpecifications;
 import com.aloute.repository.PostRepository;
 import com.aloute.service.FeedService;
 import com.aloute.service.PostService;
@@ -35,7 +36,8 @@ public class FeedServiceImpl implements FeedService {
     @Transactional(readOnly = true)
     public Page<PostResponse> getHomeFeed(Pageable pageable, Long currentUserId) {
         Specification<Post> spec = (root, query, cb) -> cb.isNull(root.get("parentPost"));
-        spec = spec.and(postService.buildVisibilitySpec(currentUserId));
+        spec = spec.and(postService.buildVisibilitySpec(currentUserId))
+                .and(PostSpecifications.excludeMutedAuthors(currentUserId));
         return postRepository.findAll(spec, pageable)
                 .map(post -> postService.toResponse(post, currentUserId));
     }
@@ -60,7 +62,8 @@ public class FeedServiceImpl implements FeedService {
                 cb.isNull(root.get("parentPost")),
                 root.get("user").get("id").in(followingIds)
         );
-        spec = spec.and(postService.buildVisibilitySpec(currentUserId));
+        spec = spec.and(postService.buildVisibilitySpec(currentUserId))
+                .and(PostSpecifications.excludeMutedAuthors(currentUserId));
 
         return postRepository.findAll(spec, pageable)
                 .map(post -> postService.toResponse(post, currentUserId));
@@ -80,7 +83,8 @@ public class FeedServiceImpl implements FeedService {
             }
             return p;
         };
-        spec = spec.and(postService.buildVisibilitySpec(currentUserId));
+        spec = spec.and(postService.buildVisibilitySpec(currentUserId))
+                .and(PostSpecifications.excludeMutedAuthors(currentUserId));
 
         return postRepository.findAll(spec, pageable)
                 .map(post -> postService.toResponse(post, currentUserId));

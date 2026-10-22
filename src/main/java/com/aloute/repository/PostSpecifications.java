@@ -1,6 +1,7 @@
 package com.aloute.repository;
 
 import com.aloute.entity.Bookmark;
+import com.aloute.entity.Mute;
 import com.aloute.entity.Community;
 import com.aloute.entity.Post;
 import com.aloute.entity.PostVisibility;
@@ -166,6 +167,26 @@ public final class PostSpecifications {
             predicates.add(cb.or(isAuthor, nonAuthorAllowed));
 
             return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    /**
+     * Excludes posts authored by users muted by the viewer.
+     * Uses a correlated NOT EXISTS subquery to prevent unbounded ID in-memory materialization.
+     */
+    public static Specification<Post> excludeMutedAuthors(Long viewerId) {
+        if (viewerId == null) {
+            return (root, query, cb) -> cb.conjunction();
+        }
+        return (root, query, cb) -> {
+            Subquery<Long> subquery = query.subquery(Long.class);
+            Root<Mute> muteRoot = subquery.from(Mute.class);
+            subquery.select(muteRoot.get("id"))
+                    .where(
+                            cb.equal(muteRoot.get("muter").get("id"), viewerId),
+                            cb.equal(muteRoot.get("muted").get("id"), root.get("user").get("id"))
+                    );
+            return cb.not(cb.exists(subquery));
         };
     }
 }
