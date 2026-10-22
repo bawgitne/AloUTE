@@ -22,6 +22,9 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -60,6 +63,10 @@ class JwtSessionServiceTest {
     }
 
     private String buildToken(Long userId, Object versionClaim, Instant issuedAt, Instant expiresAt) {
+        return buildTokenWithPurpose(userId, versionClaim, null, issuedAt, expiresAt);
+    }
+
+    private String buildTokenWithPurpose(Long userId, Object versionClaim, String purpose, Instant issuedAt, Instant expiresAt) {
         var builder = Jwts.builder()
                 .subject(userId.toString())
                 .issuedAt(Date.from(issuedAt))
@@ -67,6 +74,9 @@ class JwtSessionServiceTest {
                 .signWith(secretKey);
         if (versionClaim != null) {
             builder.claim("v", versionClaim);
+        }
+        if (purpose != null) {
+            builder.claim("purpose", purpose);
         }
         return builder.compact();
     }
@@ -149,6 +159,39 @@ class JwtSessionServiceTest {
         assertThatThrownBy(() -> sessionService.authenticate(stringToken))
                 .isInstanceOf(BadCredentialsException.class)
                 .hasMessageContaining("Malformed");
+    }
+
+    @Test
+    void authenticate_twoFactorChallengeTicket_rejectedEvenIfAuthVersionIsZero() {
+        String challengeTicket = tokenProvider.generateTwoFactorTicket(100L, "TOTP", 300);
+
+        assertThatThrownBy(() -> sessionService.authenticate(challengeTicket))
+                .isInstanceOf(BadCredentialsException.class)
+                .hasMessageContaining("Invalid token purpose");
+
+        verify(userRepository, never()).findById(any());
+    }
+
+    @Test
+    void authenticate_purposeTokenWithExplicitAuthVersion_rejectedIndependentlyOfVersionFallback() {
+        String token = buildTokenWithPurpose(100L, 5L, "2FA_CHALLENGE", Instant.now(), Instant.now().plusSeconds(300));
+
+        assertThatThrownBy(() -> sessionService.authenticate(token))
+                .isInstanceOf(BadCredentialsException.class)
+                .hasMessageContaining("Invalid token purpose");
+
+        verify(userRepository, never()).findById(any());
+    }
+
+    @Test
+    void authenticate_unknownPurposeToken_rejected() {
+        String token = buildTokenWithPurpose(100L, 0L, "UNKNOWN_PURPOSE", Instant.now(), Instant.now().plusSeconds(3600));
+
+        assertThatThrownBy(() -> sessionService.authenticate(token))
+                .isInstanceOf(BadCredentialsException.class)
+                .hasMessageContaining("Invalid token purpose");
+
+        verify(userRepository, never()).findById(any());
     }
 
     @Test
