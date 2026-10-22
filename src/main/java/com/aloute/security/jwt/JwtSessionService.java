@@ -42,6 +42,11 @@ public class JwtSessionService {
             throw new BadCredentialsException("Invalid or expired token");
         }
 
+        Object purposeClaim = claims.get("purpose");
+        if (purposeClaim != null) {
+            throw new BadCredentialsException("Invalid token purpose");
+        }
+
         String subject = claims.getSubject();
         if (subject == null || subject.isBlank()) {
             throw new BadCredentialsException("Invalid token subject");
