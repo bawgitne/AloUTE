@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/aloute_theme.dart';
 import '../../models/post.dart';
-import '../../services/auth_service.dart';
 import '../../widgets/aloute_avatar.dart';
 import '../../widgets/aloute_post_card.dart';
+
+import '../../services/post_service.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final Post post;
@@ -22,29 +23,27 @@ class PostDetailScreen extends StatefulWidget {
 class _PostDetailScreenState extends State<PostDetailScreen> {
   final TextEditingController _replyController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
-  final List<Map<String, dynamic>> _mockReplies = [
-    {
-      'authorName': 'Võ Hoàng Nam',
-      'username': 'nam.vo',
-      'faculty': 'Khoa CNTT',
-      'content': 'Đề thi trắc nghiệm 40 câu trong 50 phút nhé bạn ơi! Trọng tâm là phần Pipeline và Cache.',
-      'createdAt': '1 giờ trước',
-    },
-    {
-      'authorName': 'Nguyễn Thị Thu',
-      'username': 'thunguyen',
-      'faculty': 'Khoa CNTT',
-      'content': 'Mình có slide tổng hợp công thức tính CPI với Speedup nè, bạn inbox mình gửi qua cho nhé!',
-      'createdAt': '30 phút trước',
-    },
-  ];
+  List<Map<String, dynamic>> _replies = [];
+  bool _isLoadingReplies = false;
 
   @override
   void initState() {
     super.initState();
+    _loadReplies();
     if (widget.focusReply) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _focusNode.requestFocus();
+      });
+    }
+  }
+
+  Future<void> _loadReplies() async {
+    setState(() => _isLoadingReplies = true);
+    final list = await PostService().getReplies(widget.post.id);
+    if (mounted) {
+      setState(() {
+        _replies = list;
+        _isLoadingReplies = false;
       });
     }
   }
@@ -56,22 +55,16 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     super.dispose();
   }
 
-  void _sendReply() {
+  Future<void> _sendReply() async {
     final text = _replyController.text.trim();
     if (text.isEmpty) return;
 
-    final user = AuthService().currentUser;
-    setState(() {
-      _mockReplies.add({
-        'authorName': user?.displayName ?? 'Tôi',
-        'username': user?.username ?? 'me',
-        'faculty': user?.faculty ?? 'Khoa CNTT',
-        'content': text,
-        'createdAt': 'Vừa xong',
-      });
-      widget.post.replyCount++;
+    final success = await PostService().createReply(widget.post.id, text);
+    if (success) {
       _replyController.clear();
-    });
+      widget.post.replyCount++;
+      await _loadReplies();
+    }
   }
 
   @override
@@ -90,7 +83,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   child: Text(
-                    'Bình luận (${_mockReplies.length})',
+                    'Bình luận (${_replies.length})',
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -98,7 +91,23 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     ),
                   ),
                 ),
-                ..._mockReplies.map((reply) => _buildReplyItem(reply)),
+                if (_isLoadingReplies)
+                  const Padding(
+                    padding: EdgeInsets.all(24.0),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_replies.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(24.0),
+                    child: Center(
+                      child: Text(
+                        'Chưa có bình luận nào.',
+                        style: TextStyle(color: AlouteColors.textMuted),
+                      ),
+                    ),
+                  )
+                else
+                  ..._replies.map((reply) => _buildReplyItem(reply)),
               ],
             ),
           ),

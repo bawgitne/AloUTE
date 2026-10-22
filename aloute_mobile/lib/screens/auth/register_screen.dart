@@ -104,6 +104,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             width: 64,
                             height: 64,
                             fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                color: AlouteColors.accent,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Icon(Icons.school, color: Colors.white, size: 32),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -111,6 +120,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           'assets/images/logo_text.png',
                           height: 24,
                           fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) => const Text(
+                            'ALOUTE',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: AlouteColors.accent,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
                         ),
                       ],
                     ),

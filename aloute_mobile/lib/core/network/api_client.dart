@@ -56,7 +56,7 @@ class ApiClient {
   factory ApiClient() => _instance;
   ApiClient._internal();
 
-  String _baseUrl = ApiConstants.defaultLocalUrl;
+  String _baseUrl = ApiConstants.defaultProdUrl;
   String? _authToken;
 
   String get baseUrl => _baseUrl;
@@ -68,10 +68,8 @@ class ApiClient {
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _authToken = prefs.getString('auth_token');
-    final savedUrl = prefs.getString('custom_base_url');
-    if (savedUrl != null && savedUrl.isNotEmpty) {
-      _baseUrl = savedUrl;
-    }
+    _baseUrl = ApiConstants.defaultProdUrl;
+    await prefs.remove('custom_base_url');
   }
 
   Future<void> setAuthToken(String? token) async {

@@ -31,10 +31,24 @@ class AuthService extends ChangeNotifier {
     final userJson = prefs.getString('cached_user');
     if (userJson != null) {
       try {
-        _currentUser = User.fromJson(jsonDecode(userJson) as Map<String, dynamic>);
-        notifyListeners();
-      } catch (_) {}
+        final parsed = jsonDecode(userJson) as Map<String, dynamic>;
+        final username = (parsed['username'] as String? ?? '').toLowerCase();
+        final displayName = (parsed['displayName'] as String? ?? '').toLowerCase();
+        if (username.contains('nguyenvanan') ||
+            displayName.contains('nguyễn văn an') ||
+            parsed['id'] == 24110166) {
+          await prefs.remove('cached_user');
+          await prefs.remove('auth_token');
+          await _api.clearAuthToken();
+          _currentUser = null;
+        } else {
+          _currentUser = User.fromJson(parsed);
+        }
+      } catch (_) {
+        await prefs.remove('cached_user');
+      }
     }
+    notifyListeners();
   }
 
   Future<bool> login(String usernameOrEmail, String password) async {
@@ -71,28 +85,8 @@ class AuthService extends ChangeNotifier {
         notifyListeners();
         return true;
       }
-    } catch (_) {}
-
-    // Fallback Mock authentication for development & campus demo
-    if (usernameOrEmail.isNotEmpty && password.length >= 4) {
-      final bool isAdmin = usernameOrEmail.toLowerCase().contains('admin');
-      _currentUser = User(
-        id: isAdmin ? 1 : 24110166,
-        username: usernameOrEmail,
-        displayName: isAdmin ? 'Quản trị viên AloUTE' : 'Nguyễn Văn An (K24)',
-        email: usernameOrEmail.contains('@') ? usernameOrEmail : '$usernameOrEmail@student.hcmute.edu.vn',
-        faculty: 'Khoa Công nghệ Thông tin (HCMUTE)',
-        studentCode: '24110166',
-        bio: 'Sinh viên K24 Khoa CNTT - Đam mê Công nghệ phần mềm & Mobile App.',
-        followerCount: 128,
-        followingCount: 95,
-        postCount: 14,
-      );
-      await _api.setAuthToken('mock_jwt_session_token');
-      await _saveUserLocally(_currentUser!);
-      _isLoading = false;
-      notifyListeners();
-      return true;
+    } catch (e) {
+      debugPrint('[AuthService] Login failed: $e');
     }
 
     _isLoading = false;
@@ -165,18 +159,11 @@ class AuthService extends ChangeNotifier {
         body: {'username': username, 'email': email, 'password': password},
       );
 
-      if (response.success) {
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      }
-    } catch (_) {}
-
-    // Mock register success for preview/development
-    if (username.isNotEmpty && email.isNotEmpty && password.length >= 6) {
       _isLoading = false;
       notifyListeners();
-      return true;
+      return response.success;
+    } catch (e) {
+      debugPrint('[AuthService] Register failed: $e');
     }
 
     _isLoading = false;
@@ -194,18 +181,11 @@ class AuthService extends ChangeNotifier {
         body: {'email': email, 'otp': otp},
       );
 
-      if (response.success) {
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      }
-    } catch (_) {}
-
-    // Mock OTP verification (accept any 6-digit number)
-    if (otp.length == 6) {
       _isLoading = false;
       notifyListeners();
-      return true;
+      return response.success;
+    } catch (e) {
+      debugPrint('[AuthService] Verify registration OTP failed: $e');
     }
 
     _isLoading = false;
@@ -220,8 +200,9 @@ class AuthService extends ChangeNotifier {
         body: {'email': email},
       );
       return response.success;
-    } catch (_) {
-      return true; // Mock success
+    } catch (e) {
+      debugPrint('[AuthService] Resend registration OTP failed: $e');
+      return false;
     }
   }
 
@@ -237,10 +218,11 @@ class AuthService extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       return response.success;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[AuthService] Forgot password failed: $e');
       _isLoading = false;
       notifyListeners();
-      return true; // Mock success
+      return false;
     }
   }
 
@@ -256,10 +238,11 @@ class AuthService extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       return response.success;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[AuthService] Reset password failed: $e');
       _isLoading = false;
       notifyListeners();
-      return true; // Mock success
+      return false;
     }
   }
 
