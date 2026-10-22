@@ -568,18 +568,18 @@
         btn.dataset.state = 'ready';
 
         if (isFollowing) {
-            btn.className = 'btn btn-sm btn-outline-primary aloute-follow-btn';
-            btn.innerHTML = '<i class="bi bi-person-check me-1" aria-hidden="true"></i><span>Đang theo dõi</span>';
+            btn.className = 'btn profile-action-btn-main profile-btn-following aloute-follow-btn';
+            btn.innerHTML = '<i class="bi bi-person-check-fill me-1" aria-hidden="true"></i><span>Đang theo dõi</span>';
         } else {
-            btn.className = 'btn btn-sm btn-primary aloute-follow-btn';
-            btn.innerHTML = '<i class="bi bi-person-plus me-1" aria-hidden="true"></i><span>Theo dõi</span>';
+            btn.className = 'btn profile-action-btn-main profile-btn-follow aloute-follow-btn';
+            btn.innerHTML = '<i class="bi bi-person-plus-fill me-1" aria-hidden="true"></i><span>Theo dõi</span>';
         }
     }
 
     function renderFollowError(btn) {
         btn.disabled = false;
         btn.dataset.state = 'error';
-        btn.className = 'btn btn-sm btn-outline-warning aloute-follow-btn';
+        btn.className = 'btn profile-action-btn-main btn-outline-warning aloute-follow-btn';
         btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i><span>Lỗi tải. Thử lại</span>';
     }
 
@@ -701,6 +701,208 @@
                 renderFollowState(btn, false);
                 notice('Lỗi kết nối khi thực hiện theo dõi.', 'danger');
             }
+        }
+    }
+
+    // =========================================================================
+    // Profile Actions: Mute, Block, Restrict, Copy Link
+    // =========================================================================
+    let pendingProfileBlockTarget = null;
+    let pendingProfileMuteTarget = null;
+
+    async function handleMuteUserToggle(btn) {
+        if (!btn || btn.disabled) return;
+        const userId = btn.dataset.userId;
+        const username = btn.dataset.username || 'user';
+        const isMuted = btn.dataset.muted === 'true';
+
+        if (!isMuted) {
+            pendingProfileMuteTarget = { userId, username, btn };
+            const usernameEl = document.getElementById('modal-mute-profile-username');
+            if (usernameEl) usernameEl.textContent = '@' + username;
+            const modalEl = document.getElementById('modal-confirm-mute-profile');
+            if (modalEl && typeof bootstrap !== 'undefined') {
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+            } else {
+                await executeMute(userId, username, btn, true);
+            }
+        } else {
+            await executeMute(userId, username, btn, false);
+        }
+    }
+
+    async function executeMute(userId, username, btn, shouldMute) {
+        const http = getHttp();
+        if (!http) {
+            notice('Lỗi kết nối ứng dụng.', 'danger');
+            return;
+        }
+        btn.disabled = true;
+        try {
+            const url = '/api/social/mutes/' + encodeURIComponent(userId);
+            const method = shouldMute ? 'PUT' : 'DELETE';
+            const response = await http.request(url, { method: method });
+            if (response.ok || response.status === 204) {
+                btn.dataset.muted = shouldMute ? 'true' : 'false';
+                const textEl = document.getElementById('text-profile-mute');
+                const iconEl = document.getElementById('icon-profile-mute');
+                if (textEl) textEl.textContent = shouldMute ? 'Bật lại thông báo' : 'Tắt thông báo';
+                if (iconEl) {
+                    iconEl.className = shouldMute ? 'bi bi-bell text-primary me-2' : 'bi bi-bell-slash text-secondary me-2';
+                }
+                const banner = document.getElementById('banner-user-muted');
+                if (banner) {
+                    if (shouldMute) banner.classList.remove('d-none');
+                    else banner.classList.add('d-none');
+                }
+                notice(shouldMute ? ('Đã tắt thông báo của @' + username + '.') : ('Đã bật lại thông báo cho @' + username + '.'), 'success');
+            } else {
+                notice('Không thể thực hiện thao tác tắt thông báo.', 'danger');
+            }
+        } catch (_) {
+            notice('Lỗi kết nối khi tắt thông báo.', 'danger');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    async function handleBlockUserToggle(btn) {
+        if (!btn || btn.disabled) return;
+        const userId = btn.dataset.userId;
+        const username = btn.dataset.username || 'user';
+        const isBlocked = btn.dataset.blocked === 'true';
+
+        if (!isBlocked) {
+            pendingProfileBlockTarget = { userId, username, btn };
+            const usernameEl = document.getElementById('modal-block-profile-username');
+            if (usernameEl) usernameEl.textContent = '@' + username;
+            const modalEl = document.getElementById('modal-confirm-block-profile');
+            if (modalEl && typeof bootstrap !== 'undefined') {
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+            } else {
+                await executeBlock(userId, username, btn, true);
+            }
+        } else {
+            await executeBlock(userId, username, btn, false);
+        }
+    }
+
+    async function executeBlock(userId, username, btn, shouldBlock) {
+        const http = getHttp();
+        if (!http) {
+            notice('Lỗi kết nối ứng dụng.', 'danger');
+            return;
+        }
+        btn.disabled = true;
+        try {
+            const url = '/api/social/blocks/' + encodeURIComponent(userId);
+            const method = shouldBlock ? 'PUT' : 'DELETE';
+            const response = await http.request(url, { method: method });
+            if (response.ok || response.status === 204) {
+                btn.dataset.blocked = shouldBlock ? 'true' : 'false';
+                const textEl = document.getElementById('text-profile-block');
+                const iconEl = document.getElementById('icon-profile-block');
+                if (textEl) textEl.textContent = shouldBlock ? 'Bỏ chặn tài khoản' : 'Chặn người dùng';
+                if (iconEl) {
+                    iconEl.className = shouldBlock ? 'bi bi-shield-check text-success me-2' : 'bi bi-slash-circle text-danger me-2';
+                }
+                const banner = document.getElementById('banner-user-blocked');
+                if (banner) {
+                    if (shouldBlock) banner.classList.remove('d-none');
+                    else banner.classList.add('d-none');
+                }
+                notice(shouldBlock ? ('Đã chặn người dùng @' + username + '.') : ('Đã bỏ chặn người dùng @' + username + '.'), shouldBlock ? 'warning' : 'success');
+            } else {
+                notice('Không thể thực hiện chặn người dùng.', 'danger');
+            }
+        } catch (_) {
+            notice('Lỗi kết nối khi cập nhật chặn người dùng.', 'danger');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    async function handleRestrictUserToggle(btn) {
+        if (!btn || btn.disabled) return;
+        const userId = btn.dataset.userId;
+        const username = btn.dataset.username || 'user';
+        const isRestricted = btn.dataset.restricted === 'true';
+        const http = getHttp();
+        if (!http) return;
+        btn.disabled = true;
+        try {
+            const url = '/api/social/restrictions/' + encodeURIComponent(userId);
+            const method = isRestricted ? 'DELETE' : 'PUT';
+            const response = await http.request(url, { method: method });
+            if (response.ok || response.status === 204) {
+                const nextState = !isRestricted;
+                btn.dataset.restricted = nextState ? 'true' : 'false';
+                const textEl = document.getElementById('text-profile-restrict');
+                const iconEl = document.getElementById('icon-profile-restrict');
+                if (textEl) textEl.textContent = nextState ? 'Bỏ hạn chế' : 'Hạn chế tương tác';
+                if (iconEl) {
+                    iconEl.className = nextState ? 'bi bi-eye text-primary me-2' : 'bi bi-eye-slash text-secondary me-2';
+                }
+                notice(nextState ? ('Đã hạn chế tương tác với @' + username + '.') : ('Đã hủy hạn chế tương tác với @' + username + '.'), 'info');
+            } else {
+                notice('Không thể thay đổi trạng thái hạn chế.', 'danger');
+            }
+        } catch (_) {
+            notice('Lỗi kết nối khi cập nhật hạn chế.', 'danger');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    async function handleCopyProfileLink(btn) {
+        const username = btn.dataset.username || '';
+        const url = window.location.origin + '/users/' + encodeURIComponent(username);
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(url);
+            } else {
+                const tempInput = document.createElement('input');
+                tempInput.value = url;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+            }
+            notice('Đã sao chép liên kết trang cá nhân vào clipboard!', 'success');
+        } catch (_) {
+            notice('Không thể sao chép liên kết.', 'warning');
+        }
+    }
+
+    function initProfileMoreActions() {
+        const btnModalBlock = document.getElementById('btn-modal-confirm-block');
+        if (btnModalBlock) {
+            btnModalBlock.addEventListener('click', async function () {
+                if (!pendingProfileBlockTarget) return;
+                const { userId, username, btn } = pendingProfileBlockTarget;
+                const modalEl = document.getElementById('modal-confirm-block-profile');
+                if (modalEl && typeof bootstrap !== 'undefined') {
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                }
+                await executeBlock(userId, username, btn, true);
+            });
+        }
+
+        const btnModalMute = document.getElementById('btn-modal-confirm-mute');
+        if (btnModalMute) {
+            btnModalMute.addEventListener('click', async function () {
+                if (!pendingProfileMuteTarget) return;
+                const { userId, username, btn } = pendingProfileMuteTarget;
+                const modalEl = document.getElementById('modal-confirm-mute-profile');
+                if (modalEl && typeof bootstrap !== 'undefined') {
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                }
+                await executeMute(userId, username, btn, true);
+            });
         }
     }
 
@@ -835,6 +1037,30 @@
         if (action === 'toggle-follow') {
             event.preventDefault();
             await handleFollowToggle(target);
+            return;
+        }
+
+        if (action === 'toggle-mute-user') {
+            event.preventDefault();
+            await handleMuteUserToggle(target);
+            return;
+        }
+
+        if (action === 'toggle-block-user') {
+            event.preventDefault();
+            await handleBlockUserToggle(target);
+            return;
+        }
+
+        if (action === 'toggle-restrict-user') {
+            event.preventDefault();
+            await handleRestrictUserToggle(target);
+            return;
+        }
+
+        if (action === 'copy-profile-link') {
+            event.preventDefault();
+            await handleCopyProfileLink(target);
             return;
         }
 
@@ -1372,7 +1598,8 @@
                         statusEl.textContent = 'Tạo cộng đồng thành công! Đang chuyển hướng...';
                     }
                     setTimeout(function () {
-                        window.location.href = '/communities/' + encodeURIComponent(newId);
+                        const newSlug = (body && body.data && body.data.slug) ? body.data.slug : newId;
+                        window.location.href = '/communities/' + encodeURIComponent(newSlug);
                     }, 500);
                 } else {
                     // Failure: unfreeze modal, preserve form draft, show diagnostic error
@@ -2011,11 +2238,13 @@
             return targetId ? ('/posts/' + encodeURIComponent(targetId)) : '/feed';
         }
         if (targetType === 'USER') {
+            if (item.actor && item.actor.username) return '/users/' + encodeURIComponent(item.actor.username);
             if (targetId) return '/users/' + encodeURIComponent(targetId);
             if (actorId) return '/users/' + encodeURIComponent(actorId);
             return '/friends';
         }
         if (targetType === 'COMMUNITY') {
+            if (item.community && item.community.slug) return '/communities/' + encodeURIComponent(item.community.slug);
             return targetId ? ('/communities/' + encodeURIComponent(targetId)) : '/communities';
         }
         if (targetType === 'MESSAGE') {
@@ -2570,6 +2799,7 @@
         document.addEventListener('DOMContentLoaded', function () {
             initProfileEditModal();
             initFollowButton();
+            initProfileMoreActions();
             initCreateCommunityModal();
             initReportModal();
             initQuotePostModal();
@@ -2581,6 +2811,7 @@
     } else {
         initProfileEditModal();
         initFollowButton();
+        initProfileMoreActions();
         initCreateCommunityModal();
         initReportModal();
         initQuotePostModal();

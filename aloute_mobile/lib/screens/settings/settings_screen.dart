@@ -46,6 +46,44 @@ class SettingsScreen extends StatelessWidget {
     }
   }
 
+  void _showTwoFactorInfoDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AlouteColors.bgSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AlouteColors.radiusLg)),
+        title: const Row(
+          children: [
+            Icon(Icons.shield_outlined, color: AlouteColors.accent),
+            SizedBox(width: 8),
+            Text('Bảo mật 2 lớp (2FA)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Tính năng xác thực hai yếu tố (2FA) bảo vệ tài khoản bằng mã số động từ Google Authenticator hoặc Email sinh viên.',
+              style: TextStyle(fontSize: 13, color: AlouteColors.textPrimary),
+            ),
+            SizedBox(height: 12),
+            Text(
+              '💡 Mẹo: Bạn có thể bật và quét mã QR thiết lập 2FA dễ dàng từ trang Cài đặt trên máy tính hoặc trình duyệt Web AloUTE.',
+              style: TextStyle(fontSize: 12, color: AlouteColors.textSecondary),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Đã hiểu', style: TextStyle(color: AlouteColors.accent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = AuthService().currentUser ??
@@ -180,6 +218,79 @@ class SettingsScreen extends StatelessWidget {
                   const SnackBar(content: Text('Đã cập nhật cài đặt thông báo')),
                 );
               },
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          _buildSettingCard(
+            context,
+            icon: Icons.notifications_off_outlined,
+            iconBg: AlouteColors.warningBg,
+            iconColor: AlouteColors.warning,
+            title: 'Tài khoản đã tắt thông báo (Mute)',
+            subtitle: 'Quản lý danh sách người dùng bạn không muốn nhận thông báo',
+            trailing: OutlinedButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Xem danh sách mute trên phiên bản Web')),
+                );
+              },
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AlouteColors.warning),
+                foregroundColor: AlouteColors.warning,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AlouteColors.radiusFull)),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('Quản lý', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          _buildSettingCard(
+            context,
+            icon: Icons.block_outlined,
+            iconBg: AlouteColors.dangerBg,
+            iconColor: AlouteColors.danger,
+            title: 'Người dùng đã chặn',
+            subtitle: 'Quản lý danh sách các tài khoản bạn đã chặn trên AloUTE',
+            trailing: OutlinedButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Xem danh sách chặn trên phiên bản Web')),
+                );
+              },
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AlouteColors.danger),
+                foregroundColor: AlouteColors.danger,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AlouteColors.radiusFull)),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('Quản lý', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildSettingCard(
+            context,
+            icon: Icons.shield_rounded,
+            iconBg: AlouteColors.accentSubtle,
+            iconColor: AlouteColors.accent,
+            title: 'Bảo mật 2 lớp (2FA)',
+            subtitle: 'Bảo vệ tài khoản bằng Google Authenticator và mã dự phòng',
+            trailing: OutlinedButton(
+              onPressed: () => _showTwoFactorInfoDialog(context),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AlouteColors.accent),
+                foregroundColor: AlouteColors.accent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AlouteColors.radiusFull)),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('Chi tiết', style: TextStyle(fontSize: 12)),
             ),
           ),
           const SizedBox(height: 12),

@@ -13,5 +13,7 @@ public interface MuteRepository extends JpaRepository<Mute, Long> {
 
     Optional<Mute> findByMuterIdAndMutedId(Long muterId, Long mutedId);
 
+    org.springframework.data.domain.Page<Mute> findByMuterId(Long muterId, org.springframework.data.domain.Pageable pageable);
+
     void deleteByMuterIdAndMutedId(Long muterId, Long mutedId);
 }

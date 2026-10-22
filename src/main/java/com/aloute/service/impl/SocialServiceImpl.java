@@ -123,11 +123,29 @@ public class SocialServiceImpl implements SocialService {
     }
 
     @Override @Transactional
+    public SocialRelationResponse blockByUsername(Long currentUserId, String username) {
+        if (username == null || username.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_USERNAME", "Vui lòng nhập tên người dùng hợp lệ");
+        }
+        String clean = username.trim().startsWith("@") ? username.trim().substring(1) : username.trim();
+        User target = userRepository.findByUsernameIgnoreCase(clean)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng @" + clean));
+        return block(currentUserId, target.getId());
+    }
+
+    @Override @Transactional
     public void unblock(Long currentUserId, Long targetUserId) {
         requireUser(targetUserId);
         com.aloute.entity.Block b = blockRepository.findByBlockerIdAndBlockedId(currentUserId, targetUserId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "BLOCK_NOT_FOUND", "Block relationship not found"));
         blockRepository.delete(b);
+    }
+
+    @Override @Transactional(readOnly = true)
+    public ApiResponse<List<UserSummary>> blockedUsers(Long currentUserId, Pageable pageable) {
+        requireUser(currentUserId);
+        Page<com.aloute.entity.Block> p = blockRepository.findByBlockerId(currentUserId, pageable);
+        return ApiResponse.page(p.getContent().stream().map(com.aloute.entity.Block::getBlocked).map(this::summary).toList(), PageMeta.from(p));
     }
 
     @Override @Transactional
@@ -151,11 +169,29 @@ public class SocialServiceImpl implements SocialService {
     }
 
     @Override @Transactional
+    public SocialRelationResponse muteByUsername(Long currentUserId, String username) {
+        if (username == null || username.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_USERNAME", "Vui lòng nhập tên người dùng hợp lệ");
+        }
+        String clean = username.trim().startsWith("@") ? username.trim().substring(1) : username.trim();
+        User target = userRepository.findByUsernameIgnoreCase(clean)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng @" + clean));
+        return mute(currentUserId, target.getId());
+    }
+
+    @Override @Transactional
     public void unmute(Long currentUserId, Long targetUserId) {
         requireUser(targetUserId);
         com.aloute.entity.Mute m = muteRepository.findByMuterIdAndMutedId(currentUserId, targetUserId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "MUTE_NOT_FOUND", "Mute relationship not found"));
         muteRepository.delete(m);
+    }
+
+    @Override @Transactional(readOnly = true)
+    public ApiResponse<List<UserSummary>> mutedUsers(Long currentUserId, Pageable pageable) {
+        requireUser(currentUserId);
+        Page<com.aloute.entity.Mute> p = muteRepository.findByMuterId(currentUserId, pageable);
+        return ApiResponse.page(p.getContent().stream().map(com.aloute.entity.Mute::getMuted).map(this::summary).toList(), PageMeta.from(p));
     }
 
     @Override @Transactional
@@ -184,6 +220,23 @@ public class SocialServiceImpl implements SocialService {
         com.aloute.entity.Restriction r = restrictionRepository.findByRestricterIdAndRestrictedId(currentUserId, targetUserId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "RESTRICTION_NOT_FOUND", "Restriction not found"));
         restrictionRepository.delete(r);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public com.aloute.dto.response.UserRelationStatusResponse getRelationStatus(Long currentUserId, Long targetUserId) {
+        if (targetUserId == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Target user not found");
+        }
+        requireUser(targetUserId);
+        if (currentUserId == null || currentUserId.equals(targetUserId)) {
+            return new com.aloute.dto.response.UserRelationStatusResponse(targetUserId, false, false, false, false);
+        }
+        boolean following = followRepository.existsById(new FollowId(currentUserId, targetUserId));
+        boolean blocked = blockRepository.existsByBlockerIdAndBlockedId(currentUserId, targetUserId);
+        boolean muted = muteRepository.existsByMuterIdAndMutedId(currentUserId, targetUserId);
+        boolean restricted = restrictionRepository.existsByRestricterIdAndRestrictedId(currentUserId, targetUserId);
+        return new com.aloute.dto.response.UserRelationStatusResponse(targetUserId, following, blocked, muted, restricted);
     }
 
     private UserSummary summary(User u) { Profile p=requireProfile(u.getId()); return new UserSummary(u.getId(),u.getUsername(),p.getDisplayName(),p.getAvatarUrl(),u.isVerified()); }

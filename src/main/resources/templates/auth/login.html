@@ -24,52 +24,104 @@
             <span>Bạn đã đăng xuất thành công khỏi hệ thống.</span>
         </div>
 
-        <!-- Email Field -->
-        <div class="mb-3">
-            <label for="email" class="form-label">Email UTE</label>
-            <div class="input-group">
-                <input type="email"
-                       class="form-control"
-                       id="email"
-                       name="email"
-                       th:value="${param.email}"
-                       placeholder="user@student.hcmute.edu.vn"
-                       autocomplete="email"
-                       maxlength="254"
-                       aria-describedby="email-feedback"
-                       aria-invalid="false"
-                       required>
+        <!-- Step 1: Credentials Section -->
+        <div id="login-credentials-section">
+            <!-- Email Field -->
+            <div class="mb-3">
+                <label for="email" class="form-label">Email UTE</label>
+                <div class="input-group">
+                    <input type="email"
+                           class="form-control"
+                           id="email"
+                           name="email"
+                           th:value="${param.email}"
+                           placeholder="user@student.hcmute.edu.vn"
+                           autocomplete="email"
+                           maxlength="254"
+                           aria-describedby="email-feedback"
+                           aria-invalid="false"
+                           required>
+                </div>
+                <div class="invalid-feedback d-none" id="email-feedback">Email không được để trống.</div>
             </div>
-            <div class="invalid-feedback d-none" id="email-feedback">Email không được để trống.</div>
+
+            <!-- Password Field -->
+            <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label for="password" class="form-label mb-0">Mật khẩu</label>
+                    <a th:href="@{/forgot-password}" href="/forgot-password" class="small text-primary text-decoration-none" data-action="navigate-forgot-password">Quên mật khẩu?</a>
+                </div>
+                <div class="input-group">
+                    <input type="password"
+                           class="form-control"
+                           id="password"
+                           name="password"
+                           placeholder="Nhập mật khẩu của bạn"
+                           autocomplete="current-password"
+                           aria-describedby="password-feedback"
+                           aria-invalid="false"
+                           required>
+                </div>
+                <div class="invalid-feedback d-none" id="password-feedback">Mật khẩu không được để trống.</div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="d-grid mb-3">
+                <button type="submit" class="btn btn-primary py-2 fw-semibold" id="login-submit-btn" data-action="login">
+                    <span class="spinner-border spinner-border-sm d-none me-1" id="login-spinner" role="status" aria-hidden="true"></span>
+                    <i class="bi bi-box-arrow-in-right me-1" id="login-icon" aria-hidden="true"></i>
+                    <span id="login-btn-text">Đăng nhập</span>
+                </button>
+            </div>
         </div>
 
-        <!-- Password Field -->
-        <div class="mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-                <label for="password" class="form-label mb-0">Mật khẩu</label>
-                <a th:href="@{/forgot-password}" href="/forgot-password" class="small text-primary text-decoration-none" data-action="navigate-forgot-password">Quên mật khẩu?</a>
+        <!-- Step 2: Two-Factor Authentication Section -->
+        <div id="login-2fa-section" class="d-none">
+            <div class="text-center mb-3">
+                <div class="rounded-circle bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center mb-2" style="width: 48px; height: 48px;">
+                    <i class="bi bi-shield-lock-fill fs-4"></i>
+                </div>
+                <h2 class="fs-6 fw-bold text-dark mb-1">Xác thực bảo mật 2 lớp</h2>
+                <p class="small text-muted mb-0" id="login-2fa-desc">
+                    Mở ứng dụng <strong>Google Authenticator</strong> trên điện thoại và nhập mã 6 số:
+                </p>
             </div>
-            <div class="input-group">
-                <input type="password"
-                       class="form-control"
-                       id="password"
-                       name="password"
-                       placeholder="Nhập mật khẩu của bạn"
-                       autocomplete="current-password"
-                       aria-describedby="password-feedback"
-                       aria-invalid="false"
-                       required>
-            </div>
-            <div class="invalid-feedback d-none" id="password-feedback">Mật khẩu không được để trống.</div>
-        </div>
 
-        <!-- Submit Button -->
-        <div class="d-grid mb-3">
-            <button type="submit" class="btn btn-primary py-2 fw-semibold" id="login-submit-btn" data-action="login">
-                <span class="spinner-border spinner-border-sm d-none me-1" id="login-spinner" role="status" aria-hidden="true"></span>
-                <i class="bi bi-box-arrow-in-right me-1" id="login-icon" aria-hidden="true"></i>
-                <span id="login-btn-text">Đăng nhập</span>
-            </button>
+            <div class="mb-3">
+                <label for="two-factor-code" class="form-label small fw-semibold text-dark" id="label-2fa-code">Mã bảo mật 6 số</label>
+                <div class="input-group">
+                    <input type="text"
+                           class="form-control text-center font-monospace fs-4 fw-bold letter-spacing-1"
+                           id="two-factor-code"
+                           name="twoFactorCode"
+                           maxlength="9"
+                           autocomplete="one-time-code"
+                           placeholder="------"
+                           aria-describedby="two-factor-feedback">
+                </div>
+                <div class="invalid-feedback d-none" id="two-factor-feedback"></div>
+            </div>
+
+            <div class="d-grid mb-3">
+                <button type="button" class="btn btn-primary py-2 fw-semibold" id="login-2fa-submit-btn">
+                    <span class="spinner-border spinner-border-sm d-none me-1" id="login-2fa-spinner" role="status" aria-hidden="true"></span>
+                    <i class="bi bi-check-circle me-1" id="login-2fa-icon" aria-hidden="true"></i>
+                    <span>Xác nhận đăng nhập</span>
+                </button>
+            </div>
+
+            <!-- Fallback Options -->
+            <div class="d-flex flex-column gap-2 text-center pt-2 border-top border-secondary-subtle">
+                <button type="button" class="btn btn-link btn-sm text-decoration-none text-primary p-0" id="btn-request-email-otp">
+                    <i class="bi bi-envelope me-1"></i>Nhận mã OTP qua Email sinh viên
+                </button>
+                <button type="button" class="btn btn-link btn-sm text-decoration-none text-secondary p-0" id="btn-toggle-backup-mode">
+                    <i class="bi bi-key me-1"></i>Sử dụng mã dự phòng (Backup Code)
+                </button>
+                <button type="button" class="btn btn-link btn-sm text-decoration-none text-muted p-0 mt-1" id="btn-back-to-credentials">
+                    <i class="bi bi-arrow-left me-1"></i>Quay lại đăng nhập tài khoản khác
+                </button>
+            </div>
         </div>
 
         <!-- Switch to Register Link -->

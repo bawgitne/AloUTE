@@ -13,7 +13,9 @@ import 'edit_profile_screen.dart';
 import 'friends_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final User? otherUser;
+
+  const ProfileScreen({super.key, this.otherUser});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -24,6 +26,13 @@ class _ProfileScreenState extends State<ProfileScreen>
   late TabController _tabController;
   final AuthService _authService = AuthService();
   final PostService _postService = PostService();
+
+  bool _isFollowing = false;
+  bool _isMuted = false;
+  bool _isBlocked = false;
+  bool _isRestricted = false;
+
+  bool get _isOtherUser => widget.otherUser != null && widget.otherUser?.id != _authService.currentUser?.id;
 
   @override
   void initState() {
@@ -68,9 +77,77 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
+  void _toggleFollow() {
+    setState(() {
+      _isFollowing = !_isFollowing;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(_isFollowing ? 'Đã theo dõi người dùng' : 'Đã hủy theo dõi')),
+    );
+  }
+
+  void _toggleMute() {
+    setState(() {
+      _isMuted = !_isMuted;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(_isMuted ? 'Đã tắt thông báo của @${widget.otherUser?.username}' : 'Đã bật lại thông báo')),
+    );
+  }
+
+  void _toggleBlock() async {
+    if (!_isBlocked) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Chặn người dùng này?'),
+          content: Text('Khi bạn chặn @${widget.otherUser?.username}, họ sẽ không thể xem bài viết hoặc gửi tin nhắn cho bạn.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: AlouteColors.danger),
+              child: const Text('Chặn', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
+    setState(() {
+      _isBlocked = !_isBlocked;
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_isBlocked ? 'Đã chặn @${widget.otherUser?.username}' : 'Đã bỏ chặn người dùng')),
+      );
+    }
+  }
+
+  void _toggleRestrict() {
+    setState(() {
+      _isRestricted = !_isRestricted;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(_isRestricted ? 'Đã hạn chế tương tác' : 'Đã bỏ hạn chế')),
+    );
+  }
+
+  void _copyLink() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Đã sao chép liên kết trang cá nhân!')),
+    );
+  }
+
+  void _reportUser() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Đã mở biểu mẫu báo cáo trang cá nhân')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final user = _authService.currentUser;
+    final user = _isOtherUser ? widget.otherUser : _authService.currentUser;
     final myPosts = _postService.homePosts
         .where((p) => p.author.username == user?.username || p.author.id == user?.id)
         .toList();
@@ -81,11 +158,87 @@ class _ProfileScreenState extends State<ProfileScreen>
       appBar: AppBar(
         title: Text(user?.username != null ? '@${user!.username}' : 'Hồ sơ cá nhân'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: AlouteColors.danger),
-            onPressed: _handleLogout,
-            tooltip: 'Đăng xuất',
-          ),
+          if (!_isOtherUser)
+            IconButton(
+              icon: const Icon(Icons.logout, color: AlouteColors.danger),
+              onPressed: _handleLogout,
+              tooltip: 'Đăng xuất',
+            )
+          else
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: AlouteColors.textPrimary),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              onSelected: (val) {
+                if (val == 'mute') {
+                  _toggleMute();
+                } else if (val == 'block') {
+                  _toggleBlock();
+                } else if (val == 'restrict') {
+                  _toggleRestrict();
+                } else if (val == 'copy') {
+                  _copyLink();
+                } else if (val == 'report') {
+                  _reportUser();
+                }
+              },
+              itemBuilder: (ctx) => [
+                PopupMenuItem(
+                  value: 'mute',
+                  child: Row(
+                    children: [
+                      Icon(_isMuted ? Icons.notifications_active : Icons.notifications_off_outlined,
+                           color: _isMuted ? AlouteColors.accent : AlouteColors.textSecondary, size: 20),
+                      const SizedBox(width: 12),
+                      Text(_isMuted ? 'Bật lại thông báo' : 'Tắt thông báo (Mute)'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'restrict',
+                  child: Row(
+                    children: [
+                      Icon(_isRestricted ? Icons.visibility : Icons.visibility_off_outlined,
+                           color: _isRestricted ? AlouteColors.accent : AlouteColors.textSecondary, size: 20),
+                      const SizedBox(width: 12),
+                      Text(_isRestricted ? 'Bỏ hạn chế' : 'Hạn chế tương tác'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'copy',
+                  child: Row(
+                    children: [
+                      Icon(Icons.link, color: AlouteColors.textSecondary, size: 20),
+                      SizedBox(width: 12),
+                      Text('Sao chép liên kết'),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: 'report',
+                  child: Row(
+                    children: [
+                      Icon(Icons.flag_outlined, color: AlouteColors.danger, size: 20),
+                      SizedBox(width: 12),
+                      Text('Báo cáo trang cá nhân', style: TextStyle(color: AlouteColors.danger)),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'block',
+                  child: Row(
+                    children: [
+                      Icon(_isBlocked ? Icons.shield_outlined : Icons.block,
+                           color: _isBlocked ? Colors.green : AlouteColors.danger, size: 20),
+                      const SizedBox(width: 12),
+                      Text(_isBlocked ? 'Bỏ chặn người dùng' : 'Chặn người dùng (Block)',
+                           style: TextStyle(color: _isBlocked ? Colors.green : AlouteColors.danger)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
       body: NestedScrollView(
@@ -202,36 +355,37 @@ class _ProfileScreenState extends State<ProfileScreen>
                       ],
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.settings_outlined, color: AlouteColors.textPrimary),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                      );
-                    },
-                    tooltip: 'Cài đặt',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.logout, color: AlouteColors.danger),
-                    onPressed: _handleLogout,
-                    tooltip: 'Đăng xuất',
-                  ),
+                  if (!_isOtherUser) ...[
+                    IconButton(
+                      icon: const Icon(Icons.settings_outlined, color: AlouteColors.textPrimary),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                        );
+                      },
+                      tooltip: 'Cài đặt',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.logout, color: AlouteColors.danger),
+                      onPressed: _handleLogout,
+                      tooltip: 'Đăng xuất',
+                    ),
+                  ],
                 ],
               ),
               const SizedBox(height: 12),
-              // Sửa hồ sơ button
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      user?.bio ?? 'Sinh viên Trường Đại học Sư phạm Kỹ thuật TP.HCM (HCMUTE).',
-                      style: const TextStyle(fontSize: 14, height: 1.4, color: AlouteColors.textPrimary),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  AlouteButton(
+              // Bio text
+              Text(
+                user?.bio ?? 'Thành viên cộng đồng AloUTE.',
+                style: const TextStyle(fontSize: 14, height: 1.4, color: AlouteColors.textPrimary),
+              ),
+              const SizedBox(height: 12),
+              // Action buttons: Sửa hồ sơ OR Theo dõi + Nhắn tin
+              if (!_isOtherUser)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: AlouteButton(
                     text: 'Sửa hồ sơ',
                     variant: AlouteButtonVariant.outline,
                     onPressed: () {
@@ -245,8 +399,84 @@ class _ProfileScreenState extends State<ProfileScreen>
                       }
                     },
                   ),
-                ],
-              ),
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: AlouteButton(
+                        text: _isFollowing ? 'Đang theo dõi' : 'Theo dõi',
+                        variant: _isFollowing ? AlouteButtonVariant.outline : AlouteButtonVariant.primary,
+                        onPressed: _toggleFollow,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: AlouteButton(
+                        text: 'Nhắn tin',
+                        variant: AlouteButtonVariant.outline,
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Mở cuộc trò chuyện với @${user?.username}')),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              // Status Banners for Blocked / Muted
+              if (_isOtherUser && _isBlocked)
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.amber.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.block, color: AlouteColors.danger, size: 22),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Bạn đã chặn người dùng này', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text('Họ không thể xem bài viết hoặc gửi tin nhắn cho bạn.', style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _toggleBlock,
+                        child: const Text('Bỏ chặn', style: TextStyle(color: AlouteColors.danger, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ),
+              if (_isOtherUser && _isMuted)
+                Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.notifications_off_outlined, color: AlouteColors.textSecondary, size: 18),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text('Đang tắt thông báo từ tài khoản này', style: TextStyle(fontSize: 12, color: AlouteColors.textSecondary)),
+                      ),
+                      GestureDetector(
+                        onTap: _toggleMute,
+                        child: const Text('Bật lại', style: TextStyle(fontSize: 12, color: AlouteColors.accent, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ),
               const SizedBox(height: 12),
               // Academic Faculty Badge & Student Code
               Row(

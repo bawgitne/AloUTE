@@ -425,10 +425,7 @@ class StompRealtimeMessagingIntegrationTest {
 
             // Extract reset token directly from loopback SMTP STARTTLS network payload
             assertThat(smtpServer.getReceivedMessages()).isNotEmpty();
-            String rawSmtpMessage = smtpServer.getReceivedMessages().get(0);
-            assertThat(rawSmtpMessage).contains("#token=");
-            int tokenStart = rawSmtpMessage.indexOf("#token=") + "#token=".length();
-            String resetToken = rawSmtpMessage.substring(tokenStart).trim().split("[\\s\\r\\n]+")[0];
+            String resetToken = extractTokenFromRawSmtp(smtpServer.getReceivedMessages().get(0));
             assertThat(resetToken).isNotBlank();
 
         // 3. Test expired token rejection via actual HTTP (fixture setup: set token expires_at in DB)
@@ -460,10 +457,7 @@ class StompRealtimeMessagingIntegrationTest {
             Thread.sleep(100);
         }
         assertThat(smtpServer.getReceivedMessages().size()).isGreaterThanOrEqualTo(2);
-        String freshRawSmtpMessage = smtpServer.getReceivedMessages().get(1);
-        assertThat(freshRawSmtpMessage).contains("#token=");
-        int freshTokenStart = freshRawSmtpMessage.indexOf("#token=") + "#token=".length();
-        String freshToken = freshRawSmtpMessage.substring(freshTokenStart).trim().split("[\\s\\r\\n]+")[0];
+        String freshToken = extractTokenFromRawSmtp(smtpServer.getReceivedMessages().get(1));
         assertThat(freshToken).isNotBlank();
 
         // 4. Complete reset via actual HTTP API
@@ -897,5 +891,12 @@ class StompRealtimeMessagingIntegrationTest {
 
         aliceSession.disconnect();
         bobSession.disconnect();
+    }
+
+    private String extractTokenFromRawSmtp(String rawSmtp) {
+        String normalized = rawSmtp.replaceAll("=\r?\n", "").replace("=3D", "=");
+        assertThat(normalized).contains("#token=");
+        int start = normalized.indexOf("#token=") + "#token=".length();
+        return normalized.substring(start).trim().split("[\\s\\r\\n\"'<>]+")[0];
     }
 }

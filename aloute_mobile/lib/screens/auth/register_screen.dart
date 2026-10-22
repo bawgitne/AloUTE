@@ -94,25 +94,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 children: [
                   // Logo & Brand matching web auth.html
                   Center(
-                    child: Container(
-                      width: 68,
-                      height: 68,
-                      decoration: BoxDecoration(
-                        color: AlouteColors.accent,
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: AlouteColors.shadowMd,
-                      ),
-                      child: const Center(
-                        child: Text(
-                          'A',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 36,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -1.0,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.asset(
+                            'assets/images/logo.png',
+                            width: 64,
+                            height: 64,
+                            fit: BoxFit.cover,
                           ),
                         ),
-                      ),
+                        const SizedBox(height: 12),
+                        Image.asset(
+                          'assets/images/logo_text.png',
+                          height: 24,
+                          fit: BoxFit.contain,
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),

@@ -7,8 +7,25 @@ import com.aloute.security.principal.UserPrincipal;
 
 public interface AuthService {
     UserResponse register(RegisterRequest request);
-    AuthenticatedUser login(LoginRequest request);
+    LoginOutcome login(LoginRequest request);
     UserResponse getCurrentUser(Long userId);
 
     record AuthenticatedUser(UserPrincipal principal, UserResponse user) {}
+
+    record LoginOutcome(
+            boolean twoFactorRequired,
+            UserPrincipal principal,
+            UserResponse user,
+            Long userId,
+            String twoFactorType,
+            String maskedEmail
+    ) {
+        public static LoginOutcome success(UserPrincipal principal, UserResponse user) {
+            return new LoginOutcome(false, principal, user, user.id(), null, null);
+        }
+
+        public static LoginOutcome twoFactorRequired(Long userId, String twoFactorType, String maskedEmail) {
+            return new LoginOutcome(true, null, null, userId, twoFactorType, maskedEmail);
+        }
+    }
 }

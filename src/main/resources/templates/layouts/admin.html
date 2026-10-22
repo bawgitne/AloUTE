@@ -6,7 +6,11 @@
     <title th:text="${title != null and !title.isEmpty()} ? ${title} + ' — AloUTE Admin' : 'AloUTE — Quản trị hệ thống'">AloUTE — Quản trị hệ thống</title>
 
     <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" th:href="@{/images/favicon-32x32.png}" href="/images/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" th:href="@{/images/favicon-16x16.png}" href="/images/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" th:href="@{/images/apple-touch-icon.png}" href="/images/apple-touch-icon.png">
     <link rel="icon" type="image/svg+xml" th:href="@{/images/favicon.svg}" href="/images/favicon.svg">
+    <link rel="shortcut icon" th:href="@{/images/favicon.ico}" href="/images/favicon.ico">
 
     <!-- Version-Pinned Bootstrap 5.3.3 CSS -->
     <link rel="stylesheet"

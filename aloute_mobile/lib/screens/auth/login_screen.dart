@@ -5,6 +5,7 @@ import '../../widgets/aloute_button.dart';
 import '../main_navigation_screen.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
+import 'two_factor_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -47,7 +48,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (mounted) {
       setState(() => _isLoading = false);
-      if (success) {
+      if (_authService.isTwoFactorRequired) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => TwoFactorScreen(
+              maskedEmail: _authService.twoFactorMaskedEmail,
+            ),
+          ),
+        );
+      } else if (success) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
         );
@@ -81,21 +90,25 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     // Brand Logo
                     Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AlouteColors.accent,
-                          borderRadius: BorderRadius.circular(AlouteColors.radiusMd),
-                        ),
-                        child: const Text(
-                          'AloUTE',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.5,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Image.asset(
+                              'assets/images/logo.png',
+                              width: 64,
+                              height: 64,
+                              fit: BoxFit.cover,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 12),
+                          Image.asset(
+                            'assets/images/logo_text.png',
+                            height: 24,
+                            fit: BoxFit.contain,
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 16),
