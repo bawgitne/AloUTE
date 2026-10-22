@@ -1,14 +1,19 @@
 package com.aloute.integration;
 
+import com.aloute.repository.RegistrationOtpRepository;
+import com.aloute.repository.UserRepository;
 import com.aloute.security.jwt.JwtProperties;
 import com.aloute.security.jwt.JwtSessionService;
 import com.aloute.security.jwt.JwtTokenProvider;
+import com.aloute.service.email.EmailService;
+import com.aloute.service.impl.RegistrationOtpServiceImpl;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.mock.env.MockEnvironment;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.util.StreamUtils;
 
 import java.io.BufferedReader;
@@ -28,6 +33,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
@@ -37,6 +43,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
@@ -44,12 +51,15 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 /**
  * Opt-in MySQL 8 Verification Test for PR #51 Durable Logout Integration.
@@ -70,6 +80,14 @@ class MySql8RevocationVerificationTest {
     private static final String REQUIRED_SCHEMA = "aloutedb_test";
     private static final String REQUIRED_JWT_SECRET = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
     private static final long JWT_EXPIRATION_SECONDS = 3600L;
+
+    private final String ephemeralRegistrationOtpSecret = generateSecureEphemeralOtpSecret();
+
+    static String generateSecureEphemeralOtpSecret() {
+        byte[] bytes = new byte[32];
+        new SecureRandom().nextBytes(bytes);
+        return Base64.getEncoder().encodeToString(bytes);
+    }
 
     private final List<Process> activeProcesses = new CopyOnWriteArrayList<>();
     private final List<Path> tempLogFiles = new CopyOnWriteArrayList<>();
@@ -726,7 +744,8 @@ class MySql8RevocationVerificationTest {
         pb.environment().put("SPRING_DATASOURCE_PASSWORD", getPassword());
         pb.environment().put("ALOUTE_JWT_SECRET", REQUIRED_JWT_SECRET);
         pb.environment().put("ALOUTE_JWT_EXPIRATION_SECONDS", String.valueOf(JWT_EXPIRATION_SECONDS));
-        pb.environment().put("aloute.auth.registration-otp-secret", "dGVzdC1yZWdpc3RyYXRpb24tb3RwLXNlY3JldC1rZXktMzJiLWxlbmd0aCE=");
+        pb.environment().put("ALOUTE_REGISTRATION_OTP_SECRET", ephemeralRegistrationOtpSecret);
+        pb.environment().put("aloute.auth.registration-otp-secret", ephemeralRegistrationOtpSecret);
 
         // Redirect child process stdout/stderr directly to private temp logfile (no unjoined background thread)
         pb.redirectOutput(logFile.toFile());
@@ -1885,5 +1904,36 @@ class MySql8RevocationVerificationTest {
         } finally {
             Files.deleteIfExists(tempLog);
         }
+    }
+
+    @Test
+    @DisplayName("Harness OTP Secret Guard: proves literal test fixture is rejected under dev profile while ephemeral 32-byte key passes without test profile")
+    void shouldProveLiteralTestFixtureRejectedAndEphemeralSecretAcceptedUnderDevProfile() {
+        MockEnvironment devEnv = new MockEnvironment();
+        devEnv.setActiveProfiles("dev");
+
+        UserRepository userRepo = mock(UserRepository.class);
+        RegistrationOtpRepository otpRepo = mock(RegistrationOtpRepository.class);
+        EmailService emailSvc = mock(EmailService.class);
+        Executor executor = mock(Executor.class);
+
+        // 1. Old known fixture under dev profile must be rejected by RegistrationOtpServiceImpl guard
+        String oldLiteralFixture = "dGVzdC1yZWdpc3RyYXRpb24tb3RwLXNlY3JldC1rZXktMzJiLWxlbmd0aCE=";
+        RegistrationOtpServiceImpl oldService = new RegistrationOtpServiceImpl(
+                userRepo, otpRepo, emailSvc, executor, devEnv
+        );
+        ReflectionTestUtils.setField(oldService, "secretKey", oldLiteralFixture);
+
+        assertThatThrownBy(oldService::validateConfiguration)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ALOUTE_REGISTRATION_OTP_SECRET cannot use known public test fixture outside safe test configuration");
+
+        // 2. New ephemeral 32-byte key under dev profile must pass validation without test profile
+        RegistrationOtpServiceImpl newService = new RegistrationOtpServiceImpl(
+                userRepo, otpRepo, emailSvc, executor, devEnv
+        );
+        ReflectionTestUtils.setField(newService, "secretKey", ephemeralRegistrationOtpSecret);
+
+        assertThatCode(newService::validateConfiguration).doesNotThrowAnyException();
     }
 }
