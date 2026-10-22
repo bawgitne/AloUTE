@@ -1,86 +1,1340 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layouts/default :: layout(
+      th:replace="~{layouts/single :: layout(
         title='Cài đặt tài khoản',
         content=~{::#settings-content}
       )}">
 <body>
-<div id="settings-content">
-    <div class="aloute-card p-4 mb-3">
-        <div class="mb-4">
-            <h1 class="fs-5 fw-bold mb-1 text-dark d-flex align-items-center gap-2">
-                <i class="bi bi-gear-fill text-primary" aria-hidden="true"></i>
-                <span>Cài đặt tài khoản</span>
-            </h1>
-            <p class="small text-muted mb-0">Quản lý hồ sơ cá nhân, giao diện và thiết lập bảo mật của bạn trên AloUTE.</p>
+<div id="settings-content" class="settings-page-wrapper">
+    <!-- Feedback Alerts Container -->
+    <div id="settings-alert-container" class="mb-3 d-none" role="alert" aria-live="polite">
+        <div class="alert alert-dismissible fade show d-flex align-items-center gap-2 mb-0" id="settings-alert-box">
+            <i class="bi fs-5" id="settings-alert-icon" aria-hidden="true"></i>
+            <span id="settings-alert-message" class="flex-grow-1 small fw-medium"></span>
+            <button type="button" class="btn-close" id="settings-alert-close" aria-label="Đóng"></button>
+        </div>
+    </div>
+
+    <!-- Page Header -->
+    <div class="aloute-card p-3 mb-3 border-0 shadow-sm">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-3">
+                <a th:href="@{/feed}" class="btn btn-sm btn-light border rounded-circle p-2 d-flex align-items-center justify-content-center text-secondary" title="Quay lại Bảng tin" style="width: 40px; height: 40px;">
+                    <i class="bi bi-arrow-left fs-5" aria-hidden="true"></i>
+                </a>
+                <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                    <i class="bi bi-gear-fill fs-5" aria-hidden="true"></i>
+                </div>
+                <div>
+                    <h1 class="fs-5 fw-bold mb-0 text-dark">Cài đặt tài khoản</h1>
+                    <p class="small text-muted mb-0">Quản lý thông tin cá nhân, quyền riêng tư và bảo mật trên AloUTE</p>
+                </div>
+            </div>
+            <a th:href="${currentUser?.username != null} ? @{/users/{u}(u=${currentUser.username})} : @{/profile}"
+               class="btn btn-sm btn-outline-secondary rounded-pill px-3 d-flex align-items-center gap-1">
+                <i class="bi bi-box-arrow-up-right small" aria-hidden="true"></i>
+                <span>Xem trang cá nhân</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Settings 2-Column Grid -->
+    <div class="row g-4">
+        <!-- Left: Category Navigation Pills -->
+        <div class="col-lg-4 col-md-4">
+            <div class="aloute-card p-2 border-0 shadow-sm sticky-top" style="top: 80px; z-index: 10;">
+                <nav class="nav nav-pills flex-column gap-1" id="settings-tabs-nav" role="tablist" aria-orientation="vertical">
+                    <a th:href="@{/settings/profile}"
+                       href="/settings/profile"
+                       class="nav-link text-start d-flex align-items-center gap-3 py-2 px-3 rounded-3"
+                       th:classappend="${currentSection == 'profile'} ? 'active' : ''"
+                       id="tab-btn-profile"
+                       data-tab="profile"
+                       role="tab"
+                       aria-controls="pane-profile"
+                       th:attr="aria-selected=${currentSection == 'profile'} ? 'true' : 'false'">
+                        <i class="bi bi-person-badge fs-5" aria-hidden="true"></i>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold small">Hồ sơ cá nhân</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Tên, ảnh đại diện, tiểu sử</div>
+                        </div>
+                    </a>
+
+                    <a th:href="@{/settings/privacy}"
+                       href="/settings/privacy"
+                       class="nav-link text-start d-flex align-items-center gap-3 py-2 px-3 rounded-3"
+                       th:classappend="${currentSection == 'privacy'} ? 'active' : ''"
+                       id="tab-btn-privacy"
+                       data-tab="privacy"
+                       role="tab"
+                       aria-controls="pane-privacy"
+                       th:attr="aria-selected=${currentSection == 'privacy'} ? 'true' : 'false'">
+                        <i class="bi bi-shield-lock fs-5" aria-hidden="true"></i>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold small">Tài khoản & Riêng tư</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Email, chế độ riêng tư</div>
+                        </div>
+                    </a>
+
+                    <a th:href="@{/settings/security}"
+                       href="/settings/security"
+                       class="nav-link text-start d-flex align-items-center gap-3 py-2 px-3 rounded-3"
+                       th:classappend="${currentSection == 'security'} ? 'active' : ''"
+                       id="tab-btn-security"
+                       data-tab="security"
+                       role="tab"
+                       aria-controls="pane-security"
+                       th:attr="aria-selected=${currentSection == 'security'} ? 'true' : 'false'">
+                        <i class="bi bi-key fs-5" aria-hidden="true"></i>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold small">Mật khẩu & Bảo mật</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Đổi mật khẩu, phiên đăng nhập</div>
+                        </div>
+                    </a>
+
+                    <a th:href="@{/settings/blocking}"
+                       href="/settings/blocking"
+                       class="nav-link text-start d-flex align-items-center gap-3 py-2 px-3 rounded-3"
+                       th:classappend="${currentSection == 'blocking'} ? 'active' : ''"
+                       id="tab-btn-blocking"
+                       data-tab="blocking"
+                       role="tab"
+                       aria-controls="pane-blocking"
+                       th:attr="aria-selected=${currentSection == 'blocking'} ? 'true' : 'false'">
+                        <i class="bi bi-slash-circle fs-5" aria-hidden="true"></i>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold small">Người dùng đã chặn</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Quản lý danh sách chặn</div>
+                        </div>
+                    </a>
+
+                    <a th:href="@{/settings/muted}"
+                       href="/settings/muted"
+                       class="nav-link text-start d-flex align-items-center gap-3 py-2 px-3 rounded-3"
+                       th:classappend="${currentSection == 'muted'} ? 'active' : ''"
+                       id="tab-btn-muted"
+                       data-tab="muted"
+                       role="tab"
+                       aria-controls="pane-muted"
+                       th:attr="aria-selected=${currentSection == 'muted'} ? 'true' : 'false'">
+                        <i class="bi bi-bell-slash fs-5" aria-hidden="true"></i>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold small">Tài khoản đã tắt thông báo</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Quản lý danh sách mute</div>
+                        </div>
+                    </a>
+
+                    <a th:href="@{/settings/notifications}"
+                       href="/settings/notifications"
+                       class="nav-link text-start d-flex align-items-center gap-3 py-2 px-3 rounded-3"
+                       th:classappend="${currentSection == 'notifications'} ? 'active' : ''"
+                       id="tab-btn-notifications"
+                       data-tab="notifications"
+                       role="tab"
+                       aria-controls="pane-notifications"
+                       th:attr="aria-selected=${currentSection == 'notifications'} ? 'true' : 'false'">
+                        <i class="bi bi-bell fs-5" aria-hidden="true"></i>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold small">Cài đặt thông báo</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Tùy chọn tương tác & email</div>
+                        </div>
+                    </a>
+
+                    <a th:href="@{/settings/appearance}"
+                       href="/settings/appearance"
+                       class="nav-link text-start d-flex align-items-center gap-3 py-2 px-3 rounded-3"
+                       th:classappend="${currentSection == 'appearance'} ? 'active' : ''"
+                       id="tab-btn-appearance"
+                       data-tab="appearance"
+                       role="tab"
+                       aria-controls="pane-appearance"
+                       th:attr="aria-selected=${currentSection == 'appearance'} ? 'true' : 'false'">
+                        <i class="bi bi-palette fs-5" aria-hidden="true"></i>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold small">Giao diện</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Chế độ sáng / tối</div>
+                        </div>
+                    </a>
+
+                    <hr class="my-2 border-secondary-subtle">
+
+                    <button type="button"
+                            class="nav-link text-start d-flex align-items-center gap-3 py-2 px-3 rounded-3 text-danger border-0 bg-transparent"
+                            id="settings-btn-logout"
+                            data-action="logout">
+                        <i class="bi bi-box-arrow-right fs-5" aria-hidden="true"></i>
+                        <span class="fw-semibold small">Đăng xuất tài khoản</span>
+                    </button>
+                </nav>
+            </div>
         </div>
 
-        <div class="d-flex flex-column gap-3">
-            <!-- Profile Settings -->
-            <div class="border rounded-3 p-3 d-flex align-items-center justify-content-between gap-3">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
-                        <i class="bi bi-person-badge fs-5" aria-hidden="true"></i>
+        <!-- Right: Tab Content Panels -->
+        <div class="col-lg-8 col-md-8">
+            <!-- ========================================== -->
+            <!-- PANE 1: HỒ SƠ CÁ NHÂN -->
+            <!-- ========================================== -->
+            <div class="tab-pane-content"
+                 id="pane-profile"
+                 th:classappend="${currentSection == 'profile'} ? '' : 'd-none'"
+                 role="tabpanel"
+                 aria-labelledby="tab-btn-profile">
+                <div class="aloute-card p-4 border-0 shadow-sm mb-3">
+                    <h2 class="fs-6 fw-bold mb-1 text-dark d-flex align-items-center gap-2">
+                        <i class="bi bi-person-badge text-primary" aria-hidden="true"></i>
+                        <span>Thông tin hồ sơ công khai</span>
+                    </h2>
+                    <p class="small text-muted mb-4">Các thông tin này sẽ được hiển thị công khai trên trang cá nhân của bạn.</p>
+
+                    <!-- Cover Photo Upload Section -->
+                    <div class="pb-4 mb-4 border-bottom">
+                        <div class="fw-semibold small text-dark mb-1">Ảnh bìa trang cá nhân</div>
+                        <div class="text-muted small mb-3">Hiển thị ở đầu trang hồ sơ của bạn. Kích thước khuyến nghị: tỷ lệ 3:1 (1200 x 400). Dung lượng tối đa 5MB.</div>
+                        <div class="position-relative overflow-hidden rounded-3 border bg-light shadow-sm mb-3" style="height: 150px;">
+                            <img th:src="${currentUser != null and currentUser.coverUrl != null and !currentUser.coverUrl.isEmpty()} ? ${currentUser.coverUrl} : @{/images/cover-fallback.svg}"
+                                 src="/images/cover-fallback.svg"
+                                 alt="Ảnh bìa xem trước"
+                                 id="settings-cover-preview"
+                                 class="w-100 h-100 object-fit-cover">
+                            <div id="settings-cover-spinner"
+                                 class="position-absolute top-50 start-50 translate-middle d-none bg-dark bg-opacity-50 rounded-3 w-100 h-100 d-flex align-items-center justify-content-center text-white">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Đang tải...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <label for="settings-cover-file-input" class="btn btn-sm btn-primary rounded-pill px-3 d-inline-flex align-items-center gap-1 cursor-pointer">
+                                <i class="bi bi-image" aria-hidden="true"></i>
+                                <span>Tải ảnh bìa mới</span>
+                            </label>
+                            <input type="file"
+                                   id="settings-cover-file-input"
+                                   class="d-none"
+                                   accept="image/png, image/jpeg, image/webp">
+
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-danger rounded-pill px-3 d-inline-flex align-items-center gap-1"
+                                    id="settings-btn-remove-cover">
+                                <i class="bi bi-trash3" aria-hidden="true"></i>
+                                <span>Gỡ ảnh bìa</span>
+                            </button>
+                        </div>
                     </div>
-                    <div>
-                        <h2 class="fs-6 fw-bold mb-0 text-dark">Hồ sơ cá nhân</h2>
-                        <p class="small text-muted mb-0">Cập nhật tên hiển thị, tiểu sử, ảnh đại diện và liên kết cá nhân</p>
+
+                    <!-- Avatar Upload Section -->
+                    <div class="d-flex align-items-center gap-4 pb-4 mb-4 border-bottom flex-wrap">
+                        <div class="position-relative">
+                            <img th:src="${currentUser != null and currentUser.avatarUrl != null and !currentUser.avatarUrl.isEmpty()} ? ${currentUser.avatarUrl} : @{/images/avatar-fallback.svg}"
+                                 src="/images/avatar-fallback.svg"
+                                 alt="Ảnh đại diện"
+                                 id="settings-avatar-preview"
+                                 class="rounded-circle border shadow-sm object-fit-cover"
+                                 width="96"
+                                 height="96">
+                            <div id="settings-avatar-spinner"
+                                 class="position-absolute top-50 start-50 translate-middle d-none bg-dark bg-opacity-50 rounded-circle w-100 h-100 d-flex align-items-center justify-content-center text-white">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Đang tải...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold small text-dark mb-1">Ảnh đại diện</div>
+                            <div class="text-muted small mb-3">Hỗ trợ định dạng PNG, JPG hoặc WEBP. Dung lượng tối đa 5MB. Lưu an toàn trên Firebase Storage.</div>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <label for="settings-avatar-file-input" class="btn btn-sm btn-primary rounded-pill px-3 d-inline-flex align-items-center gap-1 cursor-pointer">
+                                    <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
+                                    <span>Tải ảnh mới</span>
+                                </label>
+                                <input type="file"
+                                       id="settings-avatar-file-input"
+                                       class="d-none"
+                                       accept="image/png, image/jpeg, image/webp">
+
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-danger rounded-pill px-3 d-inline-flex align-items-center gap-1"
+                                        id="settings-btn-remove-avatar">
+                                    <i class="bi bi-trash3" aria-hidden="true"></i>
+                                    <span>Gỡ ảnh</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- Profile Edit Form -->
+                    <form id="settings-profile-form" novalidate>
+                        <!-- Hidden field to hold newly uploaded avatarMediaId & coverMediaId -->
+                        <input type="hidden" id="settings-avatar-media-id" value="">
+                        <input type="hidden" id="settings-cover-media-id" value="">
+
+                        <!-- Display Name -->
+                        <div class="mb-3">
+                            <label for="settings-input-display-name" class="form-label small fw-semibold text-dark">
+                                Họ và tên hiển thị <span class="text-danger">*</span>
+                            </label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="settings-input-display-name"
+                                   maxlength="100"
+                                   required
+                                   th:value="${currentUser?.displayName ?: (currentUser?.username ?: '')}"
+                                   placeholder="Nhập tên hiển thị của bạn">
+                            <div class="invalid-feedback small">Họ và tên hiển thị không được để trống.</div>
+                        </div>
+
+                        <!-- Username (Readonly) -->
+                        <div class="mb-3">
+                            <label for="settings-input-username" class="form-label small fw-semibold text-dark">
+                                Tên người dùng (Username)
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted border-end-0">@</span>
+                                <input type="text"
+                                       class="form-control border-start-0 bg-light text-muted"
+                                       id="settings-input-username"
+                                       readonly
+                                       th:value="${currentUser?.username ?: ''}">
+                            </div>
+                            <div class="form-text small text-muted">Tên người dùng là định danh duy nhất trên AloUTE và không thể thay đổi.</div>
+                        </div>
+
+                        <!-- Bio -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label for="settings-input-bio" class="form-label small fw-semibold text-dark mb-1">Tiểu sử</label>
+                                <span class="text-muted" style="font-size: 0.75rem;" id="settings-bio-counter">0/500</span>
+                            </div>
+                            <textarea class="form-control"
+                                      id="settings-input-bio"
+                                      rows="3"
+                                      maxlength="500"
+                                      placeholder="Giới thiệu đôi nét về bản thân, chuyên ngành, khóa học..."
+                                      th:text="${currentUser?.bio ?: ''}"></textarea>
+                        </div>
+
+                        <!-- Website -->
+                        <div class="mb-4">
+                            <label for="settings-input-website" class="form-label small fw-semibold text-dark">
+                                Liên kết cá nhân / Website
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="bi bi-link-45deg text-muted"></i></span>
+                                <input type="url"
+                                       class="form-control border-start-0"
+                                       id="settings-input-website"
+                                       maxlength="2048"
+                                       placeholder="https://facebook.com/... hoặc https://github.com/..."
+                                       th:value="${currentUser?.website ?: ''}">
+                            </div>
+                            <div class="invalid-feedback small">Vui lòng nhập đường dẫn URL hợp lệ (bắt đầu bằng http:// hoặc https://).</div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-flex justify-content-end">
+                            <button type="submit" class="btn btn-primary rounded-pill px-4 d-inline-flex align-items-center gap-2" id="settings-btn-save-profile">
+                                <span class="spinner-border spinner-border-sm d-none" id="settings-save-profile-spinner" role="status" aria-hidden="true"></span>
+                                <span id="settings-save-profile-text">Lưu thay đổi hồ sơ</span>
+                            </button>
+                        </div>
+                    </form>
                 </div>
-                <a th:href="@{/profile}" class="btn btn-sm btn-outline-primary rounded-pill px-3 flex-shrink-0">
-                    Xem hồ sơ
-                </a>
             </div>
 
-            <!-- Appearance Settings -->
-            <div class="border rounded-3 p-3 d-flex align-items-center justify-content-between gap-3">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="rounded-circle bg-info-subtle text-info d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
-                        <i class="bi bi-palette fs-5" aria-hidden="true"></i>
+            <!-- ========================================== -->
+            <!-- PANE 2: TÀI KHOẢN & QUYỀN RIÊNG TƯ -->
+            <!-- ========================================== -->
+            <div class="tab-pane-content"
+                 id="pane-privacy"
+                 th:classappend="${currentSection == 'privacy'} ? '' : 'd-none'"
+                 role="tabpanel"
+                 aria-labelledby="tab-btn-privacy">
+                <!-- Account Info Box -->
+                <div class="aloute-card p-4 border-0 shadow-sm mb-3">
+                    <h2 class="fs-6 fw-bold mb-1 text-dark d-flex align-items-center gap-2">
+                        <i class="bi bi-shield-check text-primary" aria-hidden="true"></i>
+                        <span>Thông tin tài khoản</span>
+                    </h2>
+                    <p class="small text-muted mb-4">Thông tin đăng nhập và trạng thái chứng thực của sinh viên HCMUTE.</p>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-semibold text-dark mb-1">Địa chỉ Email</label>
+                            <div class="p-2 px-3 bg-light rounded-3 text-muted small text-truncate border">
+                                <i class="bi bi-envelope me-1"></i>
+                                <span th:text="${accountUser?.email ?: 'Chưa cập nhật'}">sinhvien@hcmute.edu.vn</span>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-semibold text-dark mb-1">Trạng thái xác thực</label>
+                            <div class="p-2 px-3 bg-light rounded-3 text-muted small border d-flex align-items-center justify-content-between">
+                                <span>Sinh viên AloUTE</span>
+                                <span th:if="${accountUser != null and accountUser.isVerified}" class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">
+                                    <i class="bi bi-patch-check-fill me-1"></i>Đã xác thực
+                                </span>
+                                <span th:unless="${accountUser != null and accountUser.isVerified}" class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill">
+                                    Chưa xác thực
+                                </span>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <h2 class="fs-6 fw-bold mb-0 text-dark">Giao diện sinh viên</h2>
-                        <p class="small text-muted mb-0">AloUTE Light Campus — Giao diện chuẩn mực cho sinh viên HCMUTE</p>
+
+                    <hr class="my-4 border-secondary-subtle">
+
+                    <!-- Privacy Settings Form -->
+                    <h3 class="fs-6 fw-bold mb-3 text-dark">Thiết lập quyền riêng tư</h3>
+                    <form id="settings-privacy-form">
+                        <!-- Private Account Toggle -->
+                        <div class="p-3 border rounded-3 mb-3 d-flex align-items-center justify-content-between gap-3">
+                            <div>
+                                <div class="fw-semibold small text-dark d-flex align-items-center gap-2">
+                                    <i class="bi bi-lock-fill text-warning"></i>
+                                    <span>Tài khoản riêng tư</span>
+                                </div>
+                                <div class="text-muted small mt-1">
+                                    Khi bật chế độ riêng tư, chỉ những người bạn chấp thuận theo dõi mới có thể xem các bài viết ở chế độ Người theo dõi của bạn.
+                                </div>
+                            </div>
+                            <div class="form-check form-switch m-0 flex-shrink-0">
+                                <input class="form-check-input fs-5 cursor-pointer"
+                                       type="checkbox"
+                                       role="switch"
+                                       id="settings-switch-private"
+                                       th:checked="${currentUser != null and currentUser.isPrivate}">
+                            </div>
+                        </div>
+
+                        <!-- Profile Sharing Link -->
+                        <div class="p-3 border rounded-3 mb-4 d-flex align-items-center justify-content-between gap-3 flex-wrap">
+                            <div>
+                                <div class="fw-semibold small text-dark d-flex align-items-center gap-2">
+                                    <i class="bi bi-share text-primary"></i>
+                                    <span>Liên kết trang cá nhân</span>
+                                </div>
+                                <div class="text-muted small mt-1">
+                                    Chia sẻ đường dẫn trang cá nhân của bạn với bạn bè trong trường.
+                                </div>
+                            </div>
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-secondary rounded-pill px-3 flex-shrink-0 d-inline-flex align-items-center gap-1"
+                                    id="settings-btn-copy-profile-link"
+                                    th:attr="data-username=${currentUser?.username}">
+                                <i class="bi bi-clipboard" aria-hidden="true"></i>
+                                <span id="copy-link-text">Sao chép liên kết</span>
+                            </button>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <button type="submit" class="btn btn-primary rounded-pill px-4 d-inline-flex align-items-center gap-2" id="settings-btn-save-privacy">
+                                <span class="spinner-border spinner-border-sm d-none" id="settings-save-privacy-spinner" role="status" aria-hidden="true"></span>
+                                <span>Lưu thiết lập riêng tư</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Account Deactivation Card -->
+                <div class="aloute-card p-4 border-0 shadow-sm border-start border-danger border-4">
+                    <h3 class="fs-6 fw-bold mb-1 text-danger d-flex align-items-center gap-2">
+                        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                        <span>Vô hiệu hóa tài khoản</span>
+                    </h3>
+                    <p class="small text-muted mb-3">Tạm thời vô hiệu hóa tài khoản và ẩn hồ sơ cá nhân của bạn khỏi AloUTE.</p>
+
+                    <div class="p-3 bg-danger-subtle bg-opacity-25 rounded-3 border border-danger-subtle d-flex align-items-center justify-content-between gap-3 flex-wrap">
+                        <div>
+                            <div class="fw-semibold small text-dark">Tạm dừng hoạt động tài khoản</div>
+                            <div class="text-muted small">Bạn có thể kích hoạt lại tài khoản bất kỳ lúc nào bằng cách đăng nhập lại với email và mật khẩu của bạn.</div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" id="btn-open-deactivate-modal">
+                            Vô hiệu hóa
+                        </button>
                     </div>
                 </div>
-                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-2 flex-shrink-0">
-                    Light Campus
-                </span>
             </div>
 
-            <!-- Notifications Settings -->
-            <div class="border rounded-3 p-3 d-flex align-items-center justify-content-between gap-3">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="rounded-circle bg-warning-subtle text-warning d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
-                        <i class="bi bi-bell fs-5" aria-hidden="true"></i>
+            <!-- ========================================== -->
+            <!-- PANE 3: MẬT KHẨU & BẢO MẬT -->
+            <!-- ========================================== -->
+            <div class="tab-pane-content"
+                 id="pane-security"
+                 th:classappend="${currentSection == 'security'} ? '' : 'd-none'"
+                 role="tabpanel"
+                 aria-labelledby="tab-btn-security">
+                <div class="aloute-card p-4 border-0 shadow-sm mb-3">
+                    <h2 class="fs-6 fw-bold mb-1 text-dark d-flex align-items-center gap-2">
+                        <i class="bi bi-key text-primary" aria-hidden="true"></i>
+                        <span>Đổi mật khẩu tài khoản</span>
+                    </h2>
+                    <p class="small text-muted mb-4">Để bảo vệ an toàn cho tài khoản, hãy đặt mật khẩu có ít nhất 8 ký tự bao gồm chữ và số.</p>
+
+                    <form id="settings-password-form" novalidate>
+                        <!-- Current Password -->
+                        <div class="mb-3">
+                            <label for="settings-input-current-password" class="form-label small fw-semibold text-dark">
+                                Mật khẩu hiện tại <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <input type="password"
+                                       class="form-control"
+                                       id="settings-input-current-password"
+                                       required
+                                       placeholder="Nhập mật khẩu đang dùng">
+                                <button type="button" class="btn btn-outline-secondary btn-toggle-password" data-target="settings-input-current-password" aria-label="Ẩn hiện mật khẩu">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- New Password -->
+                        <div class="mb-3">
+                            <label for="settings-input-new-password" class="form-label small fw-semibold text-dark">
+                                Mật khẩu mới <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <input type="password"
+                                       class="form-control"
+                                       id="settings-input-new-password"
+                                       minlength="8"
+                                       maxlength="100"
+                                       required
+                                       placeholder="Tối thiểu 8 ký tự">
+                                <button type="button" class="btn btn-outline-secondary btn-toggle-password" data-target="settings-input-new-password" aria-label="Ẩn hiện mật khẩu">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Confirm New Password -->
+                        <div class="mb-4">
+                            <label for="settings-input-confirm-password" class="form-label small fw-semibold text-dark">
+                                Nhập lại mật khẩu mới <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <input type="password"
+                                       class="form-control"
+                                       id="settings-input-confirm-password"
+                                       minlength="8"
+                                       maxlength="100"
+                                       required
+                                       placeholder="Nhập lại mật khẩu mới">
+                                <button type="button" class="btn btn-outline-secondary btn-toggle-password" data-target="settings-input-confirm-password" aria-label="Ẩn hiện mật khẩu">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <div id="settings-password-mismatch-feedback" class="text-danger small mt-1 d-none">
+                                Mật khẩu xác nhận không khớp.
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <button type="submit" class="btn btn-primary rounded-pill px-4 d-inline-flex align-items-center gap-2" id="settings-btn-save-password">
+                                <span class="spinner-border spinner-border-sm d-none" id="settings-save-password-spinner" role="status" aria-hidden="true"></span>
+                                <span>Cập nhật mật khẩu</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Two-Factor Authentication (2FA) Card -->
+                <div class="aloute-card p-4 border-0 shadow-sm mb-3" id="card-settings-2fa">
+                    <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                        <h2 class="fs-6 fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                            <i class="bi bi-shield-lock-fill text-primary" aria-hidden="true"></i>
+                            <span>Bảo mật 2 lớp (Two-Factor Authentication - 2FA)</span>
+                        </h2>
+                        <span th:if="${twoFactorStatus != null and twoFactorStatus.enabled}" class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill small">
+                            <i class="bi bi-check-circle-fill me-1"></i>Đang bảo vệ
+                        </span>
+                        <span th:unless="${twoFactorStatus != null and twoFactorStatus.enabled}" class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 rounded-pill small">
+                            <i class="bi bi-shield-slash me-1"></i>Chưa kích hoạt
+                        </span>
                     </div>
-                    <div>
-                        <h2 class="fs-6 fw-bold mb-0 text-dark">Thông báo</h2>
-                        <p class="small text-muted mb-0">Tùy chỉnh thông báo tương tác bài viết, phản hồi và tin nhắn</p>
+                    <p class="small text-muted mb-3">
+                        Bảo vệ tài khoản sinh viên của bạn bằng cách yêu cầu mã xác thực 6 số từ Google Authenticator hoặc mã dự phòng khi đăng nhập từ thiết bị mới.
+                    </p>
+
+                    <!-- Khi 2FA đã bật -->
+                    <div th:if="${twoFactorStatus != null and twoFactorStatus.enabled}" class="p-3 border rounded-3 bg-light-subtle">
+                        <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+                            <div>
+                                <div class="fw-semibold small text-dark d-flex align-items-center gap-2">
+                                    <i th:if="${twoFactorStatus.type == 'EMAIL'}" class="bi bi-envelope-check-fill text-primary"></i>
+                                    <i th:unless="${twoFactorStatus.type == 'EMAIL'}" class="bi bi-shield-check text-success"></i>
+                                    <span th:if="${twoFactorStatus.type == 'EMAIL'}">Phương thức: Mã xác thực qua Email sinh viên</span>
+                                    <span th:unless="${twoFactorStatus.type == 'EMAIL'}">Phương thức: Ứng dụng Google / MS Authenticator (TOTP)</span>
+                                </div>
+                                <div class="text-muted small mt-1">
+                                    Mã khôi phục dự phòng khả dụng:
+                                    <strong class="text-primary" th:text="${twoFactorStatus.remainingBackupCodes}">8</strong> mã còn lại
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" id="btn-open-regenerate-backup-codes">
+                                    <i class="bi bi-arrow-repeat me-1"></i>Tạo lại mã dự phòng
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" id="btn-open-disable-2fa">
+                                    <i class="bi bi-shield-x me-1"></i>Tắt 2FA
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Khi 2FA chưa bật -->
+                    <div th:unless="${twoFactorStatus != null and twoFactorStatus.enabled}">
+                        <p class="small text-muted mb-3">Chọn phương thức bạn muốn sử dụng để bảo vệ tài khoản khi đăng nhập:</p>
+                        <div class="row g-3">
+                            <!-- Option 1: Authenticator App -->
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded-3 h-100 d-flex flex-column justify-content-between bg-light-subtle">
+                                    <div>
+                                        <div class="fw-bold small text-dark d-flex align-items-center gap-2 mb-1">
+                                            <i class="bi bi-qr-code text-primary fs-5"></i>
+                                            <span>Ứng dụng Authenticator</span>
+                                        </div>
+                                        <div class="text-muted small mb-3">Sử dụng Google Authenticator hoặc Microsoft Authenticator tạo mã 6 số offline trên điện thoại.</div>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 align-self-start d-inline-flex align-items-center gap-1" id="btn-start-2fa-setup">
+                                        <i class="bi bi-qr-code-scan"></i>
+                                        <span>Quét mã QR TOTP</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Option 2: Email OTP -->
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded-3 h-100 d-flex flex-column justify-content-between bg-light-subtle">
+                                    <div>
+                                        <div class="fw-bold small text-dark d-flex align-items-center gap-2 mb-1">
+                                            <i class="bi bi-envelope-at-fill text-success fs-5"></i>
+                                            <span>Xác thực qua Email</span>
+                                        </div>
+                                        <div class="text-muted small mb-3">Mỗi lần đăng nhập, hệ thống sẽ tự động gửi mã OTP 6 số bảo mật về địa chỉ email của bạn.</div>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 align-self-start d-inline-flex align-items-center gap-1" id="btn-open-email-2fa">
+                                        <i class="bi bi-send-check"></i>
+                                        <span>Kích hoạt qua Email</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <a th:href="@{/notifications}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 flex-shrink-0">
-                    Xem thông báo
-                </a>
+
+                <!-- Session Management Card -->
+                <div class="aloute-card p-4 border-0 shadow-sm">
+                    <h3 class="fs-6 fw-bold mb-1 text-dark d-flex align-items-center gap-2">
+                        <i class="bi bi-laptop text-secondary" aria-hidden="true"></i>
+                        <span>Phiên đăng nhập & Thiết bị</span>
+                    </h3>
+                    <p class="small text-muted mb-3">Bạn đang đăng nhập phiên làm việc này trên trình duyệt web hiện tại.</p>
+
+                    <div class="p-3 border rounded-3 d-flex align-items-center justify-content-between gap-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                <i class="bi bi-browser-chrome fs-5"></i>
+                            </div>
+                            <div>
+                                <div class="fw-semibold small text-dark">Trình duyệt Web hiện tại</div>
+                                <div class="text-success small d-flex align-items-center gap-1">
+                                    <span class="badge bg-success p-1 rounded-circle"></span> Đang hoạt động
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" data-action="logout">
+                            Đăng xuất
+                        </button>
+                    </div>
+
+                    <div class="mt-3 p-3 bg-light rounded-3 border d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div>
+                            <div class="fw-semibold small text-dark d-flex align-items-center gap-2">
+                                <i class="bi bi-shield-x text-warning"></i>
+                                <span>Đăng xuất khỏi tất cả các thiết bị khác</span>
+                            </div>
+                            <div class="text-muted small">Hủy phiên làm việc trên tất cả điện thoại, máy tính bảng hoặc máy tính khác nếu bạn nghi ngờ bị lộ tài khoản.</div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-warning rounded-pill px-3" id="btn-logout-others">
+                            <span class="spinner-border spinner-border-sm d-none me-1" id="logout-others-spinner" role="status"></span>
+                            <span>Đăng xuất các thiết bị khác</span>
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <!-- Security & Privacy -->
-            <div class="border rounded-3 p-3 d-flex align-items-center justify-content-between gap-3">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
-                        <i class="bi bi-shield-lock fs-5" aria-hidden="true"></i>
-                    </div>
-                    <div>
-                        <h2 class="fs-6 fw-bold mb-0 text-dark">Bảo mật & Phiên đăng nhập</h2>
-                        <p class="small text-muted mb-0">Quản lý mật khẩu và đăng xuất khỏi thiết bị</p>
+            <!-- ========================================== -->
+            <!-- PANE 4: GIAO DIỆN & HIỂN THỊ -->
+            <!-- ========================================== -->
+            <div class="tab-pane-content"
+                 id="pane-appearance"
+                 th:classappend="${currentSection == 'appearance'} ? '' : 'd-none'"
+                 role="tabpanel"
+                 aria-labelledby="tab-btn-appearance">
+                <div class="aloute-card p-4 border-0 shadow-sm mb-3">
+                    <h2 class="fs-6 fw-bold mb-1 text-dark d-flex align-items-center gap-2">
+                        <i class="bi bi-palette text-primary" aria-hidden="true"></i>
+                        <span>Chủ đề giao diện</span>
+                    </h2>
+                    <p class="small text-muted mb-4">Tùy chỉnh tông màu hiển thị phù hợp với môi trường học tập ban ngày hoặc ban đêm.</p>
+
+                    <div class="row g-3 mb-4">
+                        <!-- Light Campus Mode -->
+                        <div class="col-sm-6">
+                            <div class="border rounded-3 p-3 h-100 cursor-pointer theme-select-card"
+                                 id="theme-card-light"
+                                 data-theme="light">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="fw-semibold small text-dark d-flex align-items-center gap-2">
+                                        <i class="bi bi-sun-fill text-warning"></i>
+                                        <span>Giảng đường Sáng (Light Campus)</span>
+                                    </span>
+                                    <i class="bi bi-check-circle-fill text-primary fs-5 theme-check-icon d-none" id="theme-check-light"></i>
+                                </div>
+                                <p class="small text-muted mb-2">Giao diện sáng thanh lịch, chuẩn mực cho sinh viên HCMUTE ban ngày.</p>
+                                <div class="rounded-2 p-2 bg-light border d-flex gap-2">
+                                    <div class="rounded bg-primary" style="width: 24px; height: 16px;"></div>
+                                    <div class="rounded bg-white border flex-grow-1" style="height: 16px;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dark Campus Mode -->
+                        <div class="col-sm-6">
+                            <div class="border rounded-3 p-3 h-100 cursor-pointer theme-select-card"
+                                 id="theme-card-dark"
+                                 data-theme="dark">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="fw-semibold small text-dark d-flex align-items-center gap-2">
+                                        <i class="bi bi-moon-stars-fill text-info"></i>
+                                        <span>Chế độ Tối (Dark Campus)</span>
+                                    </span>
+                                    <i class="bi bi-check-circle-fill text-primary fs-5 theme-check-icon d-none" id="theme-check-dark"></i>
+                                </div>
+                                <p class="small text-muted mb-2">Tông màu tối dịu mắt, tiết kiệm pin và hỗ trợ học tập ban đêm.</p>
+                                <div class="rounded-2 p-2 bg-dark border d-flex gap-2">
+                                    <div class="rounded bg-primary" style="width: 24px; height: 16px;"></div>
+                                    <div class="rounded bg-secondary flex-grow-1" style="height: 16px;"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 flex-shrink-0" data-action="logout">
-                    Đăng xuất
-                </button>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- PANE 5: NGƯỜI DÙNG ĐÃ CHẶN -->
+            <!-- ========================================== -->
+            <div class="tab-pane-content"
+                 id="pane-blocking"
+                 th:classappend="${currentSection == 'blocking'} ? '' : 'd-none'"
+                 role="tabpanel"
+                 aria-labelledby="tab-btn-blocking">
+                <div class="aloute-card p-4 border-0 shadow-sm mb-3">
+                    <h2 class="fs-6 fw-bold mb-1 text-dark d-flex align-items-center gap-2">
+                        <i class="bi bi-slash-circle text-danger" aria-hidden="true"></i>
+                        <span>Quản lý danh sách chặn</span>
+                    </h2>
+                    <p class="small text-muted mb-4">Khi bạn chặn ai đó, người này sẽ không thể xem bài viết của bạn, không thể tìm thấy trang cá nhân của bạn và không thể nhắn tin hay tương tác với bạn trên AloUTE.</p>
+
+                    <!-- Quick Block Form -->
+                    <form id="form-quick-block" class="mb-4">
+                        <label for="input-block-username" class="form-label small fw-semibold text-dark">Chặn người dùng bằng username:</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0 text-muted">@</span>
+                            <input type="text"
+                                   id="input-block-username"
+                                   class="form-control border-start-0"
+                                   placeholder="Nhập tên đăng nhập (ví dụ: nguyenvana)..."
+                                   required>
+                            <button type="submit" class="btn btn-danger px-4 d-inline-flex align-items-center gap-1" id="btn-submit-quick-block">
+                                <span class="spinner-border spinner-border-sm d-none" id="block-user-spinner" role="status"></span>
+                                <span>Chặn tài khoản</span>
+                            </button>
+                        </div>
+                        <div id="block-feedback" class="small mt-2 d-none"></div>
+                    </form>
+
+                    <hr class="my-4 border-secondary-subtle">
+
+                    <!-- Blocked Users List -->
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h3 class="fs-6 fw-bold mb-0 text-dark">Danh sách tài khoản đang chặn</h3>
+                        <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 text-primary small d-flex align-items-center gap-1" id="btn-refresh-blocked-users">
+                            <i class="bi bi-arrow-clockwise"></i>
+                            <span>Làm mới danh sách</span>
+                        </button>
+                    </div>
+
+                    <div id="blocked-users-loading" class="text-center py-4 d-none">
+                        <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+                        <span class="small text-muted ms-2">Đang tải danh sách chặn...</span>
+                    </div>
+
+                    <div id="blocked-users-empty" class="text-center py-5 bg-light rounded-3 d-none">
+                        <div class="rounded-circle bg-success-subtle text-success d-inline-flex align-items-center justify-content-center mb-2" style="width: 50px; height: 50px;">
+                            <i class="bi bi-shield-check fs-4"></i>
+                        </div>
+                        <h6 class="fw-bold text-dark mb-1">Danh sách chặn trống</h6>
+                        <p class="small text-muted mb-0">Bạn chưa chặn bất kỳ người dùng nào trên AloUTE.</p>
+                    </div>
+
+                    <div id="blocked-users-list" class="d-flex flex-column gap-2"></div>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- PANE 6: TÀI KHOẢN ĐÃ TẮT THÔNG BÁO (MUTED) -->
+            <!-- ========================================== -->
+            <div class="tab-pane-content"
+                 id="pane-muted"
+                 th:classappend="${currentSection == 'muted'} ? '' : 'd-none'"
+                 role="tabpanel"
+                 aria-labelledby="tab-btn-muted">
+                <div class="aloute-card p-4 border-0 shadow-sm mb-3">
+                    <h2 class="fs-6 fw-bold mb-1 text-dark d-flex align-items-center gap-2">
+                        <i class="bi bi-bell-slash text-warning" aria-hidden="true"></i>
+                        <span>Quản lý danh sách tắt thông báo (Mute)</span>
+                    </h2>
+                    <p class="small text-muted mb-4">Khi bạn tắt thông báo một tài khoản, bạn sẽ không nhận được bất kỳ thông báo tương tác (thích, bình luận, nhắc tên, tin nhắn) nào từ họ. Họ sẽ không biết rằng bạn đã tắt thông báo của họ.</p>
+
+                    <!-- Quick Mute Form -->
+                    <form id="form-quick-mute" class="mb-4">
+                        <label for="input-mute-username" class="form-label small fw-semibold text-dark">Tắt thông báo tài khoản bằng username:</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0 text-muted">@</span>
+                            <input type="text"
+                                   id="input-mute-username"
+                                   class="form-control border-start-0"
+                                   placeholder="Nhập tên đăng nhập để tắt thông báo..."
+                                   required>
+                            <button type="submit" class="btn btn-warning px-4 d-inline-flex align-items-center gap-1 text-dark fw-semibold" id="btn-submit-quick-mute">
+                                <span class="spinner-border spinner-border-sm d-none" id="mute-user-spinner" role="status"></span>
+                                <span>Tắt thông báo</span>
+                            </button>
+                        </div>
+                        <div id="mute-feedback" class="small mt-2 d-none"></div>
+                    </form>
+
+                    <hr class="my-4 border-secondary-subtle">
+
+                    <!-- Muted Users List -->
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h3 class="fs-6 fw-bold mb-0 text-dark">Danh sách tài khoản đang tắt thông báo</h3>
+                        <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 text-primary small d-flex align-items-center gap-1" id="btn-refresh-muted-users">
+                            <i class="bi bi-arrow-clockwise"></i>
+                            <span>Làm mới danh sách</span>
+                        </button>
+                    </div>
+
+                    <div id="muted-users-loading" class="text-center py-4 d-none">
+                        <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+                        <span class="small text-muted ms-2">Đang tải danh sách...</span>
+                    </div>
+
+                    <div id="muted-users-empty" class="text-center py-5 bg-light rounded-3 d-none">
+                        <div class="rounded-circle bg-warning-subtle text-warning d-inline-flex align-items-center justify-content-center mb-2" style="width: 50px; height: 50px;">
+                            <i class="bi bi-bell fs-4"></i>
+                        </div>
+                        <h6 class="fw-bold text-dark mb-1">Chưa tắt thông báo tài khoản nào</h6>
+                        <p class="small text-muted mb-0">Tất cả thông báo từ bạn bè và người dùng sẽ luôn được gửi đến bạn bình thường.</p>
+                    </div>
+
+                    <div id="muted-users-list" class="d-flex flex-column gap-2"></div>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- PANE 7: CÀI ĐẶT THÔNG BÁO -->
+            <!-- ========================================== -->
+            <div class="tab-pane-content"
+                 id="pane-notifications"
+                 th:classappend="${currentSection == 'notifications'} ? '' : 'd-none'"
+                 role="tabpanel"
+                 aria-labelledby="tab-btn-notifications">
+                <div class="aloute-card p-4 border-0 shadow-sm mb-3">
+                    <h2 class="fs-6 fw-bold mb-1 text-dark d-flex align-items-center gap-2">
+                        <i class="bi bi-bell text-primary" aria-hidden="true"></i>
+                        <span>Tùy chọn nhận thông báo</span>
+                    </h2>
+                    <p class="small text-muted mb-4">Tùy chỉnh các thông báo bạn muốn nhận khi có tương tác từ cộng đồng.</p>
+
+                    <form id="form-notification-settings">
+                        <!-- Likes -->
+                        <div class="p-3 border rounded-3 mb-3 d-flex align-items-center justify-content-between gap-3">
+                            <div>
+                                <div class="fw-semibold small text-dark d-flex align-items-center gap-2">
+                                    <i class="bi bi-heart-fill text-danger"></i>
+                                    <span>Lượt thích & Cảm xúc</span>
+                                </div>
+                                <div class="text-muted small mt-1">Nhận thông báo khi có người thả tim hoặc thích bài viết, bình luận của bạn.</div>
+                            </div>
+                            <div class="form-check form-switch m-0 flex-shrink-0">
+                                <input class="form-check-input fs-5 cursor-pointer" type="checkbox" role="switch" id="setting-notify-likes"
+                                       th:checked="${notificationSettings != null ? notificationSettings.likesEnabled : true}">
+                            </div>
+                        </div>
+
+                        <!-- Comments -->
+                        <div class="p-3 border rounded-3 mb-3 d-flex align-items-center justify-content-between gap-3">
+                            <div>
+                                <div class="fw-semibold small text-dark d-flex align-items-center gap-2">
+                                    <i class="bi bi-chat-dots-fill text-primary"></i>
+                                    <span>Bình luận & Phản hồi</span>
+                                </div>
+                                <div class="text-muted small mt-1">Nhận thông báo khi có người bình luận vào bài viết hoặc trả lời bình luận của bạn.</div>
+                            </div>
+                            <div class="form-check form-switch m-0 flex-shrink-0">
+                                <input class="form-check-input fs-5 cursor-pointer" type="checkbox" role="switch" id="setting-notify-comments"
+                                       th:checked="${notificationSettings != null ? notificationSettings.commentsEnabled : true}">
+                            </div>
+                        </div>
+
+                        <!-- Followers -->
+                        <div class="p-3 border rounded-3 mb-3 d-flex align-items-center justify-content-between gap-3">
+                            <div>
+                                <div class="fw-semibold small text-dark d-flex align-items-center gap-2">
+                                    <i class="bi bi-person-plus-fill text-success"></i>
+                                    <span>Người theo dõi mới</span>
+                                </div>
+                                <div class="text-muted small mt-1">Nhận thông báo khi có sinh viên khác bắt đầu theo dõi bạn.</div>
+                            </div>
+                            <div class="form-check form-switch m-0 flex-shrink-0">
+                                <input class="form-check-input fs-5 cursor-pointer" type="checkbox" role="switch" id="setting-notify-follows"
+                                       th:checked="${notificationSettings != null ? notificationSettings.followsEnabled : true}">
+                            </div>
+                        </div>
+
+                        <!-- Mentions -->
+                        <div class="p-3 border rounded-3 mb-3 d-flex align-items-center justify-content-between gap-3">
+                            <div>
+                                <div class="fw-semibold small text-dark d-flex align-items-center gap-2">
+                                    <i class="bi bi-at text-info fs-5"></i>
+                                    <span>Lượt nhắc đến (@mentions)</span>
+                                </div>
+                                <div class="text-muted small mt-1">Nhận thông báo khi có người gắn thẻ hoặc nhắc đến bạn trong bài viết hoặc thảo luận.</div>
+                            </div>
+                            <div class="form-check form-switch m-0 flex-shrink-0">
+                                <input class="form-check-input fs-5 cursor-pointer" type="checkbox" role="switch" id="setting-notify-mentions"
+                                       th:checked="${notificationSettings != null ? notificationSettings.mentionsEnabled : true}">
+                            </div>
+                        </div>
+
+                        <hr class="my-4 border-secondary-subtle">
+
+                        <h3 class="fs-6 fw-bold mb-3 text-dark">Kênh gửi & Âm thanh</h3>
+
+                        <!-- Email Notifications -->
+                        <div class="p-3 border rounded-3 mb-3 d-flex align-items-center justify-content-between gap-3">
+                            <div>
+                                <div class="fw-semibold small text-dark d-flex align-items-center gap-2">
+                                    <i class="bi bi-envelope-check text-primary"></i>
+                                    <span>Thông báo qua Email</span>
+                                </div>
+                                <div class="text-muted small mt-1">Gửi thông báo tóm tắt các hoạt động quan trọng về hộp thư của bạn.</div>
+                            </div>
+                            <div class="form-check form-switch m-0 flex-shrink-0">
+                                <input class="form-check-input fs-5 cursor-pointer" type="checkbox" role="switch" id="setting-notify-email"
+                                       th:checked="${notificationSettings != null ? notificationSettings.emailNotificationsEnabled : true}">
+                            </div>
+                        </div>
+
+                        <!-- Sound -->
+                        <div class="p-3 border rounded-3 mb-4 d-flex align-items-center justify-content-between gap-3">
+                            <div>
+                                <div class="fw-semibold small text-dark d-flex align-items-center gap-2">
+                                    <i class="bi bi-volume-up-fill text-secondary"></i>
+                                    <span>Âm thanh thông báo trên trình duyệt</span>
+                                </div>
+                                <div class="text-muted small mt-1">Phát chuông thông báo nhẹ khi có tương tác mới xuất hiện trên web.</div>
+                            </div>
+                            <div class="form-check form-switch m-0 flex-shrink-0">
+                                <input class="form-check-input fs-5 cursor-pointer" type="checkbox" role="switch" id="setting-notify-sound"
+                                       th:checked="${notificationSettings != null ? notificationSettings.soundEnabled : true}">
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <button type="submit" class="btn btn-primary rounded-pill px-4 d-inline-flex align-items-center gap-2" id="btn-save-notification-settings">
+                                <span class="spinner-border spinner-border-sm d-none" id="save-notifications-spinner" role="status"></span>
+                                <span>Lưu thiết lập thông báo</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- ========================================== -->
+    <!-- 2FA MODALS (SETUP, BACKUP CODES, DISABLE) -->
+    <!-- ========================================== -->
+
+
+    <!-- Modal 1: Setup 2FA Wizard -->
+    <div class="modal fade" id="modal-2fa-setup" tabindex="-1" aria-labelledby="modal2faSetupLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fs-6 fw-bold text-dark d-flex align-items-center gap-2" id="modal2faSetupLabel">
+                        <i class="bi bi-shield-lock-fill text-primary"></i>
+                        <span>Thiết lập bảo mật 2 lớp (TOTP)</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <!-- Loading state -->
+                    <div id="setup-2fa-loading" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Đang khởi tạo khóa bảo mật...</span>
+                        </div>
+                        <div class="small text-muted mt-2">Đang khởi tạo mã QR bảo mật...</div>
+                    </div>
+
+                    <!-- Setup Content -->
+                    <div id="setup-2fa-content" class="d-none">
+                        <div class="text-center mb-3">
+                            <p class="small text-muted mb-3">
+                                Mở ứng dụng <strong>Google Authenticator</strong> hoặc <strong>Microsoft Authenticator</strong> trên điện thoại và quét mã QR bên dưới:
+                            </p>
+                            <div class="p-2 border rounded-3 bg-white d-inline-block shadow-sm mb-3">
+                                <img id="setup-2fa-qr-img" src="" alt="Mã QR 2FA" width="180" height="180" class="img-fluid">
+                            </div>
+                        </div>
+
+                        <!-- Manual Key Entry -->
+                        <div class="mb-4">
+                            <label class="form-label small fw-semibold text-dark mb-1">Hoặc nhập khóa thủ công nếu không thể quét QR:</label>
+                            <div class="input-group">
+                                <input type="text" id="setup-2fa-secret-key" class="form-control form-control-sm font-monospace bg-light" readonly>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-copy-2fa-secret" title="Sao chép khóa">
+                                    <i class="bi bi-clipboard"></i> <span id="copy-secret-text">Sao chép</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <hr class="my-3">
+
+                        <!-- Verification Step -->
+                        <form id="setup-2fa-form" novalidate>
+                            <div class="mb-3">
+                                <label for="setup-2fa-input-code" class="form-label small fw-semibold text-dark">
+                                    Nhập mã 6 chữ số từ ứng dụng Authenticator: <span class="text-danger">*</span>
+                                </label>
+                                <input type="text"
+                                       class="form-control text-center font-monospace fs-5 fw-bold letter-spacing-1"
+                                       id="setup-2fa-input-code"
+                                       maxlength="6"
+                                       inputmode="numeric"
+                                       autocomplete="one-time-code"
+                                       placeholder="------"
+                                       required>
+                                <div id="setup-2fa-feedback" class="text-danger small mt-1 d-none"></div>
+                            </div>
+                            <div class="d-flex justify-content-end gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Hủy</button>
+                                <button type="submit" class="btn btn-sm btn-primary rounded-pill px-4 d-inline-flex align-items-center gap-1" id="btn-confirm-2fa-setup">
+                                    <span class="spinner-border spinner-border-sm d-none" id="setup-2fa-spinner" role="status"></span>
+                                    <span>Xác nhận & Kích hoạt</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 1B: Setup 2FA via Email Wizard -->
+    <div class="modal fade" id="modal-2fa-email" tabindex="-1" aria-labelledby="modal2faEmailLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fs-6 fw-bold text-dark d-flex align-items-center gap-2" id="modal2faEmailLabel">
+                        <i class="bi bi-envelope-check-fill text-success"></i>
+                        <span>Thiết lập bảo mật 2 lớp qua Email</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="text-center mb-4">
+                        <div class="rounded-circle bg-success-subtle text-success d-inline-flex align-items-center justify-content-center mb-3 shadow-sm" style="width: 58px; height: 58px;">
+                            <i class="bi bi-send-check-fill fs-3"></i>
+                        </div>
+                        <h6 class="fw-bold text-dark mb-1" id="email-2fa-status-title">Xác thực hộp thư sinh viên</h6>
+                        <p class="small text-muted mb-2" id="email-2fa-status-text">
+                            AloUTE đang gửi mã xác thực 6 số đến địa chỉ email của bạn:
+                        </p>
+                        <div class="badge bg-light text-primary border px-3 py-2 rounded-pill fs-6 fw-semibold font-monospace" th:text="${accountUser?.email ?: 'email sinh viên'}">
+                            user@student.hcmute.edu.vn
+                        </div>
+                    </div>
+
+                    <!-- Email Verification Form -->
+                    <form id="form-email-2fa-verify" novalidate>
+                        <div class="mb-3">
+                            <label for="email-2fa-code-input" class="form-label small fw-semibold text-dark">
+                                Nhập mã OTP 6 chữ số từ email: <span class="text-danger">*</span>
+                            </label>
+                            <input type="text"
+                                   class="form-control text-center font-monospace fs-4 fw-bold"
+                                   id="email-2fa-code-input"
+                                   maxlength="6"
+                                   inputmode="numeric"
+                                   autocomplete="one-time-code"
+                                   placeholder="------"
+                                   style="letter-spacing: 12px;"
+                                   required>
+                            <div id="email-2fa-feedback" class="text-danger small mt-2 d-none"></div>
+                        </div>
+
+                        <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-light mb-4">
+                            <span class="small text-muted">Chưa nhận được mã OTP?</span>
+                            <button type="button" class="btn btn-sm btn-link text-primary text-decoration-none fw-semibold p-0" id="btn-send-email-2fa-code">
+                                <span class="spinner-border spinner-border-sm d-none me-1" id="send-email-2fa-spinner" role="status"></span>
+                                <span id="send-email-2fa-btn-text">Gửi lại mã</span>
+                            </button>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Hủy</button>
+                            <button type="submit" class="btn btn-sm btn-success rounded-pill px-4 d-inline-flex align-items-center gap-1" id="btn-confirm-email-2fa">
+                                <span class="spinner-border spinner-border-sm d-none" id="email-2fa-verify-spinner" role="status"></span>
+                                <span>Xác nhận & Kích hoạt</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: Backup Codes Display -->
+    <div class="modal fade" id="modal-2fa-backup-codes" data-bs-backdrop="static" tabindex="-1" aria-labelledby="modalBackupCodesLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-bottom bg-warning-subtle">
+                    <h5 class="modal-title fs-6 fw-bold text-dark d-flex align-items-center gap-2" id="modalBackupCodesLabel">
+                        <i class="bi bi-key-fill text-warning"></i>
+                        <span>Mã khôi phục khẩn cấp (Backup Codes)</span>
+                    </h5>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-warning small py-2 mb-3">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        <strong>Quan trọng:</strong> Mỗi mã chỉ được sử dụng một lần khi đăng nhập. Hãy chụp lại màn hình hoặc lưu file vào nơi an toàn để tránh bị khóa tài khoản nếu mất điện thoại.
+                    </div>
+
+                    <div class="row g-2 mb-4" id="backup-codes-container">
+                        <!-- 8 codes populated by JS -->
+                    </div>
+
+                    <div class="d-flex gap-2 flex-wrap justify-content-between align-items-center">
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" id="btn-copy-backup-codes">
+                                <i class="bi bi-clipboard me-1"></i>Sao chép tất cả
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" id="btn-download-backup-codes">
+                                <i class="bi bi-download me-1"></i>Tải file .txt
+                            </button>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-success rounded-pill px-4" id="btn-close-backup-codes" data-bs-dismiss="modal">
+                            <i class="bi bi-check2 me-1"></i>Đã lưu an toàn
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 3: Disable 2FA -->
+    <div class="modal fade" id="modal-2fa-disable" tabindex="-1" aria-labelledby="modalDisable2faLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fs-6 fw-bold text-danger d-flex align-items-center gap-2" id="modalDisable2faLabel">
+                        <i class="bi bi-shield-x"></i>
+                        <span>Tắt tính năng bảo mật 2 lớp</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="small text-muted mb-3">
+                        Để xác nhận tắt bảo mật 2 lớp, vui lòng nhập mật khẩu hiện tại và mã xác thực 6 số:
+                    </p>
+                    <form id="form-2fa-disable" novalidate>
+                        <div class="mb-3">
+                            <label for="disable-2fa-password" class="form-label small fw-semibold text-dark">Mật khẩu hiện tại <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="disable-2fa-password" required placeholder="Nhập mật khẩu của bạn">
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label for="disable-2fa-code" class="form-label small fw-semibold text-dark mb-1">Mã xác thực 6 số hoặc mã dự phòng <span class="text-danger">*</span></label>
+                                <button type="button" class="btn btn-link btn-sm text-primary text-decoration-none p-0 small" id="btn-disable-send-email-otp">
+                                    <i class="bi bi-envelope me-1"></i>Gửi mã qua Email
+                                </button>
+                            </div>
+                            <input type="text" class="form-control font-monospace" id="disable-2fa-code" required placeholder="123456 hoặc XXXX-XXXX">
+                            <div id="disable-email-sent-feedback" class="text-success small mt-1 d-none">
+                                <i class="bi bi-check-circle me-1"></i>Đã gửi mã xác thực đến email của bạn!
+                            </div>
+                        </div>
+                        <div id="disable-2fa-feedback" class="text-danger small mt-1 mb-3 d-none"></div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Hủy</button>
+                            <button type="submit" class="btn btn-sm btn-danger rounded-pill px-4 d-inline-flex align-items-center gap-1" id="btn-confirm-disable-2fa">
+                                <span class="spinner-border spinner-border-sm d-none" id="disable-2fa-spinner" role="status"></span>
+                                <span>Xác nhận tắt</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 4: Regenerate Backup Codes -->
+    <div class="modal fade" id="modal-2fa-regenerate" tabindex="-1" aria-labelledby="modalRegenerateLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fs-6 fw-bold text-dark d-flex align-items-center gap-2" id="modalRegenerateLabel">
+                        <i class="bi bi-arrow-repeat text-primary"></i>
+                        <span>Tạo lại bộ mã dự phòng 2FA</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="small text-muted mb-3">
+                        Tạo bộ 8 mã dự phòng mới sẽ <strong>vô hiệu hóa toàn bộ các mã dự phòng cũ</strong>. Vui lòng nhập mật khẩu tài khoản để xác nhận:
+                    </p>
+                    <form id="form-2fa-regenerate" novalidate>
+                        <div class="mb-3">
+                            <label for="regenerate-2fa-password" class="form-label small fw-semibold text-dark">Mật khẩu hiện tại <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="regenerate-2fa-password" required placeholder="Nhập mật khẩu tài khoản">
+                        </div>
+                        <div id="regenerate-2fa-feedback" class="text-danger small mt-1 mb-3 d-none"></div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Hủy</button>
+                            <button type="submit" class="btn btn-sm btn-primary rounded-pill px-4 d-inline-flex align-items-center gap-1" id="btn-confirm-regenerate-2fa">
+                                <span class="spinner-border spinner-border-sm d-none" id="regenerate-2fa-spinner" role="status"></span>
+                                <span>Tạo mã mới</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 5: Deactivate Account Confirmation -->
+    <div class="modal fade" id="modal-deactivate-account" tabindex="-1" aria-labelledby="modalDeactivateLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-bottom bg-danger-subtle">
+                    <h5 class="modal-title fs-6 fw-bold text-danger d-flex align-items-center gap-2" id="modalDeactivateLabel">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <span>Xác nhận vô hiệu hóa tài khoản</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="small text-muted mb-3">
+                        Khi bạn tạm dừng tài khoản:
+                    </p>
+                    <ul class="small text-muted ps-3 mb-3">
+                        <li>Trang cá nhân của bạn sẽ bị ẩn khỏi toàn bộ sinh viên AloUTE.</li>
+                        <li>Các bài viết và bình luận sẽ tạm thời không xuất hiện trên bảng tin.</li>
+                        <li>Toàn bộ phiên đăng nhập trên các thiết bị khác sẽ bị đăng xuất ngay lập tức.</li>
+                        <li>Bạn có thể kích hoạt lại tài khoản bất kỳ lúc nào bằng cách đăng nhập lại.</li>
+                    </ul>
+
+                    <form id="form-confirm-deactivate" novalidate>
+                        <div class="mb-3">
+                            <label for="deactivate-password-input" class="form-label small fw-semibold text-dark">
+                                Nhập mật khẩu hiện tại để xác nhận: <span class="text-danger">*</span>
+                            </label>
+                            <input type="password"
+                                   class="form-control"
+                                   id="deactivate-password-input"
+                                   placeholder="Nhập mật khẩu của bạn..."
+                                   required>
+                            <div id="deactivate-feedback" class="text-danger small mt-2 d-none"></div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Hủy</button>
+                            <button type="submit" class="btn btn-sm btn-danger rounded-pill px-4 d-inline-flex align-items-center gap-1" id="btn-confirm-deactivate-submit">
+                                <span class="spinner-border spinner-border-sm d-none" id="deactivate-spinner" role="status"></span>
+                                <span>Vô hiệu hóa ngay</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 6: Confirm Unblock User -->
+    <div class="modal fade" id="modal-confirm-unblock" tabindex="-1" aria-labelledby="modalUnblockLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fs-6 fw-bold text-dark d-flex align-items-center gap-2" id="modalUnblockLabel">
+                        <i class="bi bi-person-check text-primary"></i>
+                        <span>Bỏ chặn người dùng</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <p class="small text-muted mb-3" id="unblock-confirm-text">
+                        Bạn có chắc chắn muốn bỏ chặn người dùng này? Hai bạn sẽ có thể nhìn thấy bài viết của nhau trở lại.
+                    </p>
+                    <div id="unblock-feedback" class="text-danger small mb-2 d-none"></div>
+                    <div class="d-flex justify-content-center gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-sm btn-primary rounded-pill px-4 d-inline-flex align-items-center gap-1" id="btn-do-unblock">
+                            <span class="spinner-border spinner-border-sm d-none" id="unblock-spinner" role="status"></span>
+                            <span>Bỏ chặn</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 7: Confirm Unmute User -->
+    <div class="modal fade" id="modal-confirm-unmute" tabindex="-1" aria-labelledby="modalUnmuteLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fs-6 fw-bold text-dark d-flex align-items-center gap-2" id="modalUnmuteLabel">
+                        <i class="bi bi-bell text-warning"></i>
+                        <span>Bật lại thông báo</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <p class="small text-muted mb-3" id="unmute-confirm-text">
+                        Bạn có muốn bật lại thông báo cho người dùng này? Bạn sẽ nhận được thông báo khi họ tương tác với bạn.
+                    </p>
+                    <div id="unmute-feedback" class="text-danger small mb-2 d-none"></div>
+                    <div class="d-flex justify-content-center gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-sm btn-warning rounded-pill px-4 d-inline-flex align-items-center gap-1 text-dark fw-semibold" id="btn-do-unmute">
+                            <span class="spinner-border spinner-border-sm d-none" id="unmute-spinner" role="status"></span>
+                            <span>Bật lại</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Settings Feature JavaScript Enhancement -->
+    <script th:src="@{/js/features/settings/settings.js(v=3)}" src="/js/features/settings/settings.js?v=3" defer></script>
 </div>
 </body>
 </html>

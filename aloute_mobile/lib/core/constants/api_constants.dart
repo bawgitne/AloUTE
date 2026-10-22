@@ -15,6 +15,13 @@ class ApiConstants {
   static const String resetPassword = '/auth/reset-password';
   static const String logout = '/auth/logout';
   static const String me = '/auth/me';
+  static const String verify2fa = '/auth/2fa/verify-login';
+  static const String send2faEmailFallback = '/auth/2fa/send-email-fallback';
+  static const String user2faStatus = '/users/me/2fa/status';
+  static const String user2faSetup = '/users/me/2fa/setup';
+  static const String user2faEnable = '/users/me/2fa/enable';
+  static const String user2faDisable = '/users/me/2fa/disable';
+  static const String user2faBackupCodes = '/users/me/2fa/backup-codes';
 
   // Feed endpoints
   static const String homeFeed = '/feed/home';

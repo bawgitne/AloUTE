@@ -24,6 +24,7 @@ public class ProfilePageController {
 
     private final UserService userService;
     private final PostService postService;
+    private final com.aloute.service.SocialService socialService;
     private final CurrentUserProvider currentUserProvider;
 
     @GetMapping("/profile")
@@ -37,6 +38,15 @@ public class ProfilePageController {
         if (currentUserId == null) {
             return "redirect:/login";
         }
+        try {
+            ProfileResponse current = userService.getProfile(currentUserId);
+            if (current != null && current.username() != null && !current.username().isBlank()) {
+                String query = (tab != null && !tab.equals("posts")) ? "?tab=" + tab : "";
+                return "redirect:/users/" + current.username() + query;
+            }
+        } catch (Exception e) {
+            log.warn("Could not retrieve profile for current user {}: {}", currentUserId, e.getMessage());
+        }
         return showUserProfileByIdentifier(String.valueOf(currentUserId), tab, page, size, model);
     }
 
@@ -48,6 +58,18 @@ public class ProfilePageController {
             @RequestParam(defaultValue = "20") int size,
             Model model
     ) {
+        // Canonical slug enforcement: if numeric ID is used in URL, redirect to /users/{username}
+        if (username != null && username.matches("\\d+")) {
+            try {
+                ProfileResponse target = userService.getProfile(Long.parseLong(username));
+                if (target != null && target.username() != null && !target.username().isBlank()) {
+                    String query = (tab != null && !tab.equals("posts")) ? "?tab=" + tab : "";
+                    return "redirect:/users/" + target.username() + query;
+                }
+            } catch (Exception e) {
+                log.warn("Profile not found by id for redirect: {}", username);
+            }
+        }
         return showUserProfileByIdentifier(username, tab, page, size, model);
     }
 
@@ -112,6 +134,22 @@ public class ProfilePageController {
             }
         }
 
+        boolean isBlocked = false;
+        boolean isMuted = false;
+        boolean isRestricted = false;
+        boolean isFollowing = false;
+        if (currentUserId != null && targetProfile != null && !isSelf) {
+            try {
+                var rel = socialService.getRelationStatus(currentUserId, targetProfile.id());
+                isBlocked = rel.blocked();
+                isMuted = rel.muted();
+                isRestricted = rel.restricted();
+                isFollowing = rel.following();
+            } catch (Exception e) {
+                log.warn("Failed to check social relation status between user {} and target {}: {}", currentUserId, targetProfile.id(), e.getMessage());
+            }
+        }
+
         model.addAttribute("profile", targetProfile);
         model.addAttribute("targetUser", targetProfile);
         model.addAttribute("currentUser", currentUser);
@@ -123,6 +161,10 @@ public class ProfilePageController {
         model.addAttribute("savedPostsError", savedPostsError);
         model.addAttribute("pageMeta", pageMeta);
         model.addAttribute("isSelf", isSelf);
+        model.addAttribute("isBlocked", isBlocked);
+        model.addAttribute("isMuted", isMuted);
+        model.addAttribute("isRestricted", isRestricted);
+        model.addAttribute("isFollowing", isFollowing);
         model.addAttribute("currentTab", tab);
         model.addAttribute("activeNav", "profile");
         model.addAttribute("activeTab", "profile");

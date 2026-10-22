@@ -15,7 +15,8 @@
                 <i class="bi bi-list fs-5" aria-hidden="true"></i>
             </button>
 
-            <a class="navbar-brand d-flex align-items-center gap-1 gap-sm-2" th:href="@{/feed}" href="/feed">
+            <a class="navbar-brand d-flex align-items-center gap-2" th:href="@{/feed}" href="/feed">
+                <img th:src="@{/images/logo.png}" src="/images/logo.png" alt="AloUTE" width="30" height="30" class="rounded-2 d-inline-block align-text-top shadow-xs">
                 <span class="fs-4 fw-bold">Alo<span class="text-primary">UTE</span></span>
                 <span class="badge-brand d-none d-sm-inline-block">Campus</span>
             </a>
@@ -119,9 +120,9 @@
                         </a>
                     </li>
                     <li>
-                        <!-- Canonical user page: /users/{id} if id available, else fallback hook -->
+                        <!-- Canonical user profile: /users/{username} if username available, else /profile -->
                         <a class="dropdown-item d-flex align-items-center gap-2"
-                           th:href="${currentUser?.id != null} ? @{/users/{id}(id=${currentUser.id})} : '#'"
+                           th:href="${currentUser?.username != null} ? @{/users/{u}(u=${currentUser.username})} : @{/profile}"
                            data-page="user-profile"
                            data-action="navigate-profile">
                             <i class="bi bi-person text-secondary" aria-hidden="true"></i>

@@ -6,8 +6,14 @@
     <!-- User Profile Header Card -->
     <header class="profile-header-card" aria-label="Thông tin hồ sơ cá nhân">
         <!-- Profile Cover Banner -->
-        <div class="profile-cover" aria-hidden="true">
-            <div class="profile-cover-placeholder"></div>
+        <div class="profile-cover position-relative overflow-hidden" aria-hidden="true" style="height: 180px; background-color: var(--bs-secondary-bg);">
+            <img th:if="${profile != null and profile.coverUrl != null and !profile.coverUrl.isEmpty()}"
+                 th:src="${profile.coverUrl}"
+                 src=""
+                 alt="Ảnh bìa trang cá nhân"
+                 class="w-100 h-100 object-fit-cover">
+            <div th:unless="${profile != null and profile.coverUrl != null and !profile.coverUrl.isEmpty()}"
+                 class="profile-cover-placeholder w-100 h-100"></div>
         </div>
 
         <div class="profile-header-body">
@@ -36,62 +42,122 @@
                                 <i class="bi bi-lock-fill me-1" aria-hidden="true"></i>Riêng tư
                             </span>
                         </div>
-                        <p class="text-muted mb-1 small text-truncate"
+                        <p class="text-muted mb-0 small text-truncate"
                            id="profile-username"
-                           th:text="'@' + ${profile?.username ?: 'sinhvien'}">@sinhvien</p>
-                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle small py-1 px-2">Sinh viên HCMUTE</span>
+                           th:text="'@' + ${profile?.username ?: 'user'}">@user</p>
                     </div>
                 </div>
 
                 <!-- Profile Actions: Derived from actual currentUser.id and profile.id -->
-                <div class="profile-actions d-flex gap-2 flex-wrap align-items-center">
+                <div class="profile-actions d-flex align-items-center gap-2">
                     <!-- Edit Profile (Owner only: currentUser.id == profile.id) -->
                     <button th:if="${currentUser != null and profile != null and currentUser.id == profile.id}"
                             type="button"
-                            class="btn btn-sm btn-outline-secondary aloute-action-btn"
+                            class="btn profile-action-btn-main profile-btn-following"
                             id="btn-edit-profile"
                             data-action="edit-profile"
                             data-bs-toggle="modal"
                             data-bs-target="#editProfileModal">
-                        <i class="bi bi-pencil me-1" aria-hidden="true"></i>
+                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
                         <span>Chỉnh sửa hồ sơ</span>
                     </button>
 
-                    <!-- Follow Button (Other user: currentUser.id != profile.id; stable >=44px touch target) -->
+                    <!-- Follow Button (Other user: currentUser.id != profile.id) -->
                     <button th:if="${currentUser != null and profile != null and currentUser.id != profile.id}"
                             type="button"
-                            class="btn btn-sm btn-primary aloute-follow-btn"
+                            class="btn profile-action-btn-main aloute-follow-btn"
+                            th:classappend="${isFollowing} ? 'profile-btn-following' : 'profile-btn-follow'"
                             id="btn-follow"
                             data-action="toggle-follow"
-                            th:attr="data-user-id=${profile.id}, data-current-user-id=${currentUser.id}"
-                            aria-pressed="false"
-                            disabled>
-                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                        <span>Đang tải...</span>
+                            th:attr="data-user-id=${profile.id}, data-current-user-id=${currentUser.id}, data-following=${isFollowing}"
+                            th:aria-pressed="${isFollowing} ? 'true' : 'false'">
+                        <i class="bi" th:classappend="${isFollowing} ? 'bi-person-check-fill' : 'bi-person-plus-fill'"></i>
+                        <span th:text="${isFollowing} ? 'Đang theo dõi' : 'Theo dõi'">Theo dõi</span>
                     </button>
 
-                    <!-- Direct Message Button (Other user: currentUser.id != profile.id; initiates direct conversation via REST) -->
+                    <!-- Direct Message Button (Other user: currentUser.id != profile.id) -->
                     <button th:if="${currentUser != null and profile != null and currentUser.id != profile.id}"
                             type="button"
-                            class="btn btn-sm btn-outline-primary aloute-action-btn"
+                            class="btn profile-action-btn-main profile-btn-message"
                             id="btn-direct-message"
                             data-action="create-direct-conversation"
                             th:attr="data-target-user-id=${profile.id}, data-username=${profile.username}">
-                        <i class="bi bi-chat-dots me-1" aria-hidden="true"></i>
+                        <i class="bi bi-chat-dots-fill text-primary" aria-hidden="true"></i>
                         <span>Nhắn tin</span>
                     </button>
 
-                    <!-- Report User Button (Other user: currentUser.id != profile.id) -->
-                    <button th:if="${currentUser != null and profile != null and currentUser.id != profile.id}"
-                            type="button"
-                            class="btn btn-sm btn-outline-danger aloute-action-btn"
-                            id="btn-report-user"
-                            data-action="open-report-modal"
-                            data-report-type="user"
-                            th:attr="data-reported-id=${profile.id}, data-reported-name=${profile.displayName ?: profile.username}">
-                        <i class="bi bi-flag me-1" aria-hidden="true"></i>
-                        <span>Báo cáo</span>
-                    </button>
+                    <!-- Facebook-style More Options Dropdown (...) -->
+                    <div th:if="${currentUser != null and profile != null and currentUser.id != profile.id}"
+                         class="dropdown d-inline-block"
+                         id="profile-more-dropdown-container">
+                        <button class="btn profile-btn-more"
+                                type="button"
+                                id="dropdownProfileMore"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false"
+                                title="Tùy chọn khác">
+                            <i class="bi bi-three-dots" aria-hidden="true"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end profile-dropdown-menu" aria-labelledby="dropdownProfileMore">
+                            <!-- Mute User -->
+                            <li>
+                                <button class="dropdown-item d-flex align-items-center"
+                                        type="button"
+                                        id="btn-profile-toggle-mute"
+                                        data-action="toggle-mute-user"
+                                        th:attr="data-user-id=${profile.id}, data-username=${profile.username}, data-muted=${isMuted}">
+                                    <i class="bi me-2.5 fs-6" id="icon-profile-mute" th:classappend="${isMuted} ? 'bi-bell text-primary' : 'bi-bell-slash text-secondary'"></i>
+                                    <span id="text-profile-mute" th:text="${isMuted} ? 'Bật lại thông báo' : 'Tắt thông báo'">Tắt thông báo</span>
+                                </button>
+                            </li>
+                            <!-- Restrict User -->
+                            <li>
+                                <button class="dropdown-item d-flex align-items-center py-2 px-3"
+                                        type="button"
+                                        id="btn-profile-toggle-restrict"
+                                        data-action="toggle-restrict-user"
+                                        th:attr="data-user-id=${profile.id}, data-username=${profile.username}, data-restricted=${isRestricted}">
+                                    <i class="bi me-2 text-secondary" id="icon-profile-restrict" th:classappend="${isRestricted} ? 'bi-eye text-primary' : 'bi-eye-slash'"></i>
+                                    <span id="text-profile-restrict" th:text="${isRestricted} ? 'Bỏ hạn chế' : 'Hạn chế tương tác'">Hạn chế tương tác</span>
+                                </button>
+                            </li>
+                            <!-- Copy Profile Link -->
+                            <li>
+                                <button class="dropdown-item d-flex align-items-center py-2 px-3"
+                                        type="button"
+                                        id="btn-profile-copy-link"
+                                        data-action="copy-profile-link"
+                                        th:attr="data-username=${profile.username}">
+                                    <i class="bi bi-link-45deg me-2 text-secondary"></i>
+                                    <span>Sao chép liên kết</span>
+                                </button>
+                            </li>
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <!-- Report User -->
+                            <li>
+                                <button class="dropdown-item d-flex align-items-center py-2 px-3 text-danger"
+                                        type="button"
+                                        id="btn-report-user"
+                                        data-action="open-report-modal"
+                                        data-report-type="user"
+                                        th:attr="data-reported-id=${profile.id}, data-reported-name=${profile.displayName ?: profile.username}">
+                                    <i class="bi bi-flag me-2 text-danger"></i>
+                                    <span>Báo cáo trang cá nhân</span>
+                                </button>
+                            </li>
+                            <!-- Block User -->
+                            <li>
+                                <button class="dropdown-item d-flex align-items-center py-2 px-3 text-danger"
+                                        type="button"
+                                        id="btn-profile-toggle-block"
+                                        data-action="toggle-block-user"
+                                        th:attr="data-user-id=${profile.id}, data-username=${profile.username}, data-blocked=${isBlocked}">
+                                    <i class="bi me-2" id="icon-profile-block" th:classappend="${isBlocked} ? 'bi-shield-check text-success' : 'bi-slash-circle text-danger'"></i>
+                                    <span id="text-profile-block" th:text="${isBlocked} ? 'Bỏ chặn tài khoản' : 'Chặn người dùng'">Chặn người dùng</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
 
@@ -128,6 +194,31 @@
                     <span id="profile-following-count" class="profile-stat-number" th:text="${profile != null and profile.followingCount != null ? profile.followingCount : 0}">0</span>
                     <span class="profile-stat-label">Đang theo dõi</span>
                 </div>
+            </div>
+
+            <!-- Blocked Notice Banner -->
+            <div th:if="${isBlocked}" class="alert alert-warning d-flex align-items-center justify-content-between p-3 rounded-3 mt-3 mb-0" id="banner-user-blocked">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-slash-circle-fill text-danger fs-4 me-3" aria-hidden="true"></i>
+                    <div>
+                        <div class="fw-semibold text-dark">Bạn đã chặn người dùng này</div>
+                        <div class="small text-secondary">Họ không thể xem bài viết của bạn, gửi tin nhắn hoặc tương tác với bạn trên AloUTE.</div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger fw-semibold px-3" data-action="toggle-block-user" th:attr="data-user-id=${profile.id}, data-username=${profile.username}, data-blocked='true'">
+                    Bỏ chặn
+                </button>
+            </div>
+
+            <!-- Muted Notice Banner -->
+            <div th:if="${isMuted}" class="alert alert-light border d-flex align-items-center justify-content-between p-2 px-3 rounded-3 mt-2 mb-0 small" id="banner-user-muted">
+                <div class="d-flex align-items-center text-secondary">
+                    <i class="bi bi-bell-slash text-warning me-2" aria-hidden="true"></i>
+                    <span>Bạn đang tắt thông báo từ tài khoản này.</span>
+                </div>
+                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none fw-semibold" data-action="toggle-mute-user" th:attr="data-user-id=${profile.id}, data-username=${profile.username}, data-muted='true'">
+                    Bật lại thông báo
+                </button>
             </div>
         </div>
 
@@ -232,7 +323,7 @@
                     </div>
 
                     <div th:if="${pageMeta != null}">
-                        <div th:replace="~{fragments/pagination :: pagination(pageMeta=${pageMeta}, baseUrl=${profile != null and profile.id != null ? '/users/' + profile.id : '#'})}"></div>
+                        <div th:replace="~{fragments/pagination :: pagination(pageMeta=${pageMeta}, baseUrl=${profile != null and profile.username != null ? '/users/' + profile.username : (profile != null and profile.id != null ? '/users/' + profile.id : '#')})}"></div>
                     </div>
                 </div>
             </section>
@@ -400,6 +491,72 @@
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirm Block Profile -->
+<div class="modal fade" id="modal-confirm-block-profile" tabindex="-1" aria-labelledby="modalConfirmBlockProfileTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold text-danger d-flex align-items-center" id="modalConfirmBlockProfileTitle">
+                    <i class="bi bi-slash-circle me-2"></i>
+                    <span>Chặn người dùng này?</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body py-3">
+                <p class="text-secondary mb-2" id="modal-block-profile-desc">
+                    Khi bạn chặn <strong id="modal-block-profile-username" class="text-dark">@user</strong>, họ sẽ không thể:
+                </p>
+                <ul class="text-secondary small ps-3 mb-3">
+                    <li class="mb-1">Xem bài viết trên dòng thời gian của bạn</li>
+                    <li class="mb-1">Gửi tin nhắn trực tiếp cho bạn</li>
+                    <li class="mb-1">Theo dõi hoặc tìm thấy trang cá nhân của bạn</li>
+                    <li class="mb-1">Bình luận hoặc nhắc tên bạn trong bài viết</li>
+                </ul>
+                <div class="form-text small text-muted">
+                    Họ sẽ không nhận được thông báo rằng bạn đã chặn họ. Bạn có thể bỏ chặn bất kỳ lúc nào tại Cài đặt.
+                </div>
+            </div>
+            <div class="modal-footer border-top-0 pt-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-danger fw-semibold" id="btn-modal-confirm-block">
+                    <span class="spinner-border spinner-border-sm d-none me-1" id="spinner-modal-block" role="status" aria-hidden="true"></span>
+                    <span>Xác nhận Chặn</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirm Mute Profile -->
+<div class="modal fade" id="modal-confirm-mute-profile" tabindex="-1" aria-labelledby="modalConfirmMuteProfileTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark d-flex align-items-center" id="modalConfirmMuteProfileTitle">
+                    <i class="bi bi-bell-slash text-warning me-2"></i>
+                    <span>Tắt thông báo từ người dùng?</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body py-3">
+                <p class="text-secondary mb-2">
+                    Bạn sẽ không nhận được thông báo khi <strong id="modal-mute-profile-username" class="text-dark">@user</strong> đăng bài viết mới, thích bài viết hoặc bình luận.
+                </p>
+                <div class="form-text small text-muted">
+                    Họ sẽ không biết rằng bạn đã tắt thông báo. Bạn vẫn có thể xem bài viết và gửi tin nhắn bình thường.
+                </div>
+            </div>
+            <div class="modal-footer border-top-0 pt-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-warning fw-semibold text-dark" id="btn-modal-confirm-mute">
+                    <span class="spinner-border spinner-border-sm d-none me-1" id="spinner-modal-mute" role="status" aria-hidden="true"></span>
+                    <span>Tắt thông báo</span>
+                </button>
             </div>
         </div>
     </div>

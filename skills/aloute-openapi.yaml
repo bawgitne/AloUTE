@@ -169,6 +169,76 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
 
+  /api/auth/2fa/verify-login:
+    post:
+      tags: [Auth]
+      summary: Verify Two-Factor Authentication Login
+      description: |
+        Validates the 2FA challenge code (6-digit TOTP from Google Authenticator,
+        Email fallback OTP, or 8-character single-use emergency backup code)
+        using the temporary twoFactorTicket issued in the first login step.
+        On success, issues the official authenticated JWT access credential.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [twoFactorTicket, code]
+              properties:
+                twoFactorTicket:
+                  type: string
+                code:
+                  type: string
+                isBackupCode:
+                  type: boolean
+                  default: false
+      responses:
+        '200':
+          description: Two-factor verification successful, JWT issued
+          headers:
+            Set-Cookie:
+              description: HttpOnly authentication cookie.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/auth/2fa/send-email-fallback:
+    post:
+      tags: [Auth]
+      summary: Send Two-Factor Fallback OTP via Email
+      description: |
+        Dispatches a 6-digit numeric OTP to the user's verified university email
+        as a fallback when they do not have access to their Authenticator app.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [twoFactorTicket]
+              properties:
+                twoFactorTicket:
+                  type: string
+      responses:
+        '200':
+          description: OTP dispatched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseMessage'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
   /api/auth/forgot-password:
     post:
       tags: [Auth]
@@ -359,6 +429,33 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthenticated'
 
+  /api/users/me/password:
+    post:
+      tags: [Users]
+      summary: Change password for current user
+      description: |
+        Verifies current password with BCrypt, updates password_hash, increments authVersion,
+        and sets a refreshed access token cookie on success.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseMessage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
   /api/users/{userId}/posts:
     get:
       tags: [Users, Posts]
@@ -447,6 +544,24 @@ paths:
       responses:
         '204':
           description: Follow relationship removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/social/relations/{userId}:
+    get:
+      tags: [Social]
+      summary: Get social relationship status between current user and target user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Relationship status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRelationStatusEnvelope'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '404':
@@ -2606,6 +2721,10 @@ components:
           type: string
           format: uri
           nullable: true
+        coverUrl:
+          type: string
+          format: uri
+          nullable: true
         website:
           type: string
           format: uri
@@ -2655,6 +2774,7 @@ components:
         - POST
         - MESSAGE
         - USER_AVATAR
+        - USER_COVER
         - COMMUNITY_AVATAR
         - COMMUNITY_COVER
 
@@ -3081,6 +3201,31 @@ components:
         active:
           type: boolean
 
+    UserRelationStatusResponse:
+      type: object
+      required: [targetUserId, following, blocked, muted, restricted]
+      properties:
+        targetUserId:
+          type: integer
+          format: int64
+        following:
+          type: boolean
+        blocked:
+          type: boolean
+        muted:
+          type: boolean
+        restricted:
+          type: boolean
+
+    UserRelationStatusEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccess'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/UserRelationStatusResponse'
+
     PostInteractionResponse:
       type: object
       required: [postId, active]
@@ -3126,6 +3271,21 @@ components:
           type: string
           format: email
           maxLength: 254
+
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword, confirmPassword]
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+          minLength: 8
+          maxLength: 100
+        confirmPassword:
+          type: string
+          minLength: 8
+          maxLength: 100
 
     ResetPasswordRequest:
       type: object

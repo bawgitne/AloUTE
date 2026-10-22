@@ -14,8 +14,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.aloute.dto.request.ChangePasswordRequest;
+import com.aloute.entity.MediaAsset;
+import com.aloute.repository.MediaAssetRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -24,6 +30,9 @@ import java.util.Map;
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final ProfileRepository profileRepository;
+    private final MediaAssetRepository mediaAssetRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final com.aloute.repository.UserNotificationSettingRepository notificationSettingRepository;
 
     @Override @Transactional(readOnly = true)
     public ProfileResponse getProfile(Long userId) {
@@ -56,11 +65,99 @@ public class UserServiceImpl implements UserService {
             profile.setWebsite(website);
         }
         if (request.hasPrivateAccount()) user.setPrivateAccount(Boolean.TRUE.equals(request.getPrivateAccount()));
-        if (request.hasAvatarMediaId() && request.getAvatarMediaId() != null) {
-            throw new RequestValidationException(Map.of("avatarMediaId", List.of(
-                    "Avatar media update requires the Media module; no Media relation is invented in Khôi scope")));
+        if (request.hasAvatarMediaId()) {
+            if (request.getAvatarMediaId() == null) {
+                profile.setAvatarUrl(null);
+            } else {
+                MediaAsset media = mediaAssetRepository.findByIdAndOwner_IdAndDeletedAtIsNull(request.getAvatarMediaId(), currentUserId)
+                        .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Avatar media not found"));
+                profile.setAvatarUrl(media.getUrl());
+                media.setAttachedAt(Instant.now());
+            }
+        }
+        if (request.hasCoverMediaId()) {
+            if (request.getCoverMediaId() == null) {
+                profile.setCoverUrl(null);
+            } else {
+                MediaAsset media = mediaAssetRepository.findByIdAndOwner_IdAndDeletedAtIsNull(request.getCoverMediaId(), currentUserId)
+                        .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Cover media not found"));
+                profile.setCoverUrl(media.getUrl());
+                media.setAttachedAt(Instant.now());
+            }
         }
         return toProfile(user, profile);
+    }
+
+    @Override @Transactional
+    public User changePassword(Long currentUserId, ChangePasswordRequest request) {
+        if (!request.newPassword().equals(request.confirmPassword())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "PASSWORD_CONFIRMATION_MISMATCH", "Mật khẩu xác nhận không khớp.");
+        }
+        User user = requireUser(currentUserId);
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_CURRENT_PASSWORD", "Mật khẩu hiện tại không chính xác.");
+        }
+        if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "PASSWORD_SAME_AS_OLD", "Mật khẩu mới không được trùng với mật khẩu hiện tại.");
+        }
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.setAuthVersion((user.getAuthVersion() == null ? 0L : user.getAuthVersion()) + 1L);
+        return userRepository.save(user);
+    }
+
+    @Override @Transactional
+    public User logoutOtherSessions(Long currentUserId) {
+        User user = requireUser(currentUserId);
+        user.setAuthVersion((user.getAuthVersion() == null ? 0L : user.getAuthVersion()) + 1L);
+        return userRepository.save(user);
+    }
+
+    @Override @Transactional
+    public void deactivateAccount(Long currentUserId, String password) {
+        User user = requireUser(currentUserId);
+        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_PASSWORD", "Mật khẩu xác nhận không chính xác.");
+        }
+        user.setActive(false);
+        user.setAuthVersion((user.getAuthVersion() == null ? 0L : user.getAuthVersion()) + 1L);
+        userRepository.save(user);
+    }
+
+    @Override @Transactional(readOnly = true)
+    public com.aloute.dto.response.NotificationSettingsResponse getNotificationSettings(Long userId) {
+        return notificationSettingRepository.findById(userId)
+                .map(s -> new com.aloute.dto.response.NotificationSettingsResponse(
+                        s.isLikesEnabled(),
+                        s.isCommentsEnabled(),
+                        s.isFollowsEnabled(),
+                        s.isMentionsEnabled(),
+                        s.isEmailNotificationsEnabled(),
+                        s.isSoundEnabled()))
+                .orElseGet(com.aloute.dto.response.NotificationSettingsResponse::defaults);
+    }
+
+    @Override @Transactional
+    public com.aloute.dto.response.NotificationSettingsResponse updateNotificationSettings(
+            Long userId, com.aloute.dto.request.UpdateNotificationSettingsRequest request) {
+        User user = requireUser(userId);
+        com.aloute.entity.UserNotificationSetting setting = notificationSettingRepository.findById(userId)
+                .orElseGet(() -> com.aloute.entity.UserNotificationSetting.builder().user(user).build());
+
+        setting.setLikesEnabled(request.likesEnabled());
+        setting.setCommentsEnabled(request.commentsEnabled());
+        setting.setFollowsEnabled(request.followsEnabled());
+        setting.setMentionsEnabled(request.mentionsEnabled());
+        setting.setEmailNotificationsEnabled(request.emailNotificationsEnabled());
+        setting.setSoundEnabled(request.soundEnabled());
+
+        com.aloute.entity.UserNotificationSetting saved = notificationSettingRepository.save(setting);
+        return new com.aloute.dto.response.NotificationSettingsResponse(
+                saved.isLikesEnabled(),
+                saved.isCommentsEnabled(),
+                saved.isFollowsEnabled(),
+                saved.isMentionsEnabled(),
+                saved.isEmailNotificationsEnabled(),
+                saved.isSoundEnabled());
     }
 
     private User requireUser(Long id) {
@@ -78,7 +175,7 @@ public class UserServiceImpl implements UserService {
     }
     private ProfileResponse toProfile(User u, Profile p) {
         return new ProfileResponse(u.getId(), u.getUsername(), p.getDisplayName(), p.getBio(), p.getAvatarUrl(),
-                p.getWebsite(), u.isVerified(), u.isPrivateAccount(), p.getFollowersCount(), p.getFollowingCount(),
+                p.getCoverUrl(), p.getWebsite(), u.isVerified(), u.isPrivateAccount(), p.getFollowersCount(), p.getFollowingCount(),
                 p.getPostsCount(), null);
     }
 }

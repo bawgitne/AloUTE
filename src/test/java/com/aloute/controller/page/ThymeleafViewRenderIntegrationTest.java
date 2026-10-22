@@ -42,6 +42,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -149,7 +150,7 @@ class ThymeleafViewRenderIntegrationTest {
         assertThat(html).contains("Cộng đồng &amp; Câu lạc bộ");
         assertThat(html).contains("CLB Lập trình AloUTE");
         assertThat(html).contains("c/clb-lap-trinh");
-        assertThat(html).contains("/communities/42");
+        assertThat(html).contains("/communities/clb-lap-trinh");
         assertThat(html).contains("128");
         assertThat(html).contains("thành viên");
         assertThat(html).doesNotContain("/c/clb-lap-trinh");
@@ -527,16 +528,28 @@ class ThymeleafViewRenderIntegrationTest {
     @DisplayName("Batch 2: Topic detail preserves topic metadata when posts service fails and renders retry alert")
     void testTopicPagePostsServiceFailure() throws Exception {
         TopicResponse topic = new TopicResponse(10L, "Trí tuệ nhân tạo", "tri-tue-nhan-tao");
-        when(topicService.get(10L)).thenReturn(topic);
+        when(topicService.getByName("tri-tue-nhan-tao")).thenReturn(topic);
         when(postService.topicPosts(eq(10L), anyInt(), anyInt(), any()))
                 .thenThrow(new RuntimeException("Post service unreachable"));
 
-        mockMvc.perform(get("/topics/10")
+        mockMvc.perform(get("/topics/tri-tue-nhan-tao")
                         .with(authentication(createMockAuth(1L, "sinhvien1"))))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Trí tuệ nhân tạo")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Không thể tải danh sách bài viết thuộc chủ đề lúc này")))
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Chưa có bài viết nào trong chủ đề này"))));
+    }
+
+    @Test
+    @DisplayName("Topic detail with numeric ID redirects to canonical slug URL")
+    void testTopicDetailNumericIdRedirectsToSlug() throws Exception {
+        TopicResponse topic = new TopicResponse(10L, "Trí tuệ nhân tạo", "tri-tue-nhan-tao");
+        when(topicService.get(10L)).thenReturn(topic);
+
+        mockMvc.perform(get("/topics/10")
+                        .with(authentication(createMockAuth(1L, "sinhvien1"))))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/topics/tri-tue-nhan-tao"));
     }
 
     @Test
@@ -836,7 +849,7 @@ class ThymeleafViewRenderIntegrationTest {
         assertThat(html).contains("href=\"/communities\"");
         assertThat(html).contains("href=\"/friends\"");
         assertThat(html).contains("href=\"/saved\"");
-        assertThat(html).contains("href=\"/users/1\"");
+        assertThat(html).contains("href=\"/users/testuser\"");
 
         // Excluded entries absent
         assertThat(html).doesNotContain("href=\"/messages\"");

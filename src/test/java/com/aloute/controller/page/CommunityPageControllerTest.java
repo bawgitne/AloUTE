@@ -105,6 +105,20 @@ class CommunityPageControllerTest {
     }
 
     @Test
+    @DisplayName("showCommunityDetail with numeric ID redirects to canonical slug URL")
+    void testShowCommunityDetailNumericIdRedirectsToSlug() throws Exception {
+        when(currentUserProvider.getCurrentUserId()).thenReturn(Optional.of(100L));
+        CommunityResponse comm = new CommunityResponse(
+                1L, 100L, "AI Club", "ai-club", "Mô tả", null, null, false, 25L, 5L, CommunityRole.ADMIN, true
+        );
+        when(communityService.get(1L, 100L)).thenReturn(comm);
+
+        mockMvc.perform(get("/communities/1"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/communities/ai-club"));
+    }
+
+    @Test
     @DisplayName("showCommunityDetail handles 404 ApiException gracefully")
     void testShowCommunityDetailNotFound() throws Exception {
         when(currentUserProvider.getCurrentUserId()).thenReturn(Optional.empty());
