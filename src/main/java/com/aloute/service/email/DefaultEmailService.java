@@ -171,7 +171,7 @@ public class DefaultEmailService implements EmailService {
             Transport.send(message);
             log.info("2FA OTP notification dispatched via SMTP host {}:{}", smtpHost, smtpPort);
         } catch (Exception ex) {
-            log.error("Failed to deliver external email notification via SMTP host {}: {}", smtpHost, ex.getClass().getSimpleName());
+            log.error("Failed to deliver external email notification via SMTP host {}: {} - {}", smtpHost, ex.getClass().getSimpleName(), ex.getMessage(), ex);
             throw new MailDeliveryException("Failed to deliver external email notification via SMTP host " + smtpHost + ": " + ex.getClass().getSimpleName(), ex);
         }
     }
@@ -226,7 +226,7 @@ public class DefaultEmailService implements EmailService {
             Transport.send(message);
             log.info("Reset notification dispatched via SMTP host {}:{}", smtpHost, smtpPort);
         } catch (Exception ex) {
-            log.error("Failed to deliver external email notification via SMTP host {}: {}", smtpHost, ex.getClass().getSimpleName());
+            log.error("Failed to deliver external email notification via SMTP host {}: {} - {}", smtpHost, ex.getClass().getSimpleName(), ex.getMessage(), ex);
             throw new MailDeliveryException("Failed to deliver external email notification via SMTP host " + smtpHost + ": " + ex.getClass().getSimpleName(), ex);
         }
     }
@@ -281,7 +281,7 @@ public class DefaultEmailService implements EmailService {
             Transport.send(message);
             log.info("Registration OTP notification dispatched via SMTP host {}:{}", smtpHost, smtpPort);
         } catch (Exception ex) {
-            log.error("Failed to deliver external email notification via SMTP host {}: {}", smtpHost, ex.getClass().getSimpleName());
+            log.error("Failed to deliver external email notification via SMTP host {}: {} - {}", smtpHost, ex.getClass().getSimpleName(), ex.getMessage(), ex);
             throw new MailDeliveryException("Failed to deliver external email notification via SMTP host " + smtpHost + ": " + ex.getClass().getSimpleName(), ex);
         }
     }
