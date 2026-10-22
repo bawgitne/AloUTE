@@ -66,11 +66,14 @@ public class DefaultEmailService implements EmailService {
             if (smtpUsername == null || smtpUsername.isBlank() || smtpPassword == null || smtpPassword.isBlank()) {
                 throw new IllegalStateException("Production startup failed: SMTP credentials (aloute.mail.username, aloute.mail.password) must be configured in production profile");
             }
-            if (!starttlsEnable || !sslCheckServerIdentity) {
+            if (smtpPort != 465 && (!starttlsEnable || !sslCheckServerIdentity)) {
                 throw new IllegalStateException("Production startup failed: Unsafe SMTP configuration rejected: STARTTLS and SSL server identity verification must be enabled for authenticated transport");
             }
+            if (smtpPort == 465 && !sslCheckServerIdentity) {
+                throw new IllegalStateException("Production startup failed: Unsafe SMTP configuration rejected: SSL server identity verification must be enabled for authenticated transport");
+            }
         } else if (smtpHost != null && !smtpHost.isBlank()) {
-            if (!starttlsEnable || !sslCheckServerIdentity) {
+            if (smtpPort != 465 && (!starttlsEnable || !sslCheckServerIdentity)) {
                 throw new IllegalStateException("Unsafe SMTP configuration rejected: STARTTLS and SSL server identity verification must be enabled for authenticated transport");
             }
             if (smtpUsername == null || smtpUsername.isBlank() || smtpPassword == null || smtpPassword.isBlank()) {
@@ -141,11 +144,20 @@ public class DefaultEmailService implements EmailService {
             props.put("mail.smtp.writetimeout", "10000");
 
             props.put("mail.smtp.auth", "true");
-            props.put("mail.smtp.starttls.enable", "true");
-            props.put("mail.smtp.starttls.required", "true");
-            props.put("mail.smtp.ssl.protocols", "TLSv1.2");
-            props.put("mail.smtp.ssl.trust", "*");
-            props.put("mail.smtp.ssl.checkserveridentity", "true");
+            if (smtpPort == 465) {
+                props.put("mail.smtp.ssl.enable", "true");
+                props.put("mail.smtp.socketFactory.port", "465");
+                props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+                props.put("mail.smtp.socketFactory.fallback", "false");
+                props.put("mail.smtp.starttls.enable", "false");
+            } else {
+                props.put("mail.smtp.starttls.enable", "true");
+                props.put("mail.smtp.starttls.required", "true");
+                props.put("mail.smtp.ssl.enable", "false");
+                props.put("mail.smtp.ssl.protocols", "TLSv1.2");
+                props.put("mail.smtp.ssl.trust", "*");
+                props.put("mail.smtp.ssl.checkserveridentity", "true");
+            }
 
             Session session = Session.getInstance(props, new Authenticator() {
                 @Override
@@ -199,11 +211,20 @@ public class DefaultEmailService implements EmailService {
             props.put("mail.smtp.writetimeout", "10000");
 
             props.put("mail.smtp.auth", "true");
-            props.put("mail.smtp.starttls.enable", "true");
-            props.put("mail.smtp.starttls.required", "true");
-            props.put("mail.smtp.ssl.protocols", "TLSv1.2");
-            props.put("mail.smtp.ssl.trust", "*");
-            props.put("mail.smtp.ssl.checkserveridentity", "true");
+            if (smtpPort == 465) {
+                props.put("mail.smtp.ssl.enable", "true");
+                props.put("mail.smtp.socketFactory.port", "465");
+                props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+                props.put("mail.smtp.socketFactory.fallback", "false");
+                props.put("mail.smtp.starttls.enable", "false");
+            } else {
+                props.put("mail.smtp.starttls.enable", "true");
+                props.put("mail.smtp.starttls.required", "true");
+                props.put("mail.smtp.ssl.enable", "false");
+                props.put("mail.smtp.ssl.protocols", "TLSv1.2");
+                props.put("mail.smtp.ssl.trust", "*");
+                props.put("mail.smtp.ssl.checkserveridentity", "true");
+            }
 
             Session session = Session.getInstance(props, new Authenticator() {
                 @Override
@@ -257,11 +278,20 @@ public class DefaultEmailService implements EmailService {
             props.put("mail.smtp.writetimeout", "10000");
 
             props.put("mail.smtp.auth", "true");
-            props.put("mail.smtp.starttls.enable", "true");
-            props.put("mail.smtp.starttls.required", "true");
-            props.put("mail.smtp.ssl.protocols", "TLSv1.2");
-            props.put("mail.smtp.ssl.trust", "*");
-            props.put("mail.smtp.ssl.checkserveridentity", "true");
+            if (smtpPort == 465) {
+                props.put("mail.smtp.ssl.enable", "true");
+                props.put("mail.smtp.socketFactory.port", "465");
+                props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+                props.put("mail.smtp.socketFactory.fallback", "false");
+                props.put("mail.smtp.starttls.enable", "false");
+            } else {
+                props.put("mail.smtp.starttls.enable", "true");
+                props.put("mail.smtp.starttls.required", "true");
+                props.put("mail.smtp.ssl.enable", "false");
+                props.put("mail.smtp.ssl.protocols", "TLSv1.2");
+                props.put("mail.smtp.ssl.trust", "*");
+                props.put("mail.smtp.ssl.checkserveridentity", "true");
+            }
 
             Session session = Session.getInstance(props, new Authenticator() {
                 @Override
