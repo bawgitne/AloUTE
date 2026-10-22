@@ -30,12 +30,17 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _handleLogin({String? prefillUser, String? prefillPass}) async {
-    final username = prefillUser ?? _usernameController.text.trim();
-    final password = prefillPass ?? _passwordController.text.trim();
+  void _handleLogin() async {
+    final email = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
 
-    if (username.isEmpty || password.isEmpty) {
-      setState(() => _errorMessage = 'Vui lòng nhập tên đăng nhập và mật khẩu.');
+    if (email.isEmpty || password.isEmpty) {
+      setState(() => _errorMessage = 'Vui lòng nhập email và mật khẩu.');
+      return;
+    }
+
+    if (!email.contains('@')) {
+      setState(() => _errorMessage = 'Vui lòng nhập địa chỉ email hợp lệ.');
       return;
     }
 
@@ -100,6 +105,15 @@ class _LoginScreenState extends State<LoginScreen> {
                               width: 64,
                               height: 64,
                               fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Container(
+                                width: 64,
+                                height: 64,
+                                decoration: BoxDecoration(
+                                  color: AlouteColors.accent,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: const Icon(Icons.school, color: Colors.white, size: 32),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -107,6 +121,15 @@ class _LoginScreenState extends State<LoginScreen> {
                             'assets/images/logo_text.png',
                             height: 24,
                             fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) => const Text(
+                              'ALOUTE',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: AlouteColors.accent,
+                                letterSpacing: 1.5,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -159,17 +182,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 16),
                     ],
 
-                    // Username Input
+                    // Email Input
                     const Text(
-                      'Tên đăng nhập hoặc Email UTE',
+                      'Email tài khoản',
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AlouteColors.textPrimary),
                     ),
                     const SizedBox(height: 6),
                     TextField(
                       controller: _usernameController,
+                      keyboardType: TextInputType.emailAddress,
                       decoration: const InputDecoration(
-                        hintText: 'Nhập username hoặc @hcmute.edu.vn',
-                        prefixIcon: Icon(Icons.person_outline, size: 20),
+                        hintText: 'Nhập email (ví dụ: user@student.hcmute.edu.vn)',
+                        prefixIcon: Icon(Icons.email_outlined, size: 20),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -222,24 +246,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       text: 'Đăng nhập',
                       icon: Icons.login,
                       isLoading: _isLoading,
-                      onPressed: () => _handleLogin(),
+                      onPressed: _handleLogin,
                     ),
-                    const SizedBox(height: 12),
-
-                    // Fast Demo Login
-                    AlouteButton(
-                      text: '⚡ Đăng nhập mẫu (Sinh viên)',
-                      variant: AlouteButtonVariant.secondary,
-                      onPressed: () => _handleLogin(prefillUser: 'nguyenvanan', prefillPass: 'ute123456'),
-                    ),
-                    const SizedBox(height: 8),
-
-                    AlouteButton(
-                      text: '🛡️ Đăng nhập Quản trị viên (Admin)',
-                      variant: AlouteButtonVariant.outline,
-                      onPressed: () => _handleLogin(prefillUser: 'admin', prefillPass: 'admin123'),
-                    ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
 
                     // Register Link
                     Wrap(

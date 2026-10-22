@@ -135,22 +135,26 @@ public class DefaultEmailService implements EmailService {
         }
         try {
             Properties props = new Properties();
-            props.put("mail.transport.protocol", "smtp");
-            props.put("mail.smtp.host", smtpHost);
-            props.put("mail.smtp.port", String.valueOf(smtpPort));
-            props.put("mail.smtp.user", smtpUsername);
-            props.put("mail.smtp.connectiontimeout", "10000");
-            props.put("mail.smtp.timeout", "10000");
-            props.put("mail.smtp.writetimeout", "10000");
-
-            props.put("mail.smtp.auth", "true");
             if (smtpPort == 465) {
-                props.put("mail.smtp.ssl.enable", "true");
-                props.put("mail.smtp.socketFactory.port", "465");
-                props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
-                props.put("mail.smtp.socketFactory.fallback", "false");
-                props.put("mail.smtp.starttls.enable", "false");
+                props.put("mail.transport.protocol", "smtps");
+                props.put("mail.smtps.host", smtpHost);
+                props.put("mail.smtps.port", "465");
+                props.put("mail.smtps.user", smtpUsername);
+                props.put("mail.smtps.auth", "true");
+                props.put("mail.smtps.ssl.enable", "true");
+                props.put("mail.smtps.ssl.checkserveridentity", String.valueOf(sslCheckServerIdentity));
+                props.put("mail.smtps.connectiontimeout", "10000");
+                props.put("mail.smtps.timeout", "10000");
+                props.put("mail.smtps.writetimeout", "10000");
             } else {
+                props.put("mail.transport.protocol", "smtp");
+                props.put("mail.smtp.host", smtpHost);
+                props.put("mail.smtp.port", String.valueOf(smtpPort));
+                props.put("mail.smtp.user", smtpUsername);
+                props.put("mail.smtp.connectiontimeout", "10000");
+                props.put("mail.smtp.timeout", "10000");
+                props.put("mail.smtp.writetimeout", "10000");
+                props.put("mail.smtp.auth", "true");
                 props.put("mail.smtp.starttls.enable", "true");
                 props.put("mail.smtp.starttls.required", "true");
                 props.put("mail.smtp.ssl.enable", "false");
@@ -202,22 +206,26 @@ public class DefaultEmailService implements EmailService {
         }
         try {
             Properties props = new Properties();
-            props.put("mail.transport.protocol", "smtp");
-            props.put("mail.smtp.host", smtpHost);
-            props.put("mail.smtp.port", String.valueOf(smtpPort));
-            props.put("mail.smtp.user", smtpUsername);
-            props.put("mail.smtp.connectiontimeout", "10000");
-            props.put("mail.smtp.timeout", "10000");
-            props.put("mail.smtp.writetimeout", "10000");
-
-            props.put("mail.smtp.auth", "true");
             if (smtpPort == 465) {
-                props.put("mail.smtp.ssl.enable", "true");
-                props.put("mail.smtp.socketFactory.port", "465");
-                props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
-                props.put("mail.smtp.socketFactory.fallback", "false");
-                props.put("mail.smtp.starttls.enable", "false");
+                props.put("mail.transport.protocol", "smtps");
+                props.put("mail.smtps.host", smtpHost);
+                props.put("mail.smtps.port", "465");
+                props.put("mail.smtps.user", smtpUsername);
+                props.put("mail.smtps.auth", "true");
+                props.put("mail.smtps.ssl.enable", "true");
+                props.put("mail.smtps.ssl.checkserveridentity", String.valueOf(sslCheckServerIdentity));
+                props.put("mail.smtps.connectiontimeout", "10000");
+                props.put("mail.smtps.timeout", "10000");
+                props.put("mail.smtps.writetimeout", "10000");
             } else {
+                props.put("mail.transport.protocol", "smtp");
+                props.put("mail.smtp.host", smtpHost);
+                props.put("mail.smtp.port", String.valueOf(smtpPort));
+                props.put("mail.smtp.user", smtpUsername);
+                props.put("mail.smtp.connectiontimeout", "10000");
+                props.put("mail.smtp.timeout", "10000");
+                props.put("mail.smtp.writetimeout", "10000");
+                props.put("mail.smtp.auth", "true");
                 props.put("mail.smtp.starttls.enable", "true");
                 props.put("mail.smtp.starttls.required", "true");
                 props.put("mail.smtp.ssl.enable", "false");
@@ -269,22 +277,26 @@ public class DefaultEmailService implements EmailService {
         }
         try {
             Properties props = new Properties();
-            props.put("mail.transport.protocol", "smtp");
-            props.put("mail.smtp.host", smtpHost);
-            props.put("mail.smtp.port", String.valueOf(smtpPort));
-            props.put("mail.smtp.user", smtpUsername);
-            props.put("mail.smtp.connectiontimeout", "10000");
-            props.put("mail.smtp.timeout", "10000");
-            props.put("mail.smtp.writetimeout", "10000");
-
-            props.put("mail.smtp.auth", "true");
             if (smtpPort == 465) {
-                props.put("mail.smtp.ssl.enable", "true");
-                props.put("mail.smtp.socketFactory.port", "465");
-                props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
-                props.put("mail.smtp.socketFactory.fallback", "false");
-                props.put("mail.smtp.starttls.enable", "false");
+                props.put("mail.transport.protocol", "smtps");
+                props.put("mail.smtps.host", smtpHost);
+                props.put("mail.smtps.port", "465");
+                props.put("mail.smtps.user", smtpUsername);
+                props.put("mail.smtps.auth", "true");
+                props.put("mail.smtps.ssl.enable", "true");
+                props.put("mail.smtps.ssl.checkserveridentity", String.valueOf(sslCheckServerIdentity));
+                props.put("mail.smtps.connectiontimeout", "10000");
+                props.put("mail.smtps.timeout", "10000");
+                props.put("mail.smtps.writetimeout", "10000");
             } else {
+                props.put("mail.transport.protocol", "smtp");
+                props.put("mail.smtp.host", smtpHost);
+                props.put("mail.smtp.port", String.valueOf(smtpPort));
+                props.put("mail.smtp.user", smtpUsername);
+                props.put("mail.smtp.connectiontimeout", "10000");
+                props.put("mail.smtp.timeout", "10000");
+                props.put("mail.smtp.writetimeout", "10000");
+                props.put("mail.smtp.auth", "true");
                 props.put("mail.smtp.starttls.enable", "true");
                 props.put("mail.smtp.starttls.required", "true");
                 props.put("mail.smtp.ssl.enable", "false");

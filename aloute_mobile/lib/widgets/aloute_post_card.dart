@@ -103,22 +103,24 @@ class AloutePostCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AlouteColors.accentSubtle,
-                      borderRadius: BorderRadius.circular(AlouteColors.radiusSm),
-                    ),
-                    child: Text(
-                      post.author.faculty,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: AlouteColors.accent,
+                  if (post.author.faculty.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AlouteColors.accentSubtle,
+                        borderRadius: BorderRadius.circular(AlouteColors.radiusSm),
+                      ),
+                      child: Text(
+                        post.author.faculty,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: AlouteColors.accent,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
               const SizedBox(height: 2),

@@ -34,20 +34,10 @@ class AdminService extends ChangeNotifier {
         notifyListeners();
         return;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[AdminService] Fetch overview failed: $e');
+    }
 
-    // Mock KPI Metrics
-    _metrics = AdminMetrics(
-      totalUsers: 12480,
-      activeUsers: 8950,
-      totalPosts: 45620,
-      postsCreatedToday: 342,
-      pendingReports: 7,
-      reviewedReports: 18,
-      totalCommunities: 64,
-      activeCommunities: 52,
-      systemHealth: 'HEALTHY',
-    );
     _isLoading = false;
     notifyListeners();
   }
@@ -69,34 +59,9 @@ class AdminService extends ChangeNotifier {
         notifyListeners();
         return;
       }
-    } catch (_) {}
-
-    // Mock reports queue
-    _reports.clear();
-    _reports.addAll([
-      AdminReportItem(
-        id: 301,
-        reason: 'Spam bán tài liệu trái phép và quảng cáo dịch vụ thi hộ',
-        status: 'PENDING',
-        reporterName: 'Võ Minh Nhật',
-        reportedUserName: 'user_spam_99',
-        targetType: 'POST',
-        targetId: 442,
-        contentPreview: 'Nhận làm đồ án tốt nghiệp trọn gói bao điểm A, inbox Zalo 090xxx...',
-        createdAt: DateTime.now().subtract(const Duration(minutes: 30)),
-      ),
-      AdminReportItem(
-        id: 302,
-        reason: 'Ngôn từ xúc phạm giảng viên và vi phạm quy tắc ứng xử học đường',
-        status: 'PENDING',
-        reporterName: 'Đặng Quốc Huy',
-        reportedUserName: 'anonymous_user',
-        targetType: 'POST',
-        targetId: 443,
-        contentPreview: 'Bài đăng mang tính công kích cá nhân và xuyên tạc lịch học...',
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-      ),
-    ]);
+    } catch (e) {
+      debugPrint('[AdminService] Fetch reports failed: $e');
+    }
 
     _isLoading = false;
     notifyListeners();
@@ -129,42 +94,9 @@ class AdminService extends ChangeNotifier {
         notifyListeners();
         return;
       }
-    } catch (_) {}
-
-    // Mock users list
-    _users.clear();
-    _users.addAll([
-      AdminUserItem(
-        id: 1,
-        username: 'admin',
-        displayName: 'Quản trị viên AloUTE',
-        email: 'admin@aloute.local',
-        role: 'ROLE_ADMIN',
-        status: 'ACTIVE',
-        faculty: 'Phòng Công nghệ Thông tin',
-        createdAt: DateTime.now().subtract(const Duration(days: 365)),
-      ),
-      AdminUserItem(
-        id: 24110166,
-        username: 'nguyenvanan',
-        displayName: 'Nguyễn Văn An',
-        email: '24110166@student.hcmute.edu.vn',
-        role: 'ROLE_USER',
-        status: 'ACTIVE',
-        faculty: 'Khoa Công nghệ Thông tin',
-        createdAt: DateTime.now().subtract(const Duration(days: 60)),
-      ),
-      AdminUserItem(
-        id: 24110999,
-        username: 'spammer_acc',
-        displayName: 'Tài khoản vi phạm',
-        email: 'spam@student.hcmute.edu.vn',
-        role: 'ROLE_USER',
-        status: 'SUSPENDED',
-        faculty: 'Khoa Cơ khí Chế tạo máy',
-        createdAt: DateTime.now().subtract(const Duration(days: 5)),
-      ),
-    ]);
+    } catch (e) {
+      debugPrint('[AdminService] Fetch users failed: $e');
+    }
 
     _isLoading = false;
     notifyListeners();
@@ -201,32 +133,9 @@ class AdminService extends ChangeNotifier {
         notifyListeners();
         return;
       }
-    } catch (_) {}
-
-    // Mock posts list
-    _posts.clear();
-    _posts.addAll([
-      AdminPostItem(
-        id: 501,
-        authorName: 'Nguyễn Văn An',
-        authorUsername: 'nguyenvanan',
-        content: 'Chia sẻ kinh nghiệm làm Đồ án môn học Kiến trúc Phần mềm và CI/CD với Docker.',
-        visibility: 'PUBLIC',
-        status: 'ACTIVE',
-        reportCount: 0,
-        createdAt: DateTime.now().subtract(const Duration(hours: 3)),
-      ),
-      AdminPostItem(
-        id: 502,
-        authorName: 'Tài khoản vi phạm',
-        authorUsername: 'spammer_acc',
-        content: 'Bán đề thi cuối kỳ môn Toán cao cấp và Giải tích 1 kèm bài giải chi tiết...',
-        visibility: 'PUBLIC',
-        status: 'ACTIVE',
-        reportCount: 5,
-        createdAt: DateTime.now().subtract(const Duration(hours: 12)),
-      ),
-    ]);
+    } catch (e) {
+      debugPrint('[AdminService] Fetch posts failed: $e');
+    }
 
     _isLoading = false;
     notifyListeners();

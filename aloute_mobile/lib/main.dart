@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/theme/aloute_theme.dart';
-import 'screens/auth/login_screen.dart';
-import 'screens/main_navigation_screen.dart';
-import 'services/auth_service.dart';
+import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,17 +16,11 @@ void main() async {
     ),
   );
 
-  // Initialize Auth service & cached user
-  final authService = AuthService();
-  await authService.init();
-
-  runApp(AloUteApp(authService: authService));
+  runApp(const AloUteApp());
 }
 
 class AloUteApp extends StatelessWidget {
-  final AuthService authService;
-
-  const AloUteApp({super.key, required this.authService});
+  const AloUteApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -36,9 +28,7 @@ class AloUteApp extends StatelessWidget {
       title: 'AloUTE - HCMUTE Social Network',
       debugShowCheckedModeBanner: false,
       theme: AlouteTheme.lightTheme,
-      home: authService.isAuthenticated
-          ? const MainNavigationScreen()
-          : const LoginScreen(),
+      home: const SplashScreen(),
     );
   }
 }

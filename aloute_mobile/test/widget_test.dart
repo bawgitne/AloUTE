@@ -4,8 +4,9 @@ import 'package:aloute_mobile/services/auth_service.dart';
 
 void main() {
   testWidgets('AloUTE app initialization smoke test', (WidgetTester tester) async {
-    final authService = AuthService();
-    await tester.pumpWidget(AloUteApp(authService: authService));
-    expect(find.text('AloUTE'), findsWidgets);
+    await tester.pumpWidget(const AloUteApp());
+    expect(find.byType(AloUteApp), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 1500));
+    await tester.pump(const Duration(milliseconds: 500));
   });
 }

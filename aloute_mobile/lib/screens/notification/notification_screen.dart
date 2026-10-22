@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/aloute_theme.dart';
 import '../../models/notification_item.dart';
+import '../../services/notification_service.dart';
 import '../../widgets/aloute_avatar.dart';
 
 class NotificationScreen extends StatefulWidget {
@@ -13,68 +14,35 @@ class NotificationScreen extends StatefulWidget {
 class _NotificationScreenState extends State<NotificationScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-
-  final List<NotificationItem> _notifications = [
-    NotificationItem(
-      id: 1,
-      actorName: 'Nguyễn Duy Ngọc',
-      type: NotificationType.like,
-      message: 'đã thích bài viết của bạn về CSDL Phân Tán.',
-      targetExcerpt: 'Hoàn thành bài tập lớn Trigger và Stored Procedure...',
-      createdAt: DateTime.now().subtract(const Duration(minutes: 10)),
-      isRead: false,
-    ),
-    NotificationItem(
-      id: 2,
-      actorName: 'Phạm Minh Quân',
-      type: NotificationType.reply,
-      message: 'đã trả lời bài viết của bạn.',
-      targetExcerpt: 'Đã cập nhật hệ thống token UI Light Campus Style...',
-      createdAt: DateTime.now().subtract(const Duration(minutes: 45)),
-      isRead: false,
-    ),
-    NotificationItem(
-      id: 3,
-      actorName: 'Nguyễn Đoàn Minh Khôi',
-      type: NotificationType.follow,
-      message: 'đã bắt đầu theo dõi bạn.',
-      createdAt: DateTime.now().subtract(const Duration(hours: 3)),
-      isRead: true,
-    ),
-    NotificationItem(
-      id: 4,
-      actorName: 'CLB Tin Học HITC',
-      type: NotificationType.community,
-      message: 'đã đăng một thông báo mới trong Cộng đồng Khoa CNTT.',
-      targetExcerpt: 'Lịch workshop Lập trình Flutter & Backend Spring Boot...',
-      createdAt: DateTime.now().subtract(const Duration(hours: 8)),
-      isRead: true,
-    ),
-  ];
+  final NotificationService _notificationService = NotificationService();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _notificationService.fetchNotifications();
+    _notificationService.addListener(_onUpdated);
+  }
+
+  void _onUpdated() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _notificationService.removeListener(_onUpdated);
     super.dispose();
   }
 
   void _markAllAsRead() {
-    setState(() {
-      for (var item in _notifications) {
-        item.isRead = true;
-      }
-    });
+    _notificationService.markAllAsRead();
   }
 
   @override
   Widget build(BuildContext context) {
-    final unreadList = _notifications.where((n) => !n.isRead).toList();
+    final notifications = _notificationService.notifications;
+    final unreadList = notifications.where((n) => !n.isRead).toList();
 
     return Scaffold(
       backgroundColor: AlouteColors.bgBody,
@@ -97,17 +65,23 @@ class _NotificationScreenState extends State<NotificationScreen>
           indicatorColor: AlouteColors.accent,
           indicatorWeight: 2.5,
           tabs: [
-            Tab(text: 'Tất cả (${_notifications.length})'),
+            Tab(text: 'Tất cả (${notifications.length})'),
             Tab(text: 'Chưa đọc (${unreadList.length})'),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildNotificationList(_notifications),
-          _buildNotificationList(unreadList),
-        ],
+      body: RefreshIndicator(
+        onRefresh: () => _notificationService.fetchNotifications(refresh: true),
+        color: AlouteColors.accent,
+        child: _notificationService.isLoading && notifications.isEmpty
+            ? const Center(child: CircularProgressIndicator())
+            : TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildNotificationList(notifications),
+                  _buildNotificationList(unreadList),
+                ],
+              ),
       ),
     );
   }

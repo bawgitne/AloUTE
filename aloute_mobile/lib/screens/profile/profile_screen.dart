@@ -245,7 +245,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         headerSliverBuilder: (context, innerBoxIsScrolled) {
           return [
             SliverToBoxAdapter(
-              child: _buildProfileHeader(user),
+              child: _buildProfileHeader(user, myPosts.length),
             ),
             SliverPersistentHeader(
               pinned: true,
@@ -279,7 +279,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildProfileHeader(User? user) {
+  Widget _buildProfileHeader(User? user, int postCount) {
     return Column(
       children: [
         Stack(
@@ -479,23 +479,30 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
               const SizedBox(height: 12),
               // Academic Faculty Badge & Student Code
-              Row(
-                children: [
-                  const Icon(Icons.school_outlined, size: 16, color: AlouteColors.accent),
-                  const SizedBox(width: 6),
-                  Text(
-                    user?.faculty ?? 'Khoa Công nghệ Thông tin',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AlouteColors.accent),
-                  ),
-                  const SizedBox(width: 12),
-                  const Icon(Icons.badge_outlined, size: 16, color: AlouteColors.textMuted),
-                  const SizedBox(width: 4),
-                  Text(
-                    'MSSV: ${user?.studentCode ?? "24110xxx"}',
-                    style: const TextStyle(fontSize: 13, color: AlouteColors.textSecondary),
-                  ),
-                ],
-              ),
+              if (user != null &&
+                  ((user.faculty != null && user.faculty!.isNotEmpty) ||
+                   (user.studentCode != null && user.studentCode!.isNotEmpty)))
+                Row(
+                  children: [
+                    if (user.faculty != null && user.faculty!.isNotEmpty) ...[
+                      const Icon(Icons.school_outlined, size: 16, color: AlouteColors.accent),
+                      const SizedBox(width: 6),
+                      Text(
+                        user.faculty!,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AlouteColors.accent),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                    if (user.studentCode != null && user.studentCode!.isNotEmpty) ...[
+                      const Icon(Icons.badge_outlined, size: 16, color: AlouteColors.textMuted),
+                      const SizedBox(width: 4),
+                      Text(
+                        'MSSV: ${user.studentCode}',
+                        style: const TextStyle(fontSize: 13, color: AlouteColors.textSecondary),
+                      ),
+                    ],
+                  ],
+                ),
               const SizedBox(height: 14),
               // Stats with clickable navigation to FriendsScreen
               Row(
@@ -507,7 +514,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         MaterialPageRoute(builder: (_) => const FriendsScreen(initialTab: 'following')),
                       );
                     },
-                    child: _buildStatItem('Đang theo dõi', '${user?.followingCount ?? 95}'),
+                    child: _buildStatItem('Đang theo dõi', '${user?.followingCount ?? 0}'),
                   ),
                   const SizedBox(width: 20),
                   GestureDetector(
@@ -517,10 +524,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                         MaterialPageRoute(builder: (_) => const FriendsScreen(initialTab: 'followers')),
                       );
                     },
-                    child: _buildStatItem('Người theo dõi', '${user?.followerCount ?? 128}'),
+                    child: _buildStatItem('Người theo dõi', '${user?.followerCount ?? 0}'),
                   ),
                   const SizedBox(width: 20),
-                  _buildStatItem('Bài viết', '${user?.postCount ?? 14}'),
+                  _buildStatItem('Bài viết', '${user?.postCount ?? postCount}'),
                 ],
               ),
               const SizedBox(height: 14),

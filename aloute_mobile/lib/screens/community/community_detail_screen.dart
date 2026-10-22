@@ -269,14 +269,27 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> with Sing
                       ),
 
             // Members Tab
-            ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _buildMemberTile('Nguyễn Văn An (K24)', 'Ban Điều Hành', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150', isLeader: true),
-                _buildMemberTile('Lê Hoàng Long', 'Phụ trách Kỹ thuật', 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150'),
-                _buildMemberTile('Trần Thị Mai Chi', 'Thành viên chính thức', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150'),
-                _buildMemberTile('Võ Minh Nhật', 'Thành viên tập sự', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150'),
-              ],
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.group_outlined, size: 48, color: AlouteColors.textMuted),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Cộng đồng hiện có ${comm.memberCount} thành viên',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AlouteColors.textPrimary),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Danh sách thành viên tham gia đang được đồng bộ theo thời gian thực từ hệ thống.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, color: AlouteColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
             ),
 
             // Rules Tab
@@ -303,44 +316,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> with Sing
     );
   }
 
-  Widget _buildMemberTile(String name, String role, String avatar, {bool isLeader = false}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: AlouteColors.bgSurface,
-        borderRadius: BorderRadius.circular(AlouteColors.radiusMd),
-        border: Border.all(color: AlouteColors.borderColor),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundImage: NetworkImage(avatar),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AlouteColors.textPrimary)),
-                Text(role, style: TextStyle(fontSize: 12, color: isLeader ? AlouteColors.accent : AlouteColors.textSecondary)),
-              ],
-            ),
-          ),
-          if (isLeader)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: AlouteColors.accentSubtle,
-                borderRadius: BorderRadius.circular(AlouteColors.radiusFull),
-              ),
-              child: const Text('Admin', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AlouteColors.accent)),
-            ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildRuleCard(String title, String desc) {
     return Container(

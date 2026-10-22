@@ -1,9 +1,12 @@
 /// API Constants and Endpoints matching skills/aloute-openapi.yaml
 class ApiConstants {
+  /// Default base URL for production backend (Cloud Run via justneed.food)
+  static const String defaultProdUrl = 'https://justneed.food/api';
+  /// Fallback direct Cloud Run URL
+  static const String defaultCloudRunUrl = 'https://aloute-app-536335604006.asia-southeast1.run.app/api';
   /// Default base URL for local development
-  /// When debugging via USB/Wi-Fi with `adb reverse tcp:8080 tcp:8080`, http://localhost:8080/api works directly.
-  /// Cloudflare worker backend fallback: https://aloute-backend-worker.bawg.workers.dev/api
   static const String defaultLocalUrl = 'http://localhost:8080/api';
+  /// Cloudflare worker backend URL
   static const String defaultWorkerUrl = 'https://aloute-backend-worker.bawg.workers.dev/api';
 
   // Auth endpoints
