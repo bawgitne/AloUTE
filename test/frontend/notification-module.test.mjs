@@ -128,7 +128,14 @@ class MockElement {
         this.disabled = false;
         this.hidden = false;
         this.value = '';
+        this._removed = false;
     }
+
+    // A detached node reports isConnected === false, like a real DOM element.
+    get isConnected() {
+        return !this._removed;
+    }
+
 
     focus() {
         this._focused = true;
@@ -237,6 +244,7 @@ class MockElement {
     }
 
     remove() {
+        this._removed = true;
         if (this.parentElement) {
             this.parentElement.children = this.parentElement.children.filter(c => c !== this);
             this.parentElement = null;
@@ -529,7 +537,9 @@ function createNotificationElements(doc) {
         badgeUnread,
         btnMarkAllRead,
         btnRefresh,
-        tabsContainer
+        tabsContainer,
+        feedbackArea,
+        feedbackText
     };
 }
 
@@ -1057,6 +1067,237 @@ describe('AloUTE Real Notification Module Integration (notification.js)', () => 
 
             assert.equal(els.navBadge.textContent, '0');
             assert.equal(els.navBadge.classList.contains('d-none'), true);
+        });
+    });
+
+    // -------------------------------------------------------------------------
+    // Suite 5b: Rapid Mutation Guard & User-Facing Error Text
+    // -------------------------------------------------------------------------
+    describe('Rapid Mutation Guard & User-Facing Error Text', () => {
+        it('Rapid repeated clicks on Delete issue exactly ONE DELETE and show no spurious error', async () => {
+            const els = createNotificationElements(env.document);
+
+            let deleteCalls = 0;
+            env.window.fetchHandler = async (url, opts) => {
+                if (url.includes('/unread-count')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({ success: true, data: { unreadCount: 1 } })
+                    };
+                }
+                if (url.includes('/api/notifications?')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: [{ id: 501, type: 'FOLLOW', isRead: false, createdAt: '2026-10-22T10:00:00Z' }],
+                            meta: { page: 0, hasNext: false }
+                        })
+                    };
+                }
+                if (url.includes('/api/notifications/501') && opts.method === 'DELETE') {
+                    deleteCalls++;
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({ success: true })
+                    };
+                }
+                return { ok: true, status: 200, text: async () => JSON.stringify({ success: true }) };
+            };
+
+            const context = vm.createContext(env.window);
+            runScriptsInLayoutOrder(context);
+            await new Promise(r => setTimeout(r, 30));
+
+            const item = els.list.querySelector('.aloute-notification-item');
+            assert.ok(item, 'notification item must be rendered');
+            const delBtn = item.querySelector('.btn-delete-notif');
+            assert.ok(delBtn, 'delete button must exist');
+
+            // Three rapid clicks on the same control.
+            delBtn.click();
+            delBtn.click();
+            delBtn.click();
+            await new Promise(r => setTimeout(r, 60));
+
+            assert.equal(deleteCalls, 1, 'rapid repeated clicks must issue exactly ONE DELETE request');
+
+            // The redundant request used to fail and surface a raw error after a successful delete.
+            const feedbackText = els.feedbackText.textContent || '';
+            assert.ok(
+                !/Report was modified by another transaction|another transaction/i.test(feedbackText),
+                `no spurious backend error may be shown after a successful delete, got: ${feedbackText}`
+            );
+            assert.ok(
+                !/alert-danger/.test(els.feedbackText.className || ''),
+                `the feedback must not be an error after a successful delete, got class: ${els.feedbackText.className}`
+            );
+            assert.equal(feedbackText.trim(), 'Đã xóa thông báo.', 'the success feedback must be shown');
+        });
+
+        it('A failed delete re-enables the button so the user can retry', async () => {
+            const els = createNotificationElements(env.document);
+
+            let failNext = true;
+            env.window.fetchHandler = async (url, opts) => {
+                if (url.includes('/unread-count')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({ success: true, data: { unreadCount: 1 } })
+                    };
+                }
+                if (url.includes('/api/notifications?')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: [{ id: 601, type: 'FOLLOW', isRead: false, createdAt: '2026-10-22T10:00:00Z' }],
+                            meta: { page: 0, hasNext: false }
+                        })
+                    };
+                }
+                if (url.includes('/api/notifications/601') && opts.method === 'DELETE') {
+                    if (failNext) {
+                        failNext = false;
+                        return {
+                            ok: false,
+                            status: 500,
+                            text: async () => JSON.stringify({ success: false, error: { message: 'Lỗi máy chủ' } })
+                        };
+                    }
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({ success: true })
+                    };
+                }
+                return { ok: true, status: 200, text: async () => JSON.stringify({ success: true }) };
+            };
+
+            const context = vm.createContext(env.window);
+            runScriptsInLayoutOrder(context);
+            await new Promise(r => setTimeout(r, 30));
+
+            const item = els.list.querySelector('.aloute-notification-item');
+            assert.ok(item, 'notification item must be rendered');
+            const delBtn = item.querySelector('.btn-delete-notif');
+            assert.ok(delBtn, 'delete button must exist');
+
+            delBtn.click();
+            await new Promise(r => setTimeout(r, 60));
+
+            assert.equal(delBtn.disabled, false, 'a failed delete must re-enable the button for a retry');
+            assert.equal(
+                /alert-danger/.test(els.feedbackText.className || ''),
+                true,
+                'a failed delete must show an error feedback'
+            );
+        });
+
+        it('Rapid repeated clicks on Mark As Read issue exactly ONE PATCH', async () => {
+            const els = createNotificationElements(env.document);
+
+            let patchCalls = 0;
+            env.window.fetchHandler = async (url, opts) => {
+                if (url.includes('/unread-count')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({ success: true, data: { unreadCount: 2 } })
+                    };
+                }
+                if (url.includes('/api/notifications?')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: [{ id: 502, type: 'POST_LIKE', isRead: false, createdAt: '2026-10-22T10:00:00Z' }],
+                            meta: { page: 0, hasNext: false }
+                        })
+                    };
+                }
+                if (url.includes('/api/notifications/502/read') && opts.method === 'PATCH') {
+                    patchCalls++;
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({ success: true })
+                    };
+                }
+                return { ok: true, status: 200, text: async () => JSON.stringify({ success: true }) };
+            };
+
+            const context = vm.createContext(env.window);
+            runScriptsInLayoutOrder(context);
+            await new Promise(r => setTimeout(r, 30));
+
+            const item = els.list.querySelector('.aloute-notification-item');
+            assert.ok(item, 'notification item must be rendered');
+            const readBtn = item.querySelector('.btn-mark-read');
+            assert.ok(readBtn, 'mark-as-read button must exist');
+
+            readBtn.click();
+            readBtn.click();
+            readBtn.click();
+            await new Promise(r => setTimeout(r, 60));
+
+            assert.equal(patchCalls, 1, 'rapid repeated clicks must issue exactly ONE PATCH request');
+        });
+
+        it('A transport failure shows a user-facing message, never the raw browser exception text', async () => {
+            const els = createNotificationElements(env.document);
+
+            let failList = false;
+            env.window.fetchHandler = async (url) => {
+                if (url.includes('/unread-count')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({ success: true, data: { unreadCount: 4 } })
+                    };
+                }
+                if (url.includes('/api/notifications?')) {
+                    if (failList) {
+                        // The shape a browser produces for a network failure.
+                        const err = new TypeError('NetworkError when attempting to fetch resource.');
+                        throw err;
+                    }
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({ success: true, data: [], meta: { page: 0, hasNext: false } })
+                    };
+                }
+                return { ok: true, status: 200, text: async () => JSON.stringify({ success: true }) };
+            };
+
+            const context = vm.createContext(env.window);
+            runScriptsInLayoutOrder(context);
+            await new Promise(r => setTimeout(r, 30));
+
+            failList = true;
+            els.btnRefresh.click();
+            await new Promise(r => setTimeout(r, 40));
+
+            const errorShown = els.error.classList.contains('d-none') === false;
+            assert.ok(errorShown, 'the error state must be shown on a transport failure');
+
+            const msg = els.errorMsg.textContent || '';
+            assert.ok(msg.length > 0, 'the error state must carry a message');
+            assert.ok(
+                !/NetworkError|Failed to fetch|when attempting to fetch resource/i.test(msg),
+                `the raw browser exception text must not reach the user, got: ${msg}`
+            );
+            assert.ok(
+                /máy chủ|Không thể/i.test(msg),
+                `the error message must stay in the user-facing Vietnamese wording, got: ${msg}`
+            );
         });
     });
 
