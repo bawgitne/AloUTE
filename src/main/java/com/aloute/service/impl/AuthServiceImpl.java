@@ -113,6 +113,6 @@ public class AuthServiceImpl implements AuthService {
 
     private UserResponse toResponse(User user) {
         return new UserResponse(user.getId(), user.getUsername(), user.getEmail(), user.isVerified(),
-                user.isPrivateAccount(), user.isActive(), user.isTwoFactorEnabled());
+                user.isPrivateAccount(), user.isActive(), user.isTwoFactorEnabled(), user.getRole());
     }
 }

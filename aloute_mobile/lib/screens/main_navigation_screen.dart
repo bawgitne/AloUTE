@@ -234,20 +234,22 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                         setState(() => _currentIndex = 3);
                       },
                     ),
-                    const Divider(color: AlouteColors.borderSubtle, indent: 16, endIndent: 16),
-                    _buildDrawerItem(
-                      icon: Icons.admin_panel_settings_outlined,
-                      title: 'Bảng quản trị (Admin)',
-                      badge: 'Admin',
-                      badgeColor: AlouteColors.warning,
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
-                        );
-                      },
-                    ),
+                    if (user?.isAdmin == true) ...[
+                      const Divider(color: AlouteColors.borderSubtle, indent: 16, endIndent: 16),
+                      _buildDrawerItem(
+                        icon: Icons.admin_panel_settings_outlined,
+                        title: 'Bảng quản trị (Admin)',
+                        badge: 'Admin',
+                        badgeColor: AlouteColors.warning,
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+                          );
+                        },
+                      ),
+                    ],
                     _buildDrawerItem(
                       icon: Icons.settings_outlined,
                       title: 'Cài đặt tài khoản',

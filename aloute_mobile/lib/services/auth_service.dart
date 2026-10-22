@@ -78,7 +78,11 @@ class AuthService extends ChangeNotifier {
         if (token != null) {
           await _api.setAuthToken(token);
         }
-        final userData = response.data!['user'] as Map<String, dynamic>? ?? response.data!;
+        final rawUser = response.data!['user'] as Map<String, dynamic>? ?? response.data!;
+        final userData = Map<String, dynamic>.from(rawUser);
+        if (userData['role'] == null || userData['role'].toString().isEmpty) {
+          userData['role'] = _extractRole(token, userData);
+        }
         _currentUser = User.fromJson(userData);
         await _saveUserLocally(_currentUser!);
         _isLoading = false;
@@ -114,7 +118,11 @@ class AuthService extends ChangeNotifier {
         if (token != null) {
           await _api.setAuthToken(token);
         }
-        final userData = response.data!['user'] as Map<String, dynamic>? ?? response.data!;
+        final rawUser = response.data!['user'] as Map<String, dynamic>? ?? response.data!;
+        final userData = Map<String, dynamic>.from(rawUser);
+        if (userData['role'] == null || userData['role'].toString().isEmpty) {
+          userData['role'] = _extractRole(token, userData);
+        }
         _currentUser = User.fromJson(userData);
         await _saveUserLocally(_currentUser!);
         _twoFactorTicket = null;
@@ -259,12 +267,15 @@ class AuthService extends ChangeNotifier {
       displayName: displayName,
       email: _currentUser!.email,
       avatarUrl: _currentUser!.avatarUrl,
+      coverUrl: _currentUser!.coverUrl,
       faculty: faculty,
       studentCode: _currentUser!.studentCode,
       bio: bio,
       followerCount: _currentUser!.followerCount,
       followingCount: _currentUser!.followingCount,
       postCount: _currentUser!.postCount,
+      isFollowing: _currentUser!.isFollowing,
+      role: _currentUser!.role,
     );
 
     await _saveUserLocally(_currentUser!);
@@ -287,19 +298,31 @@ class AuthService extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
       'cached_user',
-      jsonEncode({
-        'id': user.id,
-        'username': user.username,
-        'displayName': user.displayName,
-        'email': user.email,
-        'avatarUrl': user.avatarUrl,
-        'faculty': user.faculty,
-        'studentCode': user.studentCode,
-        'bio': user.bio,
-        'followerCount': user.followerCount,
-        'followingCount': user.followingCount,
-        'postCount': user.postCount,
-      }),
+      jsonEncode(user.toJson()),
     );
+  }
+
+  String _extractRole(String? token, Map<String, dynamic> userData) {
+    if (userData['role'] != null && userData['role'].toString().isNotEmpty) {
+      return userData['role'].toString();
+    }
+    if (token != null) {
+      try {
+        final parts = token.split('.');
+        if (parts.length >= 2) {
+          final payload = utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
+          final claims = jsonDecode(payload) as Map<String, dynamic>;
+          final roles = claims['roles'];
+          if (roles is List && roles.isNotEmpty) {
+            return roles.first.toString();
+          } else if (roles is String && roles.isNotEmpty) {
+            return roles;
+          }
+          final role = claims['role'];
+          if (role != null && role.toString().isNotEmpty) return role.toString();
+        }
+      } catch (_) {}
+    }
+    return 'USER';
   }
 }

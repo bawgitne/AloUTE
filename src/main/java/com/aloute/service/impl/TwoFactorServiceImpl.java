@@ -325,7 +325,7 @@ public class TwoFactorServiceImpl implements TwoFactorService {
         String sessionToken = jwtTokenProvider.generate(principal);
         UserResponse userResponse = new UserResponse(
                 user.getId(), user.getUsername(), user.getEmail(), user.isVerified(),
-                user.isPrivateAccount(), user.isActive(), user.isTwoFactorEnabled()
+                user.isPrivateAccount(), user.isActive(), user.isTwoFactorEnabled(), user.getRole()
         );
 
         return new AuthenticatedSession(principal, userResponse, sessionToken);

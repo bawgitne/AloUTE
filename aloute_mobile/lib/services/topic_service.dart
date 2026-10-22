@@ -51,7 +51,7 @@ class TopicService extends ChangeNotifier {
 
     try {
       if (willFollow) {
-        await _api.post(ApiConstants.followTopic(topicId));
+        await _api.put(ApiConstants.followTopic(topicId));
       } else {
         await _api.delete(ApiConstants.followTopic(topicId));
       }

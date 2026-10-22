@@ -47,13 +47,14 @@ class ApiConstants {
   static String communityById(int id) => '/communities/$id';
   static String communityMembers(int id) => '/communities/$id/members';
   static String communityPosts(int id) => '/communities/$id/posts';
-  static String joinCommunity(int id) => '/communities/$id/members/me';
+  static String joinCommunity(int id) => '/communities/$id/join';
+  static String leaveCommunity(int id) => '/communities/$id/members/me';
 
   // Topics endpoints
   static const String topics = '/topics';
   static String topicById(int id) => '/topics/$id';
   static String topicPosts(int id) => '/topics/$id/posts';
-  static String followTopic(int id) => '/topics/$id/followers/me';
+  static String followTopic(int id) => '/users/me/topics/$id';
 
   // Messaging endpoints
   static const String conversations = '/conversations';
@@ -70,15 +71,17 @@ class ApiConstants {
   static String userPosts(int id) => '/users/$id/posts';
   static String userFollowers(int id) => '/users/$id/followers';
   static String userFollowing(int id) => '/users/$id/following';
-  static String followUser(int id) => '/users/$id/followers/me';
+  static String followUser(int id) => '/social/follows/$id';
   static const String updateProfile = '/users/me/profile';
 
-  // Admin endpoints (for ROLE_ADMIN)
+  // Admin endpoints (for ROLE_SYSTEM_ADMIN)
   static const String adminOverview = '/admin/overview';
   static const String adminReports = '/admin/reports';
-  static String adminReportAction(int id) => '/admin/reports/$id';
+  static String adminReportAction(int id) => '/admin/reports/$id/decisions';
   static const String adminUsers = '/admin/users';
   static String adminUserById(int id) => '/admin/users/$id';
   static const String adminPosts = '/admin/posts';
   static String adminPostById(int id) => '/admin/posts/$id';
+  static String adminPostRemove(int id) => '/admin/posts/$id/remove';
+  static String adminPostRestore(int id) => '/admin/posts/$id/restore';
 }

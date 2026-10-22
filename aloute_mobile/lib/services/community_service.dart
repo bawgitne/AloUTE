@@ -50,7 +50,7 @@ class CommunityService extends ChangeNotifier {
       if (willJoin) {
         await _api.post(ApiConstants.joinCommunity(communityId));
       } else {
-        await _api.delete(ApiConstants.joinCommunity(communityId));
+        await _api.delete(ApiConstants.leaveCommunity(communityId));
       }
     } catch (_) {}
 
