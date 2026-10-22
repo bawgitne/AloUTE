@@ -113,6 +113,13 @@
     let unreadCountVersion = 0;
     let unreadCountAbortController = null;
 
+    // Keys of per-item mutations (mark as read / delete) that are currently in flight.
+    // A rapid repeated click on the same control must not issue the same request twice:
+    // the redundant request would fail after the first one already succeeded and show a
+    // spurious error to the user. The key carries the action so that a delete is not blocked
+    // by a concurrent mark-as-read on the same notification.
+    const pendingItemMutations = new Set();
+
     // -------------------------------------------------------------------------
     // DOM Elements
     // -------------------------------------------------------------------------
@@ -365,14 +372,23 @@
         const signal = notifAbortController ? notifAbortController.signal : undefined;
 
         try {
-            const response = await fetch(`/api/notifications?filter=${encodeURIComponent(f)}&page=${page}&size=20`, {
-                method: 'GET',
-                credentials: 'include',
-                headers: { 'Accept': 'application/json' },
-                signal: signal
-            });
+            let response;
+            let body;
+            try {
+                response = await fetch(`/api/notifications?filter=${encodeURIComponent(f)}&page=${page}&size=20`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: { 'Accept': 'application/json' },
+                    signal: signal
+                });
 
-            const body = await readJson(response);
+                body = await readJson(response);
+            } catch (transportErr) {
+                if (transportErr && transportErr.name === 'AbortError') throw transportErr;
+                // A transport failure must surface a user-facing message, never the raw browser
+                // exception text (for example "NetworkError when attempting to fetch resource").
+                throw new Error('Không thể kết nối đến máy chủ.');
+            }
 
             // Stale response guard: ignore if filter or generation changed
             if (currentReqId !== notifRequestId || f !== state.currentFilter) {
@@ -531,6 +547,12 @@
     // -------------------------------------------------------------------------
 
     async function handleMarkAsRead(id, element) {
+        if (id === null || id === undefined) return;
+        const mutationKey = 'read:' + id;
+        if (pendingItemMutations.has(mutationKey)) return; // Rapid repeated click suppressed
+        pendingItemMutations.add(mutationKey);
+        const btnRead = element ? element.querySelector('.btn-mark-read') : null;
+        if (btnRead) btnRead.disabled = true;
         try {
             const response = await fetch(`/api/notifications/${id}/read`, {
                 method: 'PATCH',
@@ -568,6 +590,9 @@
         } catch (err) {
             if (err && err.name === 'AbortError') return;
             showFeedback('Lỗi kết nối khi đánh dấu đã đọc.', 'danger');
+        } finally {
+            pendingItemMutations.delete(mutationKey);
+            if (btnRead && btnRead.isConnected) btnRead.disabled = false;
         }
     }
 
@@ -630,6 +655,13 @@
     // -------------------------------------------------------------------------
 
     async function handleDeleteNotification(id, element) {
+        if (id === null || id === undefined) return;
+        const mutationKey = 'delete:' + id;
+        if (pendingItemMutations.has(mutationKey)) return; // Rapid repeated click suppressed
+        pendingItemMutations.add(mutationKey);
+        const btnDelete = element ? element.querySelector('.btn-delete-notif') : null;
+        if (btnDelete) btnDelete.disabled = true;
+        let succeeded = false;
         try {
             const response = await fetch(`/api/notifications/${id}`, {
                 method: 'DELETE',
@@ -638,6 +670,7 @@
             });
             const body = await readJson(response);
             if (response.ok && body && body.success) {
+                succeeded = true;
                 const wasUnread = element.classList.contains('unread');
                 element.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
                 element.style.opacity = '0';
@@ -665,6 +698,11 @@
         } catch (err) {
             if (err && err.name === 'AbortError') return;
             showFeedback('Lỗi kết nối khi xóa thông báo.', 'danger');
+        } finally {
+            pendingItemMutations.delete(mutationKey);
+            // On success the row is removed shortly afterwards; re-enabling the button here
+            // would leave a window in which a further click issues a duplicate DELETE.
+            if (!succeeded && btnDelete && btnDelete.isConnected) btnDelete.disabled = false;
         }
     }
 
