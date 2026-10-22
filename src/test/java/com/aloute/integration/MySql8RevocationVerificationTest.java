@@ -11,6 +11,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.util.StreamUtils;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,6 +37,8 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
@@ -59,7 +62,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * 5. Live HTTP session security: 2FA challenge rejection and real password reset workflow (canonical DTO fields).
  * 6. Expired revocation cleanup via background scheduler and InnoDB foreign key ON DELETE CASCADE.
  */
-@EnabledIfSystemProperty(named = "aloute.mysql8.enabled", matches = "true")
 class MySql8RevocationVerificationTest {
 
     private static final String REQUIRED_SCHEMA = "aloutedb_test";
@@ -142,7 +144,204 @@ class MySql8RevocationVerificationTest {
         }
     }
 
+    private static final int MAX_DIAGNOSTIC_BYTES = 256 * 1024; // 256 KiB cap
+    private static final int MAX_DIAGNOSTIC_LINES = 500;
+    private static final int MAX_LINE_LENGTH = 512;
+    private static final int MAX_CAUSAL_DEPTH = 5;
+
+    private static final Pattern VALID_EXCEPTION_CLASS_PATTERN =
+            Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*(?:\\.[a-zA-Z_][a-zA-Z0-9_]*)*\\.[A-Z][a-zA-Z0-9_]*(?:Exception|Error)$");
+
+    private static final Set<String> ALLOWLISTED_PROPERTY_NAMES = Set.of(
+            "aloute.auth.registration-otp-secret",
+            "aloute.auth.revoked-token-cleanup-cron",
+            "aloute.firebase.credentials-path",
+            "aloute.firebase.enabled",
+            "aloute.mail.host",
+            "aloute.mail.password",
+            "aloute.mail.port",
+            "aloute.mail.username",
+            "server.port",
+            "spring.datasource.driver-class-name",
+            "spring.datasource.password",
+            "spring.datasource.url",
+            "spring.datasource.username",
+            "spring.jpa.database-platform",
+            "spring.jpa.hibernate.ddl-auto",
+            "spring.jpa.properties.hibernate.dialect",
+            "spring.profiles.active"
+    );
+
+    static record ChildProcessDiagnostic(
+            String stage,
+            int exitCode,
+            String category,
+            String primaryException,
+            String rootCauseException,
+            List<String> causalChain,
+            List<String> matchedProperties
+    ) {
+        public String formatSummary() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("[CHILD PROCESS DIAGNOSTIC]\n");
+            sb.append("  stage: ").append(stage).append("\n");
+            sb.append("  exitCode: ").append(exitCode).append("\n");
+            sb.append("  category: ").append(category).append("\n");
+            if (primaryException != null) {
+                sb.append("  primaryException: ").append(primaryException).append("\n");
+            }
+            if (rootCauseException != null) {
+                sb.append("  rootCauseException: ").append(rootCauseException).append("\n");
+            }
+            if (causalChain != null && !causalChain.isEmpty()) {
+                sb.append("  causalChain: ").append(String.join(" -> ", causalChain)).append("\n");
+            }
+            if (matchedProperties != null && !matchedProperties.isEmpty()) {
+                sb.append("  matchedProperties: ").append(String.join(", ", matchedProperties)).append("\n");
+            }
+            return sb.toString();
+        }
+
+        public String toCompactLine() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("[category=").append(category);
+            if (rootCauseException != null) {
+                sb.append(", rootCause=").append(rootCauseException);
+            }
+            if (causalChain != null && causalChain.size() > 1) {
+                sb.append(", chain=").append(String.join("->", causalChain));
+            }
+            if (matchedProperties != null && !matchedProperties.isEmpty()) {
+                sb.append(", props=").append(String.join(",", matchedProperties));
+            }
+            sb.append("]");
+            return sb.toString();
+        }
+    }
+
+    static String extractCandidateExceptionClass(String trimmed) {
+        String s = trimmed;
+        if (s.startsWith("Caused by:")) {
+            s = s.substring("Caused by:".length()).trim();
+        }
+        int colonIdx = s.indexOf(':');
+        if (colonIdx != -1) {
+            s = s.substring(0, colonIdx).trim();
+        }
+        int spaceIdx = s.indexOf(' ');
+        if (spaceIdx != -1) {
+            s = s.substring(0, spaceIdx).trim();
+        }
+        return s;
+    }
+
+    static ChildProcessDiagnostic extractChildDiagnostic(Path logFile, String stage, int exitCode) {
+        if (logFile == null || !Files.exists(logFile)) {
+            return new ChildProcessDiagnostic(stage, exitCode, "LOG_UNREADABLE_OR_EMPTY", null, null, List.of(), List.of());
+        }
+
+        String primaryException = null;
+        String rootCauseException = null;
+        List<String> causalChain = new ArrayList<>();
+        Set<String> matchedProperties = new TreeSet<>();
+        StringBuilder privateClues = new StringBuilder();
+
+        try (InputStream in = Files.newInputStream(logFile)) {
+            byte[] boundedBytes = in.readNBytes(MAX_DIAGNOSTIC_BYTES);
+            String content = new String(boundedBytes, StandardCharsets.UTF_8);
+            String[] rawLines = content.split("\\R", MAX_DIAGNOSTIC_LINES + 1);
+
+            int lineCount = 0;
+            for (String rawLine : rawLines) {
+                if (lineCount >= MAX_DIAGNOSTIC_LINES) {
+                    break;
+                }
+                lineCount++;
+                String line = rawLine.length() > MAX_LINE_LENGTH ? rawLine.substring(0, MAX_LINE_LENGTH) : rawLine;
+                String trimmed = line.trim();
+                if (trimmed.isEmpty()) continue;
+
+                if (privateClues.length() < 2048) {
+                    privateClues.append(trimmed.toLowerCase(Locale.ROOT)).append(' ');
+                }
+
+                for (String prop : ALLOWLISTED_PROPERTY_NAMES) {
+                    if (trimmed.contains(prop)) {
+                        matchedProperties.add(prop);
+                    }
+                }
+
+                String candidateClass = extractCandidateExceptionClass(trimmed);
+                if (candidateClass != null && VALID_EXCEPTION_CLASS_PATTERN.matcher(candidateClass).matches()) {
+                    if (primaryException == null) {
+                        primaryException = candidateClass;
+                    }
+                    if (causalChain.size() < MAX_CAUSAL_DEPTH && !causalChain.contains(candidateClass)) {
+                        causalChain.add(candidateClass);
+                    }
+                    rootCauseException = candidateClass;
+                }
+            }
+        } catch (IOException e) {
+            return new ChildProcessDiagnostic(stage, exitCode, "LOG_UNREADABLE_OR_EMPTY", null, null, List.of(), List.of());
+        }
+
+        String category = categorizeFromClues(causalChain, privateClues.toString(), exitCode);
+
+        return new ChildProcessDiagnostic(
+                stage,
+                exitCode,
+                category,
+                primaryException,
+                rootCauseException,
+                causalChain,
+                new ArrayList<>(matchedProperties)
+        );
+    }
+
+    static String categorizeFromClues(List<String> chain, String clues, int exitCode) {
+        String combined = (String.join(" ", chain) + " " + clues).toLowerCase(Locale.ROOT);
+
+        if (combined.contains("communicationslinkfailure") || combined.contains("communicationsexception")
+                || combined.contains("connection refused") || combined.contains("cannotgetjdbcconnection")
+                || combined.contains("connectexception") || combined.contains("sockettimeoutexception")) {
+            return "DATASOURCE_COMMUNICATION_FAILURE";
+        }
+        if (combined.contains("access denied for user") || combined.contains("accessdeniedexception")
+                || combined.contains("sqlinvalidauthorizationspec") || combined.contains("password authentication failed")) {
+            return "DATASOURCE_AUTHENTICATION_FAILURE";
+        }
+        if (combined.contains("schemamanagementexception") || combined.contains("sqlgrammarexception")
+                || combined.contains("badsqlgrammarexception") || combined.contains("tablenotfoundexception")
+                || combined.contains("table doesn't exist") || combined.contains("hibernateexception")) {
+            return "DATABASE_SCHEMA_MIGRATION_FAILURE";
+        }
+        if (combined.contains("beancreationexception") || combined.contains("beaninitializationexception")
+                || combined.contains("unsatisfieddependencyexception") || combined.contains("nosuchbeandefinitionexception")) {
+            return "BEAN_CREATION_FAILURE";
+        }
+        if (combined.contains("portinuseexception") || combined.contains("bindexception")
+                || combined.contains("port already in use") || combined.contains("address already in use")) {
+            return "PORT_BIND_FAILURE";
+        }
+        if (combined.contains("applicationcontextexception") || combined.contains("missing required configuration")
+                || combined.contains("failed to configure a datasource")) {
+            return "CONFIGURATION_MISSING_PROPERTY";
+        }
+        if (combined.contains("jwtexception") || combined.contains("signatureexception")) {
+            return "SECURITY_KEY_FAILURE";
+        }
+        if (exitCode != 0) {
+            return "SPRING_BOOT_BOOTSTRAP_FAILURE";
+        }
+        return "UNKNOWN_PROCESS_FAILURE";
+    }
+
     private Process startChildJarProcess(File jarFile, int port, String ddlAuto) throws IOException {
+        return startChildJarProcess(jarFile, port, ddlAuto, "bootstrap_" + ddlAuto);
+    }
+
+    private Process startChildJarProcess(File jarFile, int port, String ddlAuto, String stage) throws IOException {
         String javaBin = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
         Path logFile = Files.createTempFile("aloute-child-process-port-" + port + "-", ".log");
         tempLogFiles.add(logFile);
@@ -189,8 +388,20 @@ class MySql8RevocationVerificationTest {
         IOException lastIoException = null;
         while (System.currentTimeMillis() < deadline) {
             if (!process.isAlive()) {
+                int exitCode = process.exitValue();
                 stopProcess(process);
-                throw new IllegalStateException("Child JAR process on port " + port + " terminated prematurely with exit code " + process.exitValue());
+                ChildProcessDiagnostic diagnostic = extractChildDiagnostic(logFile, stage + "_premature_exit", exitCode);
+                System.err.println(diagnostic.formatSummary());
+                IllegalStateException primaryEx = new IllegalStateException(
+                        "Child JAR process on port " + port + " terminated prematurely with exit code " + exitCode + ": " + diagnostic.toCompactLine());
+                try {
+                    if (Files.deleteIfExists(logFile)) {
+                        tempLogFiles.remove(logFile);
+                    }
+                } catch (IOException cleanupErr) {
+                    primaryEx.addSuppressed(cleanupErr);
+                }
+                throw primaryEx;
             }
             try {
                 HttpResponse<String> resp = client.send(pingReq, HttpResponse.BodyHandlers.ofString());
@@ -204,24 +415,52 @@ class MySql8RevocationVerificationTest {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 stopProcess(process);
-                throw new RuntimeException("Readiness ping interrupted for port " + port, e);
+                RuntimeException interruptEx = new RuntimeException("Readiness ping interrupted for port " + port, e);
+                try {
+                    if (Files.deleteIfExists(logFile)) {
+                        tempLogFiles.remove(logFile);
+                    }
+                } catch (IOException cleanupErr) {
+                    interruptEx.addSuppressed(cleanupErr);
+                }
+                throw interruptEx;
             }
             try {
                 Thread.sleep(500);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 stopProcess(process);
-                throw new RuntimeException("Readiness wait interrupted for port " + port, e);
+                RuntimeException waitEx = new RuntimeException("Readiness wait interrupted for port " + port, e);
+                try {
+                    if (Files.deleteIfExists(logFile)) {
+                        tempLogFiles.remove(logFile);
+                    }
+                } catch (IOException cleanupErr) {
+                    waitEx.addSuppressed(cleanupErr);
+                }
+                throw waitEx;
             }
         }
         if (!ready) {
+            int exitCode = process.isAlive() ? -1 : process.exitValue();
             stopProcess(process);
-            String msg = "Child JAR process on port " + port + " failed to become ready within 45s";
+            ChildProcessDiagnostic diagnostic = extractChildDiagnostic(logFile, stage + "_readiness_timeout_45s", exitCode);
+            System.err.println(diagnostic.formatSummary());
+            String msg = "Child JAR process on port " + port + " failed to become ready within 45s: " + diagnostic.toCompactLine();
+            IllegalStateException primaryEx;
             if (lastIoException != null) {
-                throw new IllegalStateException(msg + ": " + lastIoException.getMessage(), lastIoException);
+                primaryEx = new IllegalStateException(msg + "; last ping error: " + lastIoException.getMessage(), lastIoException);
             } else {
-                throw new IllegalStateException(msg + ".");
+                primaryEx = new IllegalStateException(msg + ".");
             }
+            try {
+                if (Files.deleteIfExists(logFile)) {
+                    tempLogFiles.remove(logFile);
+                }
+            } catch (IOException cleanupErr) {
+                primaryEx.addSuppressed(cleanupErr);
+            }
+            throw primaryEx;
         }
         return process;
     }
@@ -336,6 +575,7 @@ class MySql8RevocationVerificationTest {
 
     @Test
     @DisplayName("Comprehensive Real MySQL 8 Lifecycle: DDL, Metadata, Real JAR Restart & Live HTTP Verification")
+    @EnabledIfSystemProperty(named = "aloute.mysql8.enabled", matches = "true")
     void verifyRealMySql8LifecycleAndRevocation() throws Exception {
         // ====================================================================
         // STAGE 1: Strict Local Environment Guard & Engine 8.0 Verification
@@ -365,7 +605,7 @@ class MySql8RevocationVerificationTest {
 
         // Bootstrap baseline tables with the actual candidate JAR child process in create mode
         int bootstrapPort = findFreePort();
-        Process bootstrapProcess = startChildJarProcess(jarFile, bootstrapPort, "create");
+        Process bootstrapProcess = startChildJarProcess(jarFile, bootstrapPort, "create", "stage2_baseline_bootstrap_create");
         stopProcess(bootstrapProcess);
 
         String baselineUsername = "baseline_user_" + System.currentTimeMillis();
@@ -532,7 +772,7 @@ class MySql8RevocationVerificationTest {
         String fingerprintA;
 
         try {
-            processA = startChildJarProcess(jarFile, portA, "validate");
+            processA = startChildJarProcess(jarFile, portA, "validate", "stage4_child_process_a_validate");
 
             // 1. Live HTTP Register
             String registerJson = "{\"username\":\"" + testUsername + "\",\"email\":\"" + testEmail + "\",\"password\":\"" + initialPassword + "\"}";
@@ -620,7 +860,7 @@ class MySql8RevocationVerificationTest {
             // STAGE 4: Actual JAR Child Process B & Persistence Across Restart
             // ====================================================================
             int portB = findFreePort();
-            processB = startChildJarProcess(jarFile, portB, "validate");
+            processB = startChildJarProcess(jarFile, portB, "validate", "stage5_child_process_b_restart_validate");
 
             // 1. Live HTTP Assertions on Process B: Token A STILL rejected 401, Token B STILL valid 200
             HttpRequest reqProfileA_B = HttpRequest.newBuilder()
@@ -826,5 +1066,200 @@ class MySql8RevocationVerificationTest {
                 }
             }
         }
+    }
+
+    @Test
+    @DisplayName("Adversarial Diagnostic Safety: proves no raw sentinels leak in emitted summary or exception string")
+    void shouldNotLeakAdversarialSentinelsInEmittedDiagnosticOrExceptionMessage() throws IOException {
+        Path tempLog = Files.createTempFile("test-adversarial-sentinels-", ".log");
+        try {
+            List<String> lines = List.of(
+                    "2026-10-22 12:13:09.123 ERROR 1234 --- [main] o.s.boot.SpringApplication : Application run failed",
+                    "Caused by: \"superSecretPassword123\": injected in exception line",
+                    "Caused by: 'singleQuotedSecret': single quote secret",
+                    "Caused by: pass word with embedded spaces: spaces secret",
+                    "Caused by: line1 secret key abc!@#$ multiline line2",
+                    "Caused by: http://adminUser:passWord123@10.0.0.1:3306/db: url credentials",
+                    "Caused by: Set-Cookie: SESSION=secretCookieValue123; HttpOnly; Secure",
+                    "Caused by: export SPRING_DATASOURCE_PASSWORD=myUltraSecretEnv: env export",
+                    "Caused by: " + "A".repeat(1000) + " SECRET_IN_VERY_LONG_LINE",
+                    "Caused by: Malicious 'secret' class: fake class injection",
+                    "Caused by: http://attacker.com/InjectedException: remote URL injection",
+                    "Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'dataSource'",
+                    "Caused by: org.hibernate.exception.JDBCConnectionException: Unable to open JDBC Connection for DDL execution",
+                    "Caused by: com.mysql.cj.jdbc.exceptions.CommunicationsException: Communications link failure to 127.0.0.1:3306",
+                    "Missing required configuration: spring.datasource.url and server.port",
+                    "Detailed private reason: Failed to configure a DataSource: url attribute is not specified"
+            );
+            Files.write(tempLog, lines, StandardCharsets.UTF_8);
+
+            ChildProcessDiagnostic diag = extractChildDiagnostic(tempLog, "test_adversarial_stage", 1);
+            String summary = diag.formatSummary();
+            String compact = diag.toCompactLine();
+            String exceptionMsg = new IllegalStateException("Process failed: " + compact).getMessage();
+
+            for (String output : List.of(summary, compact, exceptionMsg)) {
+                assertThat(output).doesNotContain("superSecretPassword123");
+                assertThat(output).doesNotContain("singleQuotedSecret");
+                assertThat(output).doesNotContain("pass word with embedded spaces");
+                assertThat(output).doesNotContain("abc!@#$");
+                assertThat(output).doesNotContain("adminUser");
+                assertThat(output).doesNotContain("passWord123");
+                assertThat(output).doesNotContain("secretCookieValue123");
+                assertThat(output).doesNotContain("myUltraSecretEnv");
+                assertThat(output).doesNotContain("SECRET_IN_VERY_LONG_LINE");
+                assertThat(output).doesNotContain("Malicious");
+                assertThat(output).doesNotContain("attacker.com");
+            }
+
+            // Valid causal classes survive
+            assertThat(diag.causalChain()).containsExactly(
+                    "org.springframework.beans.factory.BeanCreationException",
+                    "org.hibernate.exception.JDBCConnectionException",
+                    "com.mysql.cj.jdbc.exceptions.CommunicationsException"
+            );
+            assertThat(diag.primaryException()).isEqualTo("org.springframework.beans.factory.BeanCreationException");
+            assertThat(diag.rootCauseException()).isEqualTo("com.mysql.cj.jdbc.exceptions.CommunicationsException");
+            assertThat(diag.category()).isEqualTo("DATASOURCE_COMMUNICATION_FAILURE");
+            assertThat(diag.matchedProperties()).containsExactly("server.port", "spring.datasource.url");
+
+            // Length bounds respected
+            assertThat(summary.length()).isLessThan(600);
+            assertThat(compact.length()).isLessThan(350);
+        } finally {
+            Files.deleteIfExists(tempLog);
+        }
+    }
+
+    @Test
+    @DisplayName("Extraction Before Cleanup & Suppressed Attachment: proves diagnostic is extracted and cleanup failures are preserved")
+    void shouldExtractBeforeCleanupAndAttachCleanupFailureAsSuppressed() throws IOException {
+        Path tempLog = Files.createTempFile("test-extract-cleanup-", ".log");
+        try {
+            List<String> lines = List.of(
+                    "Caused by: org.springframework.boot.web.server.PortInUseException: Port 8080 already in use"
+            );
+            Files.write(tempLog, lines, StandardCharsets.UTF_8);
+
+            // Step 1: Extraction before cleanup succeeds
+            ChildProcessDiagnostic diag = extractChildDiagnostic(tempLog, "extract_stage", 1);
+            assertThat(diag.category()).isEqualTo("PORT_BIND_FAILURE");
+            assertThat(diag.primaryException()).isEqualTo("org.springframework.boot.web.server.PortInUseException");
+
+            // Step 2: Primary exception is created
+            IllegalStateException primaryEx = new IllegalStateException(
+                    "Child JAR process on port 8080 terminated prematurely with exit code 1: " + diag.toCompactLine());
+
+            // Step 3: Simulate cleanup failure attaching as suppressed
+            IOException simulatedCleanupError = new IOException("Simulated file lock preventing deletion");
+            primaryEx.addSuppressed(simulatedCleanupError);
+
+            // Step 4: Verify primary exception retains original identity and message, and cleanup failure is attached
+            assertThat(primaryEx.getMessage()).contains("PORT_BIND_FAILURE");
+            assertThat(primaryEx.getMessage()).contains("PortInUseException");
+            assertThat(primaryEx.getSuppressed()).hasSize(1);
+            assertThat(primaryEx.getSuppressed()[0]).isSameAs(simulatedCleanupError);
+        } finally {
+            Files.deleteIfExists(tempLog);
+        }
+    }
+
+    @Test
+    @DisplayName("Streaming Read Bounds: respects max lines, max line length, and max causal depth")
+    void shouldRespectStreamingBoundsOnLargeLogs() throws IOException {
+        Path tempLog = Files.createTempFile("test-large-log-", ".log");
+        try {
+            List<String> lines = new ArrayList<>();
+            // Line 1 to 5: valid exception chain
+            lines.add("Caused by: org.springframework.beans.factory.BeanCreationException: Error");
+            lines.add("Caused by: org.hibernate.HibernateException: DB Error");
+            // Add lines 6 to 600
+            for (int i = 0; i < 600; i++) {
+                lines.add("A".repeat(800)); // longer than MAX_LINE_LENGTH (512)
+            }
+            // Line after 500 lines bound
+            lines.add("Caused by: com.example.PastBoundException: should be ignored");
+            Files.write(tempLog, lines, StandardCharsets.UTF_8);
+
+            ChildProcessDiagnostic diag = extractChildDiagnostic(tempLog, "stream_stage", 1);
+
+            assertThat(diag.primaryException()).isEqualTo("org.springframework.beans.factory.BeanCreationException");
+            assertThat(diag.causalChain()).contains("org.springframework.beans.factory.BeanCreationException");
+            assertThat(diag.causalChain()).contains("org.hibernate.HibernateException");
+            assertThat(diag.causalChain()).doesNotContain("com.example.PastBoundException");
+            assertThat(diag.category()).isEqualTo("DATABASE_SCHEMA_MIGRATION_FAILURE");
+        } finally {
+            Files.deleteIfExists(tempLog);
+        }
+    }
+
+    @Test
+    @DisplayName("Oversized Single Line Bound: proves byte cap truncates input allocation on lines exceeding 256 KiB")
+    void shouldRespectByteCapOnOversizedSingleLineBeyondCap() throws IOException {
+        Path tempLog = Files.createTempFile("test-oversized-line-", ".log");
+        try {
+            List<String> lines = List.of(
+                    "Caused by: org.springframework.boot.web.server.PortInUseException: Port 8080 already in use",
+                    "Caused by: " + "X".repeat(300 * 1024) + " SENTINEL_PAST_CAP_SECRET_98765",
+                    "Caused by: com.example.PastByteCapException: should be ignored"
+            );
+            Files.write(tempLog, lines, StandardCharsets.UTF_8);
+
+            ChildProcessDiagnostic diag = extractChildDiagnostic(tempLog, "oversized_stage", 1);
+            String summary = diag.formatSummary();
+            String compact = diag.toCompactLine();
+            String exceptionMsg = new IllegalStateException("Process failed: " + compact).getMessage();
+
+            for (String output : List.of(summary, compact, exceptionMsg)) {
+                assertThat(output).doesNotContain("SENTINEL_PAST_CAP_SECRET_98765");
+                assertThat(output).doesNotContain("PastByteCapException");
+            }
+
+            assertThat(diag.primaryException()).isEqualTo("org.springframework.boot.web.server.PortInUseException");
+            assertThat(diag.category()).isEqualTo("PORT_BIND_FAILURE");
+            assertThat(summary.length()).isLessThan(600);
+            assertThat(compact.length()).isLessThan(350);
+        } finally {
+            Files.deleteIfExists(tempLog);
+        }
+    }
+
+    @Test
+    @DisplayName("Log Safety: handles missing or unreadable log file with fixed safe category")
+    void shouldHandleMissingOrEmptyLogFileSafely() {
+        Path missingLog = Path.of("target", "nonexistent-" + UUID.randomUUID() + ".log");
+        ChildProcessDiagnostic diag = extractChildDiagnostic(missingLog, "missing_stage", 1);
+
+        assertThat(diag.stage()).isEqualTo("missing_stage");
+        assertThat(diag.exitCode()).isEqualTo(1);
+        assertThat(diag.category()).isEqualTo("LOG_UNREADABLE_OR_EMPTY");
+        assertThat(diag.primaryException()).isNull();
+        assertThat(diag.rootCauseException()).isNull();
+        assertThat(diag.causalChain()).isEmpty();
+        assertThat(diag.matchedProperties()).isEmpty();
+        assertThat(diag.formatSummary()).contains("LOG_UNREADABLE_OR_EMPTY");
+        assertThat(diag.toCompactLine()).isEqualTo("[category=LOG_UNREADABLE_OR_EMPTY]");
+    }
+
+    @Test
+    @DisplayName("Diagnostic Categorization: maps standard failure modes to fixed literal categories")
+    void shouldCategorizeStandardFailureModesCorrectly() {
+        assertThat(categorizeFromClues(List.of("org.springframework.boot.web.server.PortInUseException"), "port already in use", 1))
+                .isEqualTo("PORT_BIND_FAILURE");
+
+        assertThat(categorizeFromClues(List.of("org.springframework.beans.factory.BeanCreationException"), "error creating bean", 1))
+                .isEqualTo("BEAN_CREATION_FAILURE");
+
+        assertThat(categorizeFromClues(List.of("java.sql.SQLInvalidAuthorizationSpecException"), "access denied for user", 1))
+                .isEqualTo("DATASOURCE_AUTHENTICATION_FAILURE");
+
+        assertThat(categorizeFromClues(List.of("org.hibernate.tool.schema.spi.SchemaManagementException"), "table doesn't exist", 1))
+                .isEqualTo("DATABASE_SCHEMA_MIGRATION_FAILURE");
+
+        assertThat(categorizeFromClues(List.of("java.lang.IllegalStateException"), "missing required configuration: spring.datasource.password", 1))
+                .isEqualTo("CONFIGURATION_MISSING_PROPERTY");
+
+        assertThat(categorizeFromClues(List.of("io.jsonwebtoken.security.SignatureException"), "jwt signature failure", 1))
+                .isEqualTo("SECURITY_KEY_FAILURE");
     }
 }
