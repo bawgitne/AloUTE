@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/aloute_theme.dart';
-import '../../models/topic.dart';
 import '../../models/user.dart';
 import '../../services/auth_service.dart';
 import '../../services/post_service.dart';
+import '../../services/topic_service.dart';
 import '../../widgets/aloute_avatar.dart';
 import '../../widgets/aloute_post_card.dart';
 import '../messaging/conversation_list_screen.dart';
@@ -21,49 +21,17 @@ class HomeFeedScreen extends StatefulWidget {
 class _HomeFeedScreenState extends State<HomeFeedScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final PostService _postService = PostService();
+  final TopicService _topicService = TopicService();
   final AuthService _authService = AuthService();
-
-  final List<Topic> _trendingTopics = [
-    Topic(
-      id: 1,
-      name: 'DoAnTotNghiep2026',
-      slug: 'do-an-tot-nghiep-2026',
-      description: 'Thảo luận đề tài tốt nghiệp, chia sẻ kinh nghiệm bảo vệ đồ án.',
-      followerCount: 3420,
-      postCount: 520,
-    ),
-    Topic(
-      id: 2,
-      name: 'CongNghePhanMem',
-      slug: 'cong-nghe-phan-mem',
-      description: 'Hỏi đáp các môn Kiến trúc phần mềm và Kiểm thử.',
-      followerCount: 2850,
-      postCount: 412,
-    ),
-    Topic(
-      id: 3,
-      name: 'ThucTapDoanhNghiep',
-      slug: 'thuc-tap-doanh-nghiep',
-      description: 'Cơ hội thực tập IT và phỏng vấn doanh nghiệp.',
-      followerCount: 4190,
-      postCount: 780,
-    ),
-    Topic(
-      id: 4,
-      name: 'CLB_HITC',
-      slug: 'clb-hitc',
-      description: 'Hoạt động CLB Tin học HITC HCMUTE.',
-      followerCount: 1540,
-      postCount: 310,
-    ),
-  ];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _postService.fetchHomeFeed();
+    _topicService.fetchTopics();
     _postService.addListener(_onPostsUpdated);
+    _topicService.addListener(_onPostsUpdated);
   }
 
   void _onPostsUpdated() {
@@ -74,6 +42,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> with SingleTickerProvid
   void dispose() {
     _tabController.dispose();
     _postService.removeListener(_onPostsUpdated);
+    _topicService.removeListener(_onPostsUpdated);
     super.dispose();
   }
 
@@ -99,6 +68,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> with SingleTickerProvid
           ),
         ),
         title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
@@ -107,6 +77,15 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> with SingleTickerProvid
                 width: 30,
                 height: 30,
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: AlouteColors.accent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.school, color: Colors.white, size: 18),
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -114,6 +93,15 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> with SingleTickerProvid
               'assets/images/logo_text.png',
               height: 18,
               fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => const Text(
+                'ALOUTE',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AlouteColors.accent,
+                  letterSpacing: 1.2,
+                ),
+              ),
             ),
             const SizedBox(width: 8),
             Container(
@@ -194,18 +182,53 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> with SingleTickerProvid
     return RefreshIndicator(
       onRefresh: () => _postService.fetchHomeFeed(refresh: true),
       color: AlouteColors.accent,
-      child: ListView.builder(
-        padding: const EdgeInsets.only(top: 8, bottom: 80),
-        itemCount: posts.length + 2, // 0: composer, 1: trending chips, 2+: posts
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            return _buildComposerCard(user);
-          }
-          if (index == 1) {
-            return _buildTrendingChipsSection();
-          }
+      child: _postService.isLoading && posts.isEmpty
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(40),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.only(top: 8, bottom: 80),
+              itemCount: posts.isEmpty ? 3 : posts.length + 2, // 0: composer, 1: trending chips, 2+: posts / empty card
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return _buildComposerCard(user);
+                }
+                if (index == 1) {
+                  return _buildTrendingChipsSection();
+                }
+                if (posts.isEmpty) {
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: AlouteColors.bgSurface,
+                      borderRadius: BorderRadius.circular(AlouteColors.radiusLg),
+                      border: Border.all(color: AlouteColors.borderColor),
+                      boxShadow: AlouteColors.shadowSm,
+                    ),
+                    child: const Column(
+                      children: [
+                        Icon(Icons.dynamic_feed_outlined, size: 48, color: AlouteColors.textMuted),
+                        SizedBox(height: 12),
+                        Text(
+                          'Chưa có bài viết nào',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AlouteColors.textPrimary),
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          'Hãy kéo xuống để làm mới bảng tin hoặc bấm vào khung trên để đăng bài viết đầu tiên!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13, color: AlouteColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
-          final post = posts[index - 2];
+                final post = posts[index - 2];
           return AloutePostCard(
             post: post,
             onTap: () {
@@ -294,14 +317,17 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> with SingleTickerProvid
   }
 
   Widget _buildTrendingChipsSection() {
+    final topics = _topicService.topics;
+    if (topics.isEmpty) return const SizedBox.shrink();
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       height: 38,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: _trendingTopics.length,
+        itemCount: topics.length,
         itemBuilder: (context, index) {
-          final t = _trendingTopics[index];
+          final t = topics[index];
           return Container(
             margin: const EdgeInsets.only(right: 8),
             child: ActionChip(

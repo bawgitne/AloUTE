@@ -272,22 +272,22 @@
                         <!-- Display Name -->
                         <div class="mb-3">
                             <label for="settings-input-display-name" class="form-label small fw-semibold text-dark">
-                                Họ và tên hiển thị <span class="text-danger">*</span>
+                                Tên hiển thị <span class="text-muted fw-normal">(Không bắt buộc)</span>
                             </label>
                             <input type="text"
                                    class="form-control"
                                    id="settings-input-display-name"
                                    maxlength="100"
-                                   required
                                    th:value="${currentUser?.displayName ?: (currentUser?.username ?: '')}"
                                    placeholder="Nhập tên hiển thị của bạn">
-                            <div class="invalid-feedback small">Họ và tên hiển thị không được để trống.</div>
+                            <div class="form-text small text-muted">Tên gọi hiển thị trên trang cá nhân và bài viết. Nếu để trống, hệ thống sẽ tự động dùng ID (@<span th:text="${currentUser?.username ?: ''}">username</span>) làm tên hiển thị giống Instagram.</div>
+                            <div class="invalid-feedback small d-none" id="settings-display-name-feedback">Tên hiển thị tối đa 100 ký tự.</div>
                         </div>
 
                         <!-- Username (Readonly) -->
                         <div class="mb-3">
                             <label for="settings-input-username" class="form-label small fw-semibold text-dark">
-                                Tên người dùng (Username)
+                                Tên người dùng / ID (@username)
                             </label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light text-muted border-end-0">@</span>
@@ -297,7 +297,7 @@
                                        readonly
                                        th:value="${currentUser?.username ?: ''}">
                             </div>
-                            <div class="form-text small text-muted">Tên người dùng là định danh duy nhất trên AloUTE và không thể thay đổi.</div>
+                            <div class="form-text small text-muted">ID định danh duy nhất trên AloUTE, tương tự như ID Instagram và không thể thay đổi.</div>
                         </div>
 
                         <!-- Bio -->
@@ -317,9 +317,9 @@
                         <!-- Website -->
                         <div class="mb-4">
                             <label for="settings-input-website" class="form-label small fw-semibold text-dark">
-                                Liên kết cá nhân / Website
+                                Liên kết cá nhân / Website <span class="text-muted fw-normal">(Không bắt buộc)</span>
                             </label>
-                            <div class="input-group">
+                            <div class="input-group has-validation">
                                 <span class="input-group-text bg-light border-end-0"><i class="bi bi-link-45deg text-muted"></i></span>
                                 <input type="url"
                                        class="form-control border-start-0"
@@ -328,7 +328,8 @@
                                        placeholder="https://facebook.com/... hoặc https://github.com/..."
                                        th:value="${currentUser?.website ?: ''}">
                             </div>
-                            <div class="invalid-feedback small">Vui lòng nhập đường dẫn URL hợp lệ (bắt đầu bằng http:// hoặc https://).</div>
+                            <div class="form-text small text-muted">Không bắt buộc nhập. Bạn chỉ điền khi muốn công khai liên kết Facebook, GitHub, Portfolio cá nhân...</div>
+                            <div class="invalid-feedback small d-none" id="settings-website-feedback">Vui lòng nhập đường dẫn URL hợp lệ (bắt đầu bằng http:// hoặc https://).</div>
                         </div>
 
                         <!-- Submit Button -->

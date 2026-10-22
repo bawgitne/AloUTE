@@ -38,8 +38,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _handleSave() async {
     setState(() => _isLoading = true);
 
+    final String rawDisplayName = _displayNameController.text.trim();
+    final String displayName = rawDisplayName.isNotEmpty ? rawDisplayName : widget.user.username;
+
     await AuthService().updateProfile(
-      displayName: _displayNameController.text.trim(),
+      displayName: displayName,
       bio: _bioController.text.trim(),
       faculty: _facultyController.text.trim(),
     );
@@ -197,23 +200,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Tên hiển thị', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AlouteColors.textPrimary)),
+                  const Text('Tên hiển thị (Không bắt buộc)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AlouteColors.textPrimary)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _displayNameController,
-                    decoration: const InputDecoration(
-                      hintText: 'Nhập tên hiển thị...',
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: InputDecoration(
+                      hintText: 'Mặc định theo ID (@${widget.user.username}) nếu để trống...',
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  const Text('Liên kết Website / Trang cá nhân', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AlouteColors.textPrimary)),
+                  const Text('Liên kết Website / Trang cá nhân (Không bắt buộc)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AlouteColors.textPrimary)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _facultyController,
                     decoration: const InputDecoration(
-                      hintText: 'https://...',
+                      hintText: 'https://... (không bắt buộc)',
                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
                   ),

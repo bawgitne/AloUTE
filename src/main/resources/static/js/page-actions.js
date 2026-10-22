@@ -336,19 +336,11 @@
 
             let hasError = false;
 
-            // Reject empty or whitespace-only displayName before sending
-            if (!displayName || displayName.length === 0) {
-                if (displayNameInput) {
-                    displayNameInput.classList.add('is-invalid');
-                    displayNameInput.setAttribute('aria-invalid', 'true');
-                }
-                const err = document.getElementById('edit-displayName-error');
-                if (err) {
-                    err.textContent = 'Tên hiển thị không được để trống.';
-                    err.classList.remove('d-none');
-                }
-                hasError = true;
-            } else if (displayName.length > 100) {
+            const usernameEl = document.getElementById('profile-username');
+            const pageUsername = usernameEl ? usernameEl.textContent.replace(/^@/, '').trim() : '';
+            const finalDisplayName = displayName || pageUsername;
+
+            if (finalDisplayName.length > 100) {
                 if (displayNameInput) {
                     displayNameInput.classList.add('is-invalid');
                     displayNameInput.setAttribute('aria-invalid', 'true');
@@ -400,9 +392,9 @@
                 return;
             }
 
-            // Build strictly supported DTO payload (displayName is non-blank, no avatarMediaId)
+            // Build strictly supported DTO payload (finalDisplayName fallbacks to username if blank)
             const payload = {
-                displayName: displayName,
+                displayName: finalDisplayName,
                 bio: bio || null,
                 website: website || null,
                 isPrivate: isPrivate
