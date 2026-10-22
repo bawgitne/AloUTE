@@ -135,13 +135,16 @@ public class DefaultEmailService implements EmailService {
             props.put("mail.transport.protocol", "smtp");
             props.put("mail.smtp.host", smtpHost);
             props.put("mail.smtp.port", String.valueOf(smtpPort));
-            props.put("mail.smtp.connectiontimeout", "5000");
-            props.put("mail.smtp.timeout", "5000");
-            props.put("mail.smtp.writetimeout", "5000");
+            props.put("mail.smtp.user", smtpUsername);
+            props.put("mail.smtp.connectiontimeout", "10000");
+            props.put("mail.smtp.timeout", "10000");
+            props.put("mail.smtp.writetimeout", "10000");
 
             props.put("mail.smtp.auth", "true");
             props.put("mail.smtp.starttls.enable", "true");
             props.put("mail.smtp.starttls.required", "true");
+            props.put("mail.smtp.ssl.protocols", "TLSv1.2 TLSv1.3");
+            props.put("mail.smtp.ssl.trust", smtpHost);
             props.put("mail.smtp.ssl.checkserveridentity", "true");
 
             Session session = Session.getInstance(props, new Authenticator() {
@@ -168,7 +171,7 @@ public class DefaultEmailService implements EmailService {
             multipart.addBodyPart(htmlPart);
 
             message.setContent(multipart);
-            Transport.send(message);
+            Transport.send(message, smtpUsername, smtpPassword);
             log.info("2FA OTP notification dispatched via SMTP host {}:{}", smtpHost, smtpPort);
         } catch (Exception ex) {
             log.error("Failed to deliver external email notification via SMTP host {}: {} - {}", smtpHost, ex.getClass().getSimpleName(), ex.getMessage(), ex);
@@ -190,13 +193,16 @@ public class DefaultEmailService implements EmailService {
             props.put("mail.transport.protocol", "smtp");
             props.put("mail.smtp.host", smtpHost);
             props.put("mail.smtp.port", String.valueOf(smtpPort));
-            props.put("mail.smtp.connectiontimeout", "5000");
-            props.put("mail.smtp.timeout", "5000");
-            props.put("mail.smtp.writetimeout", "5000");
+            props.put("mail.smtp.user", smtpUsername);
+            props.put("mail.smtp.connectiontimeout", "10000");
+            props.put("mail.smtp.timeout", "10000");
+            props.put("mail.smtp.writetimeout", "10000");
 
             props.put("mail.smtp.auth", "true");
             props.put("mail.smtp.starttls.enable", "true");
             props.put("mail.smtp.starttls.required", "true");
+            props.put("mail.smtp.ssl.protocols", "TLSv1.2 TLSv1.3");
+            props.put("mail.smtp.ssl.trust", smtpHost);
             props.put("mail.smtp.ssl.checkserveridentity", "true");
 
             Session session = Session.getInstance(props, new Authenticator() {
@@ -223,7 +229,7 @@ public class DefaultEmailService implements EmailService {
             multipart.addBodyPart(htmlPart);
 
             message.setContent(multipart);
-            Transport.send(message);
+            Transport.send(message, smtpUsername, smtpPassword);
             log.info("Reset notification dispatched via SMTP host {}:{}", smtpHost, smtpPort);
         } catch (Exception ex) {
             log.error("Failed to deliver external email notification via SMTP host {}: {} - {}", smtpHost, ex.getClass().getSimpleName(), ex.getMessage(), ex);
@@ -245,13 +251,16 @@ public class DefaultEmailService implements EmailService {
             props.put("mail.transport.protocol", "smtp");
             props.put("mail.smtp.host", smtpHost);
             props.put("mail.smtp.port", String.valueOf(smtpPort));
-            props.put("mail.smtp.connectiontimeout", "5000");
-            props.put("mail.smtp.timeout", "5000");
-            props.put("mail.smtp.writetimeout", "5000");
+            props.put("mail.smtp.user", smtpUsername);
+            props.put("mail.smtp.connectiontimeout", "10000");
+            props.put("mail.smtp.timeout", "10000");
+            props.put("mail.smtp.writetimeout", "10000");
 
             props.put("mail.smtp.auth", "true");
             props.put("mail.smtp.starttls.enable", "true");
             props.put("mail.smtp.starttls.required", "true");
+            props.put("mail.smtp.ssl.protocols", "TLSv1.2 TLSv1.3");
+            props.put("mail.smtp.ssl.trust", smtpHost);
             props.put("mail.smtp.ssl.checkserveridentity", "true");
 
             Session session = Session.getInstance(props, new Authenticator() {
@@ -278,7 +287,7 @@ public class DefaultEmailService implements EmailService {
             multipart.addBodyPart(htmlPart);
 
             message.setContent(multipart);
-            Transport.send(message);
+            Transport.send(message, smtpUsername, smtpPassword);
             log.info("Registration OTP notification dispatched via SMTP host {}:{}", smtpHost, smtpPort);
         } catch (Exception ex) {
             log.error("Failed to deliver external email notification via SMTP host {}: {} - {}", smtpHost, ex.getClass().getSimpleName(), ex.getMessage(), ex);
