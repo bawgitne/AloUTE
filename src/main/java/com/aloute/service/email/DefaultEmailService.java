@@ -76,6 +76,9 @@ public class DefaultEmailService implements EmailService {
             if (smtpPort != 465 && (!starttlsEnable || !sslCheckServerIdentity)) {
                 throw new IllegalStateException("Unsafe SMTP configuration rejected: STARTTLS and SSL server identity verification must be enabled for authenticated transport");
             }
+            if (smtpPort == 465 && !sslCheckServerIdentity) {
+                throw new IllegalStateException("Unsafe SMTP configuration rejected: SSL server identity verification must be enabled for authenticated transport");
+            }
             if (smtpUsername == null || smtpUsername.isBlank() || smtpPassword == null || smtpPassword.isBlank()) {
                 throw new IllegalStateException("Invalid SMTP configuration: username and password must be configured when SMTP host is specified");
             }
@@ -124,45 +127,68 @@ public class DefaultEmailService implements EmailService {
         }
     }
 
-    private void sendTwoFactorOtpViaSmtp(String toEmail, String otpCode) {
-        if (!starttlsEnable || !sslCheckServerIdentity) {
+    private Properties buildMailProperties() {
+        Properties props = new Properties();
+        String hostStr = smtpHost != null ? smtpHost.trim() : "";
+        String portStr = String.valueOf(smtpPort);
+        String userStr = smtpUsername != null ? smtpUsername.trim() : "";
+
+        props.put("mail.smtp.auth", "true");
+        props.put("mail.smtp.connectiontimeout", "10000");
+        props.put("mail.smtp.timeout", "10000");
+        props.put("mail.smtp.writetimeout", "10000");
+
+        if (smtpPort == 465) {
+            props.put("mail.transport.protocol", "smtps");
+
+            props.put("mail.smtps.host", hostStr);
+            props.put("mail.smtps.port", "465");
+            props.put("mail.smtps.user", userStr);
+            props.put("mail.smtps.auth", "true");
+            props.put("mail.smtps.ssl.enable", "true");
+            props.put("mail.smtps.ssl.checkserveridentity", String.valueOf(sslCheckServerIdentity));
+            props.put("mail.smtps.connectiontimeout", "10000");
+            props.put("mail.smtps.timeout", "10000");
+            props.put("mail.smtps.writetimeout", "10000");
+
+            props.put("mail.smtp.host", hostStr);
+            props.put("mail.smtp.port", "465");
+            props.put("mail.smtp.user", userStr);
+            props.put("mail.smtp.ssl.enable", "true");
+            props.put("mail.smtp.ssl.checkserveridentity", String.valueOf(sslCheckServerIdentity));
+            props.put("mail.smtp.socketFactory.port", "465");
+            props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+            props.put("mail.smtp.socketFactory.fallback", "false");
+        } else {
+            props.put("mail.transport.protocol", "smtp");
+            props.put("mail.smtp.host", hostStr);
+            props.put("mail.smtp.port", portStr);
+            props.put("mail.smtp.user", userStr);
+            props.put("mail.smtp.starttls.enable", "true");
+            props.put("mail.smtp.starttls.required", "true");
+            props.put("mail.smtp.ssl.enable", "false");
+            props.put("mail.smtp.ssl.protocols", "TLSv1.2");
+            props.put("mail.smtp.ssl.trust", "*");
+            props.put("mail.smtp.ssl.checkserveridentity", String.valueOf(sslCheckServerIdentity));
+        }
+        return props;
+    }
+
+    private void sendEmailViaSmtp(String toEmail, String subject, String textBody, String htmlBody, String logDescription) {
+        if (smtpPort != 465 && (!starttlsEnable || !sslCheckServerIdentity)) {
             log.error("Unsafe SMTP configuration rejected");
             throw new IllegalStateException("Unsafe SMTP configuration rejected: STARTTLS and SSL server identity verification must be enabled for authenticated transport");
+        }
+        if (smtpPort == 465 && !sslCheckServerIdentity) {
+            log.error("Unsafe SMTP configuration rejected");
+            throw new IllegalStateException("Unsafe SMTP configuration rejected: SSL server identity verification must be enabled for authenticated transport");
         }
         if (smtpUsername == null || smtpUsername.isBlank() || smtpPassword == null || smtpPassword.isBlank()) {
             log.error("Missing SMTP credentials for configured host {}", smtpHost);
             throw new IllegalStateException("Missing SMTP credentials: username and password are required for authenticated transport");
         }
         try {
-            Properties props = new Properties();
-            if (smtpPort == 465) {
-                props.put("mail.transport.protocol", "smtps");
-                props.put("mail.smtps.host", smtpHost);
-                props.put("mail.smtps.port", "465");
-                props.put("mail.smtps.user", smtpUsername);
-                props.put("mail.smtps.auth", "true");
-                props.put("mail.smtps.ssl.enable", "true");
-                props.put("mail.smtps.ssl.checkserveridentity", String.valueOf(sslCheckServerIdentity));
-                props.put("mail.smtps.connectiontimeout", "10000");
-                props.put("mail.smtps.timeout", "10000");
-                props.put("mail.smtps.writetimeout", "10000");
-            } else {
-                props.put("mail.transport.protocol", "smtp");
-                props.put("mail.smtp.host", smtpHost);
-                props.put("mail.smtp.port", String.valueOf(smtpPort));
-                props.put("mail.smtp.user", smtpUsername);
-                props.put("mail.smtp.connectiontimeout", "10000");
-                props.put("mail.smtp.timeout", "10000");
-                props.put("mail.smtp.writetimeout", "10000");
-                props.put("mail.smtp.auth", "true");
-                props.put("mail.smtp.starttls.enable", "true");
-                props.put("mail.smtp.starttls.required", "true");
-                props.put("mail.smtp.ssl.enable", "false");
-                props.put("mail.smtp.ssl.protocols", "TLSv1.2");
-                props.put("mail.smtp.ssl.trust", "*");
-                props.put("mail.smtp.ssl.checkserveridentity", "true");
-            }
-
+            Properties props = buildMailProperties();
             Session session = Session.getInstance(props, new Authenticator() {
                 @Override
                 protected PasswordAuthentication getPasswordAuthentication() {
@@ -173,168 +199,57 @@ public class DefaultEmailService implements EmailService {
             MimeMessage message = new MimeMessage(session);
             message.setFrom(new InternetAddress(smtpFrom, "AloUTE Campus", StandardCharsets.UTF_8.name()));
             message.setRecipient(Message.RecipientType.TO, new InternetAddress(toEmail));
-            message.setSubject("[AloUTE] Mã xác thực bảo mật 2 lớp (2FA)", StandardCharsets.UTF_8.name());
+            message.setSubject(subject, StandardCharsets.UTF_8.name());
 
             MimeMultipart multipart = new MimeMultipart("alternative");
 
             MimeBodyPart textPart = new MimeBodyPart();
-            textPart.setText("Mã xác thực bảo mật 2 lớp của bạn trên AloUTE là: " + otpCode + "\n\nMã này có hiệu lực trong 5 phút. Tuyệt đối không chia sẻ mã này với bất kỳ ai.", StandardCharsets.UTF_8.name());
+            textPart.setText(textBody, StandardCharsets.UTF_8.name());
 
             MimeBodyPart htmlPart = new MimeBodyPart();
-            htmlPart.setContent(buildTwoFactorOtpHtml(otpCode), "text/html; charset=UTF-8");
+            htmlPart.setContent(htmlBody, "text/html; charset=UTF-8");
 
             multipart.addBodyPart(textPart);
             multipart.addBodyPart(htmlPart);
 
             message.setContent(multipart);
-            Transport.send(message, smtpUsername, smtpPassword);
-            log.info("2FA OTP notification dispatched via SMTP host {}:{}", smtpHost, smtpPort);
+            message.saveChanges();
+
+            String protocol = (smtpPort == 465) ? "smtps" : "smtp";
+            Transport transport = session.getTransport(protocol);
+            try {
+                transport.connect(smtpHost, smtpPort, smtpUsername, smtpPassword);
+                transport.sendMessage(message, message.getAllRecipients());
+            } finally {
+                transport.close();
+            }
+
+            log.info("{} notification dispatched via SMTP host {}:{}", logDescription, smtpHost, smtpPort);
         } catch (Exception ex) {
             log.error("Failed to deliver external email notification via SMTP host {}: {} - {}", smtpHost, ex.getClass().getSimpleName(), ex.getMessage(), ex);
             throw new MailDeliveryException("Failed to deliver external email notification via SMTP host " + smtpHost + ": " + ex.getClass().getSimpleName(), ex);
         }
+    }
+
+    private void sendTwoFactorOtpViaSmtp(String toEmail, String otpCode) {
+        String subject = "[AloUTE] Mã xác thực bảo mật 2 lớp (2FA)";
+        String textBody = "Mã xác thực bảo mật 2 lớp của bạn trên AloUTE là: " + otpCode + "\n\nMã này có hiệu lực trong 5 phút. Tuyệt đối không chia sẻ mã này với bất kỳ ai.";
+        String htmlBody = buildTwoFactorOtpHtml(otpCode);
+        sendEmailViaSmtp(toEmail, subject, textBody, htmlBody, "2FA OTP");
     }
 
     private void sendViaSmtp(String toEmail, String resetUrl) {
-        if (!starttlsEnable || !sslCheckServerIdentity) {
-            log.error("Unsafe SMTP configuration rejected");
-            throw new IllegalStateException("Unsafe SMTP configuration rejected: STARTTLS and SSL server identity verification must be enabled for authenticated transport");
-        }
-        if (smtpUsername == null || smtpUsername.isBlank() || smtpPassword == null || smtpPassword.isBlank()) {
-            log.error("Missing SMTP credentials for configured host {}", smtpHost);
-            throw new IllegalStateException("Missing SMTP credentials: username and password are required for authenticated transport");
-        }
-        try {
-            Properties props = new Properties();
-            if (smtpPort == 465) {
-                props.put("mail.transport.protocol", "smtps");
-                props.put("mail.smtps.host", smtpHost);
-                props.put("mail.smtps.port", "465");
-                props.put("mail.smtps.user", smtpUsername);
-                props.put("mail.smtps.auth", "true");
-                props.put("mail.smtps.ssl.enable", "true");
-                props.put("mail.smtps.ssl.checkserveridentity", String.valueOf(sslCheckServerIdentity));
-                props.put("mail.smtps.connectiontimeout", "10000");
-                props.put("mail.smtps.timeout", "10000");
-                props.put("mail.smtps.writetimeout", "10000");
-            } else {
-                props.put("mail.transport.protocol", "smtp");
-                props.put("mail.smtp.host", smtpHost);
-                props.put("mail.smtp.port", String.valueOf(smtpPort));
-                props.put("mail.smtp.user", smtpUsername);
-                props.put("mail.smtp.connectiontimeout", "10000");
-                props.put("mail.smtp.timeout", "10000");
-                props.put("mail.smtp.writetimeout", "10000");
-                props.put("mail.smtp.auth", "true");
-                props.put("mail.smtp.starttls.enable", "true");
-                props.put("mail.smtp.starttls.required", "true");
-                props.put("mail.smtp.ssl.enable", "false");
-                props.put("mail.smtp.ssl.protocols", "TLSv1.2");
-                props.put("mail.smtp.ssl.trust", "*");
-                props.put("mail.smtp.ssl.checkserveridentity", "true");
-            }
-
-            Session session = Session.getInstance(props, new Authenticator() {
-                @Override
-                protected PasswordAuthentication getPasswordAuthentication() {
-                    return new PasswordAuthentication(smtpUsername, smtpPassword);
-                }
-            });
-
-            MimeMessage message = new MimeMessage(session);
-            message.setFrom(new InternetAddress(smtpFrom, "AloUTE Campus", StandardCharsets.UTF_8.name()));
-            message.setRecipient(Message.RecipientType.TO, new InternetAddress(toEmail));
-            message.setSubject("[AloUTE] Yêu cầu đặt lại mật khẩu", StandardCharsets.UTF_8.name());
-
-            MimeMultipart multipart = new MimeMultipart("alternative");
-
-            MimeBodyPart textPart = new MimeBodyPart();
-            textPart.setText("Truy cập liên kết sau để đặt lại mật khẩu tài khoản AloUTE của bạn:\n" + resetUrl + "\n\nLiên kết có hiệu lực trong 15 phút.", StandardCharsets.UTF_8.name());
-
-            MimeBodyPart htmlPart = new MimeBodyPart();
-            htmlPart.setContent(buildPasswordResetHtml(resetUrl), "text/html; charset=UTF-8");
-
-            multipart.addBodyPart(textPart);
-            multipart.addBodyPart(htmlPart);
-
-            message.setContent(multipart);
-            Transport.send(message, smtpUsername, smtpPassword);
-            log.info("Reset notification dispatched via SMTP host {}:{}", smtpHost, smtpPort);
-        } catch (Exception ex) {
-            log.error("Failed to deliver external email notification via SMTP host {}: {} - {}", smtpHost, ex.getClass().getSimpleName(), ex.getMessage(), ex);
-            throw new MailDeliveryException("Failed to deliver external email notification via SMTP host " + smtpHost + ": " + ex.getClass().getSimpleName(), ex);
-        }
+        String subject = "[AloUTE] Yêu cầu đặt lại mật khẩu";
+        String textBody = "Truy cập liên kết sau để đặt lại mật khẩu tài khoản AloUTE của bạn:\n" + resetUrl + "\n\nLiên kết có hiệu lực trong 15 phút.";
+        String htmlBody = buildPasswordResetHtml(resetUrl);
+        sendEmailViaSmtp(toEmail, subject, textBody, htmlBody, "Reset");
     }
 
     private void sendOtpViaSmtp(String toEmail, String otpCode) {
-        if (!starttlsEnable || !sslCheckServerIdentity) {
-            log.error("Unsafe SMTP configuration rejected");
-            throw new IllegalStateException("Unsafe SMTP configuration rejected: STARTTLS and SSL server identity verification must be enabled for authenticated transport");
-        }
-        if (smtpUsername == null || smtpUsername.isBlank() || smtpPassword == null || smtpPassword.isBlank()) {
-            log.error("Missing SMTP credentials for configured host {}", smtpHost);
-            throw new IllegalStateException("Missing SMTP credentials: username and password are required for authenticated transport");
-        }
-        try {
-            Properties props = new Properties();
-            if (smtpPort == 465) {
-                props.put("mail.transport.protocol", "smtps");
-                props.put("mail.smtps.host", smtpHost);
-                props.put("mail.smtps.port", "465");
-                props.put("mail.smtps.user", smtpUsername);
-                props.put("mail.smtps.auth", "true");
-                props.put("mail.smtps.ssl.enable", "true");
-                props.put("mail.smtps.ssl.checkserveridentity", String.valueOf(sslCheckServerIdentity));
-                props.put("mail.smtps.connectiontimeout", "10000");
-                props.put("mail.smtps.timeout", "10000");
-                props.put("mail.smtps.writetimeout", "10000");
-            } else {
-                props.put("mail.transport.protocol", "smtp");
-                props.put("mail.smtp.host", smtpHost);
-                props.put("mail.smtp.port", String.valueOf(smtpPort));
-                props.put("mail.smtp.user", smtpUsername);
-                props.put("mail.smtp.connectiontimeout", "10000");
-                props.put("mail.smtp.timeout", "10000");
-                props.put("mail.smtp.writetimeout", "10000");
-                props.put("mail.smtp.auth", "true");
-                props.put("mail.smtp.starttls.enable", "true");
-                props.put("mail.smtp.starttls.required", "true");
-                props.put("mail.smtp.ssl.enable", "false");
-                props.put("mail.smtp.ssl.protocols", "TLSv1.2");
-                props.put("mail.smtp.ssl.trust", "*");
-                props.put("mail.smtp.ssl.checkserveridentity", "true");
-            }
-
-            Session session = Session.getInstance(props, new Authenticator() {
-                @Override
-                protected PasswordAuthentication getPasswordAuthentication() {
-                    return new PasswordAuthentication(smtpUsername, smtpPassword);
-                }
-            });
-
-            MimeMessage message = new MimeMessage(session);
-            message.setFrom(new InternetAddress(smtpFrom, "AloUTE Campus", StandardCharsets.UTF_8.name()));
-            message.setRecipient(Message.RecipientType.TO, new InternetAddress(toEmail));
-            message.setSubject("[AloUTE] Mã xác thực đăng ký tài khoản", StandardCharsets.UTF_8.name());
-
-            MimeMultipart multipart = new MimeMultipart("alternative");
-
-            MimeBodyPart textPart = new MimeBodyPart();
-            textPart.setText("Mã xác thực đăng ký tài khoản AloUTE của bạn là: " + otpCode + "\n\nMã này có hiệu lực trong 5 phút.", StandardCharsets.UTF_8.name());
-
-            MimeBodyPart htmlPart = new MimeBodyPart();
-            htmlPart.setContent(buildRegistrationOtpHtml(otpCode), "text/html; charset=UTF-8");
-
-            multipart.addBodyPart(textPart);
-            multipart.addBodyPart(htmlPart);
-
-            message.setContent(multipart);
-            Transport.send(message, smtpUsername, smtpPassword);
-            log.info("Registration OTP notification dispatched via SMTP host {}:{}", smtpHost, smtpPort);
-        } catch (Exception ex) {
-            log.error("Failed to deliver external email notification via SMTP host {}: {} - {}", smtpHost, ex.getClass().getSimpleName(), ex.getMessage(), ex);
-            throw new MailDeliveryException("Failed to deliver external email notification via SMTP host " + smtpHost + ": " + ex.getClass().getSimpleName(), ex);
-        }
+        String subject = "[AloUTE] Mã xác thực đăng ký tài khoản";
+        String textBody = "Mã xác thực đăng ký tài khoản AloUTE của bạn là: " + otpCode + "\n\nMã này có hiệu lực trong 5 phút.";
+        String htmlBody = buildRegistrationOtpHtml(otpCode);
+        sendEmailViaSmtp(toEmail, subject, textBody, htmlBody, "Registration OTP");
     }
 
     private String renderOtpDigitBoxes(String otpCode) {
