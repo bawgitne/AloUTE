@@ -26,5 +26,5 @@ ENV PORT=8080
 EXPOSE 8080
 
 # Use exec to ensure PID 1 receives SIGTERM for graceful shutdown
-ENTRYPOINT ["sh", "-c", "exec java -Dserver.port=${PORT:-8080} -Djava.net.preferIPv4Stack=true -Dmail.smtp.ssl.protocols=TLSv1.2 -Dhttps.protocols=TLSv1.2 -Djava.security.egd=file:/dev/./urandom -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE:-prod} -XX:+UseG1GC -XX:MaxRAMPercentage=75.0 ${JAVA_OPTS} -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "exec java -Dserver.port=${PORT:-8080} -Djava.net.preferIPv4Stack=true -Dmail.smtp.ssl.protocols=TLSv1.2,TLSv1.3 -Dmail.smtps.ssl.protocols=TLSv1.2,TLSv1.3 -Dhttps.protocols=TLSv1.2,TLSv1.3 -Djava.security.egd=file:/dev/./urandom -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE:-prod} -XX:+UseG1GC -XX:MaxRAMPercentage=75.0 ${JAVA_OPTS} -jar app.jar"]
 
