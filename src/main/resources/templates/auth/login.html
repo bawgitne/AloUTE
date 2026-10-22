@@ -28,21 +28,21 @@
         <div id="login-credentials-section">
             <!-- Email Field -->
             <div class="mb-3">
-                <label for="email" class="form-label">Email UTE</label>
+                <label for="email" class="form-label">Email hoặc Tên đăng nhập</label>
                 <div class="input-group">
-                    <input type="email"
+                    <input type="text"
                            class="form-control"
                            id="email"
                            name="email"
                            th:value="${param.email}"
-                           placeholder="user@student.hcmute.edu.vn"
-                           autocomplete="email"
+                           placeholder="user@student.hcmute.edu.vn hoặc tên đăng nhập"
+                           autocomplete="username"
                            maxlength="254"
                            aria-describedby="email-feedback"
                            aria-invalid="false"
                            required>
                 </div>
-                <div class="invalid-feedback d-none" id="email-feedback">Email không được để trống.</div>
+                <div class="invalid-feedback d-none" id="email-feedback">Email hoặc tên đăng nhập không được để trống.</div>
             </div>
 
             <!-- Password Field -->

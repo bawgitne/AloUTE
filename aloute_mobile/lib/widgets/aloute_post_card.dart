@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/aloute_theme.dart';
 import '../models/post.dart';
+import '../screens/post/post_detail_screen.dart';
 import '../services/post_service.dart';
 import 'aloute_avatar.dart';
 
@@ -45,7 +46,11 @@ class AloutePostCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AlouteColors.radiusLg),
         child: InkWell(
           borderRadius: BorderRadius.circular(AlouteColors.radiusLg),
-          onTap: onTap,
+          onTap: onTap ??
+              () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => PostDetailScreen(post: post)),
+                  ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -103,22 +108,24 @@ class AloutePostCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AlouteColors.accentSubtle,
-                      borderRadius: BorderRadius.circular(AlouteColors.radiusSm),
-                    ),
-                    child: Text(
-                      post.author.faculty,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: AlouteColors.accent,
+                  if (post.author.faculty.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AlouteColors.accentSubtle,
+                        borderRadius: BorderRadius.circular(AlouteColors.radiusSm),
+                      ),
+                      child: Text(
+                        post.author.faculty,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: AlouteColors.accent,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
               const SizedBox(height: 2),
@@ -318,7 +325,14 @@ class AloutePostCard extends StatelessWidget {
           icon: Icons.chat_bubble_outline,
           color: AlouteColors.textSecondary,
           label: post.replyCount > 0 ? '${post.replyCount}' : 'Bình luận',
-          onTap: onReplyTap ?? onTap ?? () {},
+          onTap: onReplyTap ??
+              onTap ??
+              () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PostDetailScreen(post: post, focusReply: true),
+                    ),
+                  ),
         ),
         // Repost
         _buildActionButton(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/aloute_theme.dart';
-import '../models/user.dart';
 import '../services/auth_service.dart';
+import '../widgets/aloute_avatar.dart';
 import 'admin/admin_dashboard_screen.dart';
 import 'auth/login_screen.dart';
 import 'community/community_list_screen.dart';
@@ -49,15 +49,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = AuthService().currentUser ??
-        User(
-          id: 24110166,
-          username: 'nguyenvanan',
-          displayName: 'Nguyễn Văn An',
-          email: '24110166@student.hcmute.edu.vn',
-          faculty: 'Khoa Công nghệ Thông tin',
-          studentCode: '24110166',
-        );
+    final user = AuthService().currentUser;
 
     return Scaffold(
       drawer: Drawer(
@@ -80,6 +72,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                         width: 28,
                         height: 28,
                         fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: AlouteColors.accent,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.school, color: Colors.white, size: 16),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -87,6 +88,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                       'assets/images/logo_text.png',
                       height: 18,
                       fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => const Text(
+                        'ALOUTE',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AlouteColors.accent,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
                     ),
                     const Spacer(),
                     Container(
@@ -117,11 +127,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 26,
-                      backgroundImage: NetworkImage(
-                        user.avatarUrl ?? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-                      ),
+                    AlouteAvatar(
+                      name: user?.displayName ?? 'Tôi',
+                      imageUrl: user?.avatarUrl,
+                      size: 52,
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -129,7 +138,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            user.displayName,
+                            user?.displayName ?? 'Sinh viên HCMUTE',
                             style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
@@ -138,13 +147,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          Text(
-                            '@${user.username}',
-                            style: const TextStyle(fontSize: 12, color: AlouteColors.accent, fontWeight: FontWeight.w600),
-                          ),
+                          if (user?.username != null)
+                            Text(
+                              '@${user!.username}',
+                              style: const TextStyle(fontSize: 12, color: AlouteColors.accent, fontWeight: FontWeight.w600),
+                            ),
                           const SizedBox(height: 2),
                           Text(
-                            user.faculty ?? 'Khoa Công nghệ Thông tin',
+                            user?.faculty ?? 'Sinh viên UTE',
                             style: const TextStyle(fontSize: 11, color: AlouteColors.textMuted),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -224,20 +234,22 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                         setState(() => _currentIndex = 3);
                       },
                     ),
-                    const Divider(color: AlouteColors.borderSubtle, indent: 16, endIndent: 16),
-                    _buildDrawerItem(
-                      icon: Icons.admin_panel_settings_outlined,
-                      title: 'Bảng quản trị (Admin)',
-                      badge: 'Admin',
-                      badgeColor: AlouteColors.warning,
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
-                        );
-                      },
-                    ),
+                    if (user?.isAdmin == true) ...[
+                      const Divider(color: AlouteColors.borderSubtle, indent: 16, endIndent: 16),
+                      _buildDrawerItem(
+                        icon: Icons.admin_panel_settings_outlined,
+                        title: 'Bảng quản trị (Admin)',
+                        badge: 'Admin',
+                        badgeColor: AlouteColors.warning,
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+                          );
+                        },
+                      ),
+                    ],
                     _buildDrawerItem(
                       icon: Icons.settings_outlined,
                       title: 'Cài đặt tài khoản',

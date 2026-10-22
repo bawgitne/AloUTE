@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/aloute_theme.dart';
 import '../../services/admin_service.dart';
+import '../../services/auth_service.dart';
 import 'admin_posts_screen.dart';
 import 'admin_reports_screen.dart';
 import 'admin_users_screen.dart';
@@ -18,11 +19,57 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _adminService.fetchOverview();
+    if (AuthService().currentUser?.isAdmin == true) {
+      _adminService.fetchOverview();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = AuthService().currentUser;
+    if (currentUser?.isAdmin != true) {
+      return Scaffold(
+        backgroundColor: AlouteColors.bgBody,
+        appBar: AppBar(
+          title: const Text('Bảng điều khiển Quản trị'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.security_outlined, size: 64, color: AlouteColors.danger),
+                const SizedBox(height: 16),
+                const Text(
+                  'Không có quyền truy cập',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AlouteColors.textPrimary),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Khu vực này chỉ dành riêng cho Quản trị viên hệ thống (SYSTEM_ADMIN).',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: AlouteColors.textSecondary),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AlouteColors.accent,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Quay lại'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: AlouteColors.bgBody,
       appBar: AppBar(

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/aloute_theme.dart';
 import '../../models/post.dart';
-import '../../services/auth_service.dart';
 import '../../widgets/aloute_avatar.dart';
 import '../../widgets/aloute_post_card.dart';
+
+import '../../services/post_service.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final Post post;
@@ -22,29 +23,38 @@ class PostDetailScreen extends StatefulWidget {
 class _PostDetailScreenState extends State<PostDetailScreen> {
   final TextEditingController _replyController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
-  final List<Map<String, dynamic>> _mockReplies = [
-    {
-      'authorName': 'Võ Hoàng Nam',
-      'username': 'nam.vo',
-      'faculty': 'Khoa CNTT',
-      'content': 'Đề thi trắc nghiệm 40 câu trong 50 phút nhé bạn ơi! Trọng tâm là phần Pipeline và Cache.',
-      'createdAt': '1 giờ trước',
-    },
-    {
-      'authorName': 'Nguyễn Thị Thu',
-      'username': 'thunguyen',
-      'faculty': 'Khoa CNTT',
-      'content': 'Mình có slide tổng hợp công thức tính CPI với Speedup nè, bạn inbox mình gửi qua cho nhé!',
-      'createdAt': '30 phút trước',
-    },
-  ];
+  final ScrollController _scrollController = ScrollController();
+  List<Map<String, dynamic>> _replies = [];
+  bool _isLoadingReplies = false;
+  bool _isSending = false;
 
   @override
   void initState() {
     super.initState();
+    _loadReplies();
     if (widget.focusReply) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _focusNode.requestFocus();
+      });
+    }
+  }
+
+  Future<void> _loadReplies() async {
+    setState(() => _isLoadingReplies = true);
+    final list = await PostService().getReplies(widget.post.id);
+    if (mounted) {
+      setState(() {
+        _replies = list;
+        _isLoadingReplies = false;
+      });
+    }
+  }
+
+  Future<void> _loadRepliesSilently() async {
+    final list = await PostService().getReplies(widget.post.id);
+    if (mounted && list.isNotEmpty) {
+      setState(() {
+        _replies = list;
       });
     }
   }
@@ -53,25 +63,66 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   void dispose() {
     _replyController.dispose();
     _focusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  void _sendReply() {
+  Future<void> _sendReply() async {
+    if (_isSending) return;
     final text = _replyController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng nhập nội dung bình luận!'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
 
-    final user = AuthService().currentUser;
-    setState(() {
-      _mockReplies.add({
-        'authorName': user?.displayName ?? 'Tôi',
-        'username': user?.username ?? 'me',
-        'faculty': user?.faculty ?? 'Khoa CNTT',
-        'content': text,
-        'createdAt': 'Vừa xong',
-      });
-      widget.post.replyCount++;
+    setState(() => _isSending = true);
+    final result = await PostService().createReply(widget.post.id, text);
+    if (!mounted) return;
+    setState(() => _isSending = false);
+
+    if (result.error == null) {
       _replyController.clear();
-    });
+      _focusNode.unfocus();
+
+      if (result.reply != null) {
+        setState(() {
+          _replies.add(result.reply!);
+          widget.post.replyCount++;
+        });
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 350),
+              curve: Curves.easeOut,
+            );
+          }
+        });
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã gửi bình luận thành công!'),
+          backgroundColor: AlouteColors.success,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      _loadRepliesSilently();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.error!),
+          backgroundColor: AlouteColors.danger,
+        ),
+      );
+    }
   }
 
   @override
@@ -85,12 +136,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         children: [
           Expanded(
             child: ListView(
+              controller: _scrollController,
               children: [
                 AloutePostCard(post: widget.post),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   child: Text(
-                    'Bình luận (${_mockReplies.length})',
+                    'Bình luận (${_replies.length})',
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -98,7 +150,23 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     ),
                   ),
                 ),
-                ..._mockReplies.map((reply) => _buildReplyItem(reply)),
+                if (_isLoadingReplies)
+                  const Padding(
+                    padding: EdgeInsets.all(24.0),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_replies.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(24.0),
+                    child: Center(
+                      child: Text(
+                        'Chưa có bình luận nào.',
+                        style: TextStyle(color: AlouteColors.textMuted),
+                      ),
+                    ),
+                  )
+                else
+                  ..._replies.map((reply) => _buildReplyItem(reply)),
               ],
             ),
           ),
@@ -108,7 +176,27 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
+  String _formatReplyTime(dynamic raw) {
+    if (raw == null) return 'Vừa xong';
+    final str = raw.toString();
+    if (str == 'Vừa xong' || str.isEmpty) return 'Vừa xong';
+    final dt = DateTime.tryParse(str);
+    if (dt == null) return str;
+    final diff = DateTime.now().difference(dt.toLocal());
+    if (diff.inSeconds < 60) return 'Vừa xong';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}p trước';
+    if (diff.inHours < 24) return '${diff.inHours}h trước';
+    if (diff.inDays < 7) return '${diff.inDays}d trước';
+    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
+  }
+
   Widget _buildReplyItem(Map<String, dynamic> reply) {
+    final authorName = reply['authorName']?.toString() ?? 'Người dùng';
+    final content = reply['content']?.toString() ?? '';
+    final createdAt = _formatReplyTime(reply['createdAt']);
+    final avatarUrl = reply['avatarUrl']?.toString();
+    final faculty = reply['faculty']?.toString() ?? '';
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       padding: const EdgeInsets.all(12),
@@ -120,7 +208,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AlouteAvatar(name: reply['authorName'] as String, size: 36),
+          AlouteAvatar(
+            name: authorName,
+            imageUrl: avatarUrl,
+            size: 36,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -129,19 +221,37 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 Row(
                   children: [
                     Text(
-                      reply['authorName'] as String,
+                      authorName,
                       style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                     ),
+                    if (faculty.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AlouteColors.accentSubtle,
+                          borderRadius: BorderRadius.circular(AlouteColors.radiusSm),
+                        ),
+                        child: Text(
+                          faculty,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AlouteColors.accent,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(width: 6),
                     Text(
-                      reply['createdAt'] as String,
+                      createdAt,
                       style: const TextStyle(fontSize: 11, color: AlouteColors.textMuted),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  reply['content'] as String,
+                  content,
                   style: const TextStyle(fontSize: 13, height: 1.4, color: AlouteColors.textPrimary),
                 ),
               ],
@@ -166,20 +276,47 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               child: TextField(
                 controller: _replyController,
                 focusNode: _focusNode,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _sendReply(),
+                enabled: !_isSending,
                 decoration: InputDecoration(
                   hintText: 'Viết bình luận của bạn...',
+                  hintStyle: const TextStyle(fontSize: 14, color: AlouteColors.textMuted),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  filled: true,
+                  fillColor: AlouteColors.bgBody,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AlouteColors.radiusFull),
                     borderSide: const BorderSide(color: AlouteColors.borderColor),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AlouteColors.radiusFull),
+                    borderSide: const BorderSide(color: AlouteColors.borderColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AlouteColors.radiusFull),
+                    borderSide: const BorderSide(color: AlouteColors.accent),
                   ),
                 ),
               ),
             ),
             const SizedBox(width: 8),
-            IconButton(
-              icon: const Icon(Icons.send, color: AlouteColors.accent),
-              onPressed: _sendReply,
+            Container(
+              decoration: const BoxDecoration(
+                color: AlouteColors.accent,
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: _isSending
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.send, color: Colors.white, size: 18),
+                onPressed: _isSending ? null : _sendReply,
+                tooltip: 'Gửi bình luận',
+              ),
             ),
           ],
         ),

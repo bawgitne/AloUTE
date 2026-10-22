@@ -11,7 +11,7 @@ class PostAuthor {
     required this.username,
     required this.displayName,
     this.avatarUrl,
-    this.faculty = 'Khoa CNTT',
+    this.faculty = '',
     this.classCode,
   });
 
@@ -21,8 +21,8 @@ class PostAuthor {
       username: json['username'] as String? ?? 'sinhvien',
       displayName: json['displayName'] as String? ?? json['username'] as String? ?? 'Sinh viên AloUTE',
       avatarUrl: json['avatarUrl'] as String?,
-      faculty: json['faculty'] as String? ?? json['department'] as String? ?? 'Khoa CNTT',
-      classCode: json['classCode'] as String? ?? 'K24',
+      faculty: json['faculty'] as String? ?? json['department'] as String? ?? '',
+      classCode: json['classCode'] as String?,
     );
   }
 }
@@ -115,25 +115,37 @@ class Post {
   });
 
   factory Post.fromJson(Map<String, dynamic> json) {
-    final rawMedia = json['mediaUrls'] as List<dynamic>? ?? [];
+    // Parse media from mediaUrls or media
+    final List<dynamic> rawMediaList = (json['mediaUrls'] as List<dynamic>?) ??
+        (json['media'] is List ? json['media'] as List<dynamic> : []);
+    final mediaUrls = rawMediaList.map((item) {
+      if (item is Map) return item['url']?.toString() ?? item['mediaUrl']?.toString() ?? '';
+      return item.toString();
+    }).where((s) => s.isNotEmpty).toList();
+
+    // Parse viewerState for like/bookmark
+    final viewerState = json['viewerState'] as Map<String, dynamic>?;
+    final isLiked = json['isLiked'] as bool? ?? (viewerState?['liked'] as bool? ?? false);
+    final isBookmarked = json['isBookmarked'] as bool? ?? (viewerState?['bookmarked'] as bool? ?? false);
+
     return Post(
       id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
       author: json['author'] != null
           ? PostAuthor.fromJson(json['author'] as Map<String, dynamic>)
           : PostAuthor(id: 0, username: 'anonymous', displayName: 'Người dùng'),
       content: json['content'] as String? ?? '',
-      mediaUrls: rawMedia.map((e) => e.toString()).toList(),
+      mediaUrls: mediaUrls,
       poll: json['poll'] != null ? PostPoll.fromJson(json['poll'] as Map<String, dynamic>) : null,
-      audience: json['audience'] as String? ?? 'PUBLIC',
+      audience: json['audience'] as String? ?? json['visibility'] as String? ?? 'PUBLIC',
       communityName: json['communityName'] as String?,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
           : DateTime.now(),
       likeCount: json['likeCount'] as int? ?? 0,
       replyCount: json['replyCount'] as int? ?? 0,
-      repostCount: json['repostCount'] as int? ?? 0,
-      isLiked: json['isLiked'] as bool? ?? false,
-      isBookmarked: json['isBookmarked'] as bool? ?? false,
+      repostCount: json['repostCount'] as int? ?? json['quoteCount'] as int? ?? 0,
+      isLiked: isLiked,
+      isBookmarked: isBookmarked,
     );
   }
 }

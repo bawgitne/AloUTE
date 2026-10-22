@@ -1279,6 +1279,12 @@ Domain/config khác nhau qua environment, không hardcode vào business code.
 
 Production container phải chạy đúng Spring profile production.
 
+Cloud Run dùng request-based billing chỉ cấp CPU đầy đủ trong khi xử lý request.
+Luồng registration OTP tuân theo `domain_system.md` §60.3: gửi sau commit và hoàn tất
+lần thử SMTP trước khi trả response, không phụ thuộc thread nền sau response.
+Không cần bật CPU always allocated hoặc minimum instances > 0 cho luồng OTP này.
+Không áp dụng bảo đảm này cho password reset: luồng đó hiện vẫn dùng `emailExecutor`.
+
 ---
 
 # 60. VPS DIRECTORY

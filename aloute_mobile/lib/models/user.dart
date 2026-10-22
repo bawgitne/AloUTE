@@ -12,6 +12,7 @@ class User {
   final int followingCount;
   final int postCount;
   final bool isFollowing;
+  final String role;
 
   User({
     required this.id,
@@ -27,7 +28,13 @@ class User {
     this.followingCount = 0,
     this.postCount = 0,
     this.isFollowing = false,
+    this.role = 'USER',
   });
+
+  bool get isAdmin =>
+      role.toUpperCase() == 'SYSTEM_ADMIN' ||
+      role.toUpperCase() == 'ROLE_SYSTEM_ADMIN' ||
+      role.toUpperCase() == 'ADMIN';
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
@@ -38,12 +45,13 @@ class User {
       avatarUrl: json['avatarUrl'] as String?,
       coverUrl: json['coverUrl'] as String?,
       bio: json['bio'] as String?,
-      faculty: json['faculty'] as String? ?? json['department'] as String? ?? 'Khoa Công nghệ Thông tin',
-      studentCode: json['studentCode'] as String? ?? '24110xxx',
+      faculty: json['faculty'] as String? ?? json['department'] as String?,
+      studentCode: json['studentCode'] as String?,
       followerCount: json['followerCount'] as int? ?? 0,
       followingCount: json['followingCount'] as int? ?? 0,
       postCount: json['postCount'] as int? ?? 0,
       isFollowing: json['isFollowing'] as bool? ?? false,
+      role: json['role'] as String? ?? 'USER',
     );
   }
 
@@ -62,6 +70,7 @@ class User {
       'followingCount': followingCount,
       'postCount': postCount,
       'isFollowing': isFollowing,
+      'role': role,
     };
   }
 }

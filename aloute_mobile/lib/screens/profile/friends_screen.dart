@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/aloute_theme.dart';
 import '../../models/user.dart';
+import '../../core/network/api_client.dart';
+import '../../services/auth_service.dart';
+import '../../widgets/aloute_avatar.dart';
 
 class FriendsScreen extends StatefulWidget {
   final String initialTab; // 'following' or 'followers'
@@ -13,62 +16,10 @@ class FriendsScreen extends StatefulWidget {
 
 class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-
-  final List<User> _followingUsers = [
-    User(
-      id: 24110300,
-      username: 'longle24',
-      displayName: 'Lê Hoàng Long',
-      faculty: 'Khoa Công nghệ Thông tin',
-      bio: 'Lập trình viên Flutter & Cloud. Thích đá bóng và nghe nhạc indie.',
-      avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-      followerCount: 210,
-      followingCount: 180,
-    ),
-    User(
-      id: 24110312,
-      username: 'maichi_k24',
-      displayName: 'Trần Thị Mai Chi',
-      faculty: 'Khoa Điện - Điện tử',
-      bio: 'Thành viên CLB Tiếng Anh ESC UTE. Đam mê IoT và Hệ thống thông minh.',
-      avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-      followerCount: 350,
-      followingCount: 120,
-    ),
-    User(
-      id: 24110450,
-      username: 'minhnhat_ute',
-      displayName: 'Võ Minh Nhật',
-      faculty: 'Khoa Cơ khí Chế tạo máy',
-      bio: 'Chế tạo robot Robocon. Chuyên gia SolidWorks & AutoCAD.',
-      avatarUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150',
-      followerCount: 180,
-      followingCount: 95,
-    ),
-  ];
-
-  final List<User> _followerUsers = [
-    User(
-      id: 24110300,
-      username: 'longle24',
-      displayName: 'Lê Hoàng Long',
-      faculty: 'Khoa Công nghệ Thông tin',
-      bio: 'Lập trình viên Flutter & Cloud. Thích đá bóng và nghe nhạc indie.',
-      avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-      followerCount: 210,
-      followingCount: 180,
-    ),
-    User(
-      id: 24110789,
-      username: 'quochuy_k24',
-      displayName: 'Đặng Quốc Huy',
-      faculty: 'Khoa Kinh tế',
-      bio: 'Quản trị kinh doanh & Khởi nghiệp đổi mới sáng tạo UTE.',
-      avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-      followerCount: 92,
-      followingCount: 140,
-    ),
-  ];
+  final ApiClient _api = ApiClient();
+  final List<User> _followingUsers = [];
+  final List<User> _followerUsers = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -78,6 +29,39 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
       vsync: this,
       initialIndex: widget.initialTab == 'followers' ? 1 : 0,
     );
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final userId = AuthService().currentUser?.id;
+    if (userId == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      final resFollowing = await _api.get<dynamic>('/users/$userId/following');
+      if (resFollowing.success && resFollowing.data != null) {
+        _followingUsers.clear();
+        final rawList = resFollowing.data is List ? resFollowing.data as List : (resFollowing.data['content'] as List? ?? []);
+        for (var item in rawList) {
+          _followingUsers.add(User.fromJson(item as Map<String, dynamic>));
+        }
+      }
+
+      final resFollowers = await _api.get<dynamic>('/users/$userId/followers');
+      if (resFollowers.success && resFollowers.data != null) {
+        _followerUsers.clear();
+        final rawList = resFollowers.data is List ? resFollowers.data as List : (resFollowers.data['content'] as List? ?? []);
+        for (var item in rawList) {
+          _followerUsers.add(User.fromJson(item as Map<String, dynamic>));
+        }
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -177,16 +161,18 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
 
           // Tab Views
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                // Following List
-                _buildUserList(_followingUsers, isFollowingTab: true),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      // Following List
+                      _buildUserList(_followingUsers, isFollowingTab: true),
 
-                // Followers List
-                _buildUserList(_followerUsers, isFollowingTab: false),
-              ],
-            ),
+                      // Followers List
+                      _buildUserList(_followerUsers, isFollowingTab: false),
+                    ],
+                  ),
           ),
         ],
       ),
@@ -238,11 +224,10 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
           ),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundImage: NetworkImage(
-                  u.avatarUrl ?? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-                ),
+              AlouteAvatar(
+                name: u.displayName,
+                imageUrl: u.avatarUrl,
+                size: 48,
               ),
               const SizedBox(width: 12),
               Expanded(

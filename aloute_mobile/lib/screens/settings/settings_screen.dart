@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/aloute_theme.dart';
-import '../../models/user.dart';
 import '../../services/auth_service.dart';
 import '../auth/login_screen.dart';
 import '../profile/edit_profile_screen.dart';
@@ -86,14 +85,7 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = AuthService().currentUser ??
-        User(
-          id: 24110166,
-          username: 'nguyenvanan',
-          displayName: 'Nguyễn Văn An',
-          email: '24110166@student.hcmute.edu.vn',
-          faculty: 'Khoa Công nghệ Thông tin',
-        );
+    final user = AuthService().currentUser;
 
     return Scaffold(
       backgroundColor: AlouteColors.bgBody,
@@ -162,12 +154,14 @@ class SettingsScreen extends StatelessWidget {
             title: 'Hồ sơ cá nhân',
             subtitle: 'Cập nhật tên hiển thị, tiểu sử, ảnh đại diện và thông tin lớp',
             trailing: OutlinedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => EditProfileScreen(user: user)),
-                );
-              },
+              onPressed: user == null
+                  ? null
+                  : () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => EditProfileScreen(user: user)),
+                      );
+                    },
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AlouteColors.accent),
                 foregroundColor: AlouteColors.accent,

@@ -1,9 +1,12 @@
 /// API Constants and Endpoints matching skills/aloute-openapi.yaml
 class ApiConstants {
+  /// Default base URL for production backend (Cloud Run via justneed.food)
+  static const String defaultProdUrl = 'https://justneed.food/api';
+  /// Fallback direct Cloud Run URL
+  static const String defaultCloudRunUrl = 'https://aloute-app-536335604006.asia-southeast1.run.app/api';
   /// Default base URL for local development
-  /// When debugging via USB/Wi-Fi with `adb reverse tcp:8080 tcp:8080`, http://localhost:8080/api works directly.
-  /// Cloudflare worker backend fallback: https://aloute-backend-worker.bawg.workers.dev/api
   static const String defaultLocalUrl = 'http://localhost:8080/api';
+  /// Cloudflare worker backend URL
   static const String defaultWorkerUrl = 'https://aloute-backend-worker.bawg.workers.dev/api';
 
   // Auth endpoints
@@ -44,13 +47,14 @@ class ApiConstants {
   static String communityById(int id) => '/communities/$id';
   static String communityMembers(int id) => '/communities/$id/members';
   static String communityPosts(int id) => '/communities/$id/posts';
-  static String joinCommunity(int id) => '/communities/$id/members/me';
+  static String joinCommunity(int id) => '/communities/$id/join';
+  static String leaveCommunity(int id) => '/communities/$id/members/me';
 
   // Topics endpoints
   static const String topics = '/topics';
   static String topicById(int id) => '/topics/$id';
   static String topicPosts(int id) => '/topics/$id/posts';
-  static String followTopic(int id) => '/topics/$id/followers/me';
+  static String followTopic(int id) => '/users/me/topics/$id';
 
   // Messaging endpoints
   static const String conversations = '/conversations';
@@ -67,15 +71,17 @@ class ApiConstants {
   static String userPosts(int id) => '/users/$id/posts';
   static String userFollowers(int id) => '/users/$id/followers';
   static String userFollowing(int id) => '/users/$id/following';
-  static String followUser(int id) => '/users/$id/followers/me';
+  static String followUser(int id) => '/social/follows/$id';
   static const String updateProfile = '/users/me/profile';
 
-  // Admin endpoints (for ROLE_ADMIN)
+  // Admin endpoints (for ROLE_SYSTEM_ADMIN)
   static const String adminOverview = '/admin/overview';
   static const String adminReports = '/admin/reports';
-  static String adminReportAction(int id) => '/admin/reports/$id';
+  static String adminReportAction(int id) => '/admin/reports/$id/decisions';
   static const String adminUsers = '/admin/users';
   static String adminUserById(int id) => '/admin/users/$id';
   static const String adminPosts = '/admin/posts';
   static String adminPostById(int id) => '/admin/posts/$id';
+  static String adminPostRemove(int id) => '/admin/posts/$id/remove';
+  static String adminPostRestore(int id) => '/admin/posts/$id/restore';
 }

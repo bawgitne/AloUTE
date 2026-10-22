@@ -25,25 +25,27 @@ class PostService extends ChangeNotifier {
     }
 
     try {
-      final response = await _api.get<List<dynamic>>(
-        ApiConstants.homeFeed,
-        parser: (data) => data as List<dynamic>,
-      );
+      final response = await _api.get<dynamic>(ApiConstants.homeFeed);
 
       if (response.success && response.data != null) {
-        final parsed = response.data!
+        final rawData = response.data;
+        final List<dynamic> list = rawData is List
+            ? rawData
+            : (rawData is Map && rawData['content'] is List
+                ? rawData['content'] as List<dynamic>
+                : []);
+
+        final parsed = list
             .map((item) => Post.fromJson(item as Map<String, dynamic>))
             .toList();
+        _homePosts.clear();
         _homePosts.addAll(parsed);
         _isLoading = false;
         notifyListeners();
         return;
       }
-    } catch (_) {}
-
-    // Fallback Mock data: Realistic HCMUTE Academic Campus Feed
-    if (_homePosts.isEmpty) {
-      _homePosts.addAll(_generateMockCampusPosts());
+    } catch (e) {
+      debugPrint('[PostService] Fetch home feed failed: $e');
     }
 
     _isLoading = false;
@@ -57,10 +59,12 @@ class PostService extends ChangeNotifier {
     String audience = 'PUBLIC',
   }) async {
     try {
+      final validAudience = (audience == 'FOLLOWERS') ? 'FOLLOWERS' : 'PUBLIC';
       final body = {
-        'content': content,
-        'mediaUrls': mediaUrls,
-        'audience': audience,
+        'content': content.trim(),
+        'visibility': validAudience,
+        'allowReply': true,
+        'allowQuote': true,
       };
       final response = await _api.post<Map<String, dynamic>>(
         ApiConstants.posts,
@@ -73,27 +77,103 @@ class PostService extends ChangeNotifier {
         notifyListeners();
         return true;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[PostService] Create post failed: $e');
+    }
 
-    // Local state insertion
-    final newMockPost = Post(
-      id: DateTime.now().millisecondsSinceEpoch,
-      author: PostAuthor(
-        id: 24110166,
-        username: 'nguyenvanan',
-        displayName: 'Nguyễn Văn An',
-        faculty: 'Khoa Công nghệ Thông tin',
-        classCode: '24110CLA',
-      ),
-      content: content,
-      mediaUrls: mediaUrls,
-      poll: poll,
-      audience: audience,
-      createdAt: DateTime.now(),
-    );
-    _homePosts.insert(0, newMockPost);
-    notifyListeners();
-    return true;
+    return false;
+  }
+
+  Future<List<Map<String, dynamic>>> getReplies(int postId) async {
+    try {
+      final response = await _api.get<dynamic>(ApiConstants.postReplies(postId));
+      if (response.success && response.data != null) {
+        final rawData = response.data;
+        final List<dynamic> list = rawData is List
+            ? rawData
+            : (rawData is Map && rawData['content'] is List
+                ? rawData['content'] as List<dynamic>
+                : (rawData is Map && rawData['data'] is List
+                    ? rawData['data'] as List<dynamic>
+                    : []));
+
+        return list.map((item) {
+          final map = item is Map ? Map<String, dynamic>.from(item) : <String, dynamic>{};
+          final author = map['author'] is Map
+              ? Map<String, dynamic>.from(map['author'] as Map)
+              : <String, dynamic>{};
+          return {
+            'id': map['id'],
+            'authorName': author['displayName']?.toString() ??
+                author['username']?.toString() ??
+                'Người dùng',
+            'username': author['username']?.toString() ?? 'user',
+            'faculty': author['faculty']?.toString() ?? '',
+            'avatarUrl': author['avatarUrl']?.toString(),
+            'content': map['content']?.toString() ?? '',
+            'createdAt': map['createdAt']?.toString() ?? 'Vừa xong',
+          };
+        }).toList();
+      }
+    } catch (e) {
+      debugPrint('[PostService] Get replies failed: $e');
+    }
+    return [];
+  }
+
+  Future<({String? error, Map<String, dynamic>? reply})> createReply(
+    int postId,
+    String content,
+  ) async {
+    try {
+      final response = await _api.post<dynamic>(
+        ApiConstants.postReplies(postId),
+        body: {
+          'content': content.trim(),
+          'visibility': 'PUBLIC',
+          'allowReply': true,
+          'allowQuote': true,
+        },
+      );
+      if (response.success) {
+        Map<String, dynamic>? replyMap;
+        if (response.data != null && response.data is Map) {
+          final map = Map<String, dynamic>.from(response.data as Map);
+          final author = map['author'] is Map
+              ? Map<String, dynamic>.from(map['author'] as Map)
+              : <String, dynamic>{};
+          replyMap = {
+            'id': map['id'],
+            'authorName': author['displayName']?.toString() ??
+                author['username']?.toString() ??
+                'Tôi',
+            'username': author['username']?.toString() ?? 'user',
+            'faculty': author['faculty']?.toString() ?? '',
+            'avatarUrl': author['avatarUrl']?.toString(),
+            'content': map['content']?.toString() ?? content.trim(),
+            'createdAt': 'Vừa xong',
+          };
+        } else {
+          replyMap = {
+            'id': DateTime.now().millisecondsSinceEpoch,
+            'authorName': 'Tôi',
+            'username': 'me',
+            'faculty': '',
+            'avatarUrl': null,
+            'content': content.trim(),
+            'createdAt': 'Vừa xong',
+          };
+        }
+        return (error: null, reply: replyMap);
+      }
+      return (
+        error: response.error?.message ?? 'Không thể gửi bình luận. Vui lòng thử lại!',
+        reply: null
+      );
+    } catch (e) {
+      debugPrint('[PostService] Create reply failed: $e');
+      return (error: 'Lỗi gửi bình luận: $e', reply: null);
+    }
   }
 
   void toggleLike(int postId) {
@@ -104,9 +184,15 @@ class PostService extends ChangeNotifier {
       post.likeCount += post.isLiked ? 1 : -1;
       notifyListeners();
 
-      _api.get(ApiConstants.postLikes(postId)).catchError(
-        (_) => ApiResponse<dynamic>(success: false),
-      );
+      if (post.isLiked) {
+        _api.put(ApiConstants.postLikes(postId)).catchError(
+          (_) => ApiResponse<dynamic>(success: false),
+        );
+      } else {
+        _api.delete(ApiConstants.postLikes(postId)).catchError(
+          (_) => ApiResponse<dynamic>(success: false),
+        );
+      }
     }
   }
 
@@ -117,9 +203,15 @@ class PostService extends ChangeNotifier {
       post.isBookmarked = !post.isBookmarked;
       notifyListeners();
 
-      _api.get(ApiConstants.postBookmarks(postId)).catchError(
-        (_) => ApiResponse<dynamic>(success: false),
-      );
+      if (post.isBookmarked) {
+        _api.put(ApiConstants.postBookmarks(postId)).catchError(
+          (_) => ApiResponse<dynamic>(success: false),
+        );
+      } else {
+        _api.delete(ApiConstants.postBookmarks(postId)).catchError(
+          (_) => ApiResponse<dynamic>(success: false),
+        );
+      }
     }
   }
 
@@ -135,13 +227,6 @@ class PostService extends ChangeNotifier {
       }
     } catch (_) {}
 
-    // Fallback: Return locally bookmarked posts, or ensure at least one demo bookmarked post
-    if (_homePosts.any((p) => p.isBookmarked)) {
-      return savedPosts;
-    }
-    if (_homePosts.isNotEmpty) {
-      _homePosts[0].isBookmarked = true;
-    }
     return savedPosts;
   }
 
@@ -180,71 +265,5 @@ class PostService extends ChangeNotifier {
         notifyListeners();
       }
     }
-  }
-
-  List<Post> _generateMockCampusPosts() {
-    return [
-      Post(
-        id: 101,
-        author: PostAuthor(
-          id: 1,
-          username: 'hitc.club',
-          displayName: 'CLB Tin Học HITC - HCMUTE',
-          faculty: 'Khoa CNTT',
-          classCode: 'Ban Chủ Nhiệm',
-        ),
-        content:
-            '🔥 [TUYỂN THÀNH VIÊN GEN 2026] Câu lạc bộ Tin học HITC chính thức mở đơn đăng ký cho toàn thể sinh viên Trường ĐH Sư phạm Kỹ thuật TP.HCM!\n\nNếu bạn đam mê Web, Mobile, AI hay Hệ thống Nhúng, hãy gia nhập ngay ngôi nhà chung của các coder UTE nhé! Link đăng ký tại Bio.',
-        audience: 'PUBLIC',
-        communityName: 'CLB Tin học HITC',
-        createdAt: DateTime.now().subtract(const Duration(minutes: 25)),
-        likeCount: 42,
-        replyCount: 15,
-        repostCount: 8,
-      ),
-      Post(
-        id: 102,
-        author: PostAuthor(
-          id: 2,
-          username: 'tranthimai',
-          displayName: 'Trần Thị Mai',
-          faculty: 'Khoa Điện - Điện tử',
-          classCode: '23145CLC',
-        ),
-        content:
-            'Mọi người cho mình hỏi kỳ này môn Kiến trúc Máy tính thầy Văn thi trắc nghiệm hay tự luận vậy ạ? Có bạn nào có đề cương ôn tập không cho mình xin với!',
-        poll: PostPoll(
-          id: 1,
-          question: 'Hình thức thi Kiến trúc Máy tính kỳ này?',
-          options: [
-            PollOption(id: 1, text: 'Trắc nghiệm 100% trên máy', voteCount: 58),
-            PollOption(id: 2, text: 'Tự luận viết code ASM', voteCount: 24),
-            PollOption(id: 3, text: 'Làm bài tập lớn / Project', voteCount: 19),
-          ],
-          totalVotes: 101,
-        ),
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-        likeCount: 19,
-        replyCount: 31,
-        repostCount: 3,
-      ),
-      Post(
-        id: 103,
-        author: PostAuthor(
-          id: 3,
-          username: 'lequocbao',
-          displayName: 'Lê Quốc Bảo',
-          faculty: 'Khoa Cơ khí Chế tạo máy',
-          classCode: '22110CK',
-        ),
-        content:
-            'Hoàn thành buổi bảo vệ Đồ án môn học đầu tiên tại xưởng A1! Cảm ơn thầy cô và các anh em trong nhóm đã đồng hành suốt học kỳ vừa qua. Tinh thần Kỹ thuật UTE mãi đỉnh! 🛠️📐',
-        createdAt: DateTime.now().subtract(const Duration(hours: 5)),
-        likeCount: 87,
-        replyCount: 12,
-        repostCount: 5,
-        isLiked: true,
-      ),
-    ];
   }
 }

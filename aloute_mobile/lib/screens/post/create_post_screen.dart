@@ -39,7 +39,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     if (text.isEmpty) return;
 
     setState(() => _isSubmitting = true);
-    await _postService.createPost(
+    final success = await _postService.createPost(
       text,
       poll: _attachedPoll,
       audience: _selectedAudience,
@@ -47,13 +47,22 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
     if (mounted) {
       setState(() => _isSubmitting = false);
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đã đăng bài viết thành công!'),
-          backgroundColor: AlouteColors.success,
-        ),
-      );
+      if (success) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã đăng bài viết thành công!'),
+            backgroundColor: AlouteColors.success,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đăng bài viết thất bại. Vui lòng thử lại!'),
+            backgroundColor: AlouteColors.danger,
+          ),
+        );
+      }
     }
   }
 
@@ -183,7 +192,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                           items: const [
                             DropdownMenuItem(value: 'PUBLIC', child: Text('🌍 Công khai')),
                             DropdownMenuItem(value: 'FOLLOWERS', child: Text('👥 Người theo dõi')),
-                            DropdownMenuItem(value: 'COMMUNITY', child: Text('🏛️ Cộng đồng')),
                           ],
                           onChanged: (val) {
                             if (val != null) setState(() => _selectedAudience = val);
