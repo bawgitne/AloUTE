@@ -141,7 +141,7 @@ class AdminService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> removePost(int postId) async {
+  Future<void> removePost(int postId, {String reason = 'SPAM', String reasonDetail = 'Gỡ bỏ nội dung vi phạm tiêu chuẩn cộng đồng'}) async {
     final index = _posts.indexWhere((p) => p.id == postId);
     if (index != -1) {
       _posts[index].status = 'REMOVED';
@@ -149,7 +149,13 @@ class AdminService extends ChangeNotifier {
     }
 
     try {
-      await _api.delete(ApiConstants.adminPostById(postId));
+      await _api.post(
+        ApiConstants.adminPostRemove(postId),
+        body: {
+          'reasonCode': reason,
+          'reasonDetail': reasonDetail,
+        },
+      );
     } catch (_) {}
   }
 }

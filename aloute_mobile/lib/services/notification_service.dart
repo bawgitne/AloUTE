@@ -43,7 +43,7 @@ class NotificationService extends ChangeNotifier {
       _notifications[index].isRead = true;
       notifyListeners();
       try {
-        await _api.put('/notifications/$notificationId/read');
+        await _api.patch('/notifications/$notificationId/read');
       } catch (_) {}
     }
   }
@@ -55,7 +55,7 @@ class NotificationService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _api.put('/notifications/read-all');
+      await _api.patch('/notifications/read-all');
     } catch (_) {}
   }
 }
