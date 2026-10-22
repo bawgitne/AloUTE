@@ -20,9 +20,12 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
@@ -145,12 +148,28 @@ class MySql8RevocationVerificationTest {
     }
 
     private static final int MAX_DIAGNOSTIC_BYTES = 256 * 1024; // 256 KiB cap
+    private static final int HALF_CAP_BYTES = 128 * 1024;       // 128 KiB each for head and tail
     private static final int MAX_DIAGNOSTIC_LINES = 500;
+    private static final int MAX_SECTION_LINES = 250;           // max 250 lines from head, 250 from tail
     private static final int MAX_LINE_LENGTH = 512;
     private static final int MAX_CAUSAL_DEPTH = 5;
 
     private static final Pattern VALID_EXCEPTION_CLASS_PATTERN =
             Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*(?:\\.[a-zA-Z_][a-zA-Z0-9_]*)*\\.[A-Z][a-zA-Z0-9_]*(?:Exception|Error)$");
+    private static final Pattern SQL_STATE_PATTERN =
+            Pattern.compile("(?i)(?:SQLState|SQL\\s*State)\\s*[:=]?\\s*([A-Z0-9]{5})");
+    private static final Pattern VENDOR_CODE_PATTERN =
+            Pattern.compile("(?i)(?:SQL\\s*Error|VendorError|Error\\s*Code|Error)\\s*[:=]?\\s*([0-9]{1,6})");
+    private static final Pattern DDL_COMMAND_PATTERN =
+            Pattern.compile("(?i)Error executing DDL\\s*\"([^\"]+)\"|Unsuccessful:\\s*([^;\\r\\n]+)");
+    private static final Pattern DDL_TABLE_PATTERN =
+            Pattern.compile("(?i)\\b(?:create|alter|drop)\\s+table\\s+(?:if\\s+exists\\s+)?([a-zA-Z0-9_]{1,64})|\\b(?:create\\s+(?:unique\\s+)?index\\s+[a-zA-Z0-9_]+\\s+on)\\s+([a-zA-Z0-9_]{1,64})");
+    private static final Pattern DDL_COLUMN_PATTERN =
+            Pattern.compile("(?i)(?:\\bnear\\s+['`\"]?([a-zA-Z0-9_]{1,64})|\\bcolumn\\s+['`\"]?([a-zA-Z0-9_]{1,64}))");
+    private static final Pattern FATAL_ANCHOR_PATTERN =
+            Pattern.compile("(?i)Application run failed|APPLICATION FAILED TO START|Exception in thread \"main\"|Uncaught exception");
+    private static final Pattern VALID_IDENTIFIER_PATTERN =
+            Pattern.compile("^[a-zA-Z0-9_]{1,64}$");
 
     private static final Set<String> ALLOWLISTED_PROPERTY_NAMES = Set.of(
             "aloute.auth.registration-otp-secret",
@@ -166,9 +185,11 @@ class MySql8RevocationVerificationTest {
             "spring.datasource.password",
             "spring.datasource.url",
             "spring.datasource.username",
+            "spring.h2.console.enabled",
             "spring.jpa.database-platform",
             "spring.jpa.hibernate.ddl-auto",
             "spring.jpa.properties.hibernate.dialect",
+            "spring.jpa.properties.hibernate.hbm2ddl.halt_on_error",
             "spring.profiles.active"
     );
 
@@ -179,8 +200,34 @@ class MySql8RevocationVerificationTest {
             String primaryException,
             String rootCauseException,
             List<String> causalChain,
-            List<String> matchedProperties
+            List<String> matchedProperties,
+            String firstDdlExceptionClass,
+            String firstDdlSqlState,
+            Integer firstDdlVendorCode,
+            String firstDdlTable,
+            String firstDdlColumn,
+            String firstDdlOperation,
+            String finalFatalException,
+            String finalFatalRootCause,
+            List<String> finalFatalChain,
+            boolean ddlCausedFinalExit,
+            boolean truncated
     ) {
+        public ChildProcessDiagnostic(
+                String stage,
+                int exitCode,
+                String category,
+                String primaryException,
+                String rootCauseException,
+                List<String> causalChain,
+                List<String> matchedProperties
+        ) {
+            this(stage, exitCode, category, primaryException, rootCauseException, causalChain, matchedProperties,
+                    null, null, null, null, null, null,
+                    null, null, List.of(),
+                    false, false);
+        }
+
         public String formatSummary() {
             StringBuilder sb = new StringBuilder();
             sb.append("[CHILD PROCESS DIAGNOSTIC]\n");
@@ -196,6 +243,26 @@ class MySql8RevocationVerificationTest {
             if (causalChain != null && !causalChain.isEmpty()) {
                 sb.append("  causalChain: ").append(String.join(" -> ", causalChain)).append("\n");
             }
+            if (firstDdlOperation != null) {
+                sb.append("  firstDdlFailure:\n");
+                sb.append("    operation: ").append(firstDdlOperation).append("\n");
+                if (firstDdlTable != null) sb.append("    table: ").append(firstDdlTable).append("\n");
+                if (firstDdlColumn != null) sb.append("    column: ").append(firstDdlColumn).append("\n");
+                sb.append("    sqlState: ").append(firstDdlSqlState != null ? firstDdlSqlState : "UNVERIFIED").append("\n");
+                sb.append("    vendorCode: ").append(firstDdlVendorCode != null ? String.valueOf(firstDdlVendorCode) : "UNVERIFIED").append("\n");
+                sb.append("    exceptionClass: ").append(firstDdlExceptionClass != null ? firstDdlExceptionClass : "UNVERIFIED").append("\n");
+            }
+            if (finalFatalChain != null && !finalFatalChain.isEmpty() && !"UNKNOWN".equals(finalFatalException)) {
+                sb.append("  finalFatalCause:\n");
+                if (finalFatalException != null) sb.append("    exception: ").append(finalFatalException).append("\n");
+                if (finalFatalRootCause != null) sb.append("    rootCause: ").append(finalFatalRootCause).append("\n");
+                sb.append("    chain: ").append(String.join(" -> ", finalFatalChain)).append("\n");
+                sb.append("    ddlCausedFinalExit: ").append(ddlCausedFinalExit).append("\n");
+            } else {
+                sb.append("  finalFatalCause:\n");
+                sb.append("    status: UNKNOWN\n");
+                sb.append("    ddlCausedFinalExit: false\n");
+            }
             if (matchedProperties != null && !matchedProperties.isEmpty()) {
                 sb.append("  matchedProperties: ").append(String.join(", ", matchedProperties)).append("\n");
             }
@@ -203,6 +270,9 @@ class MySql8RevocationVerificationTest {
         }
 
         public String toCompactLine() {
+            if ("LOG_UNREADABLE_OR_EMPTY".equals(category)) {
+                return "[category=LOG_UNREADABLE_OR_EMPTY]";
+            }
             StringBuilder sb = new StringBuilder();
             sb.append("[category=").append(category);
             if (rootCauseException != null) {
@@ -211,12 +281,178 @@ class MySql8RevocationVerificationTest {
             if (causalChain != null && causalChain.size() > 1) {
                 sb.append(", chain=").append(String.join("->", causalChain));
             }
+            if (firstDdlOperation != null) {
+                sb.append(", firstDdl=").append(firstDdlOperation);
+                if (firstDdlTable != null) {
+                    sb.append("(").append(firstDdlTable);
+                    if (firstDdlColumn != null) sb.append(",col=").append(firstDdlColumn);
+                    sb.append(",sqlState=").append(firstDdlSqlState != null ? firstDdlSqlState : "UNVERIFIED");
+                    sb.append(",vendorCode=").append(firstDdlVendorCode != null ? firstDdlVendorCode : "UNVERIFIED");
+                    sb.append(")");
+                }
+            }
+            if (finalFatalChain != null && !finalFatalChain.isEmpty() && !"UNKNOWN".equals(finalFatalException)) {
+                sb.append(", finalFatal=").append(String.join("->", finalFatalChain));
+                sb.append(", ddlCausedExit=").append(ddlCausedFinalExit);
+            } else {
+                sb.append(", finalFatal=UNKNOWN, ddlCausedExit=false");
+            }
             if (matchedProperties != null && !matchedProperties.isEmpty()) {
                 sb.append(", props=").append(String.join(",", matchedProperties));
             }
             sb.append("]");
             return sb.toString();
         }
+    }
+
+    static boolean isDdlExceptionChain(List<String> chain) {
+        if (chain == null) return false;
+        for (String c : chain) {
+            if (isDdlExceptionClass(c)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static boolean isDdlExceptionClass(String className) {
+        if (className == null) return false;
+        return className.contains("SQLSyntaxErrorException")
+                || className.contains("CommandAcceptanceException")
+                || className.contains("SchemaManagementException")
+                || className.contains("BadSqlGrammarException")
+                || className.contains("SQLException");
+    }
+
+    static String determineDdlOperation(String cmd) {
+        if (cmd == null) return "UNKNOWN_DDL";
+        String lower = cmd.trim().toLowerCase(Locale.ROOT);
+        if (lower.startsWith("create table")) return "CREATE_TABLE";
+        if (lower.startsWith("alter table")) return "ALTER_TABLE";
+        if (lower.startsWith("drop table")) return "DROP_TABLE";
+        if (lower.startsWith("create index") || lower.startsWith("create unique index")) return "CREATE_INDEX";
+        return "UNKNOWN_DDL";
+    }
+
+    static String extractDdlTable(String cmd) {
+        if (cmd == null) return null;
+        Matcher m = DDL_TABLE_PATTERN.matcher(cmd);
+        if (m.find()) {
+            String tbl = m.group(1) != null ? m.group(1) : m.group(2);
+            if (tbl != null && VALID_IDENTIFIER_PATTERN.matcher(tbl).matches()) {
+                return tbl;
+            }
+        }
+        return null;
+    }
+
+    static String extractDdlColumn(String text) {
+        if (text == null) return null;
+        Matcher m = DDL_COLUMN_PATTERN.matcher(text);
+        if (m.find()) {
+            String col = m.group(1) != null ? m.group(1) : m.group(2);
+            if (col != null && VALID_IDENTIFIER_PATTERN.matcher(col).matches() && !isSqlKeyword(col)) {
+                return col;
+            }
+        }
+        return null;
+    }
+
+    static boolean isSqlKeyword(String identifier) {
+        if (identifier == null) return false;
+        String upper = identifier.toUpperCase(Locale.ROOT);
+        return upper.equals("BIGINT") || upper.equals("VARCHAR") || upper.equals("INT")
+                || upper.equals("NULL") || upper.equals("NOT") || upper.equals("DEFAULT")
+                || upper.equals("PRIMARY") || upper.equals("KEY") || upper.equals("TABLE")
+                || upper.equals("LINE");
+    }
+
+    static boolean isExceptionLine(String trimmed) {
+        return trimmed.startsWith("org.") || trimmed.startsWith("com.") || trimmed.startsWith("java.")
+                || trimmed.startsWith("jakarta.") || trimmed.contains("Exception:") || trimmed.contains("Error:");
+    }
+
+    static record BoundedLogSections(
+            List<String> headLines,
+            List<String> tailLines,
+            boolean truncated
+    ) {}
+
+    static BoundedLogSections readBoundedHeadAndTail(Path logFile) throws IOException {
+        long fileSize = Files.size(logFile);
+        if (fileSize == 0) {
+            return new BoundedLogSections(List.of(), List.of(), false);
+        }
+
+        if (fileSize <= MAX_DIAGNOSTIC_BYTES) {
+            byte[] bytes = new byte[(int) fileSize];
+            int read;
+            try (InputStream in = Files.newInputStream(logFile)) {
+                read = in.readNBytes(bytes, 0, (int) fileSize);
+            }
+            String content = new String(bytes, 0, read, StandardCharsets.UTF_8);
+            String[] allRaw = content.split("\\R");
+
+            if (allRaw.length <= MAX_DIAGNOSTIC_LINES) {
+                List<String> bounded = new ArrayList<>(allRaw.length);
+                for (String raw : allRaw) {
+                    bounded.add(raw.length() > MAX_LINE_LENGTH ? raw.substring(0, MAX_LINE_LENGTH) : raw);
+                }
+                return new BoundedLogSections(bounded, bounded, false);
+            }
+
+            List<String> headLines = new ArrayList<>(MAX_SECTION_LINES);
+            for (int i = 0; i < Math.min(MAX_SECTION_LINES, allRaw.length); i++) {
+                String raw = allRaw[i];
+                headLines.add(raw.length() > MAX_LINE_LENGTH ? raw.substring(0, MAX_LINE_LENGTH) : raw);
+            }
+
+            List<String> tailLines = new ArrayList<>(MAX_SECTION_LINES);
+            int tailStart = Math.max(0, allRaw.length - MAX_SECTION_LINES);
+            for (int i = tailStart; i < allRaw.length; i++) {
+                String raw = allRaw[i];
+                tailLines.add(raw.length() > MAX_LINE_LENGTH ? raw.substring(0, MAX_LINE_LENGTH) : raw);
+            }
+
+            return new BoundedLogSections(headLines, tailLines, true);
+        }
+
+        byte[] headBytes = new byte[HALF_CAP_BYTES];
+        byte[] tailBytes = new byte[HALF_CAP_BYTES];
+        int headRead;
+        int tailRead;
+
+        try (FileChannel channel = FileChannel.open(logFile, StandardOpenOption.READ)) {
+            channel.position(0);
+            ByteBuffer headBuf = ByteBuffer.wrap(headBytes);
+            while (headBuf.hasRemaining() && channel.read(headBuf) > 0) {}
+            headRead = headBuf.position();
+
+            long tailPosition = Math.max(0, fileSize - HALF_CAP_BYTES);
+            channel.position(tailPosition);
+            ByteBuffer tailBuf = ByteBuffer.wrap(tailBytes);
+            while (tailBuf.hasRemaining() && channel.read(tailBuf) > 0) {}
+            tailRead = tailBuf.position();
+        }
+
+        String headContent = new String(headBytes, 0, headRead, StandardCharsets.UTF_8);
+        String[] rawHead = headContent.split("\\R");
+        List<String> headLines = new ArrayList<>(MAX_SECTION_LINES);
+        for (int i = 0; i < Math.min(MAX_SECTION_LINES, rawHead.length); i++) {
+            String raw = rawHead[i];
+            headLines.add(raw.length() > MAX_LINE_LENGTH ? raw.substring(0, MAX_LINE_LENGTH) : raw);
+        }
+
+        String tailContent = new String(tailBytes, 0, tailRead, StandardCharsets.UTF_8);
+        String[] rawTail = tailContent.split("\\R");
+        List<String> tailLines = new ArrayList<>(MAX_SECTION_LINES);
+        int tailStart = Math.max(0, rawTail.length - MAX_SECTION_LINES);
+        for (int i = tailStart; i < rawTail.length; i++) {
+            String raw = rawTail[i];
+            tailLines.add(raw.length() > MAX_LINE_LENGTH ? raw.substring(0, MAX_LINE_LENGTH) : raw);
+        }
+
+        return new BoundedLogSections(headLines, tailLines, true);
     }
 
     static String extractCandidateExceptionClass(String trimmed) {
@@ -240,50 +476,165 @@ class MySql8RevocationVerificationTest {
             return new ChildProcessDiagnostic(stage, exitCode, "LOG_UNREADABLE_OR_EMPTY", null, null, List.of(), List.of());
         }
 
+        BoundedLogSections sections;
+        try {
+            sections = readBoundedHeadAndTail(logFile);
+        } catch (IOException e) {
+            return new ChildProcessDiagnostic(stage, exitCode, "LOG_UNREADABLE_OR_EMPTY", null, null, List.of(), List.of());
+        }
+
+        if (sections.headLines().isEmpty() && sections.tailLines().isEmpty()) {
+            return new ChildProcessDiagnostic(stage, exitCode, "LOG_UNREADABLE_OR_EMPTY", null, null, List.of(), List.of());
+        }
+
         String primaryException = null;
         String rootCauseException = null;
         List<String> causalChain = new ArrayList<>();
         Set<String> matchedProperties = new TreeSet<>();
         StringBuilder privateClues = new StringBuilder();
 
-        try (InputStream in = Files.newInputStream(logFile)) {
-            byte[] boundedBytes = in.readNBytes(MAX_DIAGNOSTIC_BYTES);
-            String content = new String(boundedBytes, StandardCharsets.UTF_8);
-            String[] rawLines = content.split("\\R", MAX_DIAGNOSTIC_LINES + 1);
+        for (String rawLine : sections.headLines()) {
+            String trimmed = rawLine.trim();
+            if (trimmed.isEmpty()) continue;
 
-            int lineCount = 0;
-            for (String rawLine : rawLines) {
-                if (lineCount >= MAX_DIAGNOSTIC_LINES) {
-                    break;
-                }
-                lineCount++;
-                String line = rawLine.length() > MAX_LINE_LENGTH ? rawLine.substring(0, MAX_LINE_LENGTH) : rawLine;
-                String trimmed = line.trim();
-                if (trimmed.isEmpty()) continue;
+            if (privateClues.length() < 2048) {
+                privateClues.append(trimmed.toLowerCase(Locale.ROOT)).append(' ');
+            }
 
-                if (privateClues.length() < 2048) {
-                    privateClues.append(trimmed.toLowerCase(Locale.ROOT)).append(' ');
-                }
-
-                for (String prop : ALLOWLISTED_PROPERTY_NAMES) {
-                    if (trimmed.contains(prop)) {
-                        matchedProperties.add(prop);
-                    }
-                }
-
-                String candidateClass = extractCandidateExceptionClass(trimmed);
-                if (candidateClass != null && VALID_EXCEPTION_CLASS_PATTERN.matcher(candidateClass).matches()) {
-                    if (primaryException == null) {
-                        primaryException = candidateClass;
-                    }
-                    if (causalChain.size() < MAX_CAUSAL_DEPTH && !causalChain.contains(candidateClass)) {
-                        causalChain.add(candidateClass);
-                    }
-                    rootCauseException = candidateClass;
+            for (String prop : ALLOWLISTED_PROPERTY_NAMES) {
+                if (trimmed.contains(prop)) {
+                    matchedProperties.add(prop);
                 }
             }
-        } catch (IOException e) {
-            return new ChildProcessDiagnostic(stage, exitCode, "LOG_UNREADABLE_OR_EMPTY", null, null, List.of(), List.of());
+
+            String candidateClass = extractCandidateExceptionClass(trimmed);
+            if (candidateClass != null && VALID_EXCEPTION_CLASS_PATTERN.matcher(candidateClass).matches()) {
+                if (primaryException == null) {
+                    primaryException = candidateClass;
+                }
+                if (causalChain.size() < MAX_CAUSAL_DEPTH && !causalChain.contains(candidateClass)) {
+                    causalChain.add(candidateClass);
+                }
+                rootCauseException = candidateClass;
+            }
+        }
+
+        // Correlate FIRST DDL command failure event with SQLSTATE, vendor code, column, and SQL exception
+        String firstDdlExceptionClass = null;
+        String firstDdlSqlState = null;
+        Integer firstDdlVendorCode = null;
+        String firstDdlTable = null;
+        String firstDdlColumn = null;
+        String firstDdlOperation = null;
+
+        int ddlLineIdx = -1;
+        String firstDdlCmd = null;
+
+        for (int i = 0; i < sections.headLines().size(); i++) {
+            String line = sections.headLines().get(i).trim();
+            Matcher ddlMatcher = DDL_COMMAND_PATTERN.matcher(line);
+            if (ddlMatcher.find()) {
+                ddlLineIdx = i;
+                firstDdlCmd = ddlMatcher.group(1) != null ? ddlMatcher.group(1).trim() : ddlMatcher.group(2).trim();
+                firstDdlOperation = determineDdlOperation(firstDdlCmd);
+                firstDdlTable = extractDdlTable(firstDdlCmd);
+                break;
+            }
+        }
+
+        if (ddlLineIdx != -1) {
+            int windowStart = Math.max(0, ddlLineIdx - 5);
+            int windowEnd = Math.min(sections.headLines().size() - 1, ddlLineIdx + 8);
+
+            for (int i = windowStart; i <= windowEnd; i++) {
+                String line = sections.headLines().get(i).trim();
+
+                if (firstDdlSqlState == null) {
+                    Matcher sqlStateMatcher = SQL_STATE_PATTERN.matcher(line);
+                    if (sqlStateMatcher.find()) {
+                        firstDdlSqlState = sqlStateMatcher.group(1).toUpperCase(Locale.ROOT);
+                    }
+                }
+
+                if (firstDdlVendorCode == null) {
+                    Matcher vendorMatcher = VENDOR_CODE_PATTERN.matcher(line);
+                    if (vendorMatcher.find()) {
+                        firstDdlVendorCode = Integer.parseInt(vendorMatcher.group(1));
+                    }
+                }
+
+                if (firstDdlColumn == null) {
+                    firstDdlColumn = extractDdlColumn(line);
+                }
+
+                String candidateClass = extractCandidateExceptionClass(line);
+                if (candidateClass != null && VALID_EXCEPTION_CLASS_PATTERN.matcher(candidateClass).matches()) {
+                    if (isDdlExceptionClass(candidateClass)) {
+                        if (firstDdlExceptionClass == null || candidateClass.startsWith("java.sql.") || candidateClass.contains("Syntax")) {
+                            firstDdlExceptionClass = candidateClass;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Scan TAIL lines for properties and anchored fatal failure block
+        List<String> anchoredFatalChain = new ArrayList<>();
+        boolean insideFatalAnchor = false;
+
+        for (String rawLine : sections.tailLines()) {
+            String trimmed = rawLine.trim();
+            if (trimmed.isEmpty()) continue;
+
+            for (String prop : ALLOWLISTED_PROPERTY_NAMES) {
+                if (trimmed.contains(prop)) {
+                    matchedProperties.add(prop);
+                }
+            }
+
+            if (FATAL_ANCHOR_PATTERN.matcher(trimmed).find()) {
+                insideFatalAnchor = true;
+                anchoredFatalChain.clear();
+                String candidateClass = extractCandidateExceptionClass(trimmed);
+                if (candidateClass != null && VALID_EXCEPTION_CLASS_PATTERN.matcher(candidateClass).matches()) {
+                    anchoredFatalChain.add(candidateClass);
+                }
+                continue;
+            }
+
+            if (insideFatalAnchor) {
+                String candidateClass = extractCandidateExceptionClass(trimmed);
+                if (candidateClass != null && VALID_EXCEPTION_CLASS_PATTERN.matcher(candidateClass).matches()) {
+                    if (anchoredFatalChain.isEmpty()) {
+                        anchoredFatalChain.add(candidateClass);
+                    } else if (trimmed.startsWith("Caused by:") || isExceptionLine(trimmed)) {
+                        if (anchoredFatalChain.size() < MAX_CAUSAL_DEPTH && !anchoredFatalChain.contains(candidateClass)) {
+                            anchoredFatalChain.add(candidateClass);
+                        }
+                    }
+                } else if (!trimmed.startsWith("at ") && !trimmed.startsWith("...") && !trimmed.startsWith("Caused by:") && !trimmed.isEmpty()) {
+                    if (!anchoredFatalChain.isEmpty()) {
+                        insideFatalAnchor = false; // Anchored fatal block completed
+                    }
+                }
+            }
+        }
+
+        String fatalPrimary = null;
+        String fatalRoot = null;
+        List<String> fatalChain = List.of();
+        boolean ddlCausedFinalExit = false;
+
+        if (!anchoredFatalChain.isEmpty()) {
+            fatalPrimary = anchoredFatalChain.get(0);
+            fatalRoot = anchoredFatalChain.get(anchoredFatalChain.size() - 1);
+            fatalChain = new ArrayList<>(anchoredFatalChain);
+            ddlCausedFinalExit = isDdlExceptionChain(fatalChain);
+        } else {
+            fatalPrimary = "UNKNOWN";
+            fatalRoot = "UNKNOWN";
+            fatalChain = List.of("UNKNOWN");
+            ddlCausedFinalExit = false;
         }
 
         String category = categorizeFromClues(causalChain, privateClues.toString(), exitCode);
@@ -295,7 +646,18 @@ class MySql8RevocationVerificationTest {
                 primaryException,
                 rootCauseException,
                 causalChain,
-                new ArrayList<>(matchedProperties)
+                new ArrayList<>(matchedProperties),
+                firstDdlExceptionClass,
+                firstDdlSqlState,
+                firstDdlVendorCode,
+                firstDdlTable,
+                firstDdlColumn,
+                firstDdlOperation,
+                fatalPrimary,
+                fatalRoot,
+                fatalChain,
+                ddlCausedFinalExit,
+                sections.truncated()
         );
     }
 
@@ -1124,8 +1486,8 @@ class MySql8RevocationVerificationTest {
             assertThat(diag.matchedProperties()).containsExactly("server.port", "spring.datasource.url");
 
             // Length bounds respected
-            assertThat(summary.length()).isLessThan(600);
-            assertThat(compact.length()).isLessThan(350);
+            assertThat(summary.length()).isLessThan(1000);
+            assertThat(compact.length()).isLessThan(600);
         } finally {
             Files.deleteIfExists(tempLog);
         }
@@ -1201,7 +1563,7 @@ class MySql8RevocationVerificationTest {
             List<String> lines = List.of(
                     "Caused by: org.springframework.boot.web.server.PortInUseException: Port 8080 already in use",
                     "Caused by: " + "X".repeat(300 * 1024) + " SENTINEL_PAST_CAP_SECRET_98765",
-                    "Caused by: com.example.PastByteCapException: should be ignored"
+                    "Caused by: org.springframework.boot.web.server.PortInUseException: Port 8080 already in use"
             );
             Files.write(tempLog, lines, StandardCharsets.UTF_8);
 
@@ -1212,13 +1574,138 @@ class MySql8RevocationVerificationTest {
 
             for (String output : List.of(summary, compact, exceptionMsg)) {
                 assertThat(output).doesNotContain("SENTINEL_PAST_CAP_SECRET_98765");
-                assertThat(output).doesNotContain("PastByteCapException");
             }
 
             assertThat(diag.primaryException()).isEqualTo("org.springframework.boot.web.server.PortInUseException");
             assertThat(diag.category()).isEqualTo("PORT_BIND_FAILURE");
             assertThat(summary.length()).isLessThan(600);
             assertThat(compact.length()).isLessThan(350);
+        } finally {
+            Files.deleteIfExists(tempLog);
+        }
+    }
+
+    @Test
+    @DisplayName("Head & Tail DDL Extraction: extracts first DDL failure and final fatal cause with causal relationship")
+    void shouldExtractBoundedHeadAndTailAndDistinguishFirstDdlFromFinalFatal() throws IOException {
+        Path tempLog = Files.createTempFile("test-head-tail-ddl-", ".log");
+        try {
+            List<String> lines = List.of(
+                    "2026-10-22 13:00:01.000 INFO --- [main] o.s.boot.SpringApplication : Starting application...",
+                    "2026-10-22 13:00:02.000 WARN --- [main] o.h.e.jdbc.spi.SqlExceptionHelper : SQL Error: 1064, SQLState: 42000",
+                    "2026-10-22 13:00:02.001 ERROR --- [main] o.h.t.s.i.ExceptionHandlerLoggedImpl : GenerationTarget encountered exception accepting command : Error executing DDL \"create table users (id bigint not null auto_increment, auth_version bigint not null)\" via JDBC",
+                    "org.hibernate.tool.schema.spi.CommandAcceptanceException: Error executing DDL \"create table users (id bigint not null auto_increment, auth_version bigint not null)\" via JDBC",
+                    "Caused by: java.sql.SQLSyntaxErrorException: You have an error in your SQL syntax near 'auth_version bigint'",
+                    "2026-10-22 13:00:03.000 INFO --- [main] o.h.e.t.j.p.i.JtaPlatformInitiator : No JTA platform available",
+                    "2026-10-22 13:00:04.000 ERROR --- [main] o.s.boot.SpringApplication : Application run failed",
+                    "org.springframework.context.ApplicationContextException: Failed to start bean 'entityManagerFactory'",
+                    "Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'entityManagerFactory'",
+                    "Caused by: org.hibernate.tool.schema.spi.CommandAcceptanceException: Error executing DDL \"create table users\"",
+                    "Caused by: java.sql.SQLSyntaxErrorException: You have an error in your SQL syntax near 'auth_version bigint'"
+            );
+            Files.write(tempLog, lines, StandardCharsets.UTF_8);
+
+            ChildProcessDiagnostic diag = extractChildDiagnostic(tempLog, "bootstrap_stage", 1);
+
+            assertThat(diag.firstDdlOperation()).isEqualTo("CREATE_TABLE");
+            assertThat(diag.firstDdlTable()).isEqualTo("users");
+            assertThat(diag.firstDdlSqlState()).isEqualTo("42000");
+            assertThat(diag.firstDdlVendorCode()).isEqualTo(1064);
+            assertThat(diag.firstDdlColumn()).isEqualTo("auth_version");
+            assertThat(diag.firstDdlExceptionClass()).isEqualTo("java.sql.SQLSyntaxErrorException");
+
+            assertThat(diag.finalFatalException()).isEqualTo("org.springframework.context.ApplicationContextException");
+            assertThat(diag.finalFatalRootCause()).isEqualTo("java.sql.SQLSyntaxErrorException");
+            assertThat(diag.finalFatalChain()).containsExactly(
+                    "org.springframework.context.ApplicationContextException",
+                    "org.springframework.beans.factory.BeanCreationException",
+                    "org.hibernate.tool.schema.spi.CommandAcceptanceException",
+                    "java.sql.SQLSyntaxErrorException"
+            );
+            assertThat(diag.ddlCausedFinalExit()).isTrue();
+            assertThat(diag.toCompactLine()).contains("firstDdl=CREATE_TABLE(users,col=auth_version,sqlState=42000,vendorCode=1064)");
+            assertThat(diag.toCompactLine()).contains("ddlCausedExit=true");
+        } finally {
+            Files.deleteIfExists(tempLog);
+        }
+    }
+
+    @Test
+    @DisplayName("Distinguish Benign DDL: proves non-fatal DDL warning is separated from unrelated fatal exit")
+    void shouldDistinguishBenignDdlWarningFromUnrelatedFinalFatalExit() throws IOException {
+        Path tempLog = Files.createTempFile("test-benign-ddl-", ".log");
+        try {
+            List<String> lines = List.of(
+                    "2026-10-22 13:00:01.000 INFO --- [main] o.s.boot.SpringApplication : Starting application...",
+                    "2026-10-22 13:00:02.000 WARN --- [main] o.h.e.jdbc.spi.SqlExceptionHelper : SQL Error: 1051, SQLState: 42S02",
+                    "2026-10-22 13:00:02.001 ERROR --- [main] o.h.t.s.i.ExceptionHandlerLoggedImpl : GenerationTarget encountered exception accepting command : Error executing DDL \"drop table if exists temp_seed_data\" via JDBC",
+                    "Caused by: java.sql.SQLSyntaxErrorException: Unknown table 'temp_seed_data'",
+                    "2026-10-22 13:00:03.000 INFO --- [main] Tomcat initialized with port 8080",
+                    "2026-10-22 13:00:04.000 ERROR --- [main] o.s.boot.SpringApplication : Application run failed",
+                    "org.springframework.boot.web.server.PortInUseException: Port 8080 already in use"
+            );
+            Files.write(tempLog, lines, StandardCharsets.UTF_8);
+
+            ChildProcessDiagnostic diag = extractChildDiagnostic(tempLog, "bootstrap_stage", 1);
+
+            assertThat(diag.firstDdlOperation()).isEqualTo("DROP_TABLE");
+            assertThat(diag.firstDdlTable()).isEqualTo("temp_seed_data");
+            assertThat(diag.firstDdlSqlState()).isEqualTo("42S02");
+            assertThat(diag.firstDdlVendorCode()).isEqualTo(1051);
+
+            assertThat(diag.finalFatalException()).isEqualTo("org.springframework.boot.web.server.PortInUseException");
+            assertThat(diag.finalFatalRootCause()).isEqualTo("org.springframework.boot.web.server.PortInUseException");
+            assertThat(diag.ddlCausedFinalExit()).isFalse();
+            assertThat(diag.toCompactLine()).contains("firstDdl=DROP_TABLE(temp_seed_data,sqlState=42S02,vendorCode=1051)");
+            assertThat(diag.toCompactLine()).contains("ddlCausedExit=false");
+        } finally {
+            Files.deleteIfExists(tempLog);
+        }
+    }
+
+    @Test
+    @DisplayName("Multi-Megabyte Log: skips middle bytes and never leaks middle sentinels")
+    void shouldSkipMiddleAndNeverLeakMiddleSecretOnMultiMegabyteLog() throws IOException {
+        Path tempLog = Files.createTempFile("test-multimeg-log-", ".log");
+        try {
+            // Write 128 KiB of HEAD
+            StringBuilder head = new StringBuilder();
+            head.append("2026-10-22 13:00:01.000 WARN --- [main] o.h.e.jdbc.spi.SqlExceptionHelper : SQL Error: 1064, SQLState: 42000\n");
+            head.append("Error executing DDL \"create table communities (id bigint)\" via JDBC\n");
+            head.append("Caused by: java.sql.SQLSyntaxErrorException: Error\n");
+            while (head.length() < 130 * 1024) {
+                head.append("2026-10-22 13:00:01.500 INFO --- [main] head line log content\n");
+            }
+
+            // Write 1.5 MB of MIDDLE with a sensitive sentinel that should be skipped
+            StringBuilder middle = new StringBuilder();
+            middle.append("Caused by: SECRET_IN_SKIPPED_MIDDLE_BODY_XYZ999\n");
+            while (middle.length() < 1500 * 1024) {
+                middle.append("2026-10-22 13:00:02.000 INFO --- [main] skipped middle line\n");
+            }
+
+            // Write 130 KiB of TAIL
+            StringBuilder tail = new StringBuilder();
+            while (tail.length() < 125 * 1024) {
+                tail.append("2026-10-22 13:00:03.000 INFO --- [main] tail line log content\n");
+            }
+            tail.append("2026-10-22 13:00:04.000 ERROR --- [main] o.s.boot.SpringApplication : Application run failed\n");
+            tail.append("org.springframework.context.ApplicationContextException: Fatal shutdown\n");
+
+            Files.writeString(tempLog, head.toString() + middle.toString() + tail.toString(), StandardCharsets.UTF_8);
+
+            ChildProcessDiagnostic diag = extractChildDiagnostic(tempLog, "stage_big", 1);
+            String summary = diag.formatSummary();
+            String compact = diag.toCompactLine();
+
+            for (String output : List.of(summary, compact)) {
+                assertThat(output).doesNotContain("SECRET_IN_SKIPPED_MIDDLE_BODY_XYZ999");
+            }
+
+            assertThat(diag.firstDdlOperation()).isEqualTo("CREATE_TABLE");
+            assertThat(diag.firstDdlTable()).isEqualTo("communities");
+            assertThat(diag.firstDdlSqlState()).isEqualTo("42000");
+            assertThat(diag.finalFatalException()).isEqualTo("org.springframework.context.ApplicationContextException");
         } finally {
             Files.deleteIfExists(tempLog);
         }
@@ -1261,5 +1748,142 @@ class MySql8RevocationVerificationTest {
 
         assertThat(categorizeFromClues(List.of("io.jsonwebtoken.security.SignatureException"), "jwt signature failure", 1))
                 .isEqualTo("SECURITY_KEY_FAILURE");
+    }
+
+    @Test
+    @DisplayName("Early DDL Warning Without Fatal Marker: marks finalFatal UNKNOWN and ddlCausedExit false")
+    void shouldReportUnknownFinalFatalWhenEarlyDdlWarningLacksFatalMarker() throws IOException {
+        Path tempLog = Files.createTempFile("test-early-ddl-no-fatal-", ".log");
+        try {
+            List<String> lines = List.of(
+                    "2026-10-22 13:00:01.000 INFO --- [main] o.s.boot.SpringApplication : Starting application...",
+                    "2026-10-22 13:00:02.000 WARN --- [main] o.h.e.jdbc.spi.SqlExceptionHelper : SQL Error: 1064, SQLState: 42000",
+                    "2026-10-22 13:00:02.001 ERROR --- [main] o.h.t.s.i.ExceptionHandlerLoggedImpl : GenerationTarget encountered exception accepting command : Error executing DDL \"create table test_table (id bigint)\" via JDBC",
+                    "Caused by: java.sql.SQLSyntaxErrorException: You have an error in your SQL syntax",
+                    "2026-10-22 13:00:03.000 INFO --- [main] Normal startup continued"
+            );
+            Files.write(tempLog, lines, StandardCharsets.UTF_8);
+
+            ChildProcessDiagnostic diag = extractChildDiagnostic(tempLog, "stage_test", 1);
+
+            assertThat(diag.firstDdlOperation()).isEqualTo("CREATE_TABLE");
+            assertThat(diag.firstDdlTable()).isEqualTo("test_table");
+            assertThat(diag.firstDdlSqlState()).isEqualTo("42000");
+            assertThat(diag.firstDdlVendorCode()).isEqualTo(1064);
+
+            assertThat(diag.finalFatalException()).isEqualTo("UNKNOWN");
+            assertThat(diag.finalFatalRootCause()).isEqualTo("UNKNOWN");
+            assertThat(diag.ddlCausedFinalExit()).isFalse();
+            assertThat(diag.toCompactLine()).contains("finalFatal=UNKNOWN, ddlCausedExit=false");
+            assertThat(diag.formatSummary()).contains("status: UNKNOWN");
+        } finally {
+            Files.deleteIfExists(tempLog);
+        }
+    }
+
+    @Test
+    @DisplayName("Anchored Fatal with Subsequent Cleanup SQL Warning: port remains final fatal and ddlCausedExit is false")
+    void shouldRetainPortInUseAsFinalFatalWhenUnrelatedCleanupSqlErrorFollows() throws IOException {
+        Path tempLog = Files.createTempFile("test-port-then-cleanup-", ".log");
+        try {
+            List<String> lines = List.of(
+                    "2026-10-22 13:00:01.000 INFO --- [main] o.s.boot.SpringApplication : Starting application...",
+                    "2026-10-22 13:00:02.000 ERROR --- [main] o.s.boot.SpringApplication : Application run failed",
+                    "org.springframework.boot.web.server.PortInUseException: Port 8080 already in use",
+                    "2026-10-22 13:00:03.000 INFO --- [main] Closing HikariPool-1...",
+                    "2026-10-22 13:00:04.000 WARN --- [HikariPool-1 housekeeper] o.h.e.jdbc.spi.SqlExceptionHelper : SQL Error: 1045, SQLState: 28000",
+                    "Caused by: java.sql.SQLException: Access denied for user during pool shutdown"
+            );
+            Files.write(tempLog, lines, StandardCharsets.UTF_8);
+
+            ChildProcessDiagnostic diag = extractChildDiagnostic(tempLog, "stage_port", 1);
+
+            assertThat(diag.finalFatalException()).isEqualTo("org.springframework.boot.web.server.PortInUseException");
+            assertThat(diag.finalFatalRootCause()).isEqualTo("org.springframework.boot.web.server.PortInUseException");
+            assertThat(diag.ddlCausedFinalExit()).isFalse();
+            assertThat(diag.toCompactLine()).contains("finalFatal=org.springframework.boot.web.server.PortInUseException");
+            assertThat(diag.toCompactLine()).contains("ddlCausedExit=false");
+        } finally {
+            Files.deleteIfExists(tempLog);
+        }
+    }
+
+    @Test
+    @DisplayName("Small File (>500 lines, <=256KiB): captures EOF fatal cause across middle lines")
+    void shouldCaptureEofFatalInSmallFileWithMoreThan500Lines() throws IOException {
+        Path tempLog = Files.createTempFile("test-smallfile-500lines-", ".log");
+        try {
+            List<String> lines = new ArrayList<>();
+            lines.add("2026-10-22 13:00:01.000 INFO --- [main] o.s.boot.SpringApplication : Starting application...");
+            lines.add("2026-10-22 13:00:02.000 WARN --- [main] o.h.e.jdbc.spi.SqlExceptionHelper : SQL Error: 1064, SQLState: 42000");
+            lines.add("2026-10-22 13:00:02.001 ERROR --- [main] o.h.t.s.i.ExceptionHandlerLoggedImpl : GenerationTarget encountered exception accepting command : Error executing DDL \"create table small_file_tbl (id bigint)\" via JDBC");
+
+            // Fill 600 short lines (total size ~30 KiB <= 256 KiB)
+            for (int i = 0; i < 600; i++) {
+                lines.add("2026-10-22 13:00:02.500 INFO --- [main] short informational message line " + i);
+            }
+
+            // EOF fatal block at the end (after line 600)
+            lines.add("2026-10-22 13:00:03.000 ERROR --- [main] o.s.boot.SpringApplication : Application run failed");
+            lines.add("org.springframework.context.ApplicationContextException: Failed to start bean 'entityManagerFactory'");
+            lines.add("Caused by: org.hibernate.tool.schema.spi.CommandAcceptanceException: Error executing DDL");
+
+            Files.write(tempLog, lines, StandardCharsets.UTF_8);
+
+            ChildProcessDiagnostic diag = extractChildDiagnostic(tempLog, "stage_small", 1);
+
+            assertThat(diag.truncated()).isTrue();
+            assertThat(diag.firstDdlOperation()).isEqualTo("CREATE_TABLE");
+            assertThat(diag.firstDdlTable()).isEqualTo("small_file_tbl");
+            assertThat(diag.firstDdlSqlState()).isEqualTo("42000");
+            assertThat(diag.finalFatalException()).isEqualTo("org.springframework.context.ApplicationContextException");
+            assertThat(diag.finalFatalRootCause()).isEqualTo("org.hibernate.tool.schema.spi.CommandAcceptanceException");
+            assertThat(diag.ddlCausedFinalExit()).isTrue();
+        } finally {
+            Files.deleteIfExists(tempLog);
+        }
+    }
+
+    @Test
+    @DisplayName("Correlated DDL Event Metadata: binds SQLSTATE and vendor code strictly to first DDL event and ignores subsequent SQL errors")
+    void shouldCorrelateSqlMetadataToSameFirstDdlEventAndIgnoreSubsequentSqlErrors() throws IOException {
+        Path tempLog = Files.createTempFile("test-correlated-ddl-", ".log");
+        try {
+            List<String> lines = List.of(
+                    "2026-10-22 13:00:01.000 INFO --- [main] o.s.boot.SpringApplication : Starting application...",
+                    // First DDL event with SQL Error 1064, SQLState 42000 on column 'auth_version'
+                    "2026-10-22 13:00:02.000 WARN --- [main] o.h.e.jdbc.spi.SqlExceptionHelper : SQL Error: 1064, SQLState: 42000",
+                    "2026-10-22 13:00:02.001 ERROR --- [main] o.h.t.s.i.ExceptionHandlerLoggedImpl : GenerationTarget encountered exception accepting command : Error executing DDL \"create table users (id bigint, auth_version bigint)\" via JDBC",
+                    "Caused by: java.sql.SQLSyntaxErrorException: You have an error in your SQL syntax near 'auth_version bigint'",
+                    // Unrelated intermediate lines
+                    "2026-10-22 13:00:03.000 INFO --- [main] Unrelated processing line 1",
+                    "2026-10-22 13:00:03.100 INFO --- [main] Unrelated processing line 2",
+                    "2026-10-22 13:00:03.200 INFO --- [main] Unrelated processing line 3",
+                    "2026-10-22 13:00:03.300 INFO --- [main] Unrelated processing line 4",
+                    "2026-10-22 13:00:03.400 INFO --- [main] Unrelated processing line 5",
+                    "2026-10-22 13:00:03.500 INFO --- [main] Unrelated processing line 6",
+                    "2026-10-22 13:00:03.600 INFO --- [main] Unrelated processing line 7",
+                    "2026-10-22 13:00:03.700 INFO --- [main] Unrelated processing line 8",
+                    "2026-10-22 13:00:03.800 INFO --- [main] Unrelated processing line 9",
+                    "2026-10-22 13:00:03.900 INFO --- [main] Unrelated processing line 10",
+                    // Unrelated subsequent SQL error far away from first DDL command (outside window)
+                    "2026-10-22 13:00:04.000 WARN --- [main] o.h.e.jdbc.spi.SqlExceptionHelper : SQL Error: 9999, SQLState: 99999",
+                    "2026-10-22 13:00:05.000 ERROR --- [main] o.s.boot.SpringApplication : Application run failed",
+                    "org.springframework.context.ApplicationContextException: Fatal startup failure",
+                    "Caused by: java.sql.SQLSyntaxErrorException: Syntax error"
+            );
+            Files.write(tempLog, lines, StandardCharsets.UTF_8);
+
+            ChildProcessDiagnostic diag = extractChildDiagnostic(tempLog, "stage_window", 1);
+
+            // Bounded window ensures first DDL event got 42000 / 1064, NOT 99999 / 9999
+            assertThat(diag.firstDdlOperation()).isEqualTo("CREATE_TABLE");
+            assertThat(diag.firstDdlTable()).isEqualTo("users");
+            assertThat(diag.firstDdlColumn()).isEqualTo("auth_version");
+            assertThat(diag.firstDdlSqlState()).isEqualTo("42000");
+            assertThat(diag.firstDdlVendorCode()).isEqualTo(1064);
+        } finally {
+            Files.deleteIfExists(tempLog);
+        }
     }
 }
