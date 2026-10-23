@@ -220,7 +220,7 @@
                     if (result.data.url) previewImg.src = result.data.url;
                     showAlert('Ảnh bìa đã được tải lên thành công! Hãy bấm "Lưu thay đổi hồ sơ" để hoàn tất.', 'success');
                 } else {
-                    const errorMsg = (result && result.message) || 'Không thể tải ảnh bìa lên Firebase Storage.';
+                    const errorMsg = (result && result.error && result.error.message) || 'Không thể tải ảnh bìa lên Firebase Storage.';
                     showAlert(errorMsg, 'danger');
                     if (mediaIdInput) mediaIdInput.value = '';
                 }
@@ -289,7 +289,7 @@
                     if (result.data.url) previewImg.src = result.data.url;
                     showAlert('Ảnh đại diện đã được tải lên thành công! Hãy bấm "Lưu thay đổi hồ sơ" để hoàn tất.', 'success');
                 } else {
-                    const errorMsg = (result && result.message) || 'Không thể tải ảnh lên Firebase Storage.';
+                    const errorMsg = (result && result.error && result.error.message) || 'Không thể tải ảnh lên Firebase Storage.';
                     showAlert(errorMsg, 'danger');
                     if (mediaIdInput) mediaIdInput.value = '';
                 }
@@ -430,7 +430,7 @@
                         }
                     }
                 } else {
-                    const errorMsg = (result && result.message) || 'Không thể lưu hồ sơ cá nhân.';
+                    const errorMsg = (result && result.error && result.error.message) || 'Không thể lưu hồ sơ cá nhân.';
                     showAlert(errorMsg, 'danger');
                 }
             } catch (err) {
@@ -477,7 +477,7 @@
                         : 'Đã tắt chế độ riêng tư. Bài viết của bạn sẽ ở chế độ công khai theo thiết lập.';
                     showAlert(msg, 'success');
                 } else {
-                    const errorMsg = (result && result.message) || 'Không thể cập nhật thiết lập riêng tư.';
+                    const errorMsg = (result && result.error && result.error.message) || 'Không thể cập nhật thiết lập riêng tư.';
                     showAlert(errorMsg, 'danger');
                 }
             } catch (err) {
@@ -572,7 +572,7 @@
                     showAlert('Đổi mật khẩu thành công! Phiên đăng nhập hiện tại đã được gia hạn an toàn.', 'success');
                     form.reset();
                 } else {
-                    const errorMsg = (result && result.message) || 'Không thể đổi mật khẩu. Vui lòng kiểm tra lại mật khẩu hiện tại.';
+                    const errorMsg = (result && result.error && result.error.message) || 'Không thể đổi mật khẩu. Vui lòng kiểm tra lại mật khẩu hiện tại.';
                     showAlert(errorMsg, 'danger');
                 }
             } catch (err) {
