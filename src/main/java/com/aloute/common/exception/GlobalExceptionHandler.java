@@ -123,7 +123,8 @@ public class GlobalExceptionHandler {
                 .body(error(ErrorCode.BAD_REQUEST.getCode(), "Malformed request payload", null, request));
     }
 
-    @ExceptionHandler({MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class})
+    @ExceptionHandler({MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class,
+            org.springframework.web.multipart.support.MissingServletRequestPartException.class})
     public ResponseEntity<ErrorResponse> handleBadRequestParameters(Exception ex, HttpServletRequest request) {
         log.warn("Bad request parameter: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
