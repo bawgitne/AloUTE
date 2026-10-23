@@ -144,4 +144,25 @@ class PostTextOnlyCreationIntegrationTest {
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
     }
+
+    @Test
+    @DisplayName("Content between the web-composer 2000-char UI limit and the 4000-char contract limit is accepted")
+    void contentAboveComposerLimitButWithinContractIsAccepted() throws Exception {
+        String content = "x".repeat(2500);
+        long postId = createPost(content);
+        assertThat(postRepository.findById(postId).orElseThrow().getContent()).hasSize(2500);
+    }
+
+    @Test
+    @DisplayName("Content beyond the 4000-char contract limit is rejected with 422")
+    void contentBeyondContractLimitIsRejected() throws Exception {
+        String content = "x".repeat(4001);
+        mockMvc.perform(post("/api/posts")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"" + content + "\",\"visibility\":\"PUBLIC\"}")
+                        .with(authentication(auth))
+                        .with(csrf()))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+    }
 }

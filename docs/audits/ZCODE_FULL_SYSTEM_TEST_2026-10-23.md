@@ -31,10 +31,11 @@
 | Chức năng/inventory đã rà | 12 nhóm module (Auth, Profile/Settings, Post, Feed/Search, Social, Community/Topic, Messaging, Notification, Report/Admin, Media, Realtime, Flutter) |
 | Test tự động hóa (Maven) | Xem mục D. Regression (đang chạy `mvn clean verify`; kết quả cập nhật cuối báo cáo) |
 | Test tự động hóa (Node frontend) | **329/329 PASS, 0 fail** (`node --test test/frontend/*.test.mjs`) |
-| Test mới bổ sung (regression cho bug) | **11 test / 3 file — 11/11 PASS** |
-| Browser E2E | 12 kịch bản (login, soạn bài text-only, upload avatar, upload cover, responsive 390/768/1440, smoke 8 trang) — bằng chứng PNG trong `docs/audits/evidence-2026-10-23/` |
-| Lỗi phát hiện | **6 lỗi** (1 × P0, 2 × P1, 1 × P2, 2 × P3) + 1 cảnh báo bảo mật ghi nhận |
-| Lỗi đã sửa trên nhánh audit | **6/6** |
+| Test mới bổ sung (regression cho bug) | **23 test / 5 file — 23/23 PASS** (vòng 1: 11; vòng 2 review: +12) |
+| Browser E2E | 13 kịch bản (login, soạn bài text-only, upload avatar, upload cover, responsive 390/768/1440, smoke 8 trang, forgot-password sau fix CSRF) — bằng chứng PNG trong `docs/audits/evidence-2026-10-23/` |
+| STOMP 2 phiên runtime | **PASS** — Node `ws` raw WebSocket + STOMP: A gửi → B nhận `/user/queue/messages`; logout B → server đóng socket **code 1008**; A không bị ảnh hưởng |
+| Lỗi phát hiện | **8 lỗi** (2 × P0, 2 × P1, 1 × P2, 3 × P3) + 1 cảnh báo bảo mật ghi nhận |
+| Lỗi đã sửa trên nhánh audit | **8/8** |
 | Hạng mục BLOCKED (môi trường) | Firebase storage thật, MySQL 8 runtime, STOMP runtime lần này, Flutter runtime |
 
 ---
@@ -149,10 +150,47 @@ Ký hiệu: **PASS** = tự động hóa; **B-E2E** = browser thật; **RT** = r
 - **Giải pháp**: test tạo user + profile trong một `TransactionTemplate` (commit ngay lập tức).
 - **Kết quả**: `UsernameLoginAndPostCreationIntegrationTest` 3/3 PASS. Runtime curl xác nhận hành vi sản phẩm ĐÚNG: post không có `visibility` → 201 + mặc định PUBLIC.
 
+### BUG-007 (P0 bảo mật/dữ liệu) — Gắn media vào post không kiểm ownership và không đánh dấu attached (vòng 2 — phát hiện khi review)
+
+- **Mô tả (2 phần)**: `PostServiceImpl.create` gắn `mediaIds` vào post bằng `mediaAssetRepository.findById(mediaId)` — (a) **không kiểm owner**: người dùng A có thể gắn mediaId của người dùng B vào post của mình (IDOR dữ liệu media); (b) **không set `attachedAt`**: sau khi post được tạo, media vẫn được coi là "chưa gắn" → chủ media gọi `DELETE /api/media/{id}` thành công → **file binary bị xóa khỏi storage trong khi post vẫn tham chiếu** → ảnh post vỡ vĩnh viễn.
+- **Đối chiếu**: `UserServiceImpl` (avatar/cover) đã làm đúng cả 2 điều (owner + `attachedAt`); post là nơi duy nhất bỏ qua.
+- **Root cause**: nhận media theo `findById` thay vì theo owner; thiếu cập nhật trạng thái vòng đời.
+- **File/dòng**: `src/main/java/com/aloute/service/impl/PostServiceImpl.java` (block "Save media attachments", ~dòng 213).
+- **Giải pháp**: `findByIdAndOwner_IdAndDeletedAtIsNull(mediaId, userId)` → không thấy (không thuộc sở hữu hoặc đã xóa) → **404 MEDIA_NOT_FOUND** (fail-fast, thay vì skip âm thầm); set `media.setAttachedAt(now)` sau khi tạo PostMedia.
+- **Regression test**: `MediaAttachmentLifecycleIntegrationTest` — `postCannotAttachForeignMedia` (404 + không có PostMedia), `attachedMediaIsProtectedFromDelete` (attach xong DELETE → 409 MEDIA_ALREADY_ATTACHED), `deletedMediaCannotBeAttached` (404).
+- **Kết quả sau fix**: 5/5 test class PASS.
+
+### BUG-008 (P3) — `POST /api/media` thiếu part `purpose` trả 500 thay vì 4xx (vòng 2)
+
+- **Mô tả**: gửi multipart không có part `purpose` → `MissingServletRequestPartException` không được handler nào bắt → 500 INTERNAL_ERROR.
+- **Root cause**: `GlobalExceptionHandler` chỉ bắt `MissingServletRequestParameterException` (query param), không bắt biến thể multipart part.
+- **Giải pháp**: thêm `MissingServletRequestPartException` vào nhóm handler 400 BAD_REQUEST (cùng nhóm với parameter-missing — đúng convention system_architecture: thiếu thành phần bắt buộc của request = 400).
+- **Kết quả runtime**: `{"code":"BAD_REQUEST","message":"Required part 'purpose' is not present."}` status=400. Test: `missingPurposePartIsClientError`.
+
+### Đánh giá JWT trong body login (yêu cầu Nhiệm vụ 2 — KHÔNG đổi contract)
+
+- **Thiết kế hiện tại**: login trả `{data:{...,token}}` **đồng thời** set cookie HttpOnly `aloute_access_token`. Flutter mobile (`aloute_mobile`) dùng token body làm Bearer; web chỉ dùng cookie.
+- **Đánh giá rủi ro**: token trong body **đọc được bằng JS** (khác cookie HttpOnly). Trong kịch bản có XSS, attacker có thể đọc response của chính request nó kích hoạt và exfiltrate token (cookie HttpOnly chặn đường này). Tuy vậy: (1) chưa tìm thấy XSS mới trong đợt audit này (stored XSS website đã bị hạ xuống P2 từ audit 2026-10-21 vì `target=_blank` chặn `javascript:` trên Chrome); (2) XSS cùng-origin có thể gọi thẳng API với `credentials:'include'` — token body chỉ **kéo dài thời gian** sử dụng sau khi tab đóng.
+- **Kết luận**: rủi ro **có thật nhưng mức trung bình-thấp** trong thiết kế hiện tại; là **hợp đồng bắt buộc cho mobile**. Đề xuất (không thực hiện trong PR này để không đổi contract tùy tiện): thêm header `X-Client-Type` (hoặc query `?client=mobile`) — chỉ trả `token` trong body cho client mobile; web không nhận. Cần owner (Khôi) phê duyệt trước khi đổi.
+
+### Kiểm tra giới hạn nội dung 2.000 (web) vs 4.000 (backend/DB) (yêu cầu Nhiệm vụ 1)
+
+- **Source of truth**: OpenAPI trước audit **không khai báo maxLength** cho `content`; DB `posts.content varchar(4000)`; backend `@Size(max=4000)`; composer web giới hạn 2.000 ký tự (maxlength + validate JS).
+- **Kết luận**: web **nghiêm ngặt hơn** contract — hợp lệ (FE có thể hẹp hơn BE), không phải bug. Mobile/API client được phép đăng tới 4.000.
+- **Xử lý**: bổ sung `maxLength: 4000` vào `CreatePostRequest.content` trong `skills/aloute-openapi.yaml` (đồng bộ source of truth với backend/DB đã có). Regression: `contentAboveComposerLimitButWithinContractIsAccepted` (2.500 ký tự → 201) và `contentBeyondContractLimitIsRejected` (4.001 → 422).
+
+### STOMP/WebSocket 2 phiên runtime (yêu cầu Nhiệm vụ 3) — PASS
+
+Script Node `ws` (raw WebSocket + STOMP frames, `target/stomp-test/probe.mjs`) với 2 JWT độc lập:
+1. A (admin) tạo conversation DIRECT với B (user) qua REST (CSRF pair) → 201.
+2. Cả hai CONNECT `/ws` (native header `aloute_access_token`) → CONNECTED; SUBSCRIBE `/user/queue/messages`.
+3. A SEND `/app/chat.send/{id}` → **B nhận MESSAGE frame realtime** chứa đúng nội dung (persist-before-publish, danh tính người nhận qua `StompPrincipalAuthenticationToken.getName()=userId`).
+4. B `POST /api/auth/logout` (204) → **server đóng socket B với code 1008** (revocation); socket A vẫn mở.
+Ghi chú: sender không tự nhận echo message (recipientIds loại sender) — hành vi đúng.
+
 ### Cảnh báo bảo mật ghi nhận (không sửa trong phạm vi — cần owner quyết định)
 
-1. **JWT trả trong body login response** (`"token":"..."` cùng `Set-Cookie`): làm tăng khả năng token lộ qua log/JS. Đã được addendum PR #53 ghi nhận; vẫn còn trên master. Khuyến nghị: chỉ giữ HttpOnly cookie hoặc đưa ra tùy chọn.
-2. **Thiếu part `purpose`** → hiện rơi vào `MissingServletRequestPartException` → 500 (nên là 400/422). Không sửa để tránh phình phạm vi; đề xuất xử lý trong GlobalExceptionHandler.
+1. **JWT trả trong body login response**: đã đánh giá chi tiết ở mục trên — rủi ro trung bình-thấp, là hợp đồng bắt buộc cho mobile; đề xuất gate theo client type, chờ owner phê duyệt.
 
 ---
 
@@ -239,9 +277,37 @@ Thư mục `docs/audits/evidence-2026-10-23/`:
 3. `03-settings-390px.png` — responsive 390px không vỡ layout.
 4. `04-feed-768px.png` — feed ở 768px.
 5. `05-feed-1440px.png` — feed ở 1440px.
+6. `06-forgot-password-csrf-recovery.png` — forgot-password (endpoint từng bị exempt CSRF) hoạt động trên trình duyệt thật sau fix CSRF: thông báo generic thành công, không 403.
+
+STOMP runtime log (`target/stomp-test/probe.mjs`, server :8090):
+```
+[probe] A id=1 B id=2
+[probe] conversation id=1 status=201
+[probe] A sent message: e2e-stomp-1792772273473
+[probe] B MESSAGE frame: destination:/user/queue/messages | body: {"id":2,"conversationId":1,"sender":{...
+[probe] B received: true | A (sender) received: false
+[probe] B WS closed code=1008
+[probe] B logout status=204
+[probe] B socket closed after logout: true | A socket still open: true
+PROBE_RESULT {"stompConnectTwoSessions":true,"bReceivedRealtimeMessage":true,"revocationClosedBSocket":true,"aSocketSurvives":true}
+```
 
 Log curl runtime (trích server3.log):
 ```
 Application exception [MEDIA_STORAGE_UNAVAILABLE]: Firebase media storage is disabled   ← settings-shape upload sau fix (trước fix: 415)
 Application exception [MEDIA_PURPOSE_INVALID]: Unsupported media purpose                 ← validate mới
 ```
+
+### Ánh xạ Browser E2E ↔ ma trận (yêu cầu Nhiệm vụ 3 — các luồng CHƯA thao tác bằng browser phải ghi rõ)
+
+**Đã thao tác bằng browser thật (13)**: login; soạn bài text-only từ `/post/create` (kèm redirect + hiển thị); upload avatar (Settings); upload cover (Settings); responsive 390/768/1440; smoke render 8 trang (friends, messages, notifications, communities, saved, search, profile, admin); forgot-password (CSRF recovery).
+
+**Chưa thao tác bằng browser trong đợt này — trạng thái "chưa kiểm chứng browser" (không gộp vào PASS)**:
+- Đăng ký + OTP verify + resend (đã verify browser ở các QA trước; suite Maven có `RegistrationOtp*` xanh)
+- Reset password bằng link thật (cần SMTP thật — BLOCKED email)
+- Gửi/nhận tin nhắn qua UI messaging (realtime đã PASS bằng STOMP probe 2 phiên; UI click-through chưa chạy đợt này)
+- Notification mark-as-read/unread count qua UI (REST + page render OK; mutation click chưa chạy)
+- Like/Bookmark/Repost/Quote/Reply qua click (unit Node test + REST integration xanh; browser click chưa chạy đợt này)
+- Community create/join/leave qua UI (SSR render OK; mutation click chưa chạy)
+- Admin actions (review report, remove post, ban user) qua UI (RBAC render OK; action click chưa chạy)
+- Poll vote qua UI
