@@ -39,6 +39,7 @@ import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 @RestController
@@ -64,9 +65,30 @@ public class MediaController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<MediaResponse>> upload(@RequestPart("file") MultipartFile file,
-                                                            @RequestPart("purpose") MediaPurpose purpose) {
+                                                            @RequestPart("purpose") String purpose) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(mediaService.upload(currentUserProvider.requireUserId(), file, purpose)));
+                .body(ApiResponse.success(mediaService.upload(currentUserProvider.requireUserId(), file, parsePurpose(purpose))));
+    }
+
+    /**
+     * Accepts a media purpose sent either as a natural multipart text part (for example {@code USER_AVATAR},
+     * as the Settings page sends it) or as a JSON string part (for example {@code "POST"}, as the post
+     * composer sends it). The two client shapes reach the controller differently: the text part arrives raw
+     * while the JSON part may keep its surrounding quotes, so the value is normalized before parsing.
+     */
+    static MediaPurpose parsePurpose(String rawPurpose) {
+        if (rawPurpose == null || rawPurpose.isBlank()) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "MEDIA_PURPOSE_REQUIRED", "Media purpose is required");
+        }
+        String normalized = rawPurpose.trim();
+        if (normalized.length() >= 2 && normalized.startsWith("\"") && normalized.endsWith("\"")) {
+            normalized = normalized.substring(1, normalized.length() - 1).trim();
+        }
+        try {
+            return MediaPurpose.valueOf(normalized.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "MEDIA_PURPOSE_INVALID", "Unsupported media purpose");
+        }
     }
 
     @DeleteMapping("/{mediaId}")
