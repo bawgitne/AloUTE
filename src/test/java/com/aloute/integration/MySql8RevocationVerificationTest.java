@@ -1915,12 +1915,11 @@ class MySql8RevocationVerificationTest {
         UserRepository userRepo = mock(UserRepository.class);
         RegistrationOtpRepository otpRepo = mock(RegistrationOtpRepository.class);
         EmailService emailSvc = mock(EmailService.class);
-        Executor executor = mock(Executor.class);
 
         // 1. Old known fixture under dev profile must be rejected by RegistrationOtpServiceImpl guard
         String oldLiteralFixture = "dGVzdC1yZWdpc3RyYXRpb24tb3RwLXNlY3JldC1rZXktMzJiLWxlbmd0aCE=";
         RegistrationOtpServiceImpl oldService = new RegistrationOtpServiceImpl(
-                userRepo, otpRepo, emailSvc, executor, devEnv
+                userRepo, otpRepo, emailSvc, devEnv
         );
         ReflectionTestUtils.setField(oldService, "secretKey", oldLiteralFixture);
 
@@ -1930,7 +1929,7 @@ class MySql8RevocationVerificationTest {
 
         // 2. New ephemeral 32-byte key under dev profile must pass validation without test profile
         RegistrationOtpServiceImpl newService = new RegistrationOtpServiceImpl(
-                userRepo, otpRepo, emailSvc, executor, devEnv
+                userRepo, otpRepo, emailSvc, devEnv
         );
         ReflectionTestUtils.setField(newService, "secretKey", ephemeralRegistrationOtpSecret);
 

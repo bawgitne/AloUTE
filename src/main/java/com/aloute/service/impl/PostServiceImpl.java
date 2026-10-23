@@ -209,14 +209,15 @@ public class PostServiceImpl implements PostService {
 
         Post savedPost = postRepository.save(post);
 
-        // Save media attachments
+        // Save media attachments: only the current user's own, non-deleted media may join a post,
+        // and attaching marks it so MediaServiceImpl.delete() can no longer remove it from storage.
         if (request.mediaIds() != null && !request.mediaIds().isEmpty()) {
             int pos = 0;
             for (Long mediaId : request.mediaIds()) {
-                MediaAsset media = mediaAssetRepository.findById(mediaId).orElse(null);
-                if (media != null) {
-                    postMediaRepository.save(new PostMedia(savedPost, media, pos++));
-                }
+                MediaAsset media = mediaAssetRepository.findByIdAndOwner_IdAndDeletedAtIsNull(mediaId, userId)
+                        .orElseThrow(() -> notFound("MEDIA_NOT_FOUND", "Media not found"));
+                postMediaRepository.save(new PostMedia(savedPost, media, pos++));
+                media.setAttachedAt(Instant.now());
             }
         }
 
