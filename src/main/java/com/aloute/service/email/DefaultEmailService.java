@@ -48,6 +48,15 @@ public class DefaultEmailService implements EmailService {
     @Value("${aloute.mail.ssl.checkserveridentity:true}")
     private boolean sslCheckServerIdentity;
 
+    /**
+     * When true the mail client trusts every TLS certificate (mail.*.ssl.trust="*"), which was the
+     * previous hard-coded behavior and defeats server identity validation. It remains available as an
+     * explicit operator escape hatch for self-signed SMTP relays, but the secure default is false:
+     * the standard JVM truststore decides, so an untrusted certificate chain fails delivery.
+     */
+    @Value("${aloute.mail.ssl.trust-all:false}")
+    private boolean sslTrustAll;
+
     @Autowired
     public DefaultEmailService(Environment environment) {
         this.environment = Objects.requireNonNull(environment, "Environment must not be null");
@@ -150,7 +159,9 @@ public class DefaultEmailService implements EmailService {
             props.put("mail.smtps.starttls.enable", "false");
             props.put("mail.smtps.starttls.required", "false");
             props.put("mail.smtps.ssl.protocols", "TLSv1.2 TLSv1.3");
-            props.put("mail.smtps.ssl.trust", "*");
+            if (sslTrustAll) {
+                props.put("mail.smtps.ssl.trust", "*");
+            }
             props.put("mail.smtps.ssl.checkserveridentity", String.valueOf(sslCheckServerIdentity));
             props.put("mail.smtps.socketFactory.port", "465");
             props.put("mail.smtps.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
@@ -170,7 +181,9 @@ public class DefaultEmailService implements EmailService {
             props.put("mail.smtp.starttls.enable", "false");
             props.put("mail.smtp.starttls.required", "false");
             props.put("mail.smtp.ssl.protocols", "TLSv1.2 TLSv1.3");
-            props.put("mail.smtp.ssl.trust", "*");
+            if (sslTrustAll) {
+                props.put("mail.smtp.ssl.trust", "*");
+            }
             props.put("mail.smtp.ssl.checkserveridentity", String.valueOf(sslCheckServerIdentity));
             props.put("mail.smtp.socketFactory.port", "465");
             props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
@@ -189,7 +202,9 @@ public class DefaultEmailService implements EmailService {
             props.put("mail.smtp.starttls.required", "true");
             props.put("mail.smtp.ssl.enable", "false");
             props.put("mail.smtp.ssl.protocols", "TLSv1.2 TLSv1.3");
-            props.put("mail.smtp.ssl.trust", "*");
+            if (sslTrustAll) {
+                props.put("mail.smtp.ssl.trust", "*");
+            }
             props.put("mail.smtp.ssl.checkserveridentity", String.valueOf(sslCheckServerIdentity));
         }
         return props;

@@ -1,7 +1,9 @@
 package com.aloute.integration;
 
+import com.aloute.entity.Profile;
 import com.aloute.entity.User;
 import com.aloute.repository.PostRepository;
+import com.aloute.repository.ProfileRepository;
 import com.aloute.repository.UserRepository;
 import com.aloute.security.jwt.JwtTokenProvider;
 import com.aloute.security.principal.UserPrincipal;
@@ -15,6 +17,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -34,24 +38,35 @@ class UsernameLoginAndPostCreationIntegrationTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private UserRepository userRepository;
     @Autowired private PostRepository postRepository;
+    @Autowired private ProfileRepository profileRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JwtTokenProvider jwtTokenProvider;
+    @Autowired private PlatformTransactionManager transactionManager;
 
     private User testUser;
     private String jwtToken;
 
     @BeforeEach
     void setUp() {
-        testUser = userRepository.findByUsernameIgnoreCase("test_username_login").orElseGet(() -> {
-            User u = new User();
-            u.setUsername("test_username_login");
-            u.setEmail("test_username_login@aloute.edu.vn");
-            u.setPasswordHash(passwordEncoder.encode("Password123!"));
-            u.setVerified(true);
-            u.setVerificationRequired(false);
-            u.setActive(true);
-            return userRepository.save(u);
-        });
+        // Commit user+profile immediately (same pattern as DevTestDataInitializer) so the JWT
+        // authentication filter sees durable rows instead of the test-pending transaction.
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        testUser = tx.execute(status -> userRepository.findByUsernameIgnoreCase("test_username_login")
+                .orElseGet(() -> {
+                    User u = new User();
+                    u.setUsername("test_username_login");
+                    u.setEmail("test_username_login@aloute.edu.vn");
+                    u.setPasswordHash(passwordEncoder.encode("Password123!"));
+                    u.setVerified(true);
+                    u.setVerificationRequired(false);
+                    u.setActive(true);
+                    u = userRepository.save(u);
+                    Profile profile = new Profile();
+                    profile.setUser(u);
+                    profile.setDisplayName("Test Username Login");
+                    profileRepository.save(profile);
+                    return u;
+                }));
 
         jwtToken = jwtTokenProvider.generate(UserPrincipal.from(testUser));
     }

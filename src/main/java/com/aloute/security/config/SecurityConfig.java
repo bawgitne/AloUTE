@@ -47,8 +47,7 @@ public class SecurityConfig {
                 .csrf(c -> c.csrfTokenRepository(csrf)
                         .csrfTokenRequestHandler(requestHandler)
                         .ignoringRequestMatchers(bearerRequest)
-                        .ignoringRequestMatchers(SecurityWhitelist.PUBLIC_POST)
-                        .ignoringRequestMatchers(SecurityWhitelist.PUBLIC_RECOVERY_POST))
+                        .ignoringRequestMatchers(SecurityWhitelist.PUBLIC_POST))
                 .headers(h -> h.frameOptions(f -> f.sameOrigin()))
                 .exceptionHandling(e -> e.authenticationEntryPoint(authFailure).accessDeniedHandler(accessDenied))
                 .authorizeHttpRequests(a -> a

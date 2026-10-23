@@ -3380,6 +3380,7 @@ components:
       properties:
         content:
           type: string
+          maxLength: 4000
         visibility:
           $ref: '#/components/schemas/PostVisibility'
         allowReply:
