@@ -65,7 +65,8 @@ public class AdminUserController {
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
     ) {
         Long viewerId = currentUserProvider.requireUserId();
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PageRequest.of(page, size,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
         Page<AdminPostSummaryResponse> postPage = adminPostService.getUserPosts(userId, contentState, pageable, viewerId);
         return ApiResponse.page(postPage.getContent(), PageMeta.from(postPage));
     }
