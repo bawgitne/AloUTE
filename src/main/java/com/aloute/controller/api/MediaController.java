@@ -66,6 +66,10 @@ public class MediaController {
         this(mediaService, currentUserProvider, "uploads", false);
     }
 
+    public MediaController(MediaService mediaService, CurrentUserProvider currentUserProvider, String uploadDir) {
+        this(mediaService, currentUserProvider, uploadDir, false);
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<MediaResponse>> upload(@RequestPart("file") MultipartFile file,
                                                             @RequestPart("purpose") String purpose) {
