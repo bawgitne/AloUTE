@@ -16,9 +16,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.UUID;
 
 /**
@@ -63,6 +65,14 @@ public class LocalDiskMediaStorageAdapter implements MediaStoragePort {
         }
         try {
             Files.createDirectories(target.getParent());
+            // The string-level containment check above is not enough if a symlinked
+            // directory was planted under the upload root; verify the real (link-resolved)
+            // parent still lives inside the real base directory before writing.
+            Path realBase = baseDir.toRealPath();
+            Path realParent = target.getParent().toRealPath();
+            if (!realParent.startsWith(realBase) || realParent.equals(realBase)) {
+                throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "MEDIA_UPLOAD_FAILED", "Invalid storage path");
+            }
             try (InputStream in = file.getInputStream()) {
                 Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
             }
@@ -78,6 +88,10 @@ public class LocalDiskMediaStorageAdapter implements MediaStoragePort {
         try {
             Path target = baseDir.resolve(storagePath).normalize();
             if (!target.startsWith(baseDir) || target.equals(baseDir)) {
+                return;
+            }
+            BasicFileAttributes attrs = Files.readAttributes(target, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+            if (!attrs.isRegularFile() || attrs.isSymbolicLink()) {
                 return;
             }
             Files.deleteIfExists(target);
