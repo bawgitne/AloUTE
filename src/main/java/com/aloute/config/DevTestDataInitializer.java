@@ -23,6 +23,9 @@ public class DevTestDataInitializer {
     public static final String USER_EMAIL = "user@aloute.local";
     public static final String USER_PASSWORD = "User@123";
 
+    /** Demo students for tools/demo-data.mjs; pre-verified so no OTP step is ever needed. */
+    public static final String DEMO_STUDENT_PASSWORD = "Test@12345";
+
     private static final String[][] DEFAULT_TOPICS = {
             {"Học tập", "hoc-tap"},
             {"Nghiên cứu", "nghien-cuu"},
@@ -44,6 +47,10 @@ public class DevTestDataInitializer {
                         "admin", ADMIN_EMAIL, ADMIN_PASSWORD, "AloUTE Admin", Role.SYSTEM_ADMIN);
                 createIfMissing(userRepository, profileRepository, passwordEncoder,
                         "user", USER_EMAIL, USER_PASSWORD, "AloUTE User", Role.USER);
+                createIfMissing(userRepository, profileRepository, passwordEncoder,
+                        "demoan", "demoan@aloute.test", DEMO_STUDENT_PASSWORD, "An Demo", Role.USER);
+                createIfMissing(userRepository, profileRepository, passwordEncoder,
+                        "demobinh", "demobinh@aloute.test", DEMO_STUDENT_PASSWORD, "Bình Demo", Role.USER);
                 for (String[] t : DEFAULT_TOPICS) {
                     if (!topicRepository.existsBySlug(t[1])) {
                         Topic topic = new Topic();

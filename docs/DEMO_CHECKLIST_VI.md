@@ -64,6 +64,6 @@
 
 ## Ghi chú vận hành
 
-- **Seed dữ liệu demo:** `node tools/demo-data.mjs` (chỉ máy dev local, H2). Trên môi trường Cloud Run **không chạy seeder** — dùng tài khoản thật đăng ký qua email OTP.
+- **Seed dữ liệu demo:** `node tools/demo-data.mjs` — chỉ chạy được khi trỏ tới **loopback** (127.0.0.1/localhost); seeder từ chối mọi host remote/production. Seeder không tạo tài khoản và không đụng tới OTP: 4 tài khoản demo được `DevTestDataInitializer` tạo sẵn (đã verify) khi chạy profile `dev`.
 - **OTP đăng ký khi demo trực tiếp:** mã gửi qua email thật (SMTP môi trường). Nếu SMTP chưa cấu hình ở môi trường demo, dùng 4 tài khoản có sẵn ở bảng trên — đủ cho toàn bộ kịch bản.
-- **Reset sạch:** khởi động lại app (H2 in-memory) + chạy seeder.
+- **Reset sạch:** khởi động lại app (H2 in-memory) + chạy seeder. Chạy 2 lần liền để kiểm tra: lần 2 phải in `already present` / `already voted`, không nhân bản bản ghi nào.
