@@ -6,6 +6,7 @@ import com.aloute.common.api.PageMeta;
 import com.aloute.common.exception.ApiException;
 import com.aloute.common.exception.ErrorCode;
 import com.aloute.dto.request.CreatePostRequest;
+import com.aloute.dto.request.PollCreateInput;
 import com.aloute.dto.request.UpdatePostRequest;
 import com.aloute.dto.response.*;
 import com.aloute.entity.*;
@@ -26,6 +27,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -229,6 +231,11 @@ public class PostServiceImpl implements PostService {
                     postTopicRepository.save(new PostTopic(savedPost, topic));
                 }
             }
+        }
+
+        // Persist the optional poll atomically with the post (domain §17: max one poll per post)
+        if (request.poll() != null) {
+            createPollForPost(savedPost, request.poll());
         }
 
         // Update counters and publish events
@@ -766,6 +773,54 @@ public class PostServiceImpl implements PostService {
             return null;
         }
         return targetPost.getId();
+    }
+
+    /**
+     * Creates the single poll attached to a freshly created post, in the same transaction.
+     * Service-level checks mirror {@link PollCreateInput} bean validation so callers that
+     * bypass the @Valid controller path (internal service calls, tests) cannot persist a
+     * malformed poll.
+     */
+    private void createPollForPost(Post post, PollCreateInput input) {
+        String question = input.getQuestion() == null ? "" : input.getQuestion().trim();
+        if (question.isEmpty() || question.length() > 255) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "VALIDATION_FAILED",
+                    "Poll question must not be blank and must not exceed 255 characters");
+        }
+        if (input.getOptions() == null || input.getOptions().size() < 2 || input.getOptions().size() > 10) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "VALIDATION_FAILED",
+                    "Poll must contain between 2 and 10 options");
+        }
+        if (input.getDurationDays() != null && (input.getDurationDays() < 1 || input.getDurationDays() > 365)) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "VALIDATION_FAILED",
+                    "Poll duration must be between 1 and 365 days");
+        }
+
+        Instant closedAt = input.getDurationDays() != null
+                ? Instant.now().plus(Duration.ofDays(input.getDurationDays()))
+                : null;
+
+        Poll poll = Poll.builder()
+                .post(post)
+                .question(question)
+                .allowMultiple(input.isAllowMultiple())
+                .closedAt(closedAt)
+                .build();
+        poll = pollRepository.save(poll);
+
+        int position = 0;
+        for (String rawOption : input.getOptions()) {
+            String optionText = rawOption == null ? "" : rawOption.trim();
+            if (optionText.isEmpty() || optionText.length() > 200) {
+                throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "VALIDATION_FAILED",
+                        "Each poll option must not be blank and must not exceed 200 characters");
+            }
+            pollOptionRepository.save(PollOption.builder()
+                    .poll(poll)
+                    .optionText(optionText)
+                    .position(position++)
+                    .build());
+        }
     }
 
     private PollResponse mapPoll(Poll poll, Long viewerId) {
