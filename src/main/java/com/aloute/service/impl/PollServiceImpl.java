@@ -42,7 +42,11 @@ public class PollServiceImpl implements PollService {
     @Override
     @Transactional
     public PollResponse votePoll(Long pollId, Long currentUserId, VotePollRequest request) {
-        Poll poll = pollRepository.findById(pollId)
+        // Lock the poll row for the whole vote: the single-choice one-vote rule is a
+        // check-then-insert sequence, so concurrent same-user votes must be serialized
+        // for the exists() check to be trustworthy (UNIQUE(poll_id, option_id, user_id)
+        // only blocks identical options, not different options from the same user).
+        Poll poll = pollRepository.findByIdForUpdate(pollId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "POLL_NOT_FOUND", "Poll not found"));
 
         if (poll.isClosed()) {

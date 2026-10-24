@@ -1,16 +1,21 @@
 package com.aloute.integration;
 
+import com.aloute.common.exception.ApiException;
 import com.aloute.entity.Poll;
 import com.aloute.entity.PollOption;
 import com.aloute.entity.PollVote;
+import com.aloute.entity.Post;
+import com.aloute.entity.PostVisibility;
 import com.aloute.entity.Profile;
 import com.aloute.entity.User;
 import com.aloute.repository.PollOptionRepository;
 import com.aloute.repository.PollRepository;
 import com.aloute.repository.PollVoteRepository;
+import com.aloute.repository.PostRepository;
 import com.aloute.repository.ProfileRepository;
 import com.aloute.repository.UserRepository;
 import com.aloute.security.principal.UserPrincipal;
+import com.aloute.service.PollService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,7 +65,10 @@ class PollEndToEndIntegrationTest {
     @Autowired private PollRepository pollRepository;
     @Autowired private PollOptionRepository pollOptionRepository;
     @Autowired private PollVoteRepository pollVoteRepository;
+    @Autowired private PostRepository postRepository;
     @Autowired private ObjectMapper objectMapper;
+    @Autowired private PollService pollService;
+    @Autowired private org.springframework.transaction.PlatformTransactionManager transactionManager;
 
     private Authentication authorAuth;
     private Authentication voterAuth;
@@ -375,5 +383,149 @@ class PollEndToEndIntegrationTest {
         }
         assertThat(thrown.get()).isNotNull();
         assertThat(thrown.get()).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    // -------------------------------------------------------------------------
+    // Genuine concurrency: separate transactions, separate threads, latch start
+    // -------------------------------------------------------------------------
+
+    /** Poll + two users seeded in a committed transaction so racing transactions can see them. */
+    private record ConcurrencyFixture(long pollId, long optionA, long optionB, User racer1, User racer2, long postId) {}
+
+    /** REQUIRES_NEW template: the @Transactional test transaction must not join these. */
+    private org.springframework.transaction.support.TransactionTemplate newTxTemplate() {
+        org.springframework.transaction.support.TransactionTemplate tx =
+                new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        tx.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return tx;
+    }
+
+    private ConcurrencyFixture seedConcurrencyFixture(boolean allowMultiple) {
+        return newTxTemplate().execute(status -> {
+            long suffix = System.nanoTime();
+            User r1 = newUser("race1_" + suffix, "Racer One");
+            User r2 = newUser("race2_" + suffix, "Racer Two");
+
+            Post post = new Post();
+            post.setUser(r1);
+            post.setContent("race post " + suffix);
+            post.setVisibility(PostVisibility.PUBLIC);
+            post.setAllowReply(true);
+            post.setAllowQuote(true);
+            post = postRepository.save(post);
+
+            Poll poll = pollRepository.save(Poll.builder()
+                    .post(post)
+                    .question("Race poll " + suffix)
+                    .allowMultiple(allowMultiple)
+                    .build());
+            PollOption a = pollOptionRepository.save(PollOption.builder().poll(poll).optionText("A").position(0).build());
+            PollOption b = pollOptionRepository.save(PollOption.builder().poll(poll).optionText("B").position(1).build());
+            return new ConcurrencyFixture(poll.getId(), a.getId(), b.getId(), r1, r2, post.getId());
+        });
+    }
+
+    private void cleanupConcurrencyFixture(ConcurrencyFixture f) {
+        newTxTemplate().executeWithoutResult(status ->
+                pollVoteRepository.deleteAll(pollVoteRepository.findByPollId(f.pollId())));
+    }
+
+    /** Runs one vote in its own committed transaction, started simultaneously with the other racer. */
+    private java.util.concurrent.Future<String> startRacer(java.util.concurrent.ExecutorService pool,
+                                                            java.util.concurrent.CountDownLatch startGate,
+                                                            long pollId, User racer, long optionId) {
+        return pool.submit(() -> {
+            try {
+                startGate.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return "interrupted";
+            }
+            org.springframework.transaction.support.TransactionTemplate tx = newTxTemplate();
+            try {
+                tx.executeWithoutResult(status ->
+                        pollService.votePoll(pollId, racer.getId(),
+                                com.aloute.dto.request.VotePollRequest.builder().optionId(optionId).build()));
+                return "OK";
+            } catch (Exception e) {
+                return e instanceof com.aloute.common.exception.ApiException api && "POLL_ALREADY_VOTED".equals(api.getCode())
+                        ? "POLL_ALREADY_VOTED"
+                        : "UNEXPECTED:" + e.getClass().getSimpleName();
+            }
+        });
+    }
+
+    @Test
+    @DisplayName("concurrent same-user votes for DIFFERENT options: exactly one wins, one-vote invariant holds")
+    void concurrentSameUserDifferentOptionsSingleChoice() throws Exception {
+        ConcurrencyFixture f = seedConcurrencyFixture(false);
+        try {
+            java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+            java.util.concurrent.CountDownLatch startGate = new java.util.concurrent.CountDownLatch(1);
+            try {
+                var r1 = startRacer(pool, startGate, f.pollId(), f.racer1(), f.optionA());
+                var r2 = startRacer(pool, startGate, f.pollId(), f.racer1(), f.optionB()); // SAME user, different option
+                startGate.countDown();
+                String result1 = r1.get(30, java.util.concurrent.TimeUnit.SECONDS);
+                String result2 = r2.get(30, java.util.concurrent.TimeUnit.SECONDS);
+
+                // Exactly one transaction may win; the loser must see the committed vote
+                // through the poll row lock and fail with POLL_ALREADY_VOTED.
+                assertThat(result1.startsWith("UNEXPECTED")).as("racer1 result: %s", result1).isFalse();
+                assertThat(result2.startsWith("UNEXPECTED")).as("racer2 result: %s", result2).isFalse();
+                long successes = java.util.stream.Stream.of(result1, result2).filter("OK"::equals).count();
+                long rejections = java.util.stream.Stream.of(result1, result2).filter("POLL_ALREADY_VOTED"::equals).count();
+                assertThat(successes).isEqualTo(1);
+                assertThat(rejections).isEqualTo(1);
+            } finally {
+                pool.shutdownNow();
+            }
+
+            // Exactly one vote row, exactly one incremented option, totals consistent.
+            org.springframework.transaction.support.TransactionTemplate readTx = newTxTemplate();
+            readTx.executeWithoutResult(status -> {
+                assertThat(pollVoteRepository.countByPollId(f.pollId())).isEqualTo(1);
+                List<PollOption> options = pollOptionRepository.findByPollIdOrderByPositionAsc(f.pollId());
+                int incremented = options.stream().mapToInt(PollOption::getVoteCount).filter(c -> c == 1).sum();
+                assertThat(incremented).as("exactly one option has voteCount 1").isEqualTo(1);
+                Poll poll = pollRepository.findById(f.pollId()).orElseThrow();
+                assertThat(pollService.mapToPollResponse(poll, f.racer1().getId()).getTotalVotes()).isEqualTo(1);
+            });
+        } finally {
+            cleanupConcurrencyFixture(f);
+        }
+    }
+
+    @Test
+    @DisplayName("concurrent different-user votes: both succeed, atomic counts, no interference")
+    void concurrentDifferentUsersBothSucceed() throws Exception {
+        ConcurrencyFixture f = seedConcurrencyFixture(false);
+        try {
+            java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+            java.util.concurrent.CountDownLatch startGate = new java.util.concurrent.CountDownLatch(1);
+            try {
+                var r1 = startRacer(pool, startGate, f.pollId(), f.racer1(), f.optionA());
+                var r2 = startRacer(pool, startGate, f.pollId(), f.racer2(), f.optionB()); // different users
+                startGate.countDown();
+                String result1 = r1.get(30, java.util.concurrent.TimeUnit.SECONDS);
+                String result2 = r2.get(30, java.util.concurrent.TimeUnit.SECONDS);
+
+                assertThat(result1).isEqualTo("OK");
+                assertThat(result2).isEqualTo("OK");
+            } finally {
+                pool.shutdownNow();
+            }
+
+            org.springframework.transaction.support.TransactionTemplate readTx = newTxTemplate();
+            readTx.executeWithoutResult(status -> {
+                assertThat(pollVoteRepository.countByPollId(f.pollId())).isEqualTo(2);
+                List<PollOption> options = pollOptionRepository.findByPollIdOrderByPositionAsc(f.pollId());
+                assertThat(options).extracting(PollOption::getVoteCount).containsExactly(1, 1);
+                Poll poll = pollRepository.findById(f.pollId()).orElseThrow();
+                assertThat(pollService.mapToPollResponse(poll, null).getTotalVotes()).isEqualTo(2);
+            });
+        } finally {
+            cleanupConcurrencyFixture(f);
+        }
     }
 }
