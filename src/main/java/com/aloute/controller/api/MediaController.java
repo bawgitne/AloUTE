@@ -49,18 +49,21 @@ public class MediaController {
     private final MediaService mediaService;
     private final CurrentUserProvider currentUserProvider;
     private final String uploadDir;
+    private final boolean localMediaFallbackEnabled;
 
     @Autowired
     public MediaController(MediaService mediaService,
                            CurrentUserProvider currentUserProvider,
-                           @Value("${aloute.media.upload-dir:uploads}") String uploadDir) {
+                           @Value("${aloute.media.upload-dir:uploads}") String uploadDir,
+                           @Value("${aloute.media.local-storage:false}") boolean localMediaFallbackEnabled) {
         this.mediaService = mediaService;
         this.currentUserProvider = currentUserProvider;
         this.uploadDir = uploadDir;
+        this.localMediaFallbackEnabled = localMediaFallbackEnabled;
     }
 
     public MediaController(MediaService mediaService, CurrentUserProvider currentUserProvider) {
-        this(mediaService, currentUserProvider, "uploads");
+        this(mediaService, currentUserProvider, "uploads", false);
     }
 
     @PostMapping
@@ -169,7 +172,12 @@ public class MediaController {
             try {
                 fsRootStream.close();
             } catch (IOException ignored) {}
-            // Fail closed when secure directory operations are unsupported on filesystem provider
+            // SecureDirectoryStream is unsupported on some filesystem providers (e.g. Windows NTFS).
+            // Fail closed in production; in the dev-only local-media mode the candidate path has
+            // already passed normalize/startsWith/char checks, so a plain read is acceptable.
+            if (localMediaFallbackEnabled) {
+                return serveLocalFallback(candidate, relativePath);
+            }
             throw new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Media not found");
         }
 
@@ -223,10 +231,45 @@ public class MediaController {
                 .body(resource);
     }
 
+    private ResponseEntity<Resource> serveLocalFallback(Path candidate, Path relativePath) {
+        if (!Files.isRegularFile(candidate)) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Media not found");
+        }
+        long contentLength;
+        try {
+            contentLength = Files.size(candidate);
+        } catch (IOException ex) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Media not found");
+        }
+        String filename = relativePath.getFileName().toString();
+        String contentType = null;
+        try {
+            contentType = Files.probeContentType(Paths.get(filename));
+        } catch (IOException | SecurityException ignored) {}
+        try {
+            InputStream inputStream = Files.newInputStream(candidate, StandardOpenOption.READ);
+            Resource resource = new InputStreamResource(inputStream) {
+                @Override
+                public long contentLength() {
+                    return contentLength;
+                }
+                @Override
+                public String getFilename() {
+                    return filename;
+                }
+            };
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_TYPE, contentType != null ? contentType : "application/octet-stream")
+                    .header(HttpHeaders.CACHE_CONTROL, "public, max-age=31536000, immutable")
+                    .body(resource);
+        } catch (IOException ex) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Media not found");
+        }
+    }
+
     SecureDirectoryStream<Path> openSecureDirectory(SecureDirectoryStream<Path> startStream,
                                                     Path relativePath,
-                                                    List<SecureDirectoryStream<Path>> openedStreams) throws IOException {
-        if (relativePath == null) {
+                                                    List<SecureDirectoryStream<Path>> openedStreams) throws IOException {        if (relativePath == null) {
             return startStream;
         }
         String pathStr = relativePath.toString();
