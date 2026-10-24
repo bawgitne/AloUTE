@@ -967,7 +967,7 @@ class StompRealtimeMessagingIntegrationTest {
         }
 
         // 6. Assert NO message with marker was persisted in the database
-        boolean messagePersisted = messageRepository.findByConversationIdOrderByCreatedAtDesc(
+        boolean messagePersisted = messageRepository.findByConversationIdOrderByCreatedAtDescIdDesc(
                 conversationId, PageRequest.of(0, 100)
         ).stream().anyMatch(m -> marker.equals(m.getContent()));
         assertThat(messagePersisted).isFalse();
@@ -1064,7 +1064,7 @@ class StompRealtimeMessagingIntegrationTest {
         }
 
         // 6. Assert NO message with marker was persisted in the database
-        boolean messagePersisted = messageRepository.findByConversationIdOrderByCreatedAtDesc(
+        boolean messagePersisted = messageRepository.findByConversationIdOrderByCreatedAtDescIdDesc(
                 conversationId, PageRequest.of(0, 100)
         ).stream().anyMatch(m -> marker.equals(m.getContent()));
         assertThat(messagePersisted).isFalse();
@@ -1136,7 +1136,7 @@ class StompRealtimeMessagingIntegrationTest {
         assertThat(bobReceived.getContent()).isEqualTo(uniqueContent);
 
         // 4. Assert database contains EXACTLY ONE persisted message with this content
-        long count = messageRepository.findByConversationIdOrderByCreatedAtDesc(
+        long count = messageRepository.findByConversationIdOrderByCreatedAtDescIdDesc(
                 conversationId, PageRequest.of(0, 100)
         ).stream().filter(m -> uniqueContent.equals(m.getContent())).count();
         assertThat(count).isEqualTo(1L);
