@@ -455,12 +455,12 @@
                 }
             }
 
-            // Auto-select resolved target conversation, or fallback to first on desktop if none active
+            // Only auto-select a conversation explicitly resolved from the URL/dataset.
+            // Desktop fallback to the first conversation would fire a read receipt
+            // for content the user never opened, consuming the unread state.
             const targetId = getTargetConversationId();
             if (targetId && !state.activeConversationId) {
                 selectConversation(targetId);
-            } else if (window.innerWidth >= 768 && !state.activeConversationId && state.conversations.length > 0) {
-                selectConversation(state.conversations[0].id);
             }
         } catch (err) {
             if (elLoading) elLoading.classList.add('d-none');
