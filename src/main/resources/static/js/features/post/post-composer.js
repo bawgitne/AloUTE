@@ -102,14 +102,35 @@
         // =====================================================================
         // Local draft recovery: unsent composer content survives page reloads,
         // accidental navigation and accidental modal dismissal.
+        // Drafts are scoped per authenticated user AND per composition context
+        // (standalone post vs a specific community) so content can never leak
+        // across accounts on a shared browser. Fail-closed: without a user id
+        // nothing is persisted at all.
         // =====================================================================
-        const DRAFT_STORAGE_KEY = 'aloute.post.draft.v1';
         let draftSaveTimer = null;
         let draftDiscardBtn = null;
 
+        function resolveDraftScope() {
+            const body = document.body;
+            const userId = body && body.dataset ? String(body.dataset.currentUserId || '').trim() : '';
+            if (!userId || userId === 'null' || userId === 'undefined') {
+                return null;
+            }
+            const commInput = document.getElementById('post-community-id');
+            const communityId = (commInput && commInput.value && /^\d+$/.test(commInput.value)) ? commInput.value : 'root';
+            return {
+                userId: userId,
+                communityId: communityId,
+                key: 'aloute.post.draft.v1.u' + userId + '.c' + communityId
+            };
+        }
+
+        const draftScope = resolveDraftScope();
+
         function readDraft() {
+            if (!draftScope) return null;
             try {
-                const raw = window.localStorage.getItem(DRAFT_STORAGE_KEY);
+                const raw = window.localStorage.getItem(draftScope.key);
                 if (!raw) return null;
                 const draft = JSON.parse(raw);
                 if (!draft || typeof draft !== 'object' || typeof draft.content !== 'string') return null;
@@ -120,9 +141,17 @@
         }
 
         function clearDraftQuietly() {
+            if (!draftScope) return;
             try {
-                window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+                window.localStorage.removeItem(draftScope.key);
             } catch (_) {}
+        }
+
+        function cancelPendingDraftSave() {
+            if (draftSaveTimer) {
+                clearTimeout(draftSaveTimer);
+                draftSaveTimer = null;
+            }
         }
 
         function removeDraftNotice() {
@@ -138,6 +167,7 @@
             if (visibilitySelect) visibilitySelect.value = 'PUBLIC';
             if (allowReplyInput) allowReplyInput.checked = true;
             if (allowQuoteInput) allowQuoteInput.checked = true;
+            cancelPendingDraftSave();
             clearDraftQuietly();
             removeDraftNotice();
             updateCharCount();
@@ -186,13 +216,13 @@
         }
 
         function scheduleDraftSave() {
-            if (isSubmitting) return;
+            if (isSubmitting || !draftScope) return;
             if (draftSaveTimer) {
                 clearTimeout(draftSaveTimer);
             }
             draftSaveTimer = setTimeout(function () {
                 draftSaveTimer = null;
-                if (isSubmitting) return;
+                if (isSubmitting || !draftScope) return;
                 const content = contentInput ? contentInput.value : '';
                 if (content.trim().length === 0) {
                     // An emptied composer means the draft is no longer wanted.
@@ -208,7 +238,7 @@
                     savedAt: Date.now()
                 };
                 try {
-                    window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+                    window.localStorage.setItem(draftScope.key, JSON.stringify(draft));
                 } catch (_) {}
             }, 400);
         }
@@ -596,6 +626,7 @@
                     // Confirmed success: retain isSubmitting = true and keep media controls frozen through navigation
                     const body = await readJson(response);
                     // The draft has been published; make sure it never resurrects.
+                    cancelPendingDraftSave();
                     clearDraftQuietly();
                     removeDraftNotice();
                     setStatus(statusBox, 'Đăng bài viết thành công!', 'success');

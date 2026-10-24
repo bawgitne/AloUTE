@@ -426,10 +426,20 @@ function runScript(source, window) {
     return ctx;
 }
 
-// Convenience: build the create-post composer DOM.
-function buildComposerDom(document) {
+// Convenience: build the create-post composer DOM. currentUserId mirrors the
+// body[data-current-user-id] attribute the layouts render for the session user.
+function buildComposerDom(document, { currentUserId = '1', communityId = null } = {}) {
+    document.body.dataset.currentUserId = currentUserId;
+
     const form = document.createElement('form');
     form.id = 'create-post-form';
+
+    if (communityId !== null) {
+        const comm = document.createElement('input');
+        comm.id = 'post-community-id';
+        comm.value = String(communityId);
+        form.appendChild(comm);
+    }
 
     const content = document.createElement('textarea');
     content.id = 'postContent';
@@ -463,6 +473,8 @@ function buildComposerDom(document) {
     document.body.appendChild(form);
     return { form, content, visibility, allowReply, allowQuote, submit, charCount, status };
 }
+
+const draftKeyFor = (userId, context = 'root') => `aloute.post.draft.v1.u${userId}.c${context}`;
 
 // -----------------------------------------------------------------------------
 // Suites
@@ -608,14 +620,14 @@ describe('Final web polish — follow state via GET /api/social/relations (page-
 describe('Final web polish — composer draft recovery (post-composer.js)', () => {
     it('restores a persisted draft into a fresh composer with a discard control', async () => {
         const env = createEnvironment();
-        env.window.localStorage._map.set('aloute.post.draft.v1', JSON.stringify({
+        env.window.localStorage._map.set(draftKeyFor('1'), JSON.stringify({
             content: 'Bản nháp kiểm thử chưa hoàn tất',
             visibility: 'FOLLOWERS',
             allowReply: false,
             allowQuote: true,
             savedAt: Date.now()
         }));
-        const dom = buildComposerDom(env.document);
+        const dom = buildComposerDom(env.document, { currentUserId: '1' });
         runScript(postComposerSource, env.window);
         await sleep(10);
 
@@ -628,44 +640,125 @@ describe('Final web polish — composer draft recovery (post-composer.js)', () =
 
         discard.click();
         assert.equal(dom.content.value, '', 'discard clears content');
-        assert.equal(env.window.localStorage.getItem('aloute.post.draft.v1'), null, 'discard removes stored draft');
+        assert.equal(env.window.localStorage.getItem(draftKeyFor('1')), null, 'discard removes stored draft');
     });
 
     it('saves the draft to localStorage after typing (debounced) and clears it on publish', async () => {
         const env = createEnvironment();
-        const dom = buildComposerDom(env.document);
+        const dom = buildComposerDom(env.document, { currentUserId: '1' });
         runScript(postComposerSource, env.window);
 
         dom.content.value = 'Nội dung bản nháp sẽ được đăng';
         dom.content.dispatchEvent(new MockEvent('input'));
         await sleep(600); // debounce is 400ms
 
-        const raw = env.window.localStorage.getItem('aloute.post.draft.v1');
-        assert.ok(raw, 'draft persisted');
+        const raw = env.window.localStorage.getItem(draftKeyFor('1'));
+        assert.ok(raw, 'draft persisted under the user-scoped key');
         const draft = JSON.parse(raw);
         assert.equal(draft.content, 'Nội dung bản nháp sẽ được đăng');
 
-        // Publish: submit returns 201 → draft must be removed.
+        // Publish: submit returns 201 → draft must be removed and the pending
+        // debounce timer must not resurrect it afterwards.
         env.window.fetchHandler = async () => ({
             ok: true,
             status: 201,
             text: async () => JSON.stringify({ success: true, data: { id: 9 } })
         });
         dom.submit.click();
-        await sleep(50);
-        assert.equal(env.window.localStorage.getItem('aloute.post.draft.v1'), null, 'draft cleared after successful publish');
+        await sleep(700);
+        assert.equal(env.window.localStorage.getItem(draftKeyFor('1')), null, 'draft cleared after successful publish (no timer resurrection)');
     });
 
     it('removes the draft when the composer is emptied again', async () => {
         const env = createEnvironment();
-        env.window.localStorage._map.set('aloute.post.draft.v1', JSON.stringify({ content: 'cũ', visibility: 'PUBLIC', allowReply: true, allowQuote: true, savedAt: 1 }));
-        const dom = buildComposerDom(env.document);
+        env.window.localStorage._map.set(draftKeyFor('1'), JSON.stringify({ content: 'cũ', visibility: 'PUBLIC', allowReply: true, allowQuote: true, savedAt: 1 }));
+        const dom = buildComposerDom(env.document, { currentUserId: '1' });
         runScript(postComposerSource, env.window);
 
         dom.content.value = '';
         dom.content.dispatchEvent(new MockEvent('input'));
         await sleep(600);
-        assert.equal(env.window.localStorage.getItem('aloute.post.draft.v1'), null, 'empty composer discards draft');
+        assert.equal(env.window.localStorage.getItem(draftKeyFor('1')), null, 'empty composer discards draft');
+    });
+});
+
+describe('Draft privacy — cross-account and cross-context isolation (post-composer.js)', () => {
+    it('does not restore another user\'s draft after an account switch on the same browser', async () => {
+        const env = createEnvironment();
+        // User 1 (admin) saved a draft earlier in this browser profile.
+        env.window.localStorage._map.set(draftKeyFor('1'), JSON.stringify({
+            content: 'MAT KHAU DU AN: aloute-secret-2026',
+            visibility: 'PUBLIC', allowReply: true, allowQuote: true, savedAt: Date.now()
+        }));
+        const dom = buildComposerDom(env.document, { currentUserId: '2' }); // user 2 now logged in
+        runScript(postComposerSource, env.window);
+        await sleep(10);
+
+        assert.equal(dom.content.value, '', 'user 2 composer starts empty');
+        assert.ok(!dom.status.textContent.includes('khôi phục'), 'no restore notice for foreign draft');
+        assert.ok(!env.document.getElementById('btn-discard-draft'), 'no discard affordance for foreign draft');
+        assert.ok(env.window.localStorage.getItem(draftKeyFor('1')), 'user 1 draft untouched (recovers on re-login)');
+    });
+
+    it('fails closed (never persists or restores) when no authenticated user id is present', async () => {
+        const env = createEnvironment();
+        // Legacy/anonymous key from an older build must not be picked up either.
+        env.window.localStorage._map.set('aloute.post.draft.v1', JSON.stringify({ content: 'legacy', visibility: 'PUBLIC', allowReply: true, allowQuote: true, savedAt: 1 }));
+        const dom = buildComposerDom(env.document, { currentUserId: '' });
+        runScript(postComposerSource, env.window);
+
+        dom.content.value = 'ghi chú ẩn danh';
+        dom.content.dispatchEvent(new MockEvent('input'));
+        await sleep(600);
+
+        const written = Array.from(env.window.localStorage._map.keys());
+        assert.deepEqual(written, ['aloute.post.draft.v1'], 'anonymous session writes nothing new');
+        assert.equal(dom.content.value, 'ghi chú ẩn danh', 'typing still works, just not persisted');
+        assert.ok(!dom.status.textContent.includes('khôi phục'), 'no restore in anonymous session');
+    });
+
+    it('scopes drafts by composition context: community composer and standalone composer do not share drafts', async () => {
+        // Community 7 composer saves its own draft.
+        const commEnv = createEnvironment();
+        const commDom = buildComposerDom(commEnv.document, { currentUserId: '1', communityId: '7' });
+        runScript(postComposerSource, commEnv.window);
+        commDom.content.value = 'Chỉ dành cho cộng đồng 7';
+        commDom.content.dispatchEvent(new MockEvent('input'));
+        await sleep(600);
+        assert.ok(commEnv.window.localStorage.getItem(draftKeyFor('1', '7')), 'community draft stored under community-scoped key');
+
+        // Same user opens the standalone composer → community draft must not appear.
+        const rootEnv = createEnvironment();
+        rootEnv.window.localStorage._map.set(draftKeyFor('1', '7'), commEnv.window.localStorage.getItem(draftKeyFor('1', '7')));
+        const rootDom = buildComposerDom(rootEnv.document, { currentUserId: '1' });
+        runScript(postComposerSource, rootEnv.window);
+        await sleep(10);
+        assert.equal(rootDom.content.value, '', 'standalone composer does not restore the community draft');
+    });
+
+    it('publishing clears only the active user+context draft; other scoped drafts survive', async () => {
+        const env = createEnvironment();
+        env.window.localStorage._map.set(draftKeyFor('2'), JSON.stringify({ content: 'draft của user 2', visibility: 'PUBLIC', allowReply: true, allowQuote: true, savedAt: 1 }));
+        env.window.localStorage._map.set(draftKeyFor('1', '7'), JSON.stringify({ content: 'draft cộng đồng 7', visibility: 'PUBLIC', allowReply: true, allowQuote: true, savedAt: 1 }));
+        const dom = buildComposerDom(env.document, { currentUserId: '1' });
+        runScript(postComposerSource, env.window);
+
+        dom.content.value = 'Bài sẽ đăng ngay';
+        dom.content.dispatchEvent(new MockEvent('input'));
+        await sleep(600);
+        assert.ok(env.window.localStorage.getItem(draftKeyFor('1', 'root')), 'user 1 root draft saved');
+
+        env.window.fetchHandler = async () => ({
+            ok: true,
+            status: 201,
+            text: async () => JSON.stringify({ success: true, data: { id: 30 } })
+        });
+        dom.submit.click();
+        await sleep(100);
+
+        assert.equal(env.window.localStorage.getItem(draftKeyFor('1', 'root')), null, 'active draft cleared on publish');
+        assert.ok(env.window.localStorage.getItem(draftKeyFor('2')), 'user 2 draft untouched');
+        assert.ok(env.window.localStorage.getItem(draftKeyFor('1', '7')), 'user 1 community draft untouched');
     });
 });
 
