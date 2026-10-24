@@ -10,10 +10,17 @@ spring:
   web:
     resources:
       cache:
-        # Immutable-ish static assets under /css /js /images are versioned via
-        # explicit ?v=N cache-busters in the templates; a moderate TTL bounds
-        # staleness for entries whose ?v=N was not bumped on a deploy.
+        # Static assets under /css /js /images are content-hash versioned (see
+        # chain below), so a new release with changed files produces new URLs
+        # and users never see stale assets within the 12h TTL window.
         period: 12h
+      chain:
+        strategy:
+          content:
+            # Appends ?v=<content-hash> to asset URLs resolved through
+            # Thymeleaf @{...} links (via ResourceUrlEncodingFilter). Manual
+            # ?v=N bumps in templates stay harmless as extra query params.
+            enabled: true
 
 server:
   port: ${PORT:8080}
