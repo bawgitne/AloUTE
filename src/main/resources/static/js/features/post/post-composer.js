@@ -167,6 +167,7 @@
             if (visibilitySelect) visibilitySelect.value = 'PUBLIC';
             if (allowReplyInput) allowReplyInput.checked = true;
             if (allowQuoteInput) allowQuoteInput.checked = true;
+            resetPollBuilder();
             cancelPendingDraftSave();
             clearDraftQuietly();
             removeDraftNotice();
@@ -210,9 +211,56 @@
             if (allowQuoteInput && typeof draft.allowQuote === 'boolean') {
                 allowQuoteInput.checked = draft.allowQuote;
             }
+            restorePollDraftState(draft.poll);
             updateCharCount();
             updateSubmitButtonState();
             showDraftNotice(draft.savedAt);
+        }
+
+        // Snapshot of the poll builder for the draft, or null when the builder is absent.
+        function collectPollDraftState() {
+            if (!pollBuilder || !isPollActive()) return null;
+            const durationValue = pollDurationSelect ? pollDurationSelect.value : '';
+            return {
+                question: pollQuestionInput ? pollQuestionInput.value : '',
+                options: getPollOptions(),
+                allowMultiple: !!(pollAllowMultipleInput && pollAllowMultipleInput.checked),
+                durationDays: durationValue ? parseInt(durationValue, 10) : null
+            };
+        }
+
+        // Restores a drafted poll into the builder. Runs after the poll elements are
+        // wired, so it is invoked from restoreDraftIfAny through a deferred hook.
+        function restorePollDraftState(pollDraft) {
+            if (!pollBuilder || !pollDraft || typeof pollDraft !== 'object') return;
+            const hasQuestion = pollDraft.question && pollDraft.question.trim().length > 0;
+            const hasOptions = Array.isArray(pollDraft.options)
+                && pollDraft.options.some(function (o) { return o && o.trim().length > 0; });
+            if (!hasQuestion && !hasOptions) return;
+
+            setPollActive(true);
+            if (pollQuestionInput && pollDraft.question) {
+                pollQuestionInput.value = pollDraft.question;
+            }
+            if (pollAllowMultipleInput) {
+                pollAllowMultipleInput.checked = pollDraft.allowMultiple === true;
+            }
+            if (pollDurationSelect && pollDraft.durationDays) {
+                pollDurationSelect.value = String(pollDraft.durationDays);
+            }
+            if (pollOptionsList && Array.isArray(pollDraft.options)) {
+                const options = pollDraft.options.slice(0, POLL_MAX_OPTIONS);
+                Array.from(pollOptionsList.querySelectorAll('.poll-option-row')).forEach(function (row, idx) {
+                    if (idx >= POLL_MIN_OPTIONS) row.remove();
+                });
+                while (pollOptionsList.querySelectorAll('.poll-option-row').length < options.length) {
+                    addPollOptionRow(false);
+                }
+                Array.from(pollOptionsList.querySelectorAll('.poll-option-input')).forEach(function (input, idx) {
+                    input.value = options[idx] || '';
+                });
+            }
+            refreshPollOptionUi();
         }
 
         function scheduleDraftSave() {
@@ -235,6 +283,7 @@
                     visibility: (visibilitySelect && visibilitySelect.value) || 'PUBLIC',
                     allowReply: allowReplyInput ? allowReplyInput.checked : true,
                     allowQuote: allowQuoteInput ? allowQuoteInput.checked : true,
+                    poll: collectPollDraftState(),
                     savedAt: Date.now()
                 };
                 try {
@@ -243,6 +292,194 @@
             }, 400);
         }
 
+        // =====================================================================
+        // Poll builder (optional): question, 2–10 options, multi-choice switch,
+        // optional duration. Attached to the create payload as poll: PollCreateInput.
+        // Every element is optional so pages/DOM without the builder keep working.
+        // =====================================================================
+        const pollToggleBtn = document.getElementById('btn-toggle-poll');
+        const pollBuilder = document.getElementById('poll-builder');
+        const pollQuestionInput = document.getElementById('poll-question');
+        const pollOptionsList = document.getElementById('poll-options-list');
+        const pollAddOptionBtn = document.getElementById('btn-add-poll-option');
+        const pollAllowMultipleInput = document.getElementById('poll-allow-multiple');
+        const pollDurationSelect = document.getElementById('poll-duration');
+        const pollOptionCountEl = document.getElementById('poll-option-count');
+        const pollStatusBox = document.getElementById('poll-builder-status');
+        const POLL_MAX_OPTIONS = 10;
+        const POLL_MIN_OPTIONS = 2;
+
+        function isPollActive() {
+            return !!(pollBuilder && !pollBuilder.classList.contains('d-none'));
+        }
+
+        function setPollStatus(message) {
+            if (!pollStatusBox) return;
+            if (!message) {
+                pollStatusBox.classList.add('d-none');
+                pollStatusBox.textContent = '';
+                return;
+            }
+            pollStatusBox.textContent = message;
+            pollStatusBox.classList.remove('d-none');
+        }
+
+        function getPollOptions() {
+            if (!pollOptionsList) return [];
+            return Array.from(pollOptionsList.querySelectorAll('.poll-option-input'))
+                .map(function (input) { return input.value.trim(); });
+        }
+
+        function refreshPollOptionUi() {
+            if (!pollOptionsList) return;
+            const rows = Array.from(pollOptionsList.querySelectorAll('.poll-option-row'));
+            rows.forEach(function (row, idx) {
+                const badge = row.querySelector('.input-group-text');
+                if (badge) badge.textContent = String(idx + 1);
+                const removeBtn = row.querySelector('.poll-option-remove');
+                if (removeBtn) removeBtn.classList.toggle('d-none', rows.length <= POLL_MIN_OPTIONS);
+                const input = row.querySelector('.poll-option-input');
+                if (input) input.placeholder = 'Phương án ' + (idx + 1);
+            });
+            if (pollOptionCountEl) {
+                pollOptionCountEl.textContent = rows.length + ' / ' + POLL_MAX_OPTIONS + ' phương án';
+            }
+            if (pollAddOptionBtn) {
+                pollAddOptionBtn.disabled = rows.length >= POLL_MAX_OPTIONS;
+            }
+        }
+
+        function addPollOptionRow(focus) {
+            if (!pollOptionsList) return;
+            const rows = pollOptionsList.querySelectorAll('.poll-option-row');
+            if (rows.length >= POLL_MAX_OPTIONS) return;
+
+            const row = document.createElement('div');
+            row.className = 'poll-option-row input-group input-group-sm';
+
+            const badge = document.createElement('span');
+            badge.className = 'input-group-text';
+            badge.textContent = String(rows.length + 1);
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'form-control poll-option-input';
+            input.maxLength = 200;
+            input.placeholder = 'Phương án ' + (rows.length + 1);
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'btn btn-outline-secondary poll-option-remove';
+            removeBtn.setAttribute('aria-label', 'Xóa phương án ' + (rows.length + 1));
+            removeBtn.tabIndex = -1;
+            removeBtn.innerHTML = '<i class="bi bi-x-lg" aria-hidden="true"></i>';
+            removeBtn.addEventListener('click', function () {
+                row.remove();
+                refreshPollOptionUi();
+                scheduleDraftSave();
+            });
+
+            row.appendChild(badge);
+            row.appendChild(input);
+            row.appendChild(removeBtn);
+            pollOptionsList.appendChild(row);
+            input.addEventListener('input', scheduleDraftSave);
+            refreshPollOptionUi();
+            if (focus) input.focus();
+        }
+
+        function setPollActive(active) {
+            if (!pollBuilder || !pollToggleBtn) return;
+            pollBuilder.classList.toggle('d-none', !active);
+            pollToggleBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+            if (active && pollQuestionInput && !pollQuestionInput.value) {
+                pollQuestionInput.focus();
+            }
+            setPollStatus(null);
+        }
+
+        function resetPollBuilder() {
+            if (pollQuestionInput) pollQuestionInput.value = '';
+            if (pollAllowMultipleInput) pollAllowMultipleInput.checked = false;
+            if (pollDurationSelect) pollDurationSelect.value = '';
+            if (pollOptionsList) {
+                Array.from(pollOptionsList.querySelectorAll('.poll-option-row')).forEach(function (row, idx) {
+                    if (idx >= POLL_MIN_OPTIONS) {
+                        row.remove();
+                    } else {
+                        const input = row.querySelector('.poll-option-input');
+                        if (input) input.value = '';
+                    }
+                });
+            }
+            setPollActive(false);
+            refreshPollOptionUi();
+            setPollStatus(null);
+        }
+
+        /**
+         * Validates the active poll builder and returns the PollCreateInput payload,
+         * or null when the builder is inactive. Returns {valid:false} with a status
+         * message when the builder is active but malformed.
+         */
+        function collectPollForSubmit() {
+            if (!isPollActive()) {
+                return { valid: true, poll: null };
+            }
+            setPollStatus(null);
+
+            const question = pollQuestionInput ? pollQuestionInput.value.trim() : '';
+            if (!question) {
+                setPollStatus('Vui lòng nhập câu hỏi bình chọn.');
+                if (pollQuestionInput) pollQuestionInput.focus();
+                return { valid: false, poll: null };
+            }
+
+            const options = getPollOptions().filter(function (text) { return text.length > 0; });
+            if (options.length < POLL_MIN_OPTIONS) {
+                setPollStatus('Bình chọn cần ít nhất ' + POLL_MIN_OPTIONS + ' phương án không để trống.');
+                return { valid: false, poll: null };
+            }
+
+            const durationValue = pollDurationSelect ? pollDurationSelect.value : '';
+            const durationDays = durationValue ? parseInt(durationValue, 10) : null;
+
+            return {
+                valid: true,
+                poll: {
+                    question: question,
+                    options: options,
+                    allowMultiple: !!(pollAllowMultipleInput && pollAllowMultipleInput.checked),
+                    durationDays: durationDays
+                }
+            };
+        }
+
+        if (pollToggleBtn && pollBuilder) {
+            pollToggleBtn.addEventListener('click', function () {
+                setPollActive(!isPollActive());
+                scheduleDraftSave();
+            });
+        }
+        if (pollAddOptionBtn) {
+            pollAddOptionBtn.addEventListener('click', function () {
+                addPollOptionRow(true);
+                scheduleDraftSave();
+            });
+        }
+        if (pollQuestionInput) {
+            pollQuestionInput.addEventListener('input', scheduleDraftSave);
+        }
+        if (pollAllowMultipleInput) {
+            pollAllowMultipleInput.addEventListener('change', scheduleDraftSave);
+        }
+        if (pollDurationSelect) {
+            pollDurationSelect.addEventListener('change', scheduleDraftSave);
+        }
+        refreshPollOptionUi();
+
+        // Draft restore runs last so the poll builder elements above exist when a
+        // drafted poll is written back into them.
         restoreDraftIfAny();
 
         // Modal lifecycle listeners
@@ -581,6 +818,14 @@
                 return;
             }
 
+            // Poll builder validation (no request leaves the browser with a malformed poll)
+            const pollResult = collectPollForSubmit();
+            if (!pollResult.valid) {
+                setStatus(statusBox, 'Thông tin bình chọn chưa hợp lệ. Vui lòng kiểm tra lại.', 'warning');
+                updateSubmitButtonState();
+                return;
+            }
+
             isSubmitting = true;
             freezeMediaControls();
             updateSubmitButtonState();
@@ -598,6 +843,10 @@
 
             if (attachedMedia.length > 0) {
                 payload.mediaIds = attachedMedia.map(function (m) { return m.id; });
+            }
+
+            if (pollResult.poll) {
+                payload.poll = pollResult.poll;
             }
 
             // Loading state: disable button to prevent duplicate submissions

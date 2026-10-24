@@ -3353,18 +3353,24 @@ components:
 
     PollCreateInput:
       type: object
-      required: [options, allowMultiple]
+      required: [question, options, allowMultiple]
       properties:
         question:
           type: string
-          maxLength: 300
-          nullable: true
+          minLength: 1
+          maxLength: 255
         allowMultiple:
           type: boolean
-        closesAt:
-          type: string
-          format: date-time
+        durationDays:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 365
           nullable: true
+          description: |
+            Optional poll lifetime in days, counted from post creation. When present the
+            poll closes automatically after the given number of days; when omitted the
+            poll stays open indefinitely.
         options:
           type: array
           minItems: 2
