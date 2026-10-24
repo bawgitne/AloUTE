@@ -193,7 +193,7 @@
         <!-- Post Topics / Tags -->
         <div th:if="${post.topics != null and !post.topics.isEmpty()}" class="post-topics">
             <a th:each="topic : ${post.topics}"
-               th:href="${topic.slug != null and !topic.slug.isBlank() ? '/topics/' + topic.slug : '/search?q=' + ${topic.name}}"
+               th:href="${topic.slug != null and !topic.slug.isBlank() ? '/topics/' + topic.slug : '/search?q=' + topic.name}"
                class="badge bg-light text-secondary border rounded-pill py-1 px-2 text-decoration-none"
                th:title="${'Xem bài viết về chủ đề ' + topic.name}"
                th:text="'#' + ${topic.name}">#hoc-tap</a>
