@@ -1,6 +1,7 @@
 package com.aloute.dto.request;
 
 import com.aloute.entity.PostVisibility;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.util.List;
@@ -13,5 +14,5 @@ public record CreatePostRequest(
         List<Long> mediaIds,
         List<Long> mentionedUserIds,
         List<Long> topicIds,
-        Object poll
+        @Valid PollCreateInput poll
 ) {}
