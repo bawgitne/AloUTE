@@ -8,11 +8,14 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface PollRepository extends JpaRepository<Poll, Long> {
     Optional<Poll> findByPostId(Long postId);
+    List<Poll> findByPost_IdIn(Collection<Long> postIds);
 
     /**
      * Serializes voting on a poll. The single-choice one-vote check is a
