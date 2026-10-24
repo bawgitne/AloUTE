@@ -56,9 +56,10 @@ describe('static asset references from JS', () => {
 
         assert.deepStrictEqual(missing, [],
             `JS files reference images that do not exist on disk: ${missing.join(', ')}`);
-        // sanity: the historical offender must not silently come back
-        assert.ok(checked.has('/images/avatar-fallback.svg'),
-            'expected at least one /images/avatar-fallback.svg reference (web-push notification icon)');
+        // sanity: the web-push notification icon must be referenced and exist
+        // (a raster PNG — logo.png — renders on Android where SVG icons do not)
+        assert.ok(checked.has('/images/logo.png'),
+            'expected at least one /images/logo.png reference (web-push notification icon)');
     });
 
     it('web-push notification icons point at an existing asset in both foreground and service-worker paths', () => {

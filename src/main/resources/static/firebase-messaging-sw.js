@@ -18,7 +18,7 @@ messaging.onBackgroundMessage((payload) => {
   const title = (payload.notification && payload.notification.title) || "ALOUTE";
   const options = {
     body: (payload.notification && payload.notification.body) || "Bạn có thông báo mới",
-    icon: "/images/avatar-fallback.svg",
+    icon: "/images/logo.png",
     data: {
       url: (payload.data && payload.data.click_url) || "/feed"
     }
