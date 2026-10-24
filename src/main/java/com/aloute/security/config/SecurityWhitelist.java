@@ -70,6 +70,7 @@ public final class SecurityWhitelist {
             "/c/**",
             "/t/**",
             "/topic/**",
+            "/topics/**",
             "/saved",
             "/saved/**",
             "/bookmarks",
