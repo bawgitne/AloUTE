@@ -7,11 +7,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 
 @Repository
 public interface PollOptionRepository extends JpaRepository<PollOption, Long> {
     List<PollOption> findByPollIdOrderByPositionAsc(Long pollId);
+
+    /** Batch lookup for list assembly: options of every poll on a page, in one query. */
+    List<PollOption> findByPoll_IdInOrderByPoll_IdAscPositionAsc(Collection<Long> pollIds);
 
     /**
      * Atomic vote-count increment. A bulk UPDATE avoids the read-modify-write lost-update
