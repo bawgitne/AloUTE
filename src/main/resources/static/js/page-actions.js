@@ -1487,6 +1487,7 @@
                 contentInput.classList.remove('is-invalid');
             }
             if (visSelect) visSelect.value = 'PUBLIC';
+            syncQuoteVisibilityDropdown();
             if (statusEl) statusEl.className = 'alert d-none py-2 small mb-3';
             if (errEl) errEl.classList.add('d-none');
 
@@ -2821,6 +2822,46 @@
         } catch (_) {}
     }
 
+    // =========================================================================
+    // QUOTE MODAL VISIBILITY DROPDOWN (DOM-rendered replacement for <select>)
+    // Native select popups render detached/misplaced in embedded webviews, so the
+    // quote visibility control is a Bootstrap dropdown backed by a hidden input
+    // (#quote-post-visibility) that keeps the original .value contract.
+    // =========================================================================
+    function syncQuoteVisibilityDropdown() {
+        const hidden = document.getElementById('quote-post-visibility');
+        const wrap = document.getElementById('quote-post-visibility-dropdown');
+        if (!hidden || !wrap) return;
+
+        const value = hidden.value || 'PUBLIC';
+        const items = wrap.querySelectorAll('.dropdown-item[data-value]');
+        let label = '';
+        items.forEach(function (item) {
+            const isActive = item.getAttribute('data-value') === value;
+            item.classList.toggle('active', isActive);
+            if (isActive) label = item.textContent.trim();
+        });
+        const labelEl = document.getElementById('quote-post-visibility-label');
+        if (labelEl) labelEl.textContent = label || 'Công khai (Mọi người)';
+    }
+
+    function initQuoteVisibilityDropdown() {
+        const wrap = document.getElementById('quote-post-visibility-dropdown');
+        if (!wrap || wrap.dataset.visibilityWired === 'true') return;
+        wrap.dataset.visibilityWired = 'true';
+
+        wrap.addEventListener('click', function (event) {
+            const item = event.target.closest('.dropdown-item[data-value]');
+            if (!item) return;
+            event.preventDefault();
+            const hidden = document.getElementById('quote-post-visibility');
+            if (hidden) hidden.value = item.getAttribute('data-value') || 'PUBLIC';
+            syncQuoteVisibilityDropdown();
+        });
+
+        syncQuoteVisibilityDropdown();
+    }
+
     // Initialize interactive components when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function () {
@@ -2830,6 +2871,7 @@
             initCreateCommunityModal();
             initReportModal();
             initQuotePostModal();
+            initQuoteVisibilityDropdown();
             initNotificationBadges();
             initNavbarNotificationPreview();
             initPollVoting();
@@ -2842,6 +2884,7 @@
         initCreateCommunityModal();
         initReportModal();
         initQuotePostModal();
+        initQuoteVisibilityDropdown();
         initNotificationBadges();
         initNavbarNotificationPreview();
         initPollVoting();
