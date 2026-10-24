@@ -11,7 +11,8 @@ import java.util.Optional;
 @Repository
 public interface MessageRepository extends JpaRepository<Message, Long> {
 
-    Page<Message> findByConversationIdOrderByCreatedAtDesc(Long conversationId, Pageable pageable);
+    // createdAt DESC + id DESC: deterministic page order when rows share a timestamp
+    Page<Message> findByConversationIdOrderByCreatedAtDescIdDesc(Long conversationId, Pageable pageable);
 
     Optional<Message> findTopByConversationIdOrderByCreatedAtDesc(Long conversationId);
 

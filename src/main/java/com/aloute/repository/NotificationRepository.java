@@ -15,9 +15,10 @@ import java.util.Optional;
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
-    Page<Notification> findByRecipientIdOrderByCreatedAtDesc(Long recipientId, Pageable pageable);
+    // createdAt DESC + id DESC: deterministic page order when rows share a timestamp
+    Page<Notification> findByRecipientIdOrderByCreatedAtDescIdDesc(Long recipientId, Pageable pageable);
 
-    Page<Notification> findByRecipientIdAndTypeInOrderByCreatedAtDesc(Long recipientId, Collection<String> types, Pageable pageable);
+    Page<Notification> findByRecipientIdAndTypeInOrderByCreatedAtDescIdDesc(Long recipientId, Collection<String> types, Pageable pageable);
 
     long countByRecipientIdAndIsReadFalse(Long recipientId);
 
