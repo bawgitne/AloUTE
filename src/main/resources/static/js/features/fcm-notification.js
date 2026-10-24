@@ -63,7 +63,7 @@ if (messaging) {
     if (Notification.permission === 'granted') {
       new Notification((payload.notification && payload.notification.title) || "ALOUTE", {
         body: (payload.notification && payload.notification.body) || "Bạn có thông báo mới",
-        icon: "/images/default-avatar.png"
+        icon: "/images/avatar-fallback.svg"
       });
     }
   });
