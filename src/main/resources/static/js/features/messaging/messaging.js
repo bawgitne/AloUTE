@@ -954,6 +954,7 @@
 
     let stompSocket = null;
     let stompConnected = false;
+    let stompHasConnectedOnce = false;
     let stompReconnectTimer = null;
     let currentSocketId = 0;
     let incomingBuffer = '';
@@ -1023,8 +1024,12 @@
                 });
                 stompSocket.send(subFrame);
             }
-            // Refresh authoritative conversation summaries after reconnect
-            loadConversations(0, false);
+            // Refresh authoritative conversation summaries on reconnects only —
+            // the first connect rides on the list init() already loaded.
+            if (stompHasConnectedOnce) {
+                loadConversations(0, false);
+            }
+            stompHasConnectedOnce = true;
             // Reconnect / catchup for current active conversation
             if (state.activeConversationId) {
                 loadMessages(state.activeConversationId, 0, false, messagesRequestId);

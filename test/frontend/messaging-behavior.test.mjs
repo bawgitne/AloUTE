@@ -1879,7 +1879,9 @@ describe('Messaging Frontend & Behavior Regression Tests', () => {
                 }
                 if (url.includes('/api/conversations?')) {
                     convCallCount++;
-                    if (convCallCount <= 2) {
+                    // call 1 = init(); first CONNECTED no longer re-fetches (dedupe),
+                    // so the retry click is call 2 and it is the held in-flight summary.
+                    if (convCallCount <= 1) {
                         return {
                             ok: true,
                             status: 200,
@@ -1981,7 +1983,9 @@ describe('Messaging Frontend & Behavior Regression Tests', () => {
                 }
                 if (url.includes('/api/conversations?')) {
                     convCallCount++;
-                    if (convCallCount <= 2) {
+                    // call 1 = init(); first CONNECTED no longer re-fetches (dedupe),
+                    // so the retry click is call 2 and it is the held in-flight summary.
+                    if (convCallCount <= 1) {
                         // Baseline summary: conv 11 has lm400, unread 0
                         return {
                             ok: true,
@@ -2067,6 +2071,41 @@ describe('Messaging Frontend & Behavior Regression Tests', () => {
             item11 = convList.children.find(c => c.getAttribute && c.getAttribute('data-conversation-id') === '11');
             assert.ok(item11.innerHTML.includes('>2</span>'), 'Duplicate 450 does not increment unread (stays 2)');
             assert.ok(item11.innerHTML.includes('msg-500'), 'Preview remains msg-500');
+        });
+
+        it('does not re-fetch the conversations list on the first CONNECTED; refreshes it on reconnect', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc);
+
+            let conversationsFetches = 0;
+            const mockFetch = async (url) => {
+                if (url.includes('/api/conversations?')) conversationsFetches++;
+                return {
+                    ok: true,
+                    status: 200,
+                    text: async () => JSON.stringify({
+                        success: true,
+                        data: [{ id: 42, name: 'Hội thoại 42', lastMessage: null }],
+                        meta: { page: 0, hasNext: false }
+                    })
+                };
+            };
+
+            const { sandbox } = createStompSandbox(doc, mockFetch);
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 20));
+            assert.equal(conversationsFetches, 1, 'init() fetches the conversations list exactly once');
+
+            const ws = FakeWebSocket.instances[0];
+            ws.receive('CONNECTED\nversion:1.2\nheart-beat:0,0\n\n\0');
+            await new Promise(r => setTimeout(r, 10));
+            assert.equal(conversationsFetches, 1, 'first CONNECTED must not duplicate the list fetch');
+
+            ws.receive('CONNECTED\nversion:1.2\nheart-beat:0,0\n\n\0');
+            await new Promise(r => setTimeout(r, 25));
+            assert.equal(conversationsFetches, 2, 'reconnect CONNECTED refreshes the list');
         });
     });
 });
