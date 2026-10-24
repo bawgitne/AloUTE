@@ -58,6 +58,57 @@
             <div id="media-upload-status" class="alert alert-danger py-1 px-2 small d-none mt-2" role="alert"></div>
         </div>
 
+        <!-- Poll Builder (optional, POST /api/posts with CreatePostRequest.poll) -->
+        <div class="mb-3">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="form-label fw-semibold small mb-0">Bình chọn</span>
+                <button type="button" id="btn-toggle-poll" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" aria-pressed="false" aria-controls="poll-builder">
+                    <i class="bi bi-bar-chart-line" aria-hidden="true"></i>
+                    <span>Thêm bình chọn</span>
+                </button>
+            </div>
+            <div id="poll-builder" class="p-3 rounded bg-light-subtle border d-none">
+                <div id="poll-builder-status" class="alert alert-danger py-1 px-2 small d-none mb-2" role="alert"></div>
+                <div class="mb-2">
+                    <label for="poll-question" class="form-label small fw-semibold mb-1">Câu hỏi bình chọn <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control form-control-sm" id="poll-question" maxlength="255" placeholder="Ví dụ: Chủ đề nào bạn thích nhất trong CNPM?">
+                </div>
+                <div id="poll-options-list" class="d-flex flex-column gap-2 mb-2">
+                    <div class="poll-option-row input-group input-group-sm">
+                        <span class="input-group-text">1</span>
+                        <input type="text" class="form-control poll-option-input" maxlength="200" placeholder="Phương án 1">
+                        <button type="button" class="btn btn-outline-secondary poll-option-remove d-none" aria-label="Xóa phương án 1" tabindex="-1"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                    </div>
+                    <div class="poll-option-row input-group input-group-sm">
+                        <span class="input-group-text">2</span>
+                        <input type="text" class="form-control poll-option-input" maxlength="200" placeholder="Phương án 2">
+                        <button type="button" class="btn btn-outline-secondary poll-option-remove d-none" aria-label="Xóa phương án 2" tabindex="-1"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                    </div>
+                </div>
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <button type="button" id="btn-add-poll-option" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1">
+                        <i class="bi bi-plus-lg" aria-hidden="true"></i><span>Thêm phương án</span>
+                    </button>
+                    <span class="text-muted small" id="poll-option-count">2 / 10 phương án</span>
+                </div>
+                <div class="d-flex flex-wrap gap-3 mt-3 pt-2 border-top">
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="poll-allow-multiple">
+                        <label class="form-check-label small text-secondary" for="poll-allow-multiple">Cho phép chọn nhiều phương án</label>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="poll-duration" class="small text-secondary mb-0">Thời hạn:</label>
+                        <select class="form-select form-select-sm w-auto" id="poll-duration">
+                            <option value="" selected>Không giới hạn</option>
+                            <option value="1">1 ngày</option>
+                            <option value="3">3 ngày</option>
+                            <option value="7">7 ngày</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Interaction Permissions (allowReply, allowQuote) -->
         <div class="mb-4 p-3 rounded post-permissions-panel bg-light-subtle border">
             <div class="form-label fw-semibold small mb-2">Quyền tương tác</div>

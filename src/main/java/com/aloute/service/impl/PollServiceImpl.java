@@ -42,7 +42,11 @@ public class PollServiceImpl implements PollService {
     @Override
     @Transactional
     public PollResponse votePoll(Long pollId, Long currentUserId, VotePollRequest request) {
-        Poll poll = pollRepository.findById(pollId)
+        // Lock the poll row for the whole vote: the single-choice one-vote rule is a
+        // check-then-insert sequence, so concurrent same-user votes must be serialized
+        // for the exists() check to be trustworthy (UNIQUE(poll_id, option_id, user_id)
+        // only blocks identical options, not different options from the same user).
+        Poll poll = pollRepository.findByIdForUpdate(pollId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "POLL_NOT_FOUND", "Poll not found"));
 
         if (poll.isClosed()) {
@@ -52,12 +56,13 @@ public class PollServiceImpl implements PollService {
         User user = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found"));
 
-        List<Long> optionIds = request.getEffectiveOptionIds();
+        List<Long> optionIds = request.getEffectiveOptionIds().stream().distinct().toList();
         if (optionIds.isEmpty()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "At least one option ID is required to vote");
         }
 
-        // Single-choice invariant
+        // Single-choice invariant (domain §17.1): enforced in the application layer;
+        // the DB unique constraint is deliberately (poll_id, option_id, user_id) only.
         if (!poll.isAllowMultiple()) {
             if (optionIds.size() > 1) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "POLL_NOT_MULTIPLE_CHOICE", "This poll only allows voting for one option");
@@ -67,6 +72,8 @@ public class PollServiceImpl implements PollService {
             }
         }
 
+        List<PollVote> newVotes = new java.util.ArrayList<>();
+        List<Long> newlyVotedOptionIds = new java.util.ArrayList<>();
         for (Long optionId : optionIds) {
             PollOption option = pollOptionRepository.findById(optionId)
                     .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "POLL_OPTION_NOT_FOUND", "Poll option not found"));
@@ -76,16 +83,29 @@ public class PollServiceImpl implements PollService {
             }
 
             if (!pollVoteRepository.existsByPollIdAndOptionIdAndUserId(pollId, optionId, currentUserId)) {
-                PollVote vote = PollVote.builder()
+                newVotes.add(PollVote.builder()
                         .poll(poll)
                         .option(option)
                         .user(user)
-                        .build();
-                pollVoteRepository.save(vote);
-
-                option.setVoteCount(option.getVoteCount() + 1);
-                pollOptionRepository.save(option);
+                        .build());
+                newlyVotedOptionIds.add(optionId);
             }
+        }
+
+        // Two concurrent transactions can both pass the exists() checks above for the same
+        // (poll, option, user); the DB unique constraint uk_poll_votes_user_option is the
+        // final arbiter. Force the flush inside the try so the violation surfaces here and
+        // maps to a friendly 409 instead of a 500 at commit time.
+        try {
+            pollVoteRepository.saveAll(newVotes);
+            pollVoteRepository.flush();
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new ApiException(HttpStatus.CONFLICT, "POLL_ALREADY_VOTED", "You have already voted in this poll");
+        }
+
+        // Cached vote counts are advanced atomically (bulk UPDATE), never read-modify-write.
+        for (Long optionId : newlyVotedOptionIds) {
+            pollOptionRepository.incrementVoteCount(optionId);
         }
 
         log.info("User {} voted in poll {}", currentUserId, pollId);
