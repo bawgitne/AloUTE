@@ -350,7 +350,11 @@
                 const reportId = btn.getAttribute('data-report-id');
                 const expectedVersion = parseInt(btn.getAttribute('data-expected-version') || '0', 10);
 
-                if (!confirm('Bạn có chắc chắn muốn nhận xử lý báo cáo #' + reportId + '?')) {
+                const confirmed = await window.alouteConfirm(
+                    'Nhận xử lý báo cáo #' + reportId + '? Báo cáo sẽ chuyển sang trạng thái "Đang xem xét" và được gán cho bạn.',
+                    { title: 'Nhận xử lý báo cáo', confirmText: 'Nhận xử lý', danger: false }
+                );
+                if (!confirmed) {
                     return;
                 }
 
@@ -371,13 +375,13 @@
                         setTimeout(function () { window.location.reload(); }, 500);
                     } else {
                         const errMsg = extractErrorMessage(json, response.status);
-                        alert(errMsg);
+                        showToast(errMsg, 'danger');
                         if (response.status === 409) {
-                            window.location.reload();
+                            setTimeout(function () { window.location.reload(); }, 1200);
                         }
                     }
                 } catch (err) {
-                    alert('Lỗi kết nối mạng: Không thể nhận xử lý báo cáo.');
+                    showToast('Lỗi kết nối mạng: Không thể nhận xử lý báo cáo.', 'danger');
                 } finally {
                     btn.disabled = false;
                     btn.innerHTML = originalHtml;

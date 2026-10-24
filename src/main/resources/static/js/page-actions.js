@@ -519,39 +519,24 @@
     }
 
     // =========================================================================
-    // 3. FOLLOW / UNFOLLOW FLOW (Paged traversal for initial state)
+    // 3. FOLLOW / UNFOLLOW FLOW (Single relation lookup for initial state)
     // =========================================================================
     async function resolveFollowStatus(currentUserId, targetUserId) {
-        let page = 0;
-        const size = 100;
-        let isFollowing = false;
+        // GET /api/social/relations/{userId} answers following/blocked/muted in one call;
+        // paging through /following lists would cost one request per 100 followees.
+        const resp = await fetch('/api/social/relations/' + encodeURIComponent(targetUserId), {
+            method: 'GET',
+            credentials: 'include',
+            headers: { 'Accept': 'application/json' }
+        });
 
-        while (true) {
-            const resp = await fetch('/api/users/' + encodeURIComponent(currentUserId) + '/following?page=' + page + '&size=' + size, {
-                method: 'GET',
-                credentials: 'include',
-                headers: { 'Accept': 'application/json' }
-            });
-
-            if (!resp.ok) {
-                throw new Error('HTTP ' + resp.status);
-            }
-
-            const body = await resp.json();
-            const list = (body && body.data) || [];
-
-            if (list.some(function (item) { return String(item.id) === String(targetUserId); })) {
-                isFollowing = true;
-                break;
-            }
-
-            if (!body.meta || !body.meta.hasNext) {
-                break;
-            }
-            page++;
+        if (!resp.ok) {
+            throw new Error('HTTP ' + resp.status);
         }
 
-        return isFollowing;
+        const body = await resp.json();
+        const relation = (body && body.data) || {};
+        return relation.following === true;
     }
 
     function renderFollowState(btn, isFollowing) {
@@ -848,21 +833,65 @@
         }
     }
 
+    function legacyCopyToClipboard(text) {
+        // Fallback for contexts where the async Clipboard API is unavailable or
+        // rejected (e.g. an unfocused embedded webview document).
+        const tempInput = document.createElement('input');
+        tempInput.value = text;
+        tempInput.setAttribute('readonly', '');
+        tempInput.style.position = 'fixed';
+        tempInput.style.opacity = '0';
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        let copied = false;
+        try {
+            copied = document.execCommand('copy');
+        } catch (_) {
+            copied = false;
+        }
+        document.body.removeChild(tempInput);
+        return copied;
+    }
+
+    async function copyToClipboard(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch (_) {
+                // fall through to the legacy path
+            }
+        }
+        return legacyCopyToClipboard(text);
+    }
+
     async function handleCopyProfileLink(btn) {
         const username = btn.dataset.username || '';
         const url = window.location.origin + '/users/' + encodeURIComponent(username);
         try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(url);
+            if (await copyToClipboard(url)) {
+                notice('Đã sao chép liên kết trang cá nhân vào clipboard!', 'success');
             } else {
-                const tempInput = document.createElement('input');
-                tempInput.value = url;
-                document.body.appendChild(tempInput);
-                tempInput.select();
-                document.execCommand('copy');
-                document.body.removeChild(tempInput);
+                notice('Không thể sao chép liên kết.', 'warning');
             }
-            notice('Đã sao chép liên kết trang cá nhân vào clipboard!', 'success');
+        } catch (_) {
+            notice('Không thể sao chép liên kết.', 'warning');
+        }
+    }
+
+    async function handleCopyPostLink(btn) {
+        const postId = btn.dataset.postId;
+        if (!postId) {
+            notice('Không thể sao chép liên kết bài viết.', 'warning');
+            return;
+        }
+        const url = window.location.origin + '/posts/' + encodeURIComponent(postId);
+        try {
+            if (await copyToClipboard(url)) {
+                notice('Đã sao chép liên kết bài viết vào clipboard!', 'success');
+            } else {
+                notice('Không thể sao chép liên kết.', 'warning');
+            }
         } catch (_) {
             notice('Không thể sao chép liên kết.', 'warning');
         }
@@ -1053,6 +1082,12 @@
         if (action === 'copy-profile-link') {
             event.preventDefault();
             await handleCopyProfileLink(target);
+            return;
+        }
+
+        if (action === 'copy-post-link') {
+            event.preventDefault();
+            await handleCopyPostLink(target);
             return;
         }
 

@@ -99,6 +99,152 @@
             submitBtn.disabled = !isValid;
         }
 
+        // =====================================================================
+        // Local draft recovery: unsent composer content survives page reloads,
+        // accidental navigation and accidental modal dismissal.
+        // Drafts are scoped per authenticated user AND per composition context
+        // (standalone post vs a specific community) so content can never leak
+        // across accounts on a shared browser. Fail-closed: without a user id
+        // nothing is persisted at all.
+        // =====================================================================
+        let draftSaveTimer = null;
+        let draftDiscardBtn = null;
+
+        function resolveDraftScope() {
+            const body = document.body;
+            const userId = body && body.dataset ? String(body.dataset.currentUserId || '').trim() : '';
+            if (!userId || userId === 'null' || userId === 'undefined') {
+                return null;
+            }
+            const commInput = document.getElementById('post-community-id');
+            const communityId = (commInput && commInput.value && /^\d+$/.test(commInput.value)) ? commInput.value : 'root';
+            return {
+                userId: userId,
+                communityId: communityId,
+                key: 'aloute.post.draft.v1.u' + userId + '.c' + communityId
+            };
+        }
+
+        const draftScope = resolveDraftScope();
+
+        function readDraft() {
+            if (!draftScope) return null;
+            try {
+                const raw = window.localStorage.getItem(draftScope.key);
+                if (!raw) return null;
+                const draft = JSON.parse(raw);
+                if (!draft || typeof draft !== 'object' || typeof draft.content !== 'string') return null;
+                return draft;
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function clearDraftQuietly() {
+            if (!draftScope) return;
+            try {
+                window.localStorage.removeItem(draftScope.key);
+            } catch (_) {}
+        }
+
+        function cancelPendingDraftSave() {
+            if (draftSaveTimer) {
+                clearTimeout(draftSaveTimer);
+                draftSaveTimer = null;
+            }
+        }
+
+        function removeDraftNotice() {
+            if (draftDiscardBtn) {
+                draftDiscardBtn.remove();
+                draftDiscardBtn = null;
+            }
+            setStatus(statusBox, null);
+        }
+
+        function discardDraft() {
+            if (contentInput) contentInput.value = '';
+            if (visibilitySelect) visibilitySelect.value = 'PUBLIC';
+            if (allowReplyInput) allowReplyInput.checked = true;
+            if (allowQuoteInput) allowQuoteInput.checked = true;
+            cancelPendingDraftSave();
+            clearDraftQuietly();
+            removeDraftNotice();
+            updateCharCount();
+            updateSubmitButtonState();
+            if (contentInput) contentInput.focus();
+        }
+
+        function showDraftNotice(savedAt) {
+            const timeLabel = savedAt ? new Date(savedAt).toLocaleString('vi-VN') : 'trước đó';
+            setStatus(statusBox, 'Đã khôi phục bản nháp chưa đăng (lưu lúc ' + timeLabel + ').', 'info');
+
+            if (!draftDiscardBtn && statusBox && statusBox.parentNode) {
+                draftDiscardBtn = document.createElement('button');
+                draftDiscardBtn.type = 'button';
+                draftDiscardBtn.id = 'btn-discard-draft';
+                draftDiscardBtn.className = 'btn btn-sm btn-outline-secondary mt-2';
+                draftDiscardBtn.innerHTML = '<i class="bi bi-trash me-1" aria-hidden="true"></i>Bỏ bản nháp';
+                draftDiscardBtn.addEventListener('click', function () {
+                    discardDraft();
+                });
+                statusBox.parentNode.insertBefore(draftDiscardBtn, statusBox.nextSibling);
+            }
+        }
+
+        function restoreDraftIfAny() {
+            if (!contentInput) return;
+            // Never overwrite server-repopulated content (validation round-trips).
+            if (contentInput.value.trim().length > 0) return;
+
+            const draft = readDraft();
+            if (!draft || draft.content.trim().length === 0) return;
+
+            contentInput.value = draft.content;
+            if (visibilitySelect && draft.visibility) {
+                visibilitySelect.value = draft.visibility;
+            }
+            if (allowReplyInput && typeof draft.allowReply === 'boolean') {
+                allowReplyInput.checked = draft.allowReply;
+            }
+            if (allowQuoteInput && typeof draft.allowQuote === 'boolean') {
+                allowQuoteInput.checked = draft.allowQuote;
+            }
+            updateCharCount();
+            updateSubmitButtonState();
+            showDraftNotice(draft.savedAt);
+        }
+
+        function scheduleDraftSave() {
+            if (isSubmitting || !draftScope) return;
+            if (draftSaveTimer) {
+                clearTimeout(draftSaveTimer);
+            }
+            draftSaveTimer = setTimeout(function () {
+                draftSaveTimer = null;
+                if (isSubmitting || !draftScope) return;
+                const content = contentInput ? contentInput.value : '';
+                if (content.trim().length === 0) {
+                    // An emptied composer means the draft is no longer wanted.
+                    clearDraftQuietly();
+                    removeDraftNotice();
+                    return;
+                }
+                const draft = {
+                    content: content,
+                    visibility: (visibilitySelect && visibilitySelect.value) || 'PUBLIC',
+                    allowReply: allowReplyInput ? allowReplyInput.checked : true,
+                    allowQuote: allowQuoteInput ? allowQuoteInput.checked : true,
+                    savedAt: Date.now()
+                };
+                try {
+                    window.localStorage.setItem(draftScope.key, JSON.stringify(draft));
+                } catch (_) {}
+            }, 400);
+        }
+
+        restoreDraftIfAny();
+
         // Modal lifecycle listeners
         const modalEl = document.getElementById('createPostModal');
         if (modalEl && modalEl.dataset.composerModalWired !== 'true') {
@@ -351,6 +497,7 @@
             contentInput.addEventListener('input', function () {
                 updateCharCount();
                 updateSubmitButtonState();
+                scheduleDraftSave();
                 if (contentInput.classList.contains('is-invalid') && contentInput.value.trim().length > 0 && contentInput.value.length <= 2000) {
                     contentInput.classList.remove('is-invalid');
                     if (contentError) contentError.classList.add('d-none');
@@ -360,6 +507,16 @@
             updateSubmitButtonState();
         } else {
             updateSubmitButtonState();
+        }
+
+        if (visibilitySelect) {
+            visibilitySelect.addEventListener('change', scheduleDraftSave);
+        }
+        if (allowReplyInput) {
+            allowReplyInput.addEventListener('change', scheduleDraftSave);
+        }
+        if (allowQuoteInput) {
+            allowQuoteInput.addEventListener('change', scheduleDraftSave);
         }
 
         form.addEventListener('reset', function () {
@@ -468,6 +625,10 @@
                 if (response.ok && (response.status === 200 || response.status === 201)) {
                     // Confirmed success: retain isSubmitting = true and keep media controls frozen through navigation
                     const body = await readJson(response);
+                    // The draft has been published; make sure it never resurrects.
+                    cancelPendingDraftSave();
+                    clearDraftQuietly();
+                    removeDraftNotice();
                     setStatus(statusBox, 'Đăng bài viết thành công!', 'success');
                     const createdPost = body && body.data;
                     const destination = (createdPost && createdPost.id) ? ('/posts/' + encodeURIComponent(createdPost.id)) : (communityId ? ('/communities/' + encodeURIComponent(communityId)) : '/feed');
