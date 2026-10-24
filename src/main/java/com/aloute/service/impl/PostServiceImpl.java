@@ -30,9 +30,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -76,9 +78,7 @@ public class PostServiceImpl implements PostService {
                 spec,
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
         );
-        List<PostResponse> list = postPage.getContent().stream()
-                .map(post -> toResponse(post, viewerId))
-                .toList();
+        List<PostResponse> list = toResponses(postPage.getContent(), viewerId);
         return ApiResponse.page(list, PageMeta.from(postPage));
     }
 
@@ -94,9 +94,7 @@ public class PostServiceImpl implements PostService {
         );
         List<Post> posts = postPage.getContent();
         if (viewerId == null || feedRecommendationService == null) {
-            List<PostResponse> list = posts.stream()
-                    .map(post -> toResponse(post, viewerId))
-                    .toList();
+            List<PostResponse> list = toResponses(posts, viewerId);
             return ApiResponse.page(list, PageMeta.from(postPage));
         }
 
@@ -119,11 +117,8 @@ public class PostServiceImpl implements PostService {
 
         List<FeedRecommendationService.PostCandidate> ranked = feedRecommendationService.rankCandidates(candidates, Instant.now());
         Map<Long, Post> postMap = posts.stream().collect(Collectors.toMap(Post::getId, p -> p, (a, b) -> a));
-        List<PostResponse> responses = ranked.stream()
-                .map(c -> postMap.get(c.getPostId()))
-                .filter(Objects::nonNull)
-                .map(p -> toResponse(p, viewerId))
-                .toList();
+        List<PostResponse> responses = toResponses(
+                ranked.stream().map(c -> postMap.get(c.getPostId())).filter(Objects::nonNull).toList(), viewerId);
 
         return ApiResponse.page(responses, PageMeta.from(postPage));
     }
@@ -346,9 +341,7 @@ public class PostServiceImpl implements PostService {
                 spec,
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.ASC, "createdAt"))
         );
-        List<PostResponse> list = repliesPage.getContent().stream()
-                .map(post -> toResponse(post, viewerId))
-                .toList();
+        List<PostResponse> list = toResponses(repliesPage.getContent(), viewerId);
         return ApiResponse.page(list, PageMeta.from(repliesPage));
     }
 
@@ -362,9 +355,7 @@ public class PostServiceImpl implements PostService {
                 spec,
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
         );
-        List<PostResponse> list = quotesPage.getContent().stream()
-                .map(post -> toResponse(post, viewerId))
-                .toList();
+        List<PostResponse> list = toResponses(quotesPage.getContent(), viewerId);
         return ApiResponse.page(list, PageMeta.from(quotesPage));
     }
 
@@ -392,9 +383,7 @@ public class PostServiceImpl implements PostService {
                 spec,
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
         );
-        List<PostResponse> list = postPage.getContent().stream()
-                .map(post -> toResponse(post, viewerId))
-                .toList();
+        List<PostResponse> list = toResponses(postPage.getContent(), viewerId);
         return ApiResponse.page(list, PageMeta.from(postPage));
     }
 
@@ -418,9 +407,7 @@ public class PostServiceImpl implements PostService {
                 spec,
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
         );
-        List<PostResponse> list = postPage.getContent().stream()
-                .map(post -> toResponse(post, viewerId))
-                .toList();
+        List<PostResponse> list = toResponses(postPage.getContent(), viewerId);
         return ApiResponse.page(list, PageMeta.from(postPage));
     }
 
@@ -437,9 +424,7 @@ public class PostServiceImpl implements PostService {
                 spec,
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
         );
-        List<PostResponse> list = postPage.getContent().stream()
-                .map(post -> toResponse(post, viewerId))
-                .toList();
+        List<PostResponse> list = toResponses(postPage.getContent(), viewerId);
         return ApiResponse.page(list, PageMeta.from(postPage));
     }
 
@@ -458,9 +443,7 @@ public class PostServiceImpl implements PostService {
                 spec,
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
         );
-        List<PostResponse> list = postPage.getContent().stream()
-                .map(post -> toResponse(post, viewerId))
-                .toList();
+        List<PostResponse> list = toResponses(postPage.getContent(), viewerId);
         return ApiResponse.page(list, PageMeta.from(postPage));
     }
 
@@ -492,9 +475,7 @@ public class PostServiceImpl implements PostService {
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
         );
 
-        List<PostResponse> list = bookmarkPage.getContent().stream()
-                .map(b -> toResponse(b.getPost(), userId))
-                .toList();
+        List<PostResponse> list = toResponses(bookmarkPage.getContent().stream().map(Bookmark::getPost).toList(), userId);
 
         return ApiResponse.page(list, PageMeta.from(bookmarkPage));
     }
@@ -733,27 +714,58 @@ public class PostServiceImpl implements PostService {
     @Override
     public PostResponse toResponse(Post post, Long viewerId) {
         if (post == null) return null;
+        return toResponses(List.of(post), viewerId).get(0);
+    }
+
+    /**
+     * Batch assembly for list rendering. A page of posts previously triggered
+     * per-post media/topic/like/bookmark/repost/poll lookups (N+1); this path
+     * resolves them with one IN query each and assembles from maps.
+     */
+    public List<PostResponse> toResponses(List<Post> posts, Long viewerId) {
+        if (posts == null || posts.isEmpty()) return List.of();
+        List<Long> ids = posts.stream().map(Post::getId).filter(Objects::nonNull).toList();
+        if (ids.isEmpty()) return posts.stream().map(p -> assemble(p, viewerId,
+                List.of(), List.of(), false, false, false, null)).toList();
+
+        Map<Long, List<PostMedia>> mediaByPost = postMediaRepository.findByPost_IdInOrderByPost_IdAscPositionAsc(ids)
+                .stream().collect(Collectors.groupingBy(pm -> pm.getPost().getId()));
+        Map<Long, List<PostTopic>> topicsByPost = postTopicRepository.findByPost_IdIn(ids)
+                .stream().collect(Collectors.groupingBy(pt -> pt.getPost().getId()));
+        Set<Long> liked = viewerId == null ? Set.of()
+                : new HashSet<>(postLikeRepository.findLikedPostIds(ids, viewerId));
+        Set<Long> bookmarked = viewerId == null ? Set.of()
+                : new HashSet<>(bookmarkRepository.findBookmarkedPostIds(ids, viewerId));
+        Set<Long> reposted = viewerId == null ? Set.of()
+                : new HashSet<>(repostRepository.findRepostedPostIds(ids, viewerId));
+        Map<Long, Poll> pollByPost = pollRepository == null ? Map.of()
+                : pollRepository.findByPost_IdIn(ids).stream()
+                        .collect(Collectors.toMap(p -> p.getPost().getId(), p -> p, (a, b) -> a));
+
+        List<PostResponse> responses = new ArrayList<>(posts.size());
+        for (Post post : posts) {
+            List<MediaResponse> media = mediaByPost.getOrDefault(post.getId(), List.of()).stream()
+                    .map(PostMedia::getMedia).map(this::media).toList();
+            List<TopicResponse> topics = topicsByPost.getOrDefault(post.getId(), List.of()).stream()
+                    .map(PostTopic::getTopic).map(this::topic).toList();
+            responses.add(assemble(post, viewerId, media, topics,
+                    liked.contains(post.getId()), bookmarked.contains(post.getId()),
+                    reposted.contains(post.getId()), pollByPost.get(post.getId())));
+        }
+        return responses;
+    }
+
+    private PostResponse assemble(Post post, Long viewerId, List<MediaResponse> media,
+                                  List<TopicResponse> topics, boolean hasLiked,
+                                  boolean hasBookmarked, boolean hasReposted, Poll poll) {
         boolean owner = viewerId != null && post.getUser() != null && Objects.equals(post.getUser().getId(), viewerId);
         UserSummary author = post.getUser() != null ? summary(post.getUser()) : null;
-        List<MediaResponse> media = postMediaRepository.findByPost_IdOrderByPositionAsc(post.getId()).stream()
-                .map(PostMedia::getMedia).map(this::media).toList();
-        List<TopicResponse> topics = postTopicRepository.findByPost_Id(post.getId()).stream()
-                .map(PostTopic::getTopic).map(this::topic).toList();
-
-        boolean hasLiked = viewerId != null && postLikeRepository.existsByPostIdAndUserId(post.getId(), viewerId);
-        boolean hasBookmarked = viewerId != null && bookmarkRepository.existsByPostIdAndUserId(post.getId(), viewerId);
-        boolean hasReposted = viewerId != null && repostRepository.existsByPostIdAndUserId(post.getId(), viewerId);
 
         PostViewerStateResponse viewerState = new PostViewerStateResponse(hasLiked, hasBookmarked, hasReposted);
         PostCapabilitiesResponse capabilities = new PostCapabilitiesResponse(owner, owner,
                 post.isAllowReply(), post.isAllowQuote());
 
-        PollResponse pollResp = null;
-        if (pollRepository != null) {
-            pollResp = pollRepository.findByPostId(post.getId())
-                    .map(p -> mapPoll(p, viewerId))
-                    .orElse(null);
-        }
+        PollResponse pollResp = poll != null ? mapPoll(poll, viewerId) : null;
 
         Long parentPostId = visiblePostId(post.getParentPost(), viewerId);
         Long quotedPostId = visiblePostId(post.getQuotedPost(), viewerId);
