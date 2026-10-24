@@ -22,6 +22,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -51,18 +55,35 @@ public class NotificationServiceImpl implements NotificationService {
         Page<Notification> page;
 
         switch (f) {
-            case "LIKE" -> page = notificationRepository.findByRecipientIdAndTypeInOrderByCreatedAtDesc(
+            case "LIKE" -> page = notificationRepository.findByRecipientIdAndTypeInOrderByCreatedAtDescIdDesc(
                     recipientId, List.of("POST_LIKE", "REPLY_LIKE"), pageable);
-            case "REPLY" -> page = notificationRepository.findByRecipientIdAndTypeInOrderByCreatedAtDesc(
+            case "REPLY" -> page = notificationRepository.findByRecipientIdAndTypeInOrderByCreatedAtDescIdDesc(
                     recipientId, List.of("POST_REPLY", "REPLY_REPLY", "POST_QUOTE", "POST_REPOST"), pageable);
-            case "MENTION" -> page = notificationRepository.findByRecipientIdAndTypeInOrderByCreatedAtDesc(
+            case "MENTION" -> page = notificationRepository.findByRecipientIdAndTypeInOrderByCreatedAtDescIdDesc(
                     recipientId, List.of("POST_MENTION", "REPLY_MENTION"), pageable);
-            case "FOLLOW" -> page = notificationRepository.findByRecipientIdAndTypeInOrderByCreatedAtDesc(
+            case "FOLLOW" -> page = notificationRepository.findByRecipientIdAndTypeInOrderByCreatedAtDescIdDesc(
                     recipientId, List.of("FOLLOW", "FRIEND_REQUEST", "FRIEND_ACCEPT"), pageable);
-            default -> page = notificationRepository.findByRecipientIdOrderByCreatedAtDesc(recipientId, pageable);
+            default -> page = notificationRepository.findByRecipientIdOrderByCreatedAtDescIdDesc(recipientId, pageable);
         }
 
-        return page.map(this::mapToNotificationResponse);
+        // Batch-load actor profiles for the whole page: the previous per-row
+        // profile lookup made a 20-row page cost 2 statements per distinct actor.
+        Map<Long, Profile> actorProfiles = batchActorProfiles(page.getContent());
+        return page.map(n -> mapToNotificationResponse(n, actorProfiles));
+    }
+
+    private Map<Long, Profile> batchActorProfiles(List<Notification> notifications) {
+        Set<Long> actorIds = notifications.stream()
+                .map(Notification::getActor)
+                .filter(Objects::nonNull)
+                .map(User::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (actorIds.isEmpty()) {
+            return Map.of();
+        }
+        return profileRepository.findWithUserByUserIdIn(actorIds).stream()
+                .collect(Collectors.toMap(Profile::getUserId, p -> p, (a, b) -> a));
     }
 
     @Override
@@ -169,13 +190,30 @@ public class NotificationServiceImpl implements NotificationService {
     public NotificationResponse mapToNotificationResponse(Notification n) {
         UserSummary actorSummary = null;
         if (n.getActor() != null) {
-            User actor = n.getActor();
-            Profile profile = profileRepository.findById(actor.getId()).orElse(null);
-            String displayName = (profile != null && profile.getDisplayName() != null) ? profile.getDisplayName() : actor.getUsername();
-            String avatarUrl = profile != null ? profile.getAvatarUrl() : null;
-            actorSummary = new UserSummary(actor.getId(), actor.getUsername(), displayName, avatarUrl, actor.isVerified());
+            actorSummary = toActorSummary(n.getActor(), profileRepository.findById(n.getActor().getId()).orElse(null));
         }
+        return buildResponse(n, actorSummary);
+    }
 
+    private NotificationResponse mapToNotificationResponse(Notification n, Map<Long, Profile> actorProfiles) {
+        UserSummary actorSummary = null;
+        if (n.getActor() != null) {
+            Profile profile = actorProfiles.get(n.getActor().getId());
+            // profile.getUser() is fetch-joined by the batch query: reading the
+            // summary from it avoids initializing the notification's lazy actor proxy.
+            actorSummary = toActorSummary(profile != null ? profile.getUser() : n.getActor(), profile);
+        }
+        return buildResponse(n, actorSummary);
+    }
+
+    private UserSummary toActorSummary(User actor, Profile profile) {
+        String displayName = (profile != null && profile.getDisplayName() != null)
+                ? profile.getDisplayName() : actor.getUsername();
+        String avatarUrl = profile != null ? profile.getAvatarUrl() : null;
+        return new UserSummary(actor.getId(), actor.getUsername(), displayName, avatarUrl, actor.isVerified());
+    }
+
+    private NotificationResponse buildResponse(Notification n, UserSummary actorSummary) {
         return NotificationResponse.builder()
                 .id(n.getId())
                 .recipientId(n.getRecipient().getId())

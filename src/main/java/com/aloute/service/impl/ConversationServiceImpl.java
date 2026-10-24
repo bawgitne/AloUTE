@@ -131,7 +131,7 @@ public class ConversationServiceImpl implements ConversationService {
     @Transactional(readOnly = true)
     public Page<MessageResponse> getMessages(Long conversationId, Long currentUserId, Pageable pageable) {
         validateMembership(conversationId, currentUserId);
-        return messageRepository.findByConversationIdOrderByCreatedAtDesc(conversationId, pageable)
+        return messageRepository.findByConversationIdOrderByCreatedAtDescIdDesc(conversationId, pageable)
                 .map(this::mapToMessageResponse);
     }
 
