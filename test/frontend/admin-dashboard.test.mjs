@@ -228,6 +228,8 @@ function createTestEnvironment(htmlFixture = '') {
             reload() { this.reloadCalled = true; }
         },
         confirm() { return true; },
+        // Shared Bootstrap-styled confirmation dialog (core/confirm-dialog.js).
+        alouteConfirm: async () => true,
         alert() {},
         setTimeout: (fn) => setTimeout(fn, 1),
         fetch: async (url, opts) => {
