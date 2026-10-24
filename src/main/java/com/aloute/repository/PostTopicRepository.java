@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface PostTopicRepository extends JpaRepository<PostTopic, Long> {
     List<PostTopic> findByPost_Id(Long postId);
+    List<PostTopic> findByPost_IdIn(List<Long> postIds);
 }
