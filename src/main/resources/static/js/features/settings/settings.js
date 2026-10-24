@@ -661,7 +661,11 @@
         document.querySelectorAll('[data-action="logout"], #settings-btn-logout').forEach(btn => {
             btn.addEventListener('click', async function (e) {
                 e.preventDefault();
-                if (!confirm('Bạn có chắc chắn muốn đăng xuất khỏi tài khoản không?')) {
+                const confirmed = await window.alouteConfirm(
+                    'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản không?',
+                    { title: 'Đăng xuất', confirmText: 'Đăng xuất', danger: true }
+                );
+                if (!confirmed) {
                     return;
                 }
                 try {
@@ -1662,7 +1666,11 @@
 
             if (btnLogoutOthers) {
                 btnLogoutOthers.addEventListener('click', async function() {
-                    if (!confirm('Bạn có chắc chắn muốn đăng xuất khỏi tất cả các thiết bị và trình duyệt khác không? Phiên làm việc hiện tại vẫn được giữ nguyên.')) {
+                    const confirmed = await window.alouteConfirm(
+                        'Bạn có chắc chắn muốn đăng xuất khỏi tất cả các thiết bị và trình duyệt khác không? Phiên làm việc hiện tại vẫn được giữ nguyên.',
+                        { title: 'Đăng xuất thiết bị khác', confirmText: 'Đăng xuất', danger: true }
+                    );
+                    if (!confirmed) {
                         return;
                     }
                     btnLogoutOthers.disabled = true;
@@ -1731,8 +1739,10 @@
 
                         if (response.ok) {
                             if (deactivateModal) deactivateModal.hide();
-                            alert('Tài khoản của bạn đã được vô hiệu hóa thành công.');
-                            window.location.href = '/login?deactivated=true';
+                            showAlert('Tài khoản của bạn đã được vô hiệu hóa thành công. Đang chuyển về trang đăng nhập...', 'success');
+                            setTimeout(function () {
+                                window.location.href = '/login?deactivated=true';
+                            }, 1500);
                         } else {
                             const msg = (result && result.error && result.error.message) || 'Mật khẩu xác nhận không chính xác.';
                             if (deactivateFeedback) {

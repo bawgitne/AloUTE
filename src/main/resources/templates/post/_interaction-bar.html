@@ -65,6 +65,16 @@
             aria-label="Lưu bài viết">
         <i class="bi" th:classappend="${post.viewerState != null and post.viewerState.bookmarked} ? 'bi-bookmark-fill' : 'bi-bookmark'" aria-hidden="true"></i>
     </button>
+
+    <!-- Copy Permalink Button (Share post link) -->
+    <button th:if="${post.id != null}"
+            type="button"
+            class="interaction-btn"
+            th:attr="data-action='copy-post-link',data-post-id=${post.id}"
+            aria-label="Sao chép liên kết bài viết"
+            title="Sao chép liên kết bài viết">
+        <i class="bi bi-link-45deg" aria-hidden="true"></i>
+    </button>
 </div>
 </body>
 </html>
