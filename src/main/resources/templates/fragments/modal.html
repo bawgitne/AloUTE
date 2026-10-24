@@ -214,13 +214,27 @@
                             </div>
                         </div>
 
-                        <!-- Visibility Select -->
+                        <!-- Visibility (DOM-rendered dropdown: native <select> popups render
+                             detached/misplaced in embedded webviews) -->
                         <div class="mb-2">
                             <label for="quote-post-visibility" class="form-label fw-semibold small">Quyền xem</label>
-                            <select class="form-select form-select-sm" id="quote-post-visibility" name="visibility">
-                                <option value="PUBLIC" selected>Công khai (Mọi người)</option>
-                                <option value="FOLLOWERS">Chỉ người theo dõi</option>
-                            </select>
+                            <input type="hidden" id="quote-post-visibility" name="visibility" value="PUBLIC">
+                            <div class="dropdown" id="quote-post-visibility-dropdown">
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start d-flex align-items-center justify-content-between"
+                                        data-bs-toggle="dropdown"
+                                        aria-expanded="false">
+                                    <span class="small text-truncate" id="quote-post-visibility-label">Công khai (Mọi người)</span>
+                                </button>
+                                <ul class="dropdown-menu w-100" role="menu" aria-label="Quyền xem bài trích dẫn">
+                                    <li role="none">
+                                        <button type="button" class="dropdown-item small active" data-value="PUBLIC" role="menuitem">Công khai (Mọi người)</button>
+                                    </li>
+                                    <li role="none">
+                                        <button type="button" class="dropdown-item small" data-value="FOLLOWERS" role="menuitem">Chỉ người theo dõi</button>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
