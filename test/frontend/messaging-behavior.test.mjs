@@ -507,6 +507,57 @@ describe('Messaging Frontend & Behavior Regression Tests', () => {
             assert.equal(sandbox.window.scrollY, 0, 'Outer scroll position must remain 0');
         });
 
+        it('does not auto-select the first conversation on the /messages list page (no premature read receipt)', async () => {
+            const doc = new MockDocument();
+            createMessagingDom(doc);
+
+            const fetchCalls = [];
+            const mockFetch = async (url) => {
+                fetchCalls.push(url);
+                if (url.includes('/api/conversations?')) {
+                    return {
+                        ok: true,
+                        status: 200,
+                        text: async () => JSON.stringify({
+                            success: true,
+                            data: [
+                                { id: 10, name: 'Hội thoại 10', unreadCount: 3, otherParticipant: { username: 'user10' }, lastMessage: null }
+                            ],
+                            meta: { page: 0, hasNext: false }
+                        })
+                    };
+                }
+                return { ok: true, status: 200, text: async () => '{}' };
+            };
+
+            const sandbox = {
+                document: doc,
+                window: {
+                    location: { pathname: '/messages', search: '' },
+                    innerWidth: 1024,
+                    scrollY: 0
+                },
+                fetch: mockFetch,
+                URLSearchParams: globalThis.URLSearchParams,
+                AbortController: globalThis.AbortController,
+                console: console
+            };
+
+            const context = vm.createContext(sandbox);
+            vm.runInContext(messagingSource, context);
+
+            await new Promise(r => setTimeout(r, 20));
+
+            // Conversations list loaded
+            assert.ok(fetchCalls.some(u => u.includes('/api/conversations?')), 'Expected conversations list fetch');
+            // No auto-select: neither message history nor read receipt may fire
+            assert.ok(!fetchCalls.some(u => /\/api\/conversations\/\d+\/messages/.test(u)), 'Must not fetch messages without explicit selection');
+            assert.ok(!fetchCalls.some(u => /\/read/.test(u)), 'Must not send read receipt without explicit selection');
+            // Unselected placeholder remains visible (classList 'd-none' NOT added)
+            const unselected = doc.getElementById('chat-unselected-state');
+            assert.ok(unselected && !unselected.classList.contains('d-none'), 'Unselected state must stay visible until the user picks a conversation');
+        });
+
         it('initializes from data-initial-conversation-id attribute on wrapper', async () => {
             const doc = new MockDocument();
             createMessagingDom(doc, { initialConvId: 88 });

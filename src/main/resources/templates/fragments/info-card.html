@@ -31,12 +31,17 @@
             <i class="bi bi-hash text-primary" aria-hidden="true"></i>
             <span>Chủ đề nổi bật</span>
         </h2>
-        <div class="d-flex flex-wrap gap-2 pt-1" aria-label="Danh sách chủ đề tham khảo">
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill py-1 px-2" title="Chủ đề tham khảo (chưa hỗ trợ lọc)">#hoc-tap</span>
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill py-1 px-2" title="Chủ đề tham khảo (chưa hỗ trợ lọc)">#nghien-cuu</span>
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill py-1 px-2" title="Chủ đề tham khảo (chưa hỗ trợ lọc)">#ute-connect</span>
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill py-1 px-2" title="Chủ đề tham khảo (chưa hỗ trợ lọc)">#clb-khoa</span>
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill py-1 px-2" title="Chủ đề tham khảo (chưa hỗ trợ lọc)">#do-an-tot-nghiep</span>
+        <div class="d-flex flex-wrap gap-2 pt-1" aria-label="Danh sách chủ đề nổi bật">
+            <a th:each="t : ${sidebarTopics}"
+               th:href="@{/topics/{slug}(slug=${t.slug})}"
+               class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill py-1 px-2 text-decoration-none"
+               th:title="${'Xem bài viết về chủ đề ' + t.name}"
+               th:text="${'#' + t.slug}">#hoc-tap</a>
+            <a th:if="${#lists.isEmpty(sidebarTopics)}" th:each="slug : ${ {'hoc-tap','nghien-cuu','ute-connect','clb-khoa','do-an-tot-nghiep'} }"
+               th:href="@{/search?q=${slug}}"
+               class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill py-1 px-2 text-decoration-none"
+               title="Tìm nội dung theo chủ đề"
+               th:text="${'#' + slug}">#hoc-tap</a>
         </div>
     </div>
 

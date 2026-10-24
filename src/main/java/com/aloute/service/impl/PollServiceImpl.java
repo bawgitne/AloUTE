@@ -20,6 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -114,13 +116,17 @@ public class PollServiceImpl implements PollService {
 
     @Override
     public PollResponse mapToPollResponse(Poll poll, Long currentUserId) {
+        // One query for all of the viewer's votes in this poll; the previous
+        // per-option exists() probe was an option-count N+1.
+        Set<Long> selectedOptionIds = currentUserId != null
+                ? pollVoteRepository.findByPollIdAndUserId(poll.getId(), currentUserId).stream()
+                        .map(vote -> vote.getOption().getId())
+                        .collect(Collectors.toSet())
+                : Set.of();
+
         List<PollOptionResponse> options = pollOptionRepository.findByPollIdOrderByPositionAsc(poll.getId()).stream()
-                .map(opt -> {
-                    Boolean selected = currentUserId != null
-                            ? pollVoteRepository.existsByPollIdAndOptionIdAndUserId(poll.getId(), opt.getId(), currentUserId)
-                            : null;
-                    return new PollOptionResponse(opt.getId(), opt.getOptionText(), opt.getVoteCount(), selected);
-                })
+                .map(opt -> new PollOptionResponse(opt.getId(), opt.getOptionText(), opt.getVoteCount(),
+                        currentUserId == null ? null : selectedOptionIds.contains(opt.getId())))
                 .toList();
 
         int totalVotes = options.stream().mapToInt(PollOptionResponse::getVoteCount).sum();

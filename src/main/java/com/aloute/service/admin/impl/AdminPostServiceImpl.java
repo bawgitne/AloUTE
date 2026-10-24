@@ -464,7 +464,8 @@ public class AdminPostServiceImpl implements AdminPostService {
 
         Pageable effectivePageable = pageable;
         if (pageable.getSort().isUnsorted()) {
-            effectivePageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.DESC, "createdAt"));
+            effectivePageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
+                    Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
         }
 
         return postRepository.findAll(spec, effectivePageable)

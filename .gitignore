@@ -39,3 +39,6 @@ current/
 fe-mobile/
 run.bat
 run.ps1
+# Local dev media storage
+uploads/
+data/media/

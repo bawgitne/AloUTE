@@ -30,9 +30,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -76,9 +78,7 @@ public class PostServiceImpl implements PostService {
                 spec,
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
         );
-        List<PostResponse> list = postPage.getContent().stream()
-                .map(post -> toResponse(post, viewerId))
-                .toList();
+        List<PostResponse> list = toResponses(postPage.getContent(), viewerId);
         return ApiResponse.page(list, PageMeta.from(postPage));
     }
 
@@ -94,17 +94,19 @@ public class PostServiceImpl implements PostService {
         );
         List<Post> posts = postPage.getContent();
         if (viewerId == null || feedRecommendationService == null) {
-            List<PostResponse> list = posts.stream()
-                    .map(post -> toResponse(post, viewerId))
-                    .toList();
+            List<PostResponse> list = toResponses(posts, viewerId);
             return ApiResponse.page(list, PageMeta.from(postPage));
         }
 
+        // One query for the viewer's whole follow graph; the previous per-post
+        // existsById probe was a page-size N+1 in the main feed path.
+        Set<Long> followingIds = viewerId == null || followRepository == null ? Set.of()
+                : followRepository.findByFollower_Id(viewerId).stream()
+                        .map(f -> f.getFollowing().getId())
+                        .collect(Collectors.toSet());
+
         List<FeedRecommendationService.PostCandidate> candidates = posts.stream().map(p -> {
-            boolean isFollowing = false;
-            if (followRepository != null && p.getUser() != null) {
-                isFollowing = followRepository.existsById(new FollowId(viewerId, p.getUser().getId()));
-            }
+            boolean isFollowing = p.getUser() != null && followingIds.contains(p.getUser().getId());
             return FeedRecommendationService.PostCandidate.builder()
                     .postId(p.getId())
                     .authorId(p.getUser() != null ? p.getUser().getId() : null)
@@ -119,11 +121,8 @@ public class PostServiceImpl implements PostService {
 
         List<FeedRecommendationService.PostCandidate> ranked = feedRecommendationService.rankCandidates(candidates, Instant.now());
         Map<Long, Post> postMap = posts.stream().collect(Collectors.toMap(Post::getId, p -> p, (a, b) -> a));
-        List<PostResponse> responses = ranked.stream()
-                .map(c -> postMap.get(c.getPostId()))
-                .filter(Objects::nonNull)
-                .map(p -> toResponse(p, viewerId))
-                .toList();
+        List<PostResponse> responses = toResponses(
+                ranked.stream().map(c -> postMap.get(c.getPostId())).filter(Objects::nonNull).toList(), viewerId);
 
         return ApiResponse.page(responses, PageMeta.from(postPage));
     }
@@ -346,9 +345,7 @@ public class PostServiceImpl implements PostService {
                 spec,
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.ASC, "createdAt"))
         );
-        List<PostResponse> list = repliesPage.getContent().stream()
-                .map(post -> toResponse(post, viewerId))
-                .toList();
+        List<PostResponse> list = toResponses(repliesPage.getContent(), viewerId);
         return ApiResponse.page(list, PageMeta.from(repliesPage));
     }
 
@@ -362,9 +359,7 @@ public class PostServiceImpl implements PostService {
                 spec,
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
         );
-        List<PostResponse> list = quotesPage.getContent().stream()
-                .map(post -> toResponse(post, viewerId))
-                .toList();
+        List<PostResponse> list = toResponses(quotesPage.getContent(), viewerId);
         return ApiResponse.page(list, PageMeta.from(quotesPage));
     }
 
@@ -392,9 +387,7 @@ public class PostServiceImpl implements PostService {
                 spec,
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
         );
-        List<PostResponse> list = postPage.getContent().stream()
-                .map(post -> toResponse(post, viewerId))
-                .toList();
+        List<PostResponse> list = toResponses(postPage.getContent(), viewerId);
         return ApiResponse.page(list, PageMeta.from(postPage));
     }
 
@@ -418,9 +411,7 @@ public class PostServiceImpl implements PostService {
                 spec,
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
         );
-        List<PostResponse> list = postPage.getContent().stream()
-                .map(post -> toResponse(post, viewerId))
-                .toList();
+        List<PostResponse> list = toResponses(postPage.getContent(), viewerId);
         return ApiResponse.page(list, PageMeta.from(postPage));
     }
 
@@ -437,9 +428,7 @@ public class PostServiceImpl implements PostService {
                 spec,
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
         );
-        List<PostResponse> list = postPage.getContent().stream()
-                .map(post -> toResponse(post, viewerId))
-                .toList();
+        List<PostResponse> list = toResponses(postPage.getContent(), viewerId);
         return ApiResponse.page(list, PageMeta.from(postPage));
     }
 
@@ -458,9 +447,7 @@ public class PostServiceImpl implements PostService {
                 spec,
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
         );
-        List<PostResponse> list = postPage.getContent().stream()
-                .map(post -> toResponse(post, viewerId))
-                .toList();
+        List<PostResponse> list = toResponses(postPage.getContent(), viewerId);
         return ApiResponse.page(list, PageMeta.from(postPage));
     }
 
@@ -492,9 +479,7 @@ public class PostServiceImpl implements PostService {
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
         );
 
-        List<PostResponse> list = bookmarkPage.getContent().stream()
-                .map(b -> toResponse(b.getPost(), userId))
-                .toList();
+        List<PostResponse> list = toResponses(bookmarkPage.getContent().stream().map(Bookmark::getPost).toList(), userId);
 
         return ApiResponse.page(list, PageMeta.from(bookmarkPage));
     }
@@ -733,27 +718,87 @@ public class PostServiceImpl implements PostService {
     @Override
     public PostResponse toResponse(Post post, Long viewerId) {
         if (post == null) return null;
-        boolean owner = viewerId != null && post.getUser() != null && Objects.equals(post.getUser().getId(), viewerId);
-        UserSummary author = post.getUser() != null ? summary(post.getUser()) : null;
-        List<MediaResponse> media = postMediaRepository.findByPost_IdOrderByPositionAsc(post.getId()).stream()
-                .map(PostMedia::getMedia).map(this::media).toList();
-        List<TopicResponse> topics = postTopicRepository.findByPost_Id(post.getId()).stream()
-                .map(PostTopic::getTopic).map(this::topic).toList();
+        return toResponses(List.of(post), viewerId).get(0);
+    }
 
-        boolean hasLiked = viewerId != null && postLikeRepository.existsByPostIdAndUserId(post.getId(), viewerId);
-        boolean hasBookmarked = viewerId != null && bookmarkRepository.existsByPostIdAndUserId(post.getId(), viewerId);
-        boolean hasReposted = viewerId != null && repostRepository.existsByPostIdAndUserId(post.getId(), viewerId);
+    /**
+     * Batch assembly for list rendering. A page of posts previously triggered
+     * per-post media/topic/like/bookmark/repost/poll lookups (N+1); this path
+     * resolves them with one IN query each and assembles from maps. Author
+     * profiles and the viewer's poll votes are batched the same way (one query
+     * for all authors, one for all polls on the page).
+     */
+    public List<PostResponse> toResponses(List<Post> posts, Long viewerId) {
+        if (posts == null || posts.isEmpty()) return List.of();
+        List<Long> ids = posts.stream().map(Post::getId).filter(Objects::nonNull).toList();
+        if (ids.isEmpty()) return posts.stream().map(p -> assemble(p, viewerId,
+                List.of(), List.of(), false, false, false, null, Map.of(), null, null)).toList();
+
+        Map<Long, List<PostMedia>> mediaByPost = postMediaRepository.findByPost_IdInOrderByPost_IdAscPositionAsc(ids)
+                .stream().collect(Collectors.groupingBy(pm -> pm.getPost().getId()));
+        Map<Long, List<PostTopic>> topicsByPost = postTopicRepository.findByPost_IdIn(ids)
+                .stream().collect(Collectors.groupingBy(pt -> pt.getPost().getId()));
+        Set<Long> liked = viewerId == null ? Set.of()
+                : new HashSet<>(postLikeRepository.findLikedPostIds(ids, viewerId));
+        Set<Long> bookmarked = viewerId == null ? Set.of()
+                : new HashSet<>(bookmarkRepository.findBookmarkedPostIds(ids, viewerId));
+        Set<Long> reposted = viewerId == null ? Set.of()
+                : new HashSet<>(repostRepository.findRepostedPostIds(ids, viewerId));
+        Map<Long, Poll> pollByPost = pollRepository == null ? Map.of()
+                : pollRepository.findByPost_IdIn(ids).stream()
+                        .collect(Collectors.toMap(p -> p.getPost().getId(), p -> p, (a, b) -> a));
+
+        Set<Long> authorIds = posts.stream()
+                .map(Post::getUser).filter(Objects::nonNull)
+                .map(User::getId).filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, Profile> profileByUserId = authorIds.isEmpty() ? Map.of()
+                : profileRepository.findWithUserByUserIdIn(authorIds).stream()
+                        .collect(Collectors.toMap(Profile::getUserId, p -> p, (a, b) -> a));
+
+        Set<Long> pollIds = pollByPost.values().stream()
+                .map(Poll::getId).filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<Long, Set<Long>> selectedOptionsByPoll = Map.of();
+        if (viewerId != null && pollVoteRepository != null && !pollIds.isEmpty()) {
+            selectedOptionsByPoll = pollVoteRepository.findByPoll_IdInAndUser_Id(pollIds, viewerId).stream()
+                    .collect(Collectors.groupingBy(v -> v.getPoll().getId(),
+                            Collectors.mapping(v -> v.getOption().getId(), Collectors.toSet())));
+        }
+        Map<Long, List<PollOption>> optionsByPoll = pollIds.isEmpty() || pollOptionRepository == null ? Map.of()
+                : pollOptionRepository.findByPoll_IdInOrderByPoll_IdAscPositionAsc(pollIds).stream()
+                        .collect(Collectors.groupingBy(o -> o.getPoll().getId()));
+
+        List<PostResponse> responses = new ArrayList<>(posts.size());
+        for (Post post : posts) {
+            List<MediaResponse> media = mediaByPost.getOrDefault(post.getId(), List.of()).stream()
+                    .map(PostMedia::getMedia).map(this::media).toList();
+            List<TopicResponse> topics = topicsByPost.getOrDefault(post.getId(), List.of()).stream()
+                    .map(PostTopic::getTopic).map(this::topic).toList();
+            Poll poll = pollByPost.get(post.getId());
+            responses.add(assemble(post, viewerId, media, topics,
+                    liked.contains(post.getId()), bookmarked.contains(post.getId()),
+                    reposted.contains(post.getId()), poll, profileByUserId,
+                    poll == null ? null : selectedOptionsByPoll.getOrDefault(poll.getId(), Set.of()),
+                    poll == null ? null : optionsByPoll.get(poll.getId())));
+        }
+        return responses;
+    }
+
+    private PostResponse assemble(Post post, Long viewerId, List<MediaResponse> media,
+                                  List<TopicResponse> topics, boolean hasLiked,
+                                  boolean hasBookmarked, boolean hasReposted, Poll poll,
+                                  Map<Long, Profile> profileByUserId, Set<Long> selectedOptionIds,
+                                  List<PollOption> preloadedOptions) {
+        boolean owner = viewerId != null && post.getUser() != null && Objects.equals(post.getUser().getId(), viewerId);
+        UserSummary author = post.getUser() != null ? summary(post.getUser(), profileByUserId) : null;
 
         PostViewerStateResponse viewerState = new PostViewerStateResponse(hasLiked, hasBookmarked, hasReposted);
         PostCapabilitiesResponse capabilities = new PostCapabilitiesResponse(owner, owner,
                 post.isAllowReply(), post.isAllowQuote());
 
-        PollResponse pollResp = null;
-        if (pollRepository != null) {
-            pollResp = pollRepository.findByPostId(post.getId())
-                    .map(p -> mapPoll(p, viewerId))
-                    .orElse(null);
-        }
+        PollResponse pollResp = poll != null ? mapPoll(poll, viewerId, selectedOptionIds, preloadedOptions) : null;
 
         Long parentPostId = visiblePostId(post.getParentPost(), viewerId);
         Long quotedPostId = visiblePostId(post.getQuotedPost(), viewerId);
@@ -823,16 +868,35 @@ public class PostServiceImpl implements PostService {
         }
     }
 
-    private PollResponse mapPoll(Poll poll, Long viewerId) {
-        List<PollOptionResponse> options = pollOptionRepository != null
-                ? pollOptionRepository.findByPollIdOrderByPositionAsc(poll.getId()).stream()
-                .map(opt -> {
-                    Boolean selected = viewerId != null && pollVoteRepository != null
-                            ? pollVoteRepository.existsByPollIdAndOptionIdAndUserId(poll.getId(), opt.getId(), viewerId)
-                            : null;
-                    return new PollOptionResponse(opt.getId(), opt.getOptionText(), opt.getVoteCount(), selected);
-                }).toList()
-                : List.of();
+    /**
+     * Maps a poll with its options. The viewer's votes and the option list are
+     * resolved with one query per poll when not preloaded ({@code preselectedOptionIds}
+     * and {@code preloadedOptions} short-circuit even that in the feed path,
+     * where votes and options for every poll on the page are loaded in one IN
+     * query each); the previous per-option exists() probe was an option-count N+1.
+     */
+    private PollResponse mapPoll(Poll poll, Long viewerId, Set<Long> preselectedOptionIds,
+                                 List<PollOption> preloadedOptions) {
+        Set<Long> selectedOptionIds;
+        if (preselectedOptionIds != null) {
+            selectedOptionIds = preselectedOptionIds;
+        } else if (viewerId != null && pollVoteRepository != null) {
+            selectedOptionIds = pollVoteRepository.findByPollIdAndUserId(poll.getId(), viewerId).stream()
+                    .map(vote -> vote.getOption().getId())
+                    .collect(Collectors.toSet());
+        } else {
+            selectedOptionIds = Set.of();
+        }
+
+        List<PollOption> pollOptions = preloadedOptions != null
+                ? preloadedOptions
+                : pollOptionRepository != null
+                        ? pollOptionRepository.findByPollIdOrderByPositionAsc(poll.getId())
+                        : List.of();
+        List<PollOptionResponse> options = pollOptions.stream()
+                .map(opt -> new PollOptionResponse(opt.getId(), opt.getOptionText(), opt.getVoteCount(),
+                        viewerId == null ? null : selectedOptionIds.contains(opt.getId())))
+                .toList();
 
         int totalVotes = options.stream().mapToInt(PollOptionResponse::getVoteCount).sum();
         Long votedOptionId = options.stream()
@@ -845,9 +909,12 @@ public class PostServiceImpl implements PostService {
                 poll.getClosedAt(), poll.getClosedAt(), totalVotes, votedOptionId, options);
     }
 
-    private UserSummary summary(User user) {
-        Profile profile = profileRepository.findById(user.getId())
-                .orElseThrow(() -> notFound("USER_NOT_FOUND", "User profile not found"));
+    private UserSummary summary(User user, Map<Long, Profile> profileByUserId) {
+        Profile profile = profileByUserId.get(user.getId());
+        if (profile == null) {
+            profile = profileRepository.findById(user.getId())
+                    .orElseThrow(() -> notFound("USER_NOT_FOUND", "User profile not found"));
+        }
         return new UserSummary(user.getId(), user.getUsername(), profile.getDisplayName(), profile.getAvatarUrl(), user.isVerified());
     }
 
