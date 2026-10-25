@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/default :: layout(title=${'Quản lý ' + community.name}, content=~{::#community-manage-content})}">
+<body>
+<div id="community-manage-content">
+    <div th:replace="~{community/manage/_tabs :: manageHeader(community=${community}, activeManageTab=${activeManageTab})}"></div>
+
+    <!-- KPI overview -->
+    <div class="row g-3 mb-3 row-cols-2 row-cols-md-4" th:if="${stats != null}">
+        <div class="col">
+            <div class="aloute-card p-3 h-100 community-kpi-card">
+                <div class="community-kpi-icon community-kpi-icon-blue"><i class="bi bi-people" aria-hidden="true"></i></div>
+                <div class="community-kpi-value" th:text="${stats.memberCount}">0</div>
+                <div class="small text-secondary">Thành viên</div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="aloute-card p-3 h-100 community-kpi-card">
+                <div class="community-kpi-icon community-kpi-icon-green"><i class="bi bi-file-text" aria-hidden="true"></i></div>
+                <div class="community-kpi-value" th:text="${stats.publishedPostCount}">0</div>
+                <div class="small text-secondary">Bài đã đăng</div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="aloute-card p-3 h-100 community-kpi-card">
+                <div class="community-kpi-icon community-kpi-icon-amber"><i class="bi bi-hourglass-split" aria-hidden="true"></i></div>
+                <div class="community-kpi-value" th:text="${stats.pendingPostCount}">0</div>
+                <div class="small text-secondary">Chờ phê duyệt</div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="aloute-card p-3 h-100 community-kpi-card">
+                <div class="community-kpi-icon community-kpi-icon-red"><i class="bi bi-shield-x" aria-hidden="true"></i></div>
+                <div class="community-kpi-value" th:text="${stats.removedPostCount}">0</div>
+                <div class="small text-secondary">Bài đã gỡ</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <!-- Recent moderation activity -->
+        <div class="col-12 col-lg-7">
+            <section class="aloute-card p-3 p-md-4 h-100" aria-labelledby="recent-moderation-title">
+                <h2 id="recent-moderation-title" class="fs-6 fw-bold mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-clock-history text-primary" aria-hidden="true"></i>Hoạt động kiểm duyệt gần đây
+                </h2>
+                <div th:if="${recentActions != null and !recentActions.isEmpty()}" class="community-activity-list">
+                    <div th:each="action : ${recentActions}" class="community-activity-item d-flex align-items-start gap-2">
+                        <img th:src="${action.moderator != null and action.moderator.avatarUrl != null and !action.moderator.avatarUrl.isEmpty()} ? ${action.moderator.avatarUrl} : @{/images/avatar-fallback.svg}"
+                             src="/images/avatar-fallback.svg"
+                             class="avatar-img avatar-xs flex-shrink-0" width="28" height="28" alt="">
+                        <div class="min-w-0 flex-grow-1">
+                            <div class="small text-truncate">
+                                <a th:if="${action.moderator != null and action.moderator.username != null}"
+                                   th:href="@{/users/{u}(u=${action.moderator.username})}"
+                                   class="fw-semibold text-decoration-none"
+                                   th:text="${action.moderator.displayName != null ? action.moderator.displayName : action.moderator.username}">Quản trị viên</a>
+                                <span class="mx-1"
+                                      th:text="${action.actionType == 'COMMUNITY_POST_APPROVE'} ? 'đã phê duyệt' : (${action.actionType == 'COMMUNITY_POST_REJECT'} ? 'đã từ chối' : 'đã gỡ')"></span>
+                                <a th:href="@{/posts/{pid}(pid=${action.postId})}" class="text-decoration-none">bài viết</a>
+                            </div>
+                            <div th:if="${action.reasonDetail != null}" class="small text-secondary text-truncate"
+                                 th:text="'Lý do: ' + ${action.reasonDetail}">Lý do</div>
+                            <div class="small text-secondary"
+                                 th:text="${action.createdAt != null ? #temporals.format(action.createdAt.atZone(T(java.time.ZoneId).of('Asia/Ho_Chi_Minh')), 'dd/MM/yyyy HH:mm') : ''}">—</div>
+                        </div>
+                    </div>
+                </div>
+                <div th:if="${recentActions == null or recentActions.isEmpty()}" class="text-center py-4">
+                    <i class="bi bi-slash-circle fs-3 text-secondary" aria-hidden="true"></i>
+                    <p class="small text-secondary mt-2 mb-0">Chưa có hoạt động kiểm duyệt nào trong cộng đồng này.</p>
+                </div>
+            </section>
+        </div>
+
+        <!-- Quick shortcuts -->
+        <div class="col-12 col-lg-5">
+            <section class="aloute-card p-3 p-md-4 h-100" aria-labelledby="manage-shortcuts-title">
+                <h2 id="manage-shortcuts-title" class="fs-6 fw-bold mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-lightning text-primary" aria-hidden="true"></i>Lối tắt quản lý
+                </h2>
+                <div class="d-grid gap-2">
+                    <a th:href="@{/communities/{id}/manage/pending(id=${community.id})}"
+                       class="btn btn-outline-primary btn-sm rounded-pill text-start px-3 d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-hourglass-split me-2" aria-hidden="true"></i>Duyệt bài viết đang chờ</span>
+                        <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis"
+                              th:if="${stats != null and stats.pendingPostCount > 0}" th:text="${stats.pendingPostCount}">0</span>
+                    </a>
+                    <a th:href="@{/communities/{id}/manage/posts(id=${community.id})}"
+                       class="btn btn-outline-primary btn-sm rounded-pill text-start px-3">
+                        <i class="bi bi-file-text me-2" aria-hidden="true"></i>Quản lý bài viết đã đăng
+                    </a>
+                    <a th:href="@{/communities/{id}/manage/members(id=${community.id})}"
+                       class="btn btn-outline-primary btn-sm rounded-pill text-start px-3">
+                        <i class="bi bi-people me-2" aria-hidden="true"></i>Quản lý thành viên
+                    </a>
+                    <a th:href="@{/communities/{id}/manage/settings(id=${community.id})}"
+                       class="btn btn-outline-primary btn-sm rounded-pill text-start px-3">
+                        <i class="bi bi-gear me-2" aria-hidden="true"></i>Cài đặt cộng đồng
+                    </a>
+                    <a th:href="@{/post/create(communityId=${community.id})}"
+                       class="btn btn-outline-secondary btn-sm rounded-pill text-start px-3">
+                        <i class="bi bi-pencil-square me-2" aria-hidden="true"></i>Đăng bài trong cộng đồng
+                    </a>
+                </div>
+                <div class="small text-secondary mt-3" th:if="${community.requirePostApproval}">
+                    <i class="bi bi-shield-check text-success me-1" aria-hidden="true"></i>
+                    Đang bật chế độ phê duyệt bài viết của thành viên.
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+</body>
+</html>

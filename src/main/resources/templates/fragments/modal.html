@@ -339,6 +339,97 @@
             </div>
         </div>
     </div>
+
+    <!-- Community moderation: reject pending submission with reason -->
+    <div class="modal fade" id="communityRejectPostModal" tabindex="-1" aria-labelledby="communityRejectPostModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-6 fw-bold text-dark" id="communityRejectPostModalLabel">
+                        <i class="bi bi-x-circle text-danger me-2" aria-hidden="true"></i>Từ chối bài viết
+                    </h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-secondary mb-2">
+                        Bài viết sẽ bị ẩn khỏi cộng đồng <strong id="community-reject-community-name"></strong>.
+                        Tác giả vẫn xem được bài viết và lý do từ chối.
+                    </p>
+                    <label for="community-reject-reason" class="form-label small fw-semibold">Lý do từ chối <span class="text-secondary fw-normal">(không bắt buộc)</span></label>
+                    <textarea class="form-control" id="community-reject-reason" rows="3" maxlength="500"
+                              placeholder="Ví dụ: Nội dung không phù hợp với quy định cộng đồng..."></textarea>
+                    <div class="d-flex justify-content-end mt-1">
+                        <span class="small text-muted"><span id="community-reject-char-count">0</span>/500</span>
+                    </div>
+                    <div id="community-reject-status" class="alert alert-danger py-2 px-3 small d-none mt-2 mb-0" role="alert" aria-live="polite"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-sm btn-danger rounded-pill px-3" id="btn-confirm-community-reject" data-action="community-reject-post-confirm">
+                        <span class="spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true"></span>
+                        <span>Từ chối bài viết</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Community moderation: remove published post with reason -->
+    <div class="modal fade" id="communityRemovePostModal" tabindex="-1" aria-labelledby="communityRemovePostModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-6 fw-bold text-dark" id="communityRemovePostModalLabel">
+                        <i class="bi bi-shield-x text-danger me-2" aria-hidden="true"></i>Gỡ bài viết khỏi cộng đồng
+                    </h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-secondary mb-2">
+                        Bài viết sẽ bị gỡ và ẩn khỏi cộng đồng <strong id="community-remove-community-name"></strong>.
+                        Hành động này được lưu vào nhật ký kiểm duyệt; tác giả nhận thông báo.
+                    </p>
+                    <label for="community-remove-reason" class="form-label small fw-semibold">Lý do gỡ bài <span class="text-secondary fw-normal">(không bắt buộc)</span></label>
+                    <textarea class="form-control" id="community-remove-reason" rows="3" maxlength="500"
+                              placeholder="Ví dụ: Bài viết vi phạm nội quy cộng đồng..."></textarea>
+                    <div class="d-flex justify-content-end mt-1">
+                        <span class="small text-muted"><span id="community-remove-char-count">0</span>/500</span>
+                    </div>
+                    <div id="community-remove-status" class="alert alert-danger py-2 px-3 small d-none mt-2 mb-0" role="alert" aria-live="polite"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-sm btn-danger rounded-pill px-3" id="btn-confirm-community-remove" data-action="community-remove-post-confirm">
+                        <span class="spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true"></span>
+                        <span>Gỡ bài viết</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Community: remove member confirmation -->
+    <div class="modal fade" id="communityRemoveMemberModal" tabindex="-1" aria-labelledby="communityRemoveMemberModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-6 fw-bold text-dark" id="communityRemoveMemberModalLabel">Xóa thành viên</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body py-3 text-secondary small">
+                    Xóa <strong id="community-remove-member-name"></strong> khỏi cộng đồng?
+                    Người này có thể tham gia lại nếu cộng đồng công khai.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-sm btn-danger rounded-pill px-3" id="btn-confirm-community-remove-member" data-action="community-remove-member-confirm">
+                        <span class="spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true"></span>
+                        <span>Xóa thành viên</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 </body>
 </html>
