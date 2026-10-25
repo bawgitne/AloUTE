@@ -207,6 +207,14 @@ public class PostServiceImpl implements PostService {
         post.setParentPost(parentPost);
         post.setQuotedPost(quotedPost);
         post.setCommunity(community);
+        // Community post approval lifecycle: ordinary member submissions in an
+        // approval-required community enter PENDING; every other community post
+        // (approval disabled, or author is owner/admin) publishes immediately.
+        if (community != null) {
+            post.setModerationStatus(community.isRequirePostApproval() && !isCommunityModerator(community, userId)
+                    ? PostModerationStatus.PENDING
+                    : PostModerationStatus.APPROVED);
+        }
 
         Post savedPost = postRepository.save(post);
 
@@ -298,10 +306,16 @@ public class PostServiceImpl implements PostService {
             throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only post owner can edit the post");
         }
 
+        boolean contentChanged = request.content() != null && !request.content().equals(post.getContent());
+
         if (request.content() != null) post.setContent(request.content());
         if (request.visibility() != null) post.setVisibility(request.visibility());
         if (request.allowReply() != null) post.setAllowReply(request.allowReply());
         if (request.allowQuote() != null) post.setAllowQuote(request.allowQuote());
+
+        if (contentChanged && post.getCommunity() != null) {
+            applyCommunityEditModerationPolicy(post, userId);
+        }
 
         return get(postRepository.save(post).getId(), userId);
     }
@@ -423,7 +437,10 @@ public class PostServiceImpl implements PostService {
                 cb.equal(root.get("user").get("id"), userId),
                 cb.isNull(root.get("parentPost"))
         );
-        spec = spec.and(buildVisibilitySpec(viewerId));
+        // Own timeline keeps the author's PENDING/REJECTED community submissions visible
+        // to the author themselves (with status badges); other viewers never see them.
+        boolean ownTimeline = viewerId != null && viewerId.equals(userId);
+        spec = spec.and(buildVisibilitySpec(viewerId, null, ownTimeline));
         Page<Post> postPage = postRepository.findAll(
                 spec,
                 PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
@@ -647,6 +664,21 @@ public class PostServiceImpl implements PostService {
             }
         }
 
+        // 2b. Community post approval gate: PENDING/REJECTED submissions are visible
+        // only to their author and to community moderators (owner / ADMIN-role member)
+        // for management. Everyone else gets a concealment-grade denial.
+        if (post.getCommunity() != null
+                && post.getModerationStatus() != null
+                && post.getModerationStatus() != PostModerationStatus.APPROVED) {
+            if (viewerId == null) {
+                return false;
+            }
+            boolean isAuthorOfSubmission = authorId != null && Objects.equals(authorId, viewerId);
+            if (!isAuthorOfSubmission && !isCommunityModerator(post.getCommunity(), viewerId)) {
+                return false;
+            }
+        }
+
         // 3. Author audience exception: author can view their own post if community gate and blocks allow
         if (viewerId != null && authorId != null && Objects.equals(authorId, viewerId)) {
             return true;
@@ -688,10 +720,14 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public Specification<Post> buildVisibilitySpec(Long viewerId) {
-        return buildVisibilitySpec(viewerId, null);
+        return buildVisibilitySpec(viewerId, null, false);
     }
 
     private Specification<Post> buildVisibilitySpec(Long viewerId, Long extraCommunityId) {
+        return buildVisibilitySpec(viewerId, extraCommunityId, false);
+    }
+
+    private Specification<Post> buildVisibilitySpec(Long viewerId, Long extraCommunityId, boolean includeOwnUnapproved) {
         List<Long> blockedUserIds = new ArrayList<>();
         List<Long> followingUserIds = new ArrayList<>();
         List<Long> userCommunityIds = new ArrayList<>();
@@ -712,7 +748,7 @@ public class PostServiceImpl implements PostService {
             }
         }
 
-        return PostSpecifications.visibleTo(viewerId, blockedUserIds, followingUserIds, userCommunityIds);
+        return PostSpecifications.visibleTo(viewerId, blockedUserIds, followingUserIds, userCommunityIds, includeOwnUnapproved);
     }
 
     @Override
@@ -732,7 +768,8 @@ public class PostServiceImpl implements PostService {
         if (posts == null || posts.isEmpty()) return List.of();
         List<Long> ids = posts.stream().map(Post::getId).filter(Objects::nonNull).toList();
         if (ids.isEmpty()) return posts.stream().map(p -> assemble(p, viewerId,
-                List.of(), List.of(), false, false, false, null, Map.of(), null, null)).toList();
+                List.of(), List.of(), false, false, false, null, Map.of(), null, null,
+                Map.of(), Map.of())).toList();
 
         Map<Long, List<PostMedia>> mediaByPost = postMediaRepository.findByPost_IdInOrderByPost_IdAscPositionAsc(ids)
                 .stream().collect(Collectors.groupingBy(pm -> pm.getPost().getId()));
@@ -770,6 +807,21 @@ public class PostServiceImpl implements PostService {
                 : pollOptionRepository.findByPoll_IdInOrderByPoll_IdAscPositionAsc(pollIds).stream()
                         .collect(Collectors.groupingBy(o -> o.getPoll().getId()));
 
+        // Batch community identity + the viewer's role per community (one IN query each)
+        // so the Facebook-style community header and moderation capabilities stay N+1-free.
+        Set<Long> communityIds = posts.stream()
+                .map(Post::getCommunity).filter(Objects::nonNull)
+                .map(Community::getId).filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, Community> communityById = communityIds.isEmpty() ? Map.of()
+                : communityRepository.findAllById(communityIds).stream()
+                        .collect(Collectors.toMap(Community::getId, c -> c, (a, b) -> a));
+        Map<Long, CommunityRole> viewerRoleByCommunityId = viewerId == null || communityMemberRepository == null
+                ? Map.of()
+                : communityMemberRepository.findByUserId(viewerId).stream()
+                        .filter(cm -> cm.getCommunity() != null && cm.getCommunity().getId() != null)
+                        .collect(Collectors.toMap(cm -> cm.getCommunity().getId(), CommunityMember::getRole, (a, b) -> a));
+
         List<PostResponse> responses = new ArrayList<>(posts.size());
         for (Post post : posts) {
             List<MediaResponse> media = mediaByPost.getOrDefault(post.getId(), List.of()).stream()
@@ -781,7 +833,8 @@ public class PostServiceImpl implements PostService {
                     liked.contains(post.getId()), bookmarked.contains(post.getId()),
                     reposted.contains(post.getId()), poll, profileByUserId,
                     poll == null ? null : selectedOptionsByPoll.getOrDefault(poll.getId(), Set.of()),
-                    poll == null ? null : optionsByPoll.get(poll.getId())));
+                    poll == null ? null : optionsByPoll.get(poll.getId()),
+                    communityById, viewerRoleByCommunityId));
         }
         return responses;
     }
@@ -790,13 +843,37 @@ public class PostServiceImpl implements PostService {
                                   List<TopicResponse> topics, boolean hasLiked,
                                   boolean hasBookmarked, boolean hasReposted, Poll poll,
                                   Map<Long, Profile> profileByUserId, Set<Long> selectedOptionIds,
-                                  List<PollOption> preloadedOptions) {
+                                  List<PollOption> preloadedOptions,
+                                  Map<Long, Community> communityById,
+                                  Map<Long, CommunityRole> viewerRoleByCommunityId) {
         boolean owner = viewerId != null && post.getUser() != null && Objects.equals(post.getUser().getId(), viewerId);
         UserSummary author = post.getUser() != null ? summary(post.getUser(), profileByUserId) : null;
 
         PostViewerStateResponse viewerState = new PostViewerStateResponse(hasLiked, hasBookmarked, hasReposted);
+
+        Community community = post.getCommunity() != null && post.getCommunity().getId() != null
+                ? communityById.get(post.getCommunity().getId())
+                : null;
+        if (community == null && post.getCommunity() != null && post.getCommunity().getId() == null) {
+            community = post.getCommunity();
+        }
+        CommunitySummaryResponse communitySummary = community == null ? null
+                : new CommunitySummaryResponse(community.getId(), community.getName(), community.getSlug(), community.getAvatarUrl());
+
+        boolean viewerIsCommunityModerator = community != null && viewerId != null
+                && isCommunityModerator(community, viewerId, viewerRoleByCommunityId);
+        PostModerationStatus status = post.getModerationStatus();
+        boolean postUnapproved = community != null && status != null && status != PostModerationStatus.APPROVED;
+        boolean canApprove = viewerIsCommunityModerator && postUnapproved && post.getDeletedAt() == null;
+        boolean canRemove = viewerIsCommunityModerator && !postUnapproved && post.getDeletedAt() == null;
         PostCapabilitiesResponse capabilities = new PostCapabilitiesResponse(owner, owner,
-                post.isAllowReply(), post.isAllowQuote());
+                post.isAllowReply(), post.isAllowQuote(), canApprove, canRemove);
+
+        // Rejection reason is only surfaced to the submission's author and community moderators.
+        String moderationReason = postUnapproved && post.getModerationReason() != null
+                && (owner || viewerIsCommunityModerator)
+                ? post.getModerationReason()
+                : null;
 
         PollResponse pollResp = poll != null ? mapPoll(poll, viewerId, selectedOptionIds, preloadedOptions) : null;
 
@@ -807,7 +884,8 @@ public class PostServiceImpl implements PostService {
                 quotedPostId, id(post.getCommunity()), post.getVisibility(), post.isAllowReply(),
                 post.isAllowQuote(), media, topics, pollResp, post.getLikeCount(), post.getReplyCount(),
                 post.getRepostCount(), post.getQuoteCount(), post.getViewCount(), viewerState,
-                capabilities, post.getCreatedAt(), post.getUpdatedAt());
+                capabilities, post.getCreatedAt(), post.getUpdatedAt(),
+                communitySummary, status, moderationReason);
     }
 
     private Long visiblePostId(Post targetPost, Long viewerId) {
@@ -930,4 +1008,60 @@ public class PostServiceImpl implements PostService {
     private Long id(Post post) { return post == null ? null : post.getId(); }
     private Long id(Community community) { return community == null ? null : community.getId(); }
     private ApiException notFound(String code, String message) { return new ApiException(HttpStatus.NOT_FOUND, code, message); }
+
+    /**
+     * Community moderators = the community owner plus members holding the ADMIN role.
+     * They may publish immediately, see and decide PENDING/REJECTED submissions,
+     * and remove published community posts.
+     */
+    private boolean isCommunityModerator(Community community, Long userId) {
+        if (community == null || userId == null) {
+            return false;
+        }
+        if (community.getOwner() != null && Objects.equals(community.getOwner().getId(), userId)) {
+            return true;
+        }
+        return communityMemberRepository != null
+                && communityMemberRepository.findByCommunityIdAndUserId(community.getId(), userId)
+                        .map(m -> m.getRole() == CommunityRole.ADMIN)
+                        .orElse(false);
+    }
+
+    /** Preloaded-role variant of {@link #isCommunityModerator} used in batch mapping. */
+    private boolean isCommunityModerator(Community community, Long userId, Map<Long, CommunityRole> viewerRoleByCommunityId) {
+        if (community == null || userId == null) {
+            return false;
+        }
+        if (community.getOwner() != null && Objects.equals(community.getOwner().getId(), userId)) {
+            return true;
+        }
+        return viewerRoleByCommunityId.get(community.getId()) == CommunityRole.ADMIN;
+    }
+
+    /**
+     * Documented content-edit policy for community posts:
+     * <ul>
+     *   <li>Approval required and the author is an ordinary member: any content edit
+     *       (including of an already APPROVED post — bait-and-switch prevention) re-enters
+     *       the PENDING queue; a REJECTED submission resubmits as PENDING.</li>
+     *   <li>Approval not required for this author (owner/admin author, or approval
+     *       disabled): a PENDING/REJECTED post becomes APPROVED on edit; legacy null
+     *       status is normalised to APPROVED without changing counters.</li>
+     * </ul>
+     * Non-content edits (visibility/allowReply/allowQuote) never change the status.
+     */
+    private void applyCommunityEditModerationPolicy(Post post, Long authorId) {
+        Community community = post.getCommunity();
+        boolean approvalRequired = community.isRequirePostApproval() && !isCommunityModerator(community, authorId);
+        PostModerationStatus current = post.getModerationStatus();
+        if (approvalRequired) {
+            post.setModerationStatus(PostModerationStatus.PENDING);
+            post.setModerationReason(null);
+        } else if (current == PostModerationStatus.PENDING || current == PostModerationStatus.REJECTED) {
+            post.setModerationStatus(PostModerationStatus.APPROVED);
+            post.setModerationReason(null);
+        } else if (current == null) {
+            post.setModerationStatus(PostModerationStatus.APPROVED);
+        }
+    }
 }

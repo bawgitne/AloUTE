@@ -2,6 +2,7 @@ package com.aloute.controller.api;
 
 import lombok.RequiredArgsConstructor;
 import com.aloute.common.api.ApiResponse;
+import com.aloute.dto.request.CommunityPostDecisionRequest;
 import com.aloute.dto.request.CreateCommunityRequest;
 import com.aloute.dto.request.CreatePostRequest;
 import com.aloute.dto.request.UpdateCommunityRequest;
@@ -10,6 +11,7 @@ import com.aloute.dto.response.CommunityMembershipResponse;
 import com.aloute.dto.response.CommunityResponse;
 import com.aloute.dto.response.PostResponse;
 import com.aloute.security.currentuser.CurrentUserProvider;
+import com.aloute.service.CommunityModerationService;
 import com.aloute.service.CommunityService;
 import com.aloute.service.PostService;
 import jakarta.validation.Valid;
@@ -30,6 +32,7 @@ import java.util.List;
 public class CommunityController {
     private final CommunityService communityService;
     private final PostService postService;
+    private final CommunityModerationService communityModerationService;
     private final CurrentUserProvider currentUserProvider;
 
     @GetMapping
@@ -71,14 +74,22 @@ public class CommunityController {
 
     @GetMapping("/{communityId}/members")
     public ApiResponse<List<CommunityMembershipResponse>> members(@PathVariable @Positive Long communityId,
+                                                                  @RequestParam(required = false) String q,
                                                                   @RequestParam(defaultValue = "0") @Min(0) int page,
                                                                   @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return communityService.members(communityId, page, size, currentUserProvider.getCurrentUserId().orElse(null));
+        return communityService.members(communityId, q, page, size, currentUserProvider.getCurrentUserId().orElse(null));
     }
 
     @DeleteMapping("/{communityId}/members/me")
     public ResponseEntity<Void> leave(@PathVariable @Positive Long communityId) {
         communityService.leave(currentUserProvider.requireUserId(), communityId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{communityId}/members/{userId}")
+    public ResponseEntity<Void> removeMember(@PathVariable @Positive Long communityId,
+                                             @PathVariable @Positive Long userId) {
+        communityService.removeMember(currentUserProvider.requireUserId(), communityId, userId);
         return ResponseEntity.noContent().build();
     }
 
@@ -103,5 +114,33 @@ public class CommunityController {
         Long userId = currentUserProvider.requireUserId();
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(postService.create(userId, request, communityId, null, null)));
+    }
+
+    // ------------------------------------------------------------------
+    // Community post moderation (owner / ADMIN-role members only)
+    // ------------------------------------------------------------------
+
+    @PostMapping("/{communityId}/posts/{postId}/approve")
+    public ApiResponse<PostResponse> approvePost(@PathVariable @Positive Long communityId,
+                                                 @PathVariable @Positive Long postId) {
+        return ApiResponse.success(
+                communityModerationService.approvePost(currentUserProvider.requireUserId(), communityId, postId));
+    }
+
+    @PostMapping("/{communityId}/posts/{postId}/reject")
+    public ApiResponse<PostResponse> rejectPost(@PathVariable @Positive Long communityId,
+                                                @PathVariable @Positive Long postId,
+                                                @Valid @RequestBody(required = false) CommunityPostDecisionRequest request) {
+        return ApiResponse.success(communityModerationService.rejectPost(
+                currentUserProvider.requireUserId(), communityId, postId, request != null ? request.reason() : null));
+    }
+
+    @PostMapping("/{communityId}/posts/{postId}/remove")
+    public ResponseEntity<Void> removePost(@PathVariable @Positive Long communityId,
+                                           @PathVariable @Positive Long postId,
+                                           @Valid @RequestBody(required = false) CommunityPostDecisionRequest request) {
+        communityModerationService.removePost(
+                currentUserProvider.requireUserId(), communityId, postId, request != null ? request.reason() : null);
+        return ResponseEntity.noContent().build();
     }
 }

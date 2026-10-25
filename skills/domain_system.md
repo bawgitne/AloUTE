@@ -1602,10 +1602,61 @@ Nếu moderation community được triển khai sâu, current model còn thiế
 ```text
 CommunityBan
 CommunityReport
-ModerationLog
 ```
 
+`ModerationLog` đã được hiện thực bằng entity `ModerationAction` (cột `community_id` phân scope
+community cho action `COMMUNITY_POST_APPROVE | COMMUNITY_POST_REJECT | COMMUNITY_POST_REMOVE`).
+
 Không invent persistence implementation trong domain doc; chỉ ghi nhận capability/data gap.
+
+---
+
+# 59A. COMMUNITY POST APPROVAL & MEMBER MANAGEMENT (canonical, 2026-10-25)
+
+## 59A.1. Community post approval lifecycle
+
+- `Community.requirePostApproval` (default `false`, owner-only setting) bật cơ chế phê duyệt.
+- `Post.moderationStatus`: `PENDING | APPROVED | REJECTED`; **NULL đọc là APPROVED** ở mọi read path
+  (bài không thuộc community, hoặc row legacy trước khi bật cơ chế).
+- Tạo post trong community:
+  - Approval OFF → publish ngay (`APPROVED`).
+  - Approval ON + tác giả là Owner hoặc `CommunityRole.ADMIN` → publish ngay (`APPROVED`).
+  - Approval ON + member thường → `PENDING`.
+- `PENDING`/`REJECTED` chỉ hiển thị với: **tác giả** (timeline cá nhân của chính mình + direct URL +
+  bookmark của mình) và **moderator của community đó** (dashboard quản lý). Ẩn hoàn toàn với: global feed,
+  following/explore, community feed, search, profile của người khác, bookmark người khác, repost/quote
+  (không thể tương tác post chưa duyệt với người ngoài), notification payload.
+- Moderator = Community Owner + member giữ `CommunityRole.ADMIN` (`MODERATOR` chưa được gán quyền moderation).
+- Approve: `PENDING|REJECTED → APPROVED`. Reject (kèm reason ≤ 500 ký tự): `PENDING → REJECTED`.
+  Remove (soft-delete, giữ audit + khả năng restore): chỉ post đã publish. Decision song song/lặp lại bị
+  chặn bằng pessimistic lock + trạng thái (`409 POST_MODERATION_STATE_INVALID`).
+- Author edit post (đổi content):
+  - Approval ON + member thường → trở lại `PENDING` (kể cả post đã APPROVED — chống bait-and-switch).
+  - Ngược lại (owner/admin tác giả, hoặc approval OFF) → `PENDING|REJECTED` thành `APPROVED`.
+  - Edit không đổi content không đổi status.
+- Author xóa post `PENDING`/`REJECTED`: soft-delete như post thường; không ảnh hưởng counter.
+- Community bị soft-delete → mọi moderation action trả `404 COMMUNITY_NOT_FOUND`.
+- Member bị remove: post đã publish giữ nguyên; post `PENDING` giữ nguyên trạng thái chờ moderator xử lý.
+- `community.postCount` giữ semantics "tổng bài đã tạo" (tăng lúc create); dashboard dùng count query
+  theo visibility thực tế (published = `APPROVED`/NULL, removed = removal active).
+
+## 59A.2. WHO CAN DO WHAT (community-scoped permission matrix)
+
+| Action | Owner | ADMIN-role | MODERATOR/MEMBER | Outsider/Guest | SYSTEM_ADMIN |
+|---|---|---|---|---|---|
+| Vào dashboard `/communities/{id}/manage` | ✔ | ✔ | ✘ (403) | ✘ (private → 404) | ✘ (không auto-được quyền) |
+| Duyệt/từ chối bài PENDING | ✔ | ✔ | ✘ | ✘ | ✘ |
+| Gỡ bài đã publish (soft-remove) | ✔ | ✔ | ✘ | ✘ | ✔ (theo rule admin hiện có) |
+| Xem bài PENDING/REJECTED | ✔ | ✔ | chỉ tác giả thấy bài của mình | ✘ | ✘ |
+| Đổi role member (promote/demote ADMIN) | ✔ | ✘ (403) | ✘ | ✘ | ✘ |
+| Remove member thường | ✔ | ✔ | ✘ | ✘ | ✘ |
+| Remove member ADMIN | ✔ | ✘ | ✘ | ✘ | ✘ |
+| Remove Owner | ✘ (không ai; owner phải transfer/xóa community) | ✘ | ✘ | ✘ | ✘ |
+| Bật/tắt `requirePostApproval` | ✔ | ✘ | ✘ | ✘ | ✘ |
+| Update thông tin community (tên/mô tả/privacy) | ✔ | ✔ (giữ nguyên rule cũ) | ✘ | ✘ | ✘ |
+
+- Tác giả post: sửa/xóa bài của mình theo rule hiện có; xem status + lý do từ chối của bài của mình.
+- Private community: concealement 404 được bảo toàn trên toàn bộ surface mới (dashboard, moderation API).
 
 ---
 
