@@ -76,6 +76,17 @@
                                th:class="${community.currentUserRole != null} ? 'btn btn-sm btn-primary rounded-pill' : 'btn btn-sm btn-primary rounded-pill d-none'">
                                 <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Đăng bài
                             </a>
+
+                            <!-- Community management dashboard entry (owner / admins only) -->
+                            <a th:if="${community.canManage}"
+                               th:href="@{/communities/{id}/manage(id=${community.id})}"
+                               class="btn btn-sm btn-outline-primary rounded-pill px-3 position-relative"
+                               title="Quản lý cộng đồng: bài viết chờ duyệt, thành viên, cài đặt">
+                                <i class="bi bi-sliders me-1" aria-hidden="true"></i>Quản lý
+                                <span th:if="${community.pendingPostCount != null and community.pendingPostCount > 0}"
+                                      class="badge rounded-pill bg-danger community-pending-badge"
+                                      th:text="${community.pendingPostCount}">0</span>
+                            </a>
                         </div>
                     </div>
 
@@ -113,6 +124,10 @@
                         <div th:replace="~{post/_post-card :: postCard(post=${post})}"></div>
                     </div>
                 </div>
+
+                <!-- Pagination -->
+                <div th:if="${posts != null and !posts.isEmpty()}"
+                     th:replace="~{fragments/pagination :: pagination(pageMeta=${pageMeta}, baseUrl='/communities/' + ${community.slug})}"></div>
 
                 <!-- Empty Posts in Community -->
                 <div th:if="${posts == null or posts.isEmpty()}" class="aloute-card text-center p-4 my-3">
