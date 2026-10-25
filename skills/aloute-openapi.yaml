@@ -1300,9 +1300,15 @@ paths:
   /api/communities/{communityId}/members:
     get:
       tags: [Communities]
-      summary: List community members
+      summary: List community members (optional keyword search on username/display name)
       parameters:
         - $ref: '#/components/parameters/CommunityId'
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Keyword matched against username and display name
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/Size'
       responses:
@@ -1334,6 +1340,27 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+
+  /api/communities/{communityId}/members/{userId}:
+    delete:
+      tags: [Communities]
+      summary: Remove a community member (owner/admin moderation)
+      description: >
+        Owner may remove any member except themself (leaving is a separate flow);
+        ADMIN-role members may only remove ordinary MEMBER-role members. The
+        community owner can never be removed.
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: Membership removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /api/communities/{communityId}/members/{userId}/role:
     patch:
@@ -1409,6 +1436,98 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationError'
+
+  /api/communities/{communityId}/posts/{postId}/approve:
+    post:
+      tags: [Communities, Posts]
+      summary: Approve a pending community post (owner/ADMIN only)
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Submission approved and published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/communities/{communityId}/posts/{postId}/reject:
+    post:
+      tags: [Communities, Posts]
+      summary: Reject a pending community post with optional reason (owner/ADMIN only)
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommunityPostDecisionRequest'
+      responses:
+        '200':
+          description: Submission rejected (hidden from all feeds, author keeps access)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/communities/{communityId}/posts/{postId}/remove:
+    post:
+      tags: [Communities, Posts]
+      summary: Soft-remove a published community post (owner/ADMIN only, audit preserved)
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommunityPostDecisionRequest'
+      responses:
+        '204':
+          description: Post soft-removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /api/feed/home:
     get:
@@ -2822,6 +2941,40 @@ components:
           type: boolean
         canQuote:
           type: boolean
+        canApprove:
+          type: boolean
+          description: Viewer may approve/reject this submission (community owner/ADMIN)
+        canRemove:
+          type: boolean
+          description: Viewer may soft-remove this published community post (community owner/ADMIN)
+
+    PostModerationStatus:
+      type: string
+      description: Null (or absent) reads as APPROVED everywhere
+      enum: [PENDING, APPROVED, REJECTED]
+
+    CommunitySummaryResponse:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        slug:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+
+    CommunityPostDecisionRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          nullable: true
 
     PostViewerState:
       type: object
@@ -2917,6 +3070,18 @@ components:
           type: string
           format: date-time
           nullable: true
+        community:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommunitySummaryResponse'
+        moderationStatus:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/PostModerationStatus'
+        moderationReason:
+          type: string
+          nullable: true
+          description: Rejection reason; only returned to the submission author and community moderators
 
     TopicResponse:
       type: object
@@ -3015,6 +3180,17 @@ components:
         isOwner:
           type: boolean
           nullable: true
+        requirePostApproval:
+          type: boolean
+          description: Owner-only setting; ordinary member submissions enter PENDING when true
+        canManage:
+          type: boolean
+          description: True when the viewer is the community owner or an ADMIN-role member
+        pendingPostCount:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Pending submissions; only non-zero for viewers with canManage
 
     CommunityMembershipResponse:
       type: object
@@ -3498,6 +3674,10 @@ components:
           type: integer
           format: int64
           nullable: true
+        requirePostApproval:
+          type: boolean
+          nullable: true
+          description: Toggling the approval policy is restricted to the community owner
 
     UpdateCommunityRoleRequest:
       type: object

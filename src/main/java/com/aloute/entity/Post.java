@@ -29,6 +29,16 @@ public class Post {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private PostVisibility visibility = PostVisibility.PUBLIC;
+    /**
+     * Community post approval lifecycle. Null means the post is not subject to
+     * community approval (non-community post or legacy row) and reads as APPROVED.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "moderation_status", length = 16)
+    private PostModerationStatus moderationStatus;
+    /** Moderator-supplied reason shown to the author when a submission is REJECTED. */
+    @Column(name = "moderation_reason", length = 500)
+    private String moderationReason;
     @Column(name = "allow_reply", nullable = false)
     private boolean allowReply = true;
     @Column(name = "allow_quote", nullable = false)

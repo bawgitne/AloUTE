@@ -29,6 +29,9 @@ public class Community {
     private String coverUrl;
     @Column(name = "is_private", nullable = false)
     private boolean privateCommunity;
+    /** When true, ordinary member submissions require owner/admin approval before publishing. */
+    @Column(name = "require_post_approval", nullable = false)
+    private boolean requirePostApproval;
     @Column(name = "member_count", nullable = false)
     private long memberCount;
     @Column(name = "post_count", nullable = false)

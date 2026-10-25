@@ -80,6 +80,8 @@ public enum ErrorCode {
     COMMUNITY_OWNER_REQUIRED("COMMUNITY_OWNER_REQUIRED", HttpStatus.FORBIDDEN, "Only community owner can perform this action"),
     OWNER_CANNOT_LEAVE("OWNER_CANNOT_LEAVE", HttpStatus.CONFLICT, "Owner cannot leave community without transferring ownership"),
     COMMUNITY_OWNER_CANNOT_LEAVE("COMMUNITY_OWNER_CANNOT_LEAVE", HttpStatus.CONFLICT, "Owner cannot leave community without transferring ownership"),
+    COMMUNITY_MEMBER_REMOVE_NOT_ALLOWED("COMMUNITY_MEMBER_REMOVE_NOT_ALLOWED", HttpStatus.FORBIDDEN, "You cannot remove this community member"),
+    COMMUNITY_ROLE_CHANGE_NOT_ALLOWED("COMMUNITY_ROLE_CHANGE_NOT_ALLOWED", HttpStatus.FORBIDDEN, "You cannot change this member's role"),
 
     // --- CONVERSATION & MESSAGE ---
     CONVERSATION_NOT_FOUND("CONVERSATION_NOT_FOUND", HttpStatus.NOT_FOUND, "Conversation not found"),
@@ -116,6 +118,7 @@ public enum ErrorCode {
 
     // --- MODERATION ---
     MODERATION_ACTION_NOT_FOUND("MODERATION_ACTION_NOT_FOUND", HttpStatus.NOT_FOUND, "Moderation action not found"),
+    POST_MODERATION_STATE_INVALID("POST_MODERATION_STATE_INVALID", HttpStatus.CONFLICT, "Post is not in a state that allows this moderation action"),
     POST_RESTORE_NOT_ALLOWED("POST_RESTORE_NOT_ALLOWED", HttpStatus.CONFLICT, "Cannot restore post that was author-deleted or not removed by moderation"),
     POST_REMOVAL_NOT_FOUND("POST_REMOVAL_NOT_FOUND", HttpStatus.NOT_FOUND, "Active post moderation removal record not found"),
     USER_SUSPENSION_ALREADY_ACTIVE("USER_SUSPENSION_ALREADY_ACTIVE", HttpStatus.CONFLICT, "User already has an active suspension"),
