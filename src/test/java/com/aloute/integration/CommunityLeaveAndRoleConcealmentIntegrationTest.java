@@ -319,7 +319,7 @@ class CommunityLeaveAndRoleConcealmentIntegrationTest {
     }
 
     @Test
-    @DisplayName("D-02 Role: Public community outsider receives 403 FORBIDDEN (You are not a member)")
+    @DisplayName("D-02 Role: Public community outsider receives 403 (role changes are owner-only)")
     void publicCommunityOutsiderRoleChangeReturnsForbidden() throws Exception {
         String requestJson = "{\"role\": \"ADMIN\"}";
 
@@ -329,12 +329,11 @@ class CommunityLeaveAndRoleConcealmentIntegrationTest {
                         .with(authentication(auth(outsider)))
                         .with(csrf()))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"))
-                .andExpect(jsonPath("$.error.message").value("You are not a member"));
+                .andExpect(jsonPath("$.error.code").value("COMMUNITY_ROLE_CHANGE_NOT_ALLOWED"));
     }
 
     @Test
-    @DisplayName("D-02 Role: Regular member cannot change roles (403 FORBIDDEN Only admin or owner can change roles)")
+    @DisplayName("D-02 Role: Regular member cannot change roles (403, owner-only policy)")
     void privateCommunityRegularMemberRoleChangeReturnsForbidden() throws Exception {
         String requestJson = "{\"role\": \"ADMIN\"}";
 
@@ -344,12 +343,11 @@ class CommunityLeaveAndRoleConcealmentIntegrationTest {
                         .with(authentication(auth(member)))
                         .with(csrf()))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"))
-                .andExpect(jsonPath("$.error.message").value("Only admin or owner can change roles"));
+                .andExpect(jsonPath("$.error.code").value("COMMUNITY_ROLE_CHANGE_NOT_ALLOWED"));
     }
 
     @Test
-    @DisplayName("D-02 Role: Admin can update member role in private community (200 OK)")
+    @DisplayName("D-02 Role: Admin can no longer change member roles (owner-only, 403) - policy 2026-10-25")
     void privateCommunityAdminCanUpdateMemberRole() throws Exception {
         String requestJson = "{\"role\": \"MODERATOR\"}";
 
@@ -358,12 +356,11 @@ class CommunityLeaveAndRoleConcealmentIntegrationTest {
                         .content(requestJson)
                         .with(authentication(auth(admin)))
                         .with(csrf()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.role").value("MODERATOR"));
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("COMMUNITY_ROLE_CHANGE_NOT_ALLOWED"));
 
-        CommunityMember updated = memberRepository.findByCommunityIdAndUserId(privateCommunity.getId(), targetUser.getId()).orElseThrow();
-        assertThat(updated.getRole()).isEqualTo(CommunityRole.MODERATOR);
+        CommunityMember unchanged = memberRepository.findByCommunityIdAndUserId(privateCommunity.getId(), targetUser.getId()).orElseThrow();
+        assertThat(unchanged.getRole()).isEqualTo(CommunityRole.MEMBER);
     }
 
     @Test
@@ -385,14 +382,14 @@ class CommunityLeaveAndRoleConcealmentIntegrationTest {
     }
 
     @Test
-    @DisplayName("D-02 Role: Admin updating role for non-member target returns 404 COMMUNITY_MEMBER_NOT_FOUND")
+    @DisplayName("D-02 Role: Owner updating role for non-member target returns 404 COMMUNITY_MEMBER_NOT_FOUND")
     void privateCommunityAdminTargetNonMemberReturnsMemberNotFound() throws Exception {
         String requestJson = "{\"role\": \"MODERATOR\"}";
 
         mockMvc.perform(patch("/api/communities/" + privateCommunity.getId() + "/members/" + outsider.getId() + "/role")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestJson)
-                        .with(authentication(auth(admin)))
+                        .with(authentication(auth(owner)))
                         .with(csrf()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("COMMUNITY_MEMBER_NOT_FOUND"))
