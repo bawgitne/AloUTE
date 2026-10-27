@@ -41,6 +41,9 @@ aloute:
     credentials-path: ${ALOUTE_FIREBASE_CREDENTIALS_PATH:}
   auth:
     registration-otp-secret: ${ALOUTE_REGISTRATION_OTP_SECRET}
+    # BL-07: must be a strong unique value in production (guarded fail-closed by
+    # TwoFactorEncryptionService). No default here on purpose.
+    two-factor-master-key: ${ALOUTE_TWO_FACTOR_MASTER_KEY:}
   mail:
     host: ${ALOUTE_MAIL_HOST:smtp.gmail.com}
     port: ${ALOUTE_MAIL_PORT:587}

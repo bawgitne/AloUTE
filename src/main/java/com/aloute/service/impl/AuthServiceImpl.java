@@ -126,7 +126,7 @@ public class AuthServiceImpl implements AuthService {
             if (user.isTwoFactorEnabled()) {
                 String masked = maskEmail(user.getEmail());
                 String type = user.getTwoFactorType() != null ? user.getTwoFactorType() : "TOTP";
-                return LoginOutcome.twoFactorRequired(user.getId(), type, masked);
+                return LoginOutcome.twoFactorRequired(user.getId(), type, masked, user.getAuthVersion() != null ? user.getAuthVersion() : 0L);
             }
 
             return LoginOutcome.success(principal, toResponse(user));

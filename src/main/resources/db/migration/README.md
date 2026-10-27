@@ -29,3 +29,9 @@ This directory contains standalone, manual SQL migration scripts for database sc
    - H2 variant verified via `H2MigrationScriptVerificationTest`; MySQL 8 variant must be run
      manually by a DBA before deploying the login-lockout build (no ADD COLUMN IF NOT EXISTS).
    - Non-destructive: additive columns only; existing rows keep working (0 attempts, unlocked).
+
+10. **`h2_used_two_factor_tickets.sql` / `mysql8_used_two_factor_tickets.sql`** (BL-08 2FA hardening, 2026-10-28)
+    - Creates `used_two_factor_tickets` (one-time store for consumed 2FA login tickets,
+      unique `ticket_hash`, housekept after 10 minutes).
+    - H2 variant verified via `H2MigrationScriptVerificationTest`; MySQL 8 variant must be
+      executed manually by a DBA before deploying the 2FA-hardening build.

@@ -40,9 +40,12 @@ public class TwoFactorServiceImpl implements TwoFactorService {
     private static final long EMAIL_OTP_EXPIRY_SECONDS = 300; // 5 minutes validity
     private static final long EMAIL_OTP_COOLDOWN_SECONDS = 60; // 60 seconds cooldown between resends
     private static final int MAX_ACTIVE_EMAIL_OTPS_PER_USER = 3;
+    /** Consumed tickets are kept slightly longer than the 5-minute ticket TTL. */
+    private static final Duration TICKET_RETENTION = Duration.ofMinutes(10);
 
     private final UserRepository userRepository;
     private final UserBackupCodeRepository userBackupCodeRepository;
+    private final com.aloute.repository.UsedTwoFactorTicketRepository usedTwoFactorTicketRepository;
     private final TotpService totpService;
     private final TwoFactorEncryptionService twoFactorEncryptionService;
     private final PasswordEncoder passwordEncoder;
@@ -275,6 +278,15 @@ public class TwoFactorServiceImpl implements TwoFactorService {
             throw new ApiException(HttpStatus.FORBIDDEN, "AUTH_ACCOUNT_INACTIVE", "Tài khoản đang bị vô hiệu hóa.");
         }
 
+        // BL-08: a ticket minted before a global revocation (logout-everywhere,
+        // credential change) must not mint a session afterwards.
+        Number ticketAuthVersion = claims.get("authVersion", Number.class);
+        long currentAuthVersion = user.getAuthVersion() != null ? user.getAuthVersion() : 0L;
+        if (ticketAuthVersion == null || ticketAuthVersion.longValue() != currentAuthVersion) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_INVALID_2FA_TICKET",
+                    "Phiên xác thực 2 bước không hợp lệ hoặc đã hết hạn (5 phút). Vui lòng đăng nhập lại.");
+        }
+
         int failed = ticketFailedAttempts.getOrDefault(ticket, 0);
         if (failed >= MAX_FAILED_ATTEMPTS) {
             ticketFailedAttempts.remove(ticket);
@@ -286,15 +298,14 @@ public class TwoFactorServiceImpl implements TwoFactorService {
         String rawCode = request.code().trim();
 
         if (request.isBackupCode() || rawCode.contains("-") || rawCode.length() == 8) {
-            // Verify backup code
-            String hashed = totpService.hashBackupCode(rawCode);
+            // Verify backup code: constant-shape comparison and an atomic
+            // conditional UPDATE, so concurrent redemptions of the same code
+            // cannot both succeed (double-spend fix).
             List<UserBackupCode> unused = userBackupCodeRepository.findByUserIdAndUsedFalse(userId);
             for (UserBackupCode ubc : unused) {
-                if (ubc.getCodeHash().equals(hashed)) {
+                if (totpService.verifyBackupCode(rawCode, ubc.getCodeHash())
+                        && userBackupCodeRepository.redeemById(ubc.getId(), Instant.now()) == 1) {
                     verified = true;
-                    ubc.setUsed(true);
-                    ubc.setUsedAt(Instant.now());
-                    userBackupCodeRepository.save(ubc);
                     break;
                 }
             }
@@ -321,6 +332,7 @@ public class TwoFactorServiceImpl implements TwoFactorService {
 
         // Successfully verified
         ticketFailedAttempts.remove(ticket);
+        consumeTicket(ticket, user.getId());
         UserPrincipal principal = UserPrincipal.from(user);
         String sessionToken = jwtTokenProvider.generate(principal);
         UserResponse userResponse = new UserResponse(
@@ -329,6 +341,44 @@ public class TwoFactorServiceImpl implements TwoFactorService {
         );
 
         return new AuthenticatedSession(principal, userResponse, sessionToken);
+    }
+
+    /**
+     * BL-08: records the ticket in the one-time store before the session is
+     * returned, so the same ticket can never verify twice (replay within its
+     * TTL, or from another instance, hits the unique constraint).
+     */
+    private void consumeTicket(String ticket, Long userId) {
+        String ticketHash = sha256Hex(ticket);
+        if (usedTwoFactorTicketRepository.existsByTicketHash(ticketHash)) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_2FA_TICKET_ALREADY_USED",
+                    "Phiên xác thực này đã được sử dụng. Vui lòng đăng nhập lại.");
+        }
+        usedTwoFactorTicketRepository.deleteByConsumedAtBefore(Instant.now().minus(TICKET_RETENTION));
+        try {
+            usedTwoFactorTicketRepository.saveAndFlush(com.aloute.entity.UsedTwoFactorTicket.builder()
+                    .ticketHash(ticketHash)
+                    .userId(userId)
+                    .consumedAt(Instant.now())
+                    .build());
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_2FA_TICKET_ALREADY_USED",
+                    "Phiên xác thực này đã được sử dụng. Vui lòng đăng nhập lại.");
+        }
+    }
+
+    private String sha256Hex(String input) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(digest.length * 2);
+            for (byte b : digest) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        } catch (Exception ex) {
+            throw new IllegalStateException("SHA-256 unavailable", ex);
+        }
     }
 
     @Override
