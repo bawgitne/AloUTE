@@ -39,8 +39,14 @@ public class DevTestDataInitializer {
                                           ProfileRepository profileRepository,
                                           TopicRepository topicRepository,
                                           PasswordEncoder passwordEncoder,
-                                          PlatformTransactionManager transactionManager) {
+                                          PlatformTransactionManager transactionManager,
+                                          org.springframework.core.env.Environment environment) {
         return args -> {
+            // Defense in depth alongside ProductionProfileGuard: never seed
+            // well-known passwords into an instance flagged as production.
+            if (environment.getProperty(ProductionProfileGuard.PRODUCTION_MODE_PROPERTY, Boolean.class, false)) {
+                return;
+            }
             TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
             transactionTemplate.executeWithoutResult(status -> {
                 createIfMissing(userRepository, profileRepository, passwordEncoder,
