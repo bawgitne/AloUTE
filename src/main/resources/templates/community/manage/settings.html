@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/default :: layout(title=${'Cài đặt — ' + community.name}, content=~{::#community-manage-content})}">
+<body>
+<div id="community-manage-content"
+     th:with="isOwner=${community.isOwner}">
+    <div th:replace="~{community/manage/_tabs :: manageHeader(community=${community}, activeManageTab=${activeManageTab})}"></div>
+
+    <div th:replace="~{community/manage/_feedback :: manageFeedback}"></div>
+
+    <div class="row g-3">
+        <!-- Post approval policy -->
+        <div class="col-12 col-lg-7">
+            <section class="aloute-card p-3 p-md-4 h-100" aria-labelledby="approval-settings-title">
+                <h2 id="approval-settings-title" class="fs-6 fw-bold mb-1 d-flex align-items-center gap-2">
+                    <i class="bi bi-shield-check text-primary" aria-hidden="true"></i>Phê duyệt bài viết
+                </h2>
+                <p class="small text-secondary">Khi bật, bài viết của thành viên thường phải được chủ sở hữu hoặc quản trị viên phê duyệt rồi mới hiển thị công khai. Bài của chủ sở hữu và quản trị viên vẫn đăng ngay.</p>
+
+                <div class="form-check form-switch d-flex align-items-start gap-2 p-0 community-setting-switch"
+                     th:classappend="${!isOwner} ? 'community-setting-locked' : ''">
+                    <input class="form-check-input mt-1 flex-shrink-0" type="checkbox" role="switch"
+                           id="require-post-approval-switch"
+                           th:checked="${community.requirePostApproval}"
+                           th:disabled="${!isOwner}"
+                           th:attr="data-community-id=${community.id}">
+                    <label class="form-check-label small fw-semibold" for="require-post-approval-switch">
+                        Yêu cầu phê duyệt bài viết trước khi đăng
+                    </label>
+                </div>
+                <div th:if="${!isOwner}" class="small text-secondary mt-2">
+                    <i class="bi bi-lock me-1" aria-hidden="true"></i>Chỉ chủ sở hữu cộng đồng mới được thay đổi cài đặt này.
+                </div>
+                <div id="community-settings-status" class="alert d-none py-2 px-3 small mt-3 mb-0" role="status" aria-live="polite"></div>
+            </section>
+        </div>
+
+        <!-- Community info (read-only summary) -->
+        <div class="col-12 col-lg-5">
+            <section class="aloute-card p-3 p-md-4 h-100" aria-labelledby="community-info-title">
+                <h2 id="community-info-title" class="fs-6 fw-bold mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-info-circle text-primary" aria-hidden="true"></i>Thông tin cộng đồng
+                </h2>
+                <dl class="row small mb-0">
+                    <dt class="col-5 text-secondary fw-normal">Tên</dt>
+                    <dd class="col-7 fw-semibold text-truncate" th:text="${community.name}">Tên</dd>
+                    <dt class="col-5 text-secondary fw-normal">Đường dẫn</dt>
+                    <dd class="col-7 fw-semibold"><span class="text-truncate d-inline-block" style="max-width: 150px;" th:text="'c/' + ${community.slug}">c/slug</span></dd>
+                    <dt class="col-5 text-secondary fw-normal">Quyền riêng tư</dt>
+                    <dd class="col-7 fw-semibold">
+                        <span th:if="${community.isPrivate}" class="badge bg-secondary-subtle text-secondary-emphasis border">Riêng tư</span>
+                        <span th:unless="${community.isPrivate}" class="badge bg-success-subtle text-success-emphasis border border-success-subtle">Công khai</span>
+                    </dd>
+                    <dt class="col-5 text-secondary fw-normal">Thành viên</dt>
+                    <dd class="col-7 fw-semibold" th:text="${community.memberCount}">0</dd>
+                    <dt class="col-5 text-secondary fw-normal">Mô tả</dt>
+                    <dd class="col-12 text-secondary" th:text="${community.description != null and !community.description.isEmpty()} ? ${community.description} : 'Chưa có mô tả.'">Mô tả</dd>
+                </dl>
+            </section>
+        </div>
+    </div>
+</div>
+</body>
+</html>

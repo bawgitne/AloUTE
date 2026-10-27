@@ -15,11 +15,13 @@ import com.aloute.entity.*;
 import com.aloute.repository.CommunityMemberRepository;
 import com.aloute.repository.CommunityRepository;
 import com.aloute.repository.MediaAssetRepository;
+import com.aloute.repository.PostRepository;
 import com.aloute.repository.ProfileRepository;
 import com.aloute.repository.UserRepository;
 import com.aloute.service.CommunityService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +38,7 @@ public class CommunityServiceImpl implements CommunityService {
     private final UserRepository userRepository;
     private final ProfileRepository profileRepository;
     private final MediaAssetRepository mediaAssetRepository;
+    private final PostRepository postRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -113,6 +116,16 @@ public class CommunityServiceImpl implements CommunityService {
             throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Must be an admin or owner to update community");
         }
 
+        // Approval policy is an owner-only setting; admins keep every other update right.
+        if (request.requirePostApproval() != null
+                && request.requirePostApproval() != community.isRequirePostApproval()) {
+            if (!Objects.equals(community.getOwner().getId(), userId)) {
+                throw new ApiException(ErrorCode.COMMUNITY_OWNER_REQUIRED,
+                        "Only the community owner can change the post approval setting");
+            }
+            community.setRequirePostApproval(request.requirePostApproval());
+        }
+
         if (request.name() != null) community.setName(request.name());
         if (request.description() != null) community.setDescription(request.description());
         if (request.isPrivate() != null) community.setPrivateCommunity(request.isPrivate());
@@ -170,9 +183,17 @@ public class CommunityServiceImpl implements CommunityService {
     @Override
     @Transactional(readOnly = true)
     public ApiResponse<List<CommunityMembershipResponse>> members(Long communityId, int page, int size, Long viewerId) {
+        return members(communityId, null, page, size, viewerId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<List<CommunityMembershipResponse>> members(Long communityId, String q, int page, int size, Long viewerId) {
         requireReadableCommunity(communityId, viewerId);
-        Page<CommunityMember> membersPage = memberRepository.findByCommunityIdOrderByJoinedAtDesc(
-                communityId, PageRequest.of(Math.max(0, page), Math.max(1, size)));
+        String keyword = q != null && !q.isBlank() ? q.trim() : null;
+        Page<CommunityMember> membersPage = memberRepository.searchMembers(
+                communityId, keyword,
+                PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "joinedAt")));
         List<CommunityMembershipResponse> list = membersPage.getContent().stream()
                 .map(this::membership)
                 .toList();
@@ -201,11 +222,16 @@ public class CommunityServiceImpl implements CommunityService {
     public CommunityMembershipResponse updateRole(Long actorId, Long communityId, Long targetUserId, UpdateCommunityRoleRequest request) {
         Community community = requireCommunity(communityId);
         requireDiscoveryAccess(community, actorId);
-        CommunityMember actorMember = memberRepository.findByCommunityIdAndUserId(communityId, actorId)
-                .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "You are not a member"));
 
-        if (actorMember.getRole() != CommunityRole.ADMIN && !community.getOwner().getId().equals(actorId)) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only admin or owner can change roles");
+        // Role changes (promote/demote ADMIN) are owner-only: an ADMIN-role member
+        // must never be able to grant or revoke community privileges.
+        if (!Objects.equals(community.getOwner().getId(), actorId)) {
+            throw new ApiException(ErrorCode.COMMUNITY_ROLE_CHANGE_NOT_ALLOWED,
+                    "Only the community owner can change member roles");
+        }
+        if (Objects.equals(community.getOwner().getId(), targetUserId)) {
+            throw new ApiException(ErrorCode.COMMUNITY_ROLE_CHANGE_NOT_ALLOWED,
+                    "The community owner role cannot be changed here");
         }
 
         CommunityMember targetMember = memberRepository.findByCommunityIdAndUserId(communityId, targetUserId)
@@ -213,6 +239,42 @@ public class CommunityServiceImpl implements CommunityService {
 
         targetMember.setRole(request.role());
         return membership(memberRepository.save(targetMember));
+    }
+
+    @Override
+    @Transactional
+    public void removeMember(Long actorId, Long communityId, Long targetUserId) {
+        Community community = requireCommunity(communityId);
+        requireDiscoveryAccess(community, actorId);
+
+        boolean actorIsOwner = Objects.equals(community.getOwner().getId(), actorId);
+        CommunityMember actorMember = memberRepository.findByCommunityIdAndUserId(communityId, actorId)
+                .orElse(null);
+        boolean actorIsAdminRole = actorMember != null && actorMember.getRole() == CommunityRole.ADMIN;
+        if (!actorIsOwner && !actorIsAdminRole) {
+            throw new ApiException(ErrorCode.COMMUNITY_MEMBER_REMOVE_NOT_ALLOWED,
+                    "Only the community owner or admins can remove members");
+        }
+
+        // The owner can never be removed; removing yourself is "leave", not moderation.
+        if (Objects.equals(community.getOwner().getId(), targetUserId) || Objects.equals(actorId, targetUserId)) {
+            throw new ApiException(ErrorCode.COMMUNITY_MEMBER_REMOVE_NOT_ALLOWED,
+                    "Use leave-community instead; the owner cannot be removed");
+        }
+
+        CommunityMember targetMember = memberRepository.findByCommunityIdAndUserId(communityId, targetUserId)
+                .orElseThrow(() -> new ApiException(ErrorCode.COMMUNITY_MEMBER_NOT_FOUND));
+
+        // Admins manage ordinary members only; removing another admin (or any admin
+        // row) is reserved to the owner to prevent privilege struggles.
+        if (!actorIsOwner && targetMember.getRole() == CommunityRole.ADMIN) {
+            throw new ApiException(ErrorCode.COMMUNITY_MEMBER_REMOVE_NOT_ALLOWED,
+                    "Only the community owner can remove an admin");
+        }
+
+        memberRepository.delete(targetMember);
+        community.setMemberCount(Math.max(0, community.getMemberCount() - 1));
+        communityRepository.save(community);
     }
 
     private Community requireCommunity(Long id) {
@@ -247,9 +309,16 @@ public class CommunityServiceImpl implements CommunityService {
         CommunityRole role = viewerId == null ? null : memberRepository.findByCommunityIdAndUserId(community.getId(), viewerId)
                 .map(CommunityMember::getRole).orElse(null);
         boolean owner = viewerId != null && Objects.equals(community.getOwner().getId(), viewerId);
+        boolean canManage = owner || role == CommunityRole.ADMIN;
+        // The pending counter is management-only metadata: hidden from everyone except
+        // owner/admins of this community (never leaks to ordinary members or guests).
+        long pendingPostCount = canManage && community.isRequirePostApproval()
+                ? postRepository.countPendingByCommunityId(community.getId())
+                : 0L;
         return new CommunityResponse(community.getId(), community.getOwner().getId(), community.getName(),
                 community.getSlug(), community.getDescription(), community.getAvatarUrl(), community.getCoverUrl(),
-                community.isPrivateCommunity(), community.getMemberCount(), community.getPostCount(), role, owner);
+                community.isPrivateCommunity(), community.getMemberCount(), community.getPostCount(), role, owner,
+                community.isRequirePostApproval(), canManage, pendingPostCount);
     }
 
     private CommunityMembershipResponse membership(CommunityMember member) {

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- Success feedback banner after a moderation action redirected back with ?done=... -->
+<div th:fragment="manageFeedback"
+     th:if="${param != null and param.done != null and param.done.size() > 0}"
+     th:with="done=${param.done[0]}"
+     class="alert alert-success alert-dismissible fade show py-2 px-3 small mb-3 d-flex align-items-center gap-2"
+     role="status">
+    <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+    <span th:switch="${done}">
+        <span th:case="'approved'">Đã phê duyệt bài viết và hiển thị nó trong cộng đồng.</span>
+        <span th:case="'rejected'">Đã từ chối bài viết. Tác giả sẽ nhận được thông báo kèm lý do.</span>
+        <span th:case="'removed'">Đã gỡ bài viết khỏi cộng đồng. Thao tác được lưu vào nhật ký kiểm duyệt.</span>
+        <span th:case="'member-removed'">Đã xóa thành viên khỏi cộng đồng.</span>
+        <span th:case="'role-updated'">Đã cập nhật vai trò thành viên.</span>
+        <span th:case="'approval-on'">Đã bật yêu cầu phê duyệt bài viết của thành viên.</span>
+        <span th:case="'approval-off'">Đã tắt yêu cầu phê duyệt bài viết của thành viên.</span>
+        <span th:case="*">Thao tác thành công.</span>
+    </span>
+    <button type="button" class="btn-close btn-close-sm ms-auto" data-bs-dismiss="alert" aria-label="Đóng"></button>
+</div>
+</body>
+</html>

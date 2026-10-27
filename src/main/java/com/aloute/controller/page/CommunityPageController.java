@@ -99,6 +99,7 @@ public class CommunityPageController {
 
         model.addAttribute("community", community);
         model.addAttribute("posts", postsRes != null ? postsRes.getData() : List.of());
+        model.addAttribute("pageMeta", postsRes != null ? postsRes.getMeta() : null);
         model.addAttribute("currentUser", currentUser);
         model.addAttribute("activeNav", "communities");
         model.addAttribute("hideGlobalCreatePost", true);

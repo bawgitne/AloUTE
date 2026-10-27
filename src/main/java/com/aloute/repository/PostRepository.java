@@ -59,6 +59,20 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
     @Query("SELECT COUNT(p) FROM Post p WHERE p.community.id = :communityId AND p.deletedAt IS NULL")
     long countByCommunityId(@Param("communityId") Long communityId);
 
+    @Query("""
+        SELECT COUNT(p) FROM Post p
+        WHERE p.community.id = :communityId AND p.deletedAt IS NULL AND p.parentPost IS NULL
+          AND (p.moderationStatus IS NULL OR p.moderationStatus = com.aloute.entity.PostModerationStatus.APPROVED)
+    """)
+    long countPublishedByCommunityId(@Param("communityId") Long communityId);
+
+    @Query("""
+        SELECT COUNT(p) FROM Post p
+        WHERE p.community.id = :communityId AND p.deletedAt IS NULL AND p.parentPost IS NULL
+          AND p.moderationStatus = com.aloute.entity.PostModerationStatus.PENDING
+    """)
+    long countPendingByCommunityId(@Param("communityId") Long communityId);
+
     @Query("SELECT COUNT(pt) FROM PostTopic pt WHERE pt.topic.id = :topicId AND pt.post.deletedAt IS NULL")
     long countByTopicId(@Param("topicId") Long topicId);
 

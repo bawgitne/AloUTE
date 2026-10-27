@@ -19,7 +19,16 @@
                          width="40"
                          height="40">
                 </a>
-                <div>
+                <div class="min-w-0">
+                    <!-- Facebook-style community context line above the author -->
+                    <div th:if="${post.community != null and post.community.name != null}"
+                         class="post-community-line d-flex align-items-center gap-1">
+                        <i class="bi bi-people-fill text-primary" aria-hidden="true" style="font-size: .8rem;"></i>
+                        <a th:href="${post.community.slug != null and !post.community.slug.isEmpty()} ? @{/c/{slug}(slug=${post.community.slug})} : '#'"
+                           class="post-community-name text-decoration-none"
+                           th:text="${post.community.name}"
+                           title="Xem cộng đồng">Cộng đồng AloUTE</a>
+                    </div>
                     <div class="d-flex align-items-center gap-1">
                         <a th:href="${post.author != null and post.author.username != null} ? @{/users/{u}(u=${post.author.username})} : (${post.author != null and post.author.id != null} ? @{/users/{id}(id=${post.author.id})} : '#')"
                            data-page="user-profile"
@@ -34,7 +43,7 @@
                            class="bi bi-patch-check-fill text-primary small"
                            aria-label="Tài khoản đã xác minh"></i>
                     </div>
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
                         <a th:if="${post.id != null}"
                            th:href="@{/posts/{postId}(postId=${post.id})}"
                            class="post-timestamp text-muted text-decoration-none"
@@ -43,6 +52,15 @@
                               class="post-timestamp"
                               th:text="${post.createdAt != null ? #temporals.format(post.createdAt.atZone(T(java.time.ZoneId).of('Asia/Ho_Chi_Minh')), 'dd/MM/yyyy HH:mm') : 'Vừa xong'}">10 phút trước</span>
                         <span th:if="${post.visibility != null}" class="post-badge" th:text="${post.visibility}">PUBLIC</span>
+                        <span th:if="${post.moderationStatus != null and post.moderationStatus.name() == 'PENDING'}"
+                              class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill post-moderation-badge">
+                            <i class="bi bi-hourglass-split me-1" aria-hidden="true"></i>Chờ phê duyệt
+                        </span>
+                        <span th:if="${post.moderationStatus != null and post.moderationStatus.name() == 'REJECTED'}"
+                              class="badge bg-danger-subtle text-danger-emphasis border border-danger-subtle rounded-pill post-moderation-badge"
+                              th:title="${post.moderationReason != null ? post.moderationReason : 'Bài viết bị từ chối'}">
+                            <i class="bi bi-x-circle me-1" aria-hidden="true"></i>Bị từ chối
+                        </span>
                     </div>
                 </div>
             </div>
@@ -75,6 +93,16 @@
                             <span>Xóa bài viết</span>
                         </button>
                     </li>
+                    <li th:if="${post.capabilities != null and post.capabilities.canRemove}"
+                        class="border-top mt-1 pt-1">
+                        <button type="button"
+                                class="dropdown-item text-danger d-flex align-items-center gap-2"
+                                data-action="community-remove-post"
+                                th:attr="data-post-id=${post.id},data-community-id=${post.communityId},data-community-name=${post.community != null ? post.community.name : ''}">
+                            <i class="bi bi-shield-x" aria-hidden="true"></i>
+                            <span>Gỡ bài viết khỏi cộng đồng</span>
+                        </button>
+                    </li>
                     <li>
                         <button type="button"
                                 class="dropdown-item text-danger d-flex align-items-center gap-2"
@@ -88,6 +116,49 @@
                 </ul>
             </div>
         </header>
+
+        <!-- Community moderation banner: status for the author, decisions for moderators -->
+        <div th:if="${post.moderationStatus != null and post.moderationStatus.name() != 'APPROVED'}"
+             th:with="canDecide=${post.capabilities != null and post.capabilities.canApprove}"
+             class="post-moderation-banner"
+             th:classappend="${post.moderationStatus.name() == 'PENDING'} ? 'post-moderation-pending' : 'post-moderation-rejected'"
+             role="status">
+            <div class="d-flex align-items-start gap-2">
+                <i class="bi mt-1" th:classappend="${post.moderationStatus.name() == 'PENDING'} ? 'bi-hourglass-split' : 'bi-x-circle'" aria-hidden="true"></i>
+                <div class="small flex-grow-1">
+                    <span th:if="${post.moderationStatus.name() == 'PENDING'}"
+                          th:text="${canDecide}
+                              ? 'Bài viết đang chờ phê duyệt và chưa hiển thị công khai.'
+                              : 'Bài viết của bạn đang chờ quản trị viên cộng đồng phê duyệt và chưa hiển thị công khai.'">
+                        Bài viết đang chờ phê duyệt.
+                    </span>
+                    <span th:if="${post.moderationStatus.name() == 'REJECTED'}">
+                        <span th:text="${canDecide
+                            ? 'Bài viết đã bị từ chối và đang ẩn khỏi cộng đồng.'
+                            : 'Bài viết của bạn đã bị từ chối và không hiển thị công khai.'}">Bài viết bị từ chối.</span>
+                        <span th:if="${post.moderationReason != null}"
+                              class="d-block mt-1 fst-italic"
+                              th:text="'Lý do: ' + ${post.moderationReason}">Lý do</span>
+                    </span>
+                </div>
+                <div th:if="${canDecide}" class="d-flex align-items-center gap-2 flex-shrink-0">
+                    <button type="button"
+                            class="btn btn-sm btn-success rounded-pill px-3"
+                            data-action="community-approve-post"
+                            th:attr="data-post-id=${post.id},data-community-id=${post.communityId}">
+                        <span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
+                        <i class="bi bi-check-lg me-1" aria-hidden="true"></i><span>Phê duyệt</span>
+                    </button>
+                    <button th:if="${post.moderationStatus.name() == 'PENDING'}"
+                            type="button"
+                            class="btn btn-sm btn-outline-danger rounded-pill px-3"
+                            data-action="community-reject-post"
+                            th:attr="data-post-id=${post.id},data-community-id=${post.communityId},data-community-name=${post.community != null ? post.community.name : ''}">
+                        <i class="bi bi-x-lg me-1" aria-hidden="true"></i><span>Từ chối</span>
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <!-- Post Content (Escaped output) -->
         <div class="post-card-content">

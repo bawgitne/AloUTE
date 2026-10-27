@@ -18,10 +18,19 @@ public interface CommunityService {
     CommunityMembershipResponse join(Long userId, Long communityId);
     ApiResponse<List<CommunityMembershipResponse>> members(Long communityId, int page, int size, Long viewerId);
 
+    /** Member listing with username/display-name search (management dashboard). */
+    ApiResponse<List<CommunityMembershipResponse>> members(Long communityId, String q, int page, int size, Long viewerId);
+
     /** A missing viewer identity must never grant private-community read access. */
     default ApiResponse<List<CommunityMembershipResponse>> members(Long communityId, int page, int size) {
         return members(communityId, page, size, null);
     }
     void leave(Long userId, Long communityId);
     CommunityMembershipResponse updateRole(Long actorId, Long communityId, Long targetUserId, UpdateCommunityRoleRequest request);
+
+    /**
+     * Owner/admin removal of an ordinary member (admins cannot remove other
+     * admins; the owner can never be removed — leaving is a separate flow).
+     */
+    void removeMember(Long actorId, Long communityId, Long targetUserId);
 }

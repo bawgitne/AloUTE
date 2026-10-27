@@ -97,9 +97,81 @@ class H2MigrationScriptVerificationTest {
 
             ResultSet tableRs = stmt.executeQuery("SELECT COUNT(*) FROM revoked_tokens");
             assertThat(tableRs.next()).isTrue();
-            assertThat(tableRs.getInt(1)).isEqualTo(0);
+            assertThat(tableRs.getInt(1)).isZero();
 
             // Test idempotency
+            ScriptUtils.executeSqlScript(conn, scriptResource);
+        }
+    }
+
+    @Test
+    @DisplayName("H2 migration script for community post moderation executes safely, backfills and is idempotent")
+    void verifyH2CommunityPostModerationMigrationScript() throws Exception {
+        String dbUrl = "jdbc:h2:mem:community_moderation_migration_test_" + System.currentTimeMillis() + ";DB_CLOSE_DELAY=-1";
+        try (Connection conn = DriverManager.getConnection(dbUrl, "sa", "")) {
+            Statement stmt = conn.createStatement();
+
+            // Legacy schema without approval columns
+            stmt.execute("""
+                CREATE TABLE communities (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    owner_id BIGINT NOT NULL,
+                    name VARCHAR(100) NOT NULL,
+                    slug VARCHAR(100) NOT NULL UNIQUE,
+                    is_private BOOLEAN NOT NULL DEFAULT FALSE,
+                    member_count BIGINT NOT NULL DEFAULT 0,
+                    post_count BIGINT NOT NULL DEFAULT 0
+                );
+            """);
+            stmt.execute("""
+                CREATE TABLE posts (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    user_id BIGINT NOT NULL,
+                    content VARCHAR(4000) NOT NULL,
+                    community_id BIGINT,
+                    deleted_at TIMESTAMP
+                );
+            """);
+            stmt.execute("""
+                CREATE TABLE moderation_actions (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    actor_user_id BIGINT NOT NULL,
+                    target_type VARCHAR(32) NOT NULL,
+                    target_id BIGINT NOT NULL,
+                    action_type VARCHAR(64) NOT NULL,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+            """);
+            stmt.execute("INSERT INTO communities (owner_id, name, slug) VALUES (1, 'Legacy Comm', 'legacy-comm')");
+            stmt.execute("INSERT INTO posts (user_id, content, community_id) VALUES (1, 'legacy community post', 1)");
+            stmt.execute("INSERT INTO posts (user_id, content, community_id) VALUES (1, 'legacy standalone post', NULL)");
+            stmt.execute("INSERT INTO moderation_actions (actor_user_id, target_type, target_id, action_type) VALUES (1, 'POST', 1, 'POST_REMOVE')");
+
+            ClassPathResource scriptResource = new ClassPathResource("db/migration/h2_community_post_moderation.sql");
+            ScriptUtils.executeSqlScript(conn, scriptResource);
+
+            // Approval switch defaults to FALSE (behavior preserved)
+            ResultSet commRs = stmt.executeQuery("SELECT require_post_approval FROM communities WHERE id = 1");
+            assertThat(commRs.next()).isTrue();
+            assertThat(commRs.getBoolean("require_post_approval")).isFalse();
+
+            // Legacy community posts backfilled to APPROVED; standalone posts stay NULL
+            ResultSet postRs = stmt.executeQuery(
+                    "SELECT community_id, moderation_status FROM posts ORDER BY id ASC");
+            assertThat(postRs.next()).isTrue();
+            assertThat(postRs.getLong("community_id")).isEqualTo(1L);
+            assertThat(postRs.getString("moderation_status")).isEqualTo("APPROVED");
+            assertThat(postRs.next()).isTrue();
+            assertThat(postRs.getLong("community_id")).isEqualTo(0L);
+            assertThat(postRs.getString("moderation_status")).isNull();
+
+            // moderation_actions gained the community scope column
+            ResultSet actionRs = stmt.executeQuery(
+                    "SELECT community_id FROM moderation_actions WHERE id = 1");
+            assertThat(actionRs.next()).isTrue();
+            assertThat(actionRs.getObject("community_id")).isNull();
+
+            // Idempotency: running the script a second time must succeed
             ScriptUtils.executeSqlScript(conn, scriptResource);
         }
     }

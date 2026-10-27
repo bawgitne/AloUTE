@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/default :: layout(title=${'Thành viên — ' + community.name}, content=~{::#community-manage-content})}">
+<body>
+<div id="community-manage-content"
+     th:with="isOwner=${community.isOwner}">
+    <div th:replace="~{community/manage/_tabs :: manageHeader(community=${community}, activeManageTab=${activeManageTab})}"></div>
+
+    <div th:replace="~{community/manage/_feedback :: manageFeedback}"></div>
+
+    <section aria-label="Quản lý thành viên">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+            <h1 class="fs-6 fw-bold mb-0 d-flex align-items-center gap-2">
+                <i class="bi bi-people text-primary" aria-hidden="true"></i>
+                Thành viên
+                <span class="badge rounded-pill bg-primary-subtle text-primary"
+                      th:if="${pageMeta != null}" th:text="${pageMeta.totalElements}">0</span>
+            </h1>
+            <span class="small text-secondary" th:if="${!isOwner}">
+                Chỉ chủ sở hữu cộng đồng mới được thay đổi vai trò và xóa quản trị viên.
+            </span>
+        </div>
+
+        <!-- Member search -->
+        <form class="aloute-card p-2 p-md-3 mb-3 d-flex gap-2 align-items-center" method="get"
+              th:action="@{/communities/{id}/manage/members(id=${community.id})}" role="search">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-secondary" aria-hidden="true"></i></span>
+                <input type="text" class="form-control border-start-0" name="q" id="manage-member-search"
+                       th:value="${searchQuery}" placeholder="Tìm thành viên theo tên hoặc tên đăng nhập..." maxlength="100"
+                       aria-label="Tìm thành viên">
+            </div>
+            <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 flex-shrink-0">Tìm</button>
+            <a th:if="${searchQuery != null and !searchQuery.isEmpty()}"
+               th:href="@{/communities/{id}/manage/members(id=${community.id})}"
+               class="btn btn-sm btn-outline-secondary rounded-pill px-3 flex-shrink-0">Xóa lọc</a>
+        </form>
+
+        <!-- Status feedback -->
+        <div id="community-manage-status" class="alert d-none py-2 px-3 small mb-3" role="status" aria-live="polite"></div>
+
+        <div th:if="${members != null and !members.isEmpty()}" class="aloute-card p-0 overflow-hidden">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0 community-member-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col" class="ps-3 ps-md-4">Thành viên</th>
+                            <th scope="col">Vai trò</th>
+                            <th scope="col" class="d-none d-md-table-cell">Tham gia</th>
+                            <th scope="col" class="text-end pe-3 pe-md-4">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="member : ${members}"
+                            th:with="isOwnerRow=${member.user != null and member.user.id != null and community.ownerId != null and member.user.id == community.ownerId}">
+                            <td class="ps-3 ps-md-4">
+                                <div class="d-flex align-items-center gap-2 min-w-0">
+                                    <img th:src="${member.user != null and member.user.avatarUrl != null and !member.user.avatarUrl.isEmpty()} ? ${member.user.avatarUrl} : @{/images/avatar-fallback.svg}"
+                                         src="/images/avatar-fallback.svg"
+                                         class="avatar-img avatar-sm flex-shrink-0" width="36" height="36" alt="">
+                                    <div class="min-w-0">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <a th:if="${member.user != null and member.user.username != null}"
+                                               th:href="@{/users/{u}(u=${member.user.username})}"
+                                               class="fw-semibold text-decoration-none text-truncate d-inline-block"
+                                               style="max-width: 180px;"
+                                               th:text="${member.user.displayName != null ? member.user.displayName : member.user.username}">Tên hiển thị</a>
+                                            <i th:if="${member.user != null and member.user.isVerified}"
+                                               class="bi bi-patch-check-fill text-primary small" aria-label="Đã xác minh"></i>
+                                        </div>
+                                        <div class="small text-secondary text-truncate" th:text="${member.user != null ? '@' + member.user.username : ''}">@username</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span th:if="${isOwnerRow}" class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill">
+                                    <i class="bi bi-shield-check me-1" aria-hidden="true"></i>Chủ sở hữu
+                                </span>
+                                <span th:unless="${isOwnerRow}"
+                                      class="badge rounded-pill community-role-badge"
+                                      th:classappend="${member.role != null and member.role.name() == 'ADMIN'} ? 'bg-primary-subtle text-primary-emphasis border border-primary-subtle' : 'bg-light text-secondary border'">
+                                    <th:block th:text="${member.role != null and member.role.name() == 'ADMIN'} ? 'Quản trị viên' : (${member.role != null and member.role.name() == 'MODERATOR'} ? 'Kiểm duyệt viên' : 'Thành viên')">Thành viên</th:block>
+                                </span>
+                                <!-- Owner-only role change -->
+                                <div th:if="${isOwner and !isOwnerRow}" class="d-inline-flex align-items-center gap-1 mt-1">
+                                    <label class="visually-hidden" th:for="'role-select-' + ${member.user.id}">Đổi vai trò</label>
+                                    <select class="form-select form-select-sm w-auto community-role-select"
+                                            th:id="'role-select-' + ${member.user.id}"
+                                            th:attr="data-community-id=${community.id},data-user-id=${member.user.id},data-member-name=${member.user.displayName != null ? member.user.displayName : member.user.username}">
+                                        <option value="MEMBER" th:selected="${member.role != null and member.role.name() == 'MEMBER'}">Thành viên</option>
+                                        <option value="MODERATOR" th:selected="${member.role != null and member.role.name() == 'MODERATOR'}">Kiểm duyệt viên</option>
+                                        <option value="ADMIN" th:selected="${member.role != null and member.role.name() == 'ADMIN'}">Quản trị viên</option>
+                                    </select>
+                                </div>
+                            </td>
+                            <td class="d-none d-md-table-cell small text-secondary"
+                                th:text="${member.joinedAt != null ? #temporals.format(member.joinedAt.atZone(T(java.time.ZoneId).of('Asia/Ho_Chi_Minh')), 'dd/MM/yyyy') : '—'}">—</td>
+                            <td class="text-end pe-3 pe-md-4">
+                                <button th:if="${!isOwnerRow and (isOwner or member.role == null or member.role.name() != 'ADMIN')}"
+                                        type="button"
+                                        class="btn btn-sm btn-outline-danger rounded-pill px-3"
+                                        data-action="community-remove-member"
+                                        th:attr="data-community-id=${community.id},data-user-id=${member.user.id},data-member-name=${member.user.displayName != null ? member.user.displayName : member.user.username}">
+                                    <i class="bi bi-person-x me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Xóa</span>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div th:replace="~{fragments/admin/pagination :: pagination(pageMeta=${pageMeta}, baseUrl=${manageBaseUrl},
+                extraParams=${searchQuery != null and !searchQuery.isEmpty()} ? '&amp;q=' + ${searchQuery} : null)}"></div>
+        </div>
+
+        <!-- Empty state -->
+        <div th:if="${members == null or members.isEmpty()}" class="aloute-card text-center p-4 my-3">
+            <div class="mb-2">
+                <i class="bi bi-person-x fs-1 text-secondary" aria-hidden="true"></i>
+            </div>
+            <h2 class="fs-6 fw-bold mb-1" th:text="${searchQuery != null and !searchQuery.isEmpty()} ? 'Không tìm thấy thành viên phù hợp' : 'Chưa có thành viên nào'">Chưa có thành viên</h2>
+            <p class="small text-secondary mb-0"
+               th:text="${searchQuery != null and !searchQuery.isEmpty()} ? 'Thử từ khóa khác hoặc xóa bộ lọc.' : 'Thành viên tham gia cộng đồng sẽ xuất hiện tại đây.'">Mô tả</p>
+        </div>
+    </section>
+</div>
+</body>
+</html>

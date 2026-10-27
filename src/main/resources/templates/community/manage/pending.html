@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/default :: layout(title=${'Bài chờ duyệt — ' + community.name}, content=~{::#community-manage-content})}">
+<body>
+<div id="community-manage-content">
+    <div th:replace="~{community/manage/_tabs :: manageHeader(community=${community}, activeManageTab=${activeManageTab})}"></div>
+
+    <div th:replace="~{community/manage/_feedback :: manageFeedback}"></div>
+
+    <section aria-label="Bài viết chờ phê duyệt">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+            <h1 class="fs-6 fw-bold mb-0 d-flex align-items-center gap-2">
+                <i class="bi bi-hourglass-split text-warning" aria-hidden="true"></i>
+                Bài viết chờ phê duyệt
+                <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis"
+                      th:if="${pageMeta != null}" th:text="${pageMeta.totalElements}">0</span>
+            </h1>
+            <span class="small text-secondary">Bài viết chỉ hiển thị với bạn và tác giả cho tới khi được phê duyệt.</span>
+        </div>
+
+        <div th:if="${posts != null and !posts.isEmpty()}">
+            <div class="d-flex flex-column gap-3">
+                <div th:each="post : ${posts}">
+                    <div th:replace="~{post/_post-card :: postCard(post=${post})}"></div>
+                </div>
+            </div>
+            <div th:replace="~{fragments/admin/pagination :: pagination(pageMeta=${pageMeta}, baseUrl=${manageBaseUrl}, extraParams=null)}"></div>
+        </div>
+
+        <!-- Empty state -->
+        <div th:if="${posts == null or posts.isEmpty()}" class="aloute-card text-center p-4 my-3">
+            <div class="mb-2">
+                <i class="bi bi-check2-circle fs-1 text-success" aria-hidden="true"></i>
+            </div>
+            <h2 class="fs-6 fw-bold mb-1">Không có bài viết nào đang chờ</h2>
+            <p class="small text-secondary mb-0">Mọi bài viết của thành viên đã được xử lý. Bài mới sẽ xuất hiện tại đây.</p>
+        </div>
+    </section>
+</div>
+</body>
+</html>

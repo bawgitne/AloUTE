@@ -4,6 +4,7 @@ import com.aloute.entity.Bookmark;
 import com.aloute.entity.Mute;
 import com.aloute.entity.Community;
 import com.aloute.entity.Post;
+import com.aloute.entity.PostModerationStatus;
 import com.aloute.entity.PostVisibility;
 import jakarta.persistence.criteria.*;
 import org.springframework.data.jpa.domain.Specification;
@@ -24,9 +25,23 @@ public final class PostSpecifications {
                                                 Collection<Long> blockedUserIds,
                                                 Collection<Long> followingUserIds,
                                                 Collection<Long> userCommunityIds) {
+        return visibleTo(viewerId, blockedUserIds, followingUserIds, userCommunityIds, false);
+    }
+
+    /**
+     * @param includeOwnUnapproved when true (own profile timeline / own bookmarks), the
+     *                             viewer also sees their own PENDING/REJECTED community posts;
+     *                             every other surface must keep unpublished posts concealed.
+     */
+    public static Specification<Post> visibleTo(Long viewerId,
+                                                Collection<Long> blockedUserIds,
+                                                Collection<Long> followingUserIds,
+                                                Collection<Long> userCommunityIds,
+                                                boolean includeOwnUnapproved) {
         return (root, query, cb) -> cb.and(
                 cb.isNull(root.get("deletedAt")),
-                visibleAudienceTo(viewerId, blockedUserIds, followingUserIds, userCommunityIds).toPredicate(root, query, cb)
+                visibleAudienceTo(viewerId, blockedUserIds, followingUserIds, userCommunityIds, includeOwnUnapproved)
+                        .toPredicate(root, query, cb)
         );
     }
 
@@ -34,6 +49,14 @@ public final class PostSpecifications {
                                                         Collection<Long> blockedUserIds,
                                                         Collection<Long> followingUserIds,
                                                         Collection<Long> userCommunityIds) {
+        return visibleAudienceTo(viewerId, blockedUserIds, followingUserIds, userCommunityIds, false);
+    }
+
+    public static Specification<Post> visibleAudienceTo(Long viewerId,
+                                                        Collection<Long> blockedUserIds,
+                                                        Collection<Long> followingUserIds,
+                                                        Collection<Long> userCommunityIds,
+                                                        boolean includeOwnUnapproved) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -65,6 +88,24 @@ public final class PostSpecifications {
             );
             communityAllowed = cb.or(communityAllowed, privateCommunityAllowed);
             predicates.add(communityAllowed);
+
+            // 2b. Community post approval gate: only APPROVED community posts (and legacy
+            // null-status rows, which read as approved) may appear in shared surfaces.
+            // PENDING/REJECTED submissions are visible solely to their author when the
+            // caller explicitly opted in (own timeline / own bookmarks) — never in
+            // global feeds, community feeds, search, or other viewers' profiles.
+            Predicate isAuthorForApproval = viewerId != null
+                    ? cb.equal(root.get("user").get("id"), viewerId)
+                    : cb.disjunction();
+            Predicate approvalAllowed = cb.or(
+                    cb.isNull(root.get("community")),
+                    cb.isNull(root.get("moderationStatus")),
+                    cb.equal(root.get("moderationStatus"), PostModerationStatus.APPROVED)
+            );
+            if (includeOwnUnapproved) {
+                approvalAllowed = cb.or(approvalAllowed, isAuthorForApproval);
+            }
+            predicates.add(approvalAllowed);
 
             // 3. Post visibility & author privacy:
             if (viewerId != null) {
@@ -143,8 +184,18 @@ public final class PostSpecifications {
             communityAllowed = cb.or(communityAllowed, memberOfPrivateCommunity);
             predicates.add(communityAllowed);
 
-            // 4. Post visibility & author privacy:
+            // 3b. Community post approval gate: bookmarks only surface APPROVED (or legacy
+            // null-status) community posts; the author keeps their own bookmarked
+            // PENDING/REJECTED submissions (only the author could have bookmarked those).
             Predicate isAuthor = cb.equal(postJoin.get("user").get("id"), userId);
+            predicates.add(cb.or(
+                    cb.isNull(postJoin.get("community")),
+                    cb.isNull(postJoin.get("moderationStatus")),
+                    cb.equal(postJoin.get("moderationStatus"), PostModerationStatus.APPROVED),
+                    isAuthor
+            ));
+
+            // 4. Post visibility & author privacy:
 
             Predicate authorPublic = cb.isFalse(postJoin.get("user").get("privateAccount"));
             Predicate followingAuthor = (followingUserIds != null && !followingUserIds.isEmpty())
