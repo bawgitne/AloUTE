@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- Community manage dashboard: shared header + tab navigation -->
+<header th:fragment="manageHeader(community, activeManageTab)" class="aloute-card p-3 p-md-4 mb-3 community-manage-header">
+    <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div class="d-flex align-items-center gap-3 min-w-0">
+            <img th:src="${community.avatarUrl != null and !community.avatarUrl.isEmpty()} ? ${community.avatarUrl} : @{/images/avatar-fallback.svg}"
+                 src="/images/avatar-fallback.svg"
+                 class="avatar-img rounded-3 border border-3 border-white shadow-sm bg-white"
+                 width="48" height="48" style="object-fit: cover;" alt="Avatar cộng đồng">
+            <div class="min-w-0">
+                <div class="small text-secondary">Quản lý cộng đồng</div>
+                <h1 class="fs-5 fw-bold mb-0 text-dark text-truncate" th:text="${community.name}">Tên cộng đồng</h1>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill py-1 px-2 mt-1"
+                      th:text="'c/' + ${community.slug}">c/slug</span>
+            </div>
+        </div>
+        <a th:href="${community.slug != null} ? @{/c/{slug}(slug=${community.slug})} : '/communities'"
+           class="btn btn-sm btn-outline-secondary rounded-pill flex-shrink-0">
+            <i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>Xem cộng đồng
+        </a>
+    </div>
+
+    <nav class="community-manage-tabs nav nav-pills flex-nowrap gap-1 mt-3" role="tablist" aria-label="Các mục quản lý cộng đồng">
+        <a class="nav-link" role="tab"
+           th:classappend="${activeManageTab == 'overview'} ? 'active'"
+           th:aria-selected="${activeManageTab == 'overview'} ? 'true' : 'false'"
+           th:href="@{/communities/{id}/manage(id=${community.id})}">
+            <i class="bi bi-grid-1x2 me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Tổng quan</span>
+        </a>
+        <a class="nav-link" role="tab"
+           th:classappend="${activeManageTab == 'pending'} ? 'active'"
+           th:aria-selected="${activeManageTab == 'pending'} ? 'true' : 'false'"
+           th:href="@{/communities/{id}/manage/pending(id=${community.id})}">
+            <i class="bi bi-hourglass-split me-1" aria-hidden="true"></i><span>Chờ duyệt</span>
+            <span th:if="${community.pendingPostCount != null and community.pendingPostCount > 0}"
+                  class="badge rounded-pill bg-danger ms-1" th:text="${community.pendingPostCount}">0</span>
+        </a>
+        <a class="nav-link" role="tab"
+           th:classappend="${activeManageTab == 'posts'} ? 'active'"
+           th:aria-selected="${activeManageTab == 'posts'} ? 'true' : 'false'"
+           th:href="@{/communities/{id}/manage/posts(id=${community.id})}">
+            <i class="bi bi-file-text me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Bài viết</span>
+        </a>
+        <a class="nav-link" role="tab"
+           th:classappend="${activeManageTab == 'members'} ? 'active'"
+           th:aria-selected="${activeManageTab == 'members'} ? 'true' : 'false'"
+           th:href="@{/communities/{id}/manage/members(id=${community.id})}">
+            <i class="bi bi-people me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Thành viên</span>
+        </a>
+        <a class="nav-link" role="tab"
+           th:classappend="${activeManageTab == 'settings'} ? 'active'"
+           th:aria-selected="${activeManageTab == 'settings'} ? 'true' : 'false'"
+           th:href="@{/communities/{id}/manage/settings(id=${community.id})}">
+            <i class="bi bi-gear me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Cài đặt</span>
+        </a>
+    </nav>
+</header>
+</body>
+</html>

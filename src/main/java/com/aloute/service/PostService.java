@@ -27,6 +27,9 @@ public interface PostService {
     PostResponse repost(Long userId, Long postId);
     void removeRepost(Long userId, Long postId);
     PostResponse toResponse(com.aloute.entity.Post post, Long viewerId);
+
+    /** Batch mapper (N+1-free) for list rendering; implementations preload media/topics/polls/communities. */
+    java.util.List<PostResponse> toResponses(java.util.List<com.aloute.entity.Post> posts, Long viewerId);
     boolean isPostVisibleTo(com.aloute.entity.Post post, Long viewerId);
     org.springframework.data.jpa.domain.Specification<com.aloute.entity.Post> buildVisibilitySpec(Long viewerId);
 }

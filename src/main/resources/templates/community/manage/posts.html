@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/default :: layout(title=${'Bài viết — ' + community.name}, content=~{::#community-manage-content})}">
+<body>
+<div id="community-manage-content">
+    <div th:replace="~{community/manage/_tabs :: manageHeader(community=${community}, activeManageTab=${activeManageTab})}"></div>
+
+    <div th:replace="~{community/manage/_feedback :: manageFeedback}"></div>
+
+    <section aria-label="Bài viết đã đăng">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+            <h1 class="fs-6 fw-bold mb-0 d-flex align-items-center gap-2">
+                <i class="bi bi-file-text text-primary" aria-hidden="true"></i>
+                Bài viết đã đăng
+                <span class="badge rounded-pill bg-primary-subtle text-primary"
+                      th:if="${pageMeta != null}" th:text="${pageMeta.totalElements}">0</span>
+            </h1>
+            <span class="small text-secondary">Chọn "Gỡ bài viết" trong menu bài đăng để gỡ nội dung vi phạm.</span>
+        </div>
+
+        <!-- Search filter -->
+        <form class="aloute-card p-2 p-md-3 mb-3 d-flex gap-2 align-items-center" method="get"
+              th:action="@{/communities/{id}/manage/posts(id=${community.id})}" role="search">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-secondary" aria-hidden="true"></i></span>
+                <input type="text" class="form-control border-start-0" name="q" id="manage-post-search"
+                       th:value="${searchQuery}" placeholder="Tìm bài viết theo nội dung..." maxlength="120"
+                       aria-label="Tìm bài viết theo nội dung">
+            </div>
+            <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 flex-shrink-0">Tìm</button>
+            <a th:if="${searchQuery != null and !searchQuery.isEmpty()}"
+               th:href="@{/communities/{id}/manage/posts(id=${community.id})}"
+               class="btn btn-sm btn-outline-secondary rounded-pill px-3 flex-shrink-0">Xóa lọc</a>
+        </form>
+
+        <div th:if="${posts != null and !posts.isEmpty()}">
+            <div class="d-flex flex-column gap-3">
+                <div th:each="post : ${posts}">
+                    <div th:replace="~{post/_post-card :: postCard(post=${post})}"></div>
+                </div>
+            </div>
+            <div th:replace="~{fragments/admin/pagination :: pagination(pageMeta=${pageMeta}, baseUrl=${manageBaseUrl},
+                extraParams=${searchQuery != null and !searchQuery.isEmpty()} ? '&amp;q=' + ${searchQuery} : null)}"></div>
+        </div>
+
+        <!-- Empty state -->
+        <div th:if="${posts == null or posts.isEmpty()}" class="aloute-card text-center p-4 my-3">
+            <div class="mb-2">
+                <i class="bi bi-inbox fs-1 text-secondary" aria-hidden="true"></i>
+            </div>
+            <h2 class="fs-6 fw-bold mb-1" th:text="${searchQuery != null and !searchQuery.isEmpty()} ? 'Không tìm thấy bài viết phù hợp' : 'Chưa có bài viết nào'">Chưa có bài viết</h2>
+            <p class="small text-secondary mb-0"
+               th:text="${searchQuery != null and !searchQuery.isEmpty()} ? 'Thử từ khóa khác hoặc xóa bộ lọc.' : 'Bài viết đã được phê duyệt của cộng đồng sẽ xuất hiện tại đây.'">Mô tả</p>
+        </div>
+    </section>
+</div>
+</body>
+</html>

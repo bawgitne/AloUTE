@@ -39,6 +39,9 @@ public class ModerationAction {
 
     @Column(name = "related_report_id")
     private Long relatedReportId;
+    /** Community scope for community-moderation actions (approve/reject/remove of community posts). */
+    @Column(name = "community_id")
+    private Long communityId;
 
     @Column(name = "metadata", length = 4000)
     private String metadata;

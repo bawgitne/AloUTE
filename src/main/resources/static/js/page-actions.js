@@ -998,6 +998,12 @@
 
         const action = target.dataset.action;
 
+        // Community moderation actions are owned by community-manage.js
+        // (loaded globally by the default layout); never treat them as inert.
+        if (action && action.startsWith('community-')) {
+            return;
+        }
+
         // Semantic page navigations
         if (action === 'navigate-login') {
             event.preventDefault();
