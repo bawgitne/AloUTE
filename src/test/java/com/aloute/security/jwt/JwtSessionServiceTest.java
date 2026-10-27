@@ -167,7 +167,7 @@ class JwtSessionServiceTest {
 
     @Test
     void authenticate_twoFactorChallengeTicket_rejectedEvenIfAuthVersionIsZero() {
-        String challengeTicket = tokenProvider.generateTwoFactorTicket(100L, "TOTP", 300);
+        String challengeTicket = tokenProvider.generateTwoFactorTicket(100L, "TOTP", 300, 0L);
 
         assertThatThrownBy(() -> sessionService.authenticate(challengeTicket))
                 .isInstanceOf(BadCredentialsException.class)

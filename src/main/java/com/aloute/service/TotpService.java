@@ -15,5 +15,13 @@ public interface TotpService {
 
     List<String> generateBackupCodes(int count);
 
+    /**
+     * Hashes a backup code with a per-code salt (PBKDF2, "v2:" prefixed format).
+     * Legacy rows hashed with plain SHA-256 remain verifiable through
+     * {@link #verifyBackupCode(String, String)} until regenerated.
+     */
     String hashBackupCode(String rawCode);
+
+    /** Constant-shape verification for both v2 (salted PBKDF2) and legacy SHA-256 rows. */
+    boolean verifyBackupCode(String rawCode, String storedHash);
 }
