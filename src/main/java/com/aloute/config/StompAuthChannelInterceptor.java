@@ -200,6 +200,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         // 3. Inbound SEND frame validation
         if (StompCommand.SEND.equals(accessor.getCommand())) {
             verifyActiveSession(accessor);
+            authorizeSendDestination(accessor.getDestination(), extractUserId(accessor.getUser()));
             return message;
         }
 
@@ -289,6 +290,21 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
             accessor.setUser(null);
             closeSession(sessionId);
             throw new IllegalArgumentException("Session revoked or expired: " + ex.getMessage(), ex);
+        }
+    }
+
+    /**
+     * Client SEND frames are restricted to the application destination prefix (/app/**),
+     * the only client-to-server surface in the canonical destination table
+     * (system architecture §21.1). SENDs to broker or user destinations must be
+     * rejected server-side: Spring's user-destination resolution delivers a client
+     * SEND to /user/{victimId}/queue/** straight into the victim's private queue,
+     * and /topic/** or /queue/** routes are never legitimate client inputs.
+     */
+    private void authorizeSendDestination(String destination, Long userId) {
+        if (destination == null || !destination.startsWith("/app/")) {
+            log.warn("Unauthorized STOMP send destination rejected for user {}: {}", userId, destination);
+            throw new IllegalArgumentException("Unauthorized STOMP send destination: " + destination);
         }
     }
 
