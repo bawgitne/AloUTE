@@ -3,6 +3,12 @@ spring:
     name: aloute
   profiles:
     active: dev
+  data:
+    web:
+      pageable:
+        # BL-16: every Pageable-resolved endpoint clamps ?size at 100 so a client
+        # cannot request unbounded pages from feeds, conversations or lists.
+        max-page-size: 100
   servlet:
     multipart:
       max-file-size: 35MB
