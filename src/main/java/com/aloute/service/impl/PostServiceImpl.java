@@ -280,10 +280,13 @@ public class PostServiceImpl implements PostService {
             }
         }
 
+        // BL-15: counters advance atomically (bulk UPDATE), never read-modify-write,
+        // so concurrent creations cannot lose increments. Both counters keep the
+        // lifetime-created semantics fixed for community.postCount in PR #73.
         if (community != null) {
-            community.setPostCount(community.getPostCount() + 1);
-            communityRepository.save(community);
+            communityRepository.incrementPostCount(community.getId());
         }
+        profileRepository.incrementPostsCount(userId);
 
         return get(savedPost.getId(), userId);
     }

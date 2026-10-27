@@ -12,6 +12,15 @@ import java.util.Optional;
 
 @Repository
 public interface CommunityRepository extends JpaRepository<Community, Long> {
+
+    /**
+     * BL-15: atomic lifetime post-count advance (bulk UPDATE). Semantic fixed in
+     * PR #73: total posts ever created, never decremented on deletion.
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query(
+            "UPDATE Community c SET c.postCount = c.postCount + 1 WHERE c.id = :communityId")
+    int incrementPostCount(@org.springframework.data.repository.query.Param("communityId") Long communityId);
     Optional<Community> findByIdAndDeletedAtIsNull(Long id);
     Optional<Community> findBySlugAndDeletedAtIsNull(String slug);
     Optional<Community> findBySlug(String slug);
