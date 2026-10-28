@@ -2,6 +2,7 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org" th:fragment="layout(title, content)">
 <head th:replace="~{fragments/head :: head(${title})}"></head>
 <body class="aloute-body" th:attr="data-current-user-id=${currentUser != null and currentUser.id != null ? currentUser.id : ''}">
+    <a class="aloute-skip-link" href="#main-content">Bỏ qua điều hướng đến nội dung chính</a>
     <!-- Global Header / Navbar -->
     <header th:replace="~{fragments/navbar :: navbar}"></header>
 

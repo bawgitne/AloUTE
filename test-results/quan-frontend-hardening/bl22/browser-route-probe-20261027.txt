@@ -1,0 +1,82 @@
+# BL-22 local browser-route probe — 2026-10-27 (branch fix/quan-frontend-hardening-20261027, local :8081, dev H2)
+# Command: curl -s -D - -o body -H 'Accept: text/html' <path>
+
+===== /explore =====
+HTTP/1.1 404
+Vary: origin,access-control-request-method,access-control-request-headers,accept-encoding
+Set-Cookie: XSRF-TOKEN=<redacted>; Path=/
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 0
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: SAMEORIGIN
+Content-Type: text/html;charset=UTF-8
+Content-Language: en-US
+Transfer-Encoding: chunked
+--- body head ---
+<!DOCTYPE html> <html lang="vi"> <head>     <meta charset="UTF-8">     <meta name="viewport" content="width=device-width, initial-scale=1.0">     <title>404 — Không tìm thấy trang — AloUTE</title>      <!-- Favicon -->     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-4b6a6
+
+===== /admin =====
+HTTP/1.1 401
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Set-Cookie: XSRF-TOKEN=<redacted>; Path=/
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 0
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: SAMEORIGIN
+Content-Type: application/json
+--- body head ---
+{"success":false,"error":{"code":"AUTH_UNAUTHENTICATED","message":"Authentication required or credential invalid","fieldErrors":null},"traceId":"3a95ffa6-25e7-49b9-8a08-b96e84910bad"}
+
+===== /post/create =====
+HTTP/1.1 500
+Vary: origin,access-control-request-method,access-control-request-headers,accept-encoding
+Set-Cookie: XSRF-TOKEN=<redacted>; Path=/
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 0
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: SAMEORIGIN
+Content-Type: text/html;charset=UTF-8
+Content-Language: en-US
+Transfer-Encoding: chunked
+--- body head ---
+<!DOCTYPE html> <html lang="vi"> <head>     <meta charset="UTF-8">     <meta name="viewport" content="width=device-width, initial-scale=1.0">     <title>500 — Lỗi máy chủ nội bộ — AloUTE</title>      <!-- Favicon -->     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-4b
+
+===== /khong-ton-tai-xyz =====
+HTTP/1.1 401
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Set-Cookie: XSRF-TOKEN=<redacted>; Path=/
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 0
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: SAMEORIGIN
+Content-Type: application/json
+--- body head ---
+{"success":false,"error":{"code":"AUTH_UNAUTHENTICATED","message":"Authentication required or credential invalid","fieldErrors":null},"traceId":"d4bb297f-649f-4567-898c-066fc8a1ab8f"}
+
+===== /khoi-test =====
+HTTP/1.1 404
+Vary: origin,access-control-request-method,access-control-request-headers,accept-encoding
+Set-Cookie: XSRF-TOKEN=<redacted>; Path=/
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 0
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: SAMEORIGIN
+Content-Type: text/html;charset=UTF-8
+Content-Language: en-US
+Transfer-Encoding: chunked
+--- body head ---
+<!DOCTYPE html> <html lang="vi"> <head>     <meta charset="UTF-8">     <meta name="viewport" content="width=device-width, initial-scale=1.0">     <title>404 — Không tìm thấy trang — AloUTE</title>      <!-- Favicon -->     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-4b6a6

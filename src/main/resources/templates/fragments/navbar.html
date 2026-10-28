@@ -39,12 +39,12 @@
 
         <!-- Right: Actions & User Controls -->
         <div class="d-flex align-items-center gap-1 gap-sm-2">
-            <!-- Create Post quick action (Modal trigger with /post/create fallback; suppressed on /feed where quick-composer is primary) -->
-            <a th:if="${isFeedPage != true and hideGlobalCreatePost != true and isCommunityDetailPage != true}" th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" class="btn btn-sm btn-primary d-none d-sm-inline-flex align-items-center gap-1">
+            <!-- Create Post quick action (authenticated only; modal trigger with /post/create fallback; suppressed on /feed where quick-composer is primary) -->
+            <a th:if="${currentUser != null and isFeedPage != true and hideGlobalCreatePost != true and isCommunityDetailPage != true}" th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" class="btn btn-sm btn-primary d-none d-sm-inline-flex align-items-center gap-1">
                 <i class="bi bi-pencil-square" aria-hidden="true"></i>
                 <span>Tạo bài viết</span>
             </a>
-            <a th:if="${isFeedPage != true and hideGlobalCreatePost != true and isCommunityDetailPage != true}" th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" class="btn btn-sm btn-primary d-inline-flex d-sm-none aloute-btn-icon-mobile" aria-label="Tạo bài viết mới">
+            <a th:if="${currentUser != null and isFeedPage != true and hideGlobalCreatePost != true and isCommunityDetailPage != true}" th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" class="btn btn-sm btn-primary d-inline-flex d-sm-none aloute-btn-icon-mobile" aria-label="Tạo bài viết mới">
                 <i class="bi bi-pencil-square" aria-hidden="true"></i>
             </a>
 
@@ -158,10 +158,10 @@
                 </ul>
             </div>
 
-            <!-- Guest Navigation Links (Presentational hooks) -->
-            <div th:if="${currentUser == null}" class="d-flex align-items-center gap-2">
-                <a href="#" data-page="auth-login" data-action="navigate-login" class="btn btn-sm btn-secondary">Đăng nhập</a>
-                <a href="#" data-page="auth-register" data-action="navigate-register" class="btn btn-sm btn-primary">Đăng ký</a>
+            <!-- Guest Navigation Links: real hrefs keep login reachable without JS -->
+            <div th:if="${currentUser == null}" class="d-flex align-items-center gap-2 aloute-guest-actions">
+                <a th:href="@{/login}" href="/login" data-page="auth-login" data-action="navigate-login" class="btn btn-sm btn-secondary">Đăng nhập</a>
+                <a th:href="@{/register}" href="/register" data-page="auth-register" data-action="navigate-register" class="btn btn-sm btn-primary">Đăng ký</a>
             </div>
         </div>
     </div>

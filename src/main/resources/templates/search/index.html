@@ -3,6 +3,8 @@
       th:replace="~{layouts/default :: layout(title=${q != null and !q.isEmpty()} ? 'Tìm kiếm: ' + ${q} : 'Tìm kiếm', content=~{::#search-content})}">
 <body>
 <div id="search-content">
+    <h1 class="visually-hidden">Tìm kiếm trên AloUTE</h1>
+
     <!-- Search Query & Filter Header -->
     <div class="aloute-card p-3 mb-3">
         <form method="GET" th:action="@{/search}" action="/search" class="mb-3" role="search" id="search-page-form">

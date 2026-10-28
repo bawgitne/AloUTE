@@ -36,8 +36,8 @@
                 <span>Bình luận (<span id="post-replies-count" th:text="${post.replyCount != null ? post.replyCount : 0}">0</span>)</span>
             </h2>
 
-            <!-- Comment Composer Form -->
-            <div th:if="${post.allowReply != false and (post.capabilities == null or post.capabilities.canReply != false)}" class="mb-4">
+            <!-- Comment Composer Form (authenticated users only) -->
+            <div th:if="${post.allowReply != false and (post.capabilities == null or post.capabilities.canReply != false) and currentUser != null}" class="mb-4">
                 <form id="reply-form" novalidate th:attr="data-post-id=${post.id != null ? post.id : ''}">
                     <!-- Reply status alert for feedback -->
                     <div id="reply-status" class="alert d-none mb-2" role="status" aria-live="polite"></div>
@@ -65,6 +65,16 @@
                         </button>
                     </div>
                 </form>
+            </div>
+
+            <!-- Guest Reply Prompt: login is required before the API accepts a reply -->
+            <div th:if="${post.allowReply != false and (post.capabilities == null or post.capabilities.canReply != false) and currentUser == null}"
+                 class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2 p-3 mb-4 border rounded-3 bg-body-tertiary">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="guest-prompt-icon guest-prompt-icon-sm" aria-hidden="true"><i class="bi bi-chat-dots"></i></span>
+                    <span class="small text-secondary">Đăng nhập để tham gia bình luận và thảo luận cùng mọi người.</span>
+                </div>
+                <a th:href="@{/login}" href="/login" class="btn btn-sm btn-primary flex-shrink-0 aloute-auth-cta">Đăng nhập</a>
             </div>
 
             <!-- Reply Disabled Notice -->

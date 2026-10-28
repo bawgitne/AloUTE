@@ -65,8 +65,8 @@
                 </div>
             </div>
 
-            <!-- Post Actions Dropdown (Edit/Delete/Report hooks) -->
-            <div th:if="${post.id != null}" class="dropdown">
+            <!-- Post Actions Dropdown (Edit/Delete/Report hooks; guests get no action menu) -->
+            <div th:if="${post.id != null and currentUser != null}" class="dropdown">
                 <button class="btn btn-link text-muted p-1"
                         type="button"
                         data-bs-toggle="dropdown"
