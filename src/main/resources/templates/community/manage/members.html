@@ -4,6 +4,7 @@
 <body>
 <div id="community-manage-content"
      th:with="isOwner=${community.isOwner}">
+    <link rel="stylesheet" th:href="@{/css/features/community.css}" href="/css/features/community.css">
     <div th:replace="~{community/manage/_tabs :: manageHeader(community=${community}, activeManageTab=${activeManageTab})}"></div>
 
     <div th:replace="~{community/manage/_feedback :: manageFeedback}"></div>
@@ -22,9 +23,9 @@
         </div>
 
         <!-- Member search -->
-        <form class="aloute-card p-2 p-md-3 mb-3 d-flex gap-2 align-items-center" method="get"
+        <form class="aloute-card p-2 p-md-3 mb-3 d-flex gap-2 align-items-center flex-wrap" method="get"
               th:action="@{/communities/{id}/manage/members(id=${community.id})}" role="search">
-            <div class="input-group input-group-sm">
+            <div class="input-group input-group-sm flex-grow-1">
                 <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-secondary" aria-hidden="true"></i></span>
                 <input type="text" class="form-control border-start-0" name="q" id="manage-member-search"
                        th:value="${searchQuery}" placeholder="Tìm thành viên theo tên hoặc tên đăng nhập..." maxlength="100"
@@ -62,7 +63,7 @@
                                         <div class="d-flex align-items-center gap-1">
                                             <a th:if="${member.user != null and member.user.username != null}"
                                                th:href="@{/users/{u}(u=${member.user.username})}"
-                                               class="fw-semibold text-decoration-none text-truncate d-inline-block"
+                                               class="community-member-name fw-semibold text-decoration-none text-truncate d-inline-block"
                                                style="max-width: 180px;"
                                                th:text="${member.user.displayName != null ? member.user.displayName : member.user.username}">Tên hiển thị</a>
                                             <i th:if="${member.user != null and member.user.isVerified}"
@@ -83,7 +84,8 @@
                                 </span>
                                 <!-- Owner-only role change -->
                                 <div th:if="${isOwner and !isOwnerRow}" class="d-inline-flex align-items-center gap-1 mt-1">
-                                    <label class="visually-hidden" th:for="'role-select-' + ${member.user.id}">Đổi vai trò</label>
+                                    <label class="visually-hidden" th:for="'role-select-' + ${member.user.id}"
+                                           th:text="'Đổi vai trò của ' + (member.user.displayName != null ? member.user.displayName : member.user.username)">Đổi vai trò</label>
                                     <select class="form-select form-select-sm w-auto community-role-select"
                                             th:id="'role-select-' + ${member.user.id}"
                                             th:attr="data-community-id=${community.id},data-user-id=${member.user.id},data-member-name=${member.user.displayName != null ? member.user.displayName : member.user.username}">
@@ -100,8 +102,8 @@
                                         type="button"
                                         class="btn btn-sm btn-outline-danger rounded-pill px-3"
                                         data-action="community-remove-member"
-                                        th:attr="data-community-id=${community.id},data-user-id=${member.user.id},data-member-name=${member.user.displayName != null ? member.user.displayName : member.user.username}">
-                                    <i class="bi bi-person-x me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Xóa</span>
+                                        th:attr="data-community-id=${community.id},data-user-id=${member.user.id},data-member-name=${member.user.displayName != null ? member.user.displayName : member.user.username},aria-label=${'Xóa ' + (member.user.displayName != null ? member.user.displayName : member.user.username) + ' khỏi cộng đồng'}">
+                                    <i class="bi bi-person-x me-1" aria-hidden="true"></i><span>Xóa</span>
                                 </button>
                             </td>
                         </tr>
@@ -109,7 +111,7 @@
                 </table>
             </div>
             <div th:replace="~{fragments/admin/pagination :: pagination(pageMeta=${pageMeta}, baseUrl=${manageBaseUrl},
-                extraParams=${searchQuery != null and !searchQuery.isEmpty()} ? '&amp;q=' + ${searchQuery} : null)}"></div>
+                extraParams=${searchQuery != null and !searchQuery.isEmpty() ? '&q=' + #uris.escapeQueryParam(searchQuery) : null})}"></div>
         </div>
 
         <!-- Empty state -->

@@ -1,0 +1,47 @@
+/* Community member management: keep the action column reachable on phones. */
+@media (max-width: 575.98px) {
+    .community-member-table,
+    .community-member-table tbody,
+    .community-member-table tr,
+    .community-member-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .community-member-table thead {
+        display: none;
+    }
+
+    .community-member-table tr {
+        padding: .65rem 0;
+        border-bottom: 1px solid var(--bs-border-color-translucent);
+    }
+
+    .community-member-table tr:last-child {
+        border-bottom: 0;
+    }
+
+    .community-member-table td {
+        padding: .25rem 1rem !important;
+        text-align: left !important;
+        border: 0;
+    }
+
+    .community-member-table td:first-child {
+        padding-top: 0 !important;
+    }
+
+    .community-member-table td:last-child {
+        padding-bottom: .25rem !important;
+    }
+
+    .community-member-table .community-member-name {
+        max-width: 100% !important;
+    }
+
+    .community-member-table .community-role-select,
+    .community-member-table td:last-child .btn {
+        width: 100%;
+        max-width: 260px;
+    }
+}
