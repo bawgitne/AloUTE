@@ -53,13 +53,13 @@ Không có tuyên bố “production ready” trong báo cáo này.
 | Dọn dữ liệu test | PASS | SOC-P90, COM-90, CLEAN-01 |
 | Backend error UX (BL-22) | **PASS trên `25e7595`** (FAIL trên baseline `4d00b6a`) | AUTH-15/16, ADM-05, RES-02 — `final-signoff-integration-25e7595-results.json` |
 | Performance production | NOT VERIFIED | chỉ local H2 |
-| Tích hợp ZCode `e12b21b` + frontend QA | PASS (không regression) | `12_FINAL_HANDOFF.md` mục 4; 0 khác biệt trạng thái |
+| Tích hợp integration `e12b21b` + frontend QA | PASS (không regression) | `12_FINAL_HANDOFF.md` mục 4; 0 khác biệt trạng thái |
 
 ## 4. Rủi ro và ưu tiên
 
 | Ưu tiên | Rủi ro | Xác suất | Tác động | Hành động |
 |---|---|---|---|---|
-| P1 | BL-22: JSON thô khi guest/non-admin | Cao | Cao (UX + niềm tin bảo mật) | ZCode sửa entry point/error dispatch; QA rerun 4 case |
+| P1 | BL-22: JSON thô khi guest/non-admin | Cao | Cao (UX + niềm tin bảo mật) | **Đã sửa qua #88 (merged)**; QA rerun 4 case PASS trên `25e7595` |
 | P2 | Firebase thiếu service account | Cao ở môi trường mới | Trung bình (mất upload) | Cấp secret qua secret manager trước demo |
 | P2 | Private community chưa có luồng join | Chắc chắn | Trung bình (thiếu tính năng) | Chốt đặc tả + endpoint |
 | P2 | Chưa test PostgreSQL/tải thật | Trung bình | Cao nếu release | Load test + DB thật trước production |

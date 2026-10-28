@@ -1,6 +1,6 @@
-# 09 — Backend dependencies & ticket bàn giao cho ZCode
+# 09 — Backend dependencies & ticket bàn giao cho integration
 
-Phạm vi QA này **không sửa backend**, không đổi security, DTO, repository, migration hay cấu hình production. Mọi lỗi dưới đây được ghi nhận kèm bằng chứng và hướng reproduce để ZCode xử lý trên nhánh tích hợp.
+Phạm vi QA này **không sửa backend**, không đổi security, DTO, repository, migration hay cấu hình production. Mọi lỗi dưới đây được ghi nhận kèm bằng chứng và hướng reproduce để integration xử lý trên nhánh tích hợp.
 
 ## Tổng hợp
 

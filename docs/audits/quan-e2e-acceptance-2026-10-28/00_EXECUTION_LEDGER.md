@@ -9,11 +9,11 @@
 
 | Thành phần | Giá trị |
 |---|---|
-| Worktree QA | `D:\PROJECT\cnpm-project\AloUTE-qoder-acceptance` |
+| Worktree QA | `<QA worktree>` |
 | Branch | `test/quan-e2e-acceptance` |
 | Base commit | `74c8a6f71be9e08d5fec0177fec2e86eb6daa6e9` (`fix(ui): harden guest experience and accessibility`) |
 | Upstream tham chiếu | `AloUTE` (branch `fix/quan-frontend-hardening-20261027`) — cùng commit nền |
-| ZCode worktree | `D:\PROJECT\cnpm-project\AloUTE-zc-release` (branch `fix/release-integration-20261028`) — **không sửa, không checkout**; kiểm thử tích hợp qua worktree tạm detached tại `e12b21b` |
+| integration worktree | `<integration worktree>` (branch `fix/release-integration-20261028`) — **không sửa, không checkout**; kiểm thử tích hợp qua worktree tạm detached tại `e12b21b` |
 | OS | Windows 10.0.26200 x64 |
 | Java | 21.0.8 |
 | Spring Boot | 3.2.5, profile `dev`, H2 in-memory `jdbc:h2:mem:aloutedb` |
@@ -25,7 +25,7 @@
 | Firefox | 157.0 — BLOCKED do crash môi trường |
 | Server | `http://127.0.0.1:8082`, log `test-results/quan-e2e-acceptance/server-8082.log` |
 | Seed | `DevTestDataInitializer` (profile dev) + `tools/demo-data.mjs`; tài khoản local-only lấy từ `docs/DEMO_CHECKLIST_VI.md` |
-| Worktree sign-off | `D:\PROJECT\cnpm-project\AloUTE-e2e-signoff-20261028` — **detached tại `25e7595`** (16 PR HEAD mới nhất), chỉ áp patch test poll fixture; không checkout/sửa worktree ZCode |
+| Worktree sign-off | `<sign-off worktree>` — **detached tại `25e7595`** (16 PR HEAD mới nhất), chỉ áp patch test poll fixture; không checkout/sửa worktree integration |
 | Server sign-off | `http://127.0.0.1:8086`, H2 in-memory mới, profile `dev`, seed `tools/demo-data.mjs` 18 OK |
 
 Không sử dụng tài khoản production, không seed lên website live, không in credential/token/OTP trong báo cáo hay ảnh.
@@ -51,7 +51,7 @@ Không sử dụng tài khoản production, không seed lên website live, khôn
 | 01:44–01:47 | Full regression 6 suite (`full-run-1`) | 153 PASS / 5 FAIL / 4 BLOCKED / 3 NOT RUN |
 | 01:49–01:50 | Rerun auth + messaging có JWT secret (`full-run-3`) | Auth 24 PASS / 2 FAIL / 1 NOT RUN; messaging còn flake MSG-07 |
 | 01:51 | Rerun messaging sau khi sửa locator (`full-run-4`) | 34 PASS / 1 FAIL (ADM-05) |
-| 09:03 | Integration run đầu trên ZCode `e12b21b` | Không hợp lệ: chưa seed demo-data → AUTH-01 FAIL; hủy, không dùng |
+| 09:03 | Integration run đầu trên integration `e12b21b` | Không hợp lệ: chưa seed demo-data → AUTH-01 FAIL; hủy, không dùng |
 | 09:04–09:07 | Seed demo-data + full rerun trên `e12b21b` | 155 PASS / 4 FAIL / 3 BLOCKED / 3 NOT RUN; 0 khác biệt baseline (`integration-e12b21b-results.json`) |
 | 09:47–09:52 | Final verification sau handoff (`final-verification-20261028`) | 165/165 ID, 155 PASS / 4 FAIL / 3 BLOCKED / 3 NOT RUN; guard PASS |
 | 04:12 (UTC) | Tái hiện lỗi fixture poll trên H2 mới (`baseline-fixture-repro-20261028`) | 3 FAIL (SOC-P40/42/43) + SOC-P41 BLOCKED; 29 PASS trên cùng DB — lỗi test, không phải sản phẩm |
@@ -94,7 +94,7 @@ Không sử dụng tài khoản production, không seed lên website live, khôn
 | Fixture tạo/dọn | `social-fixtures.json`, `community-fixtures.json`, `admin-report-fixture.json` |
 | Server log (raw, local) | `test-results/quan-e2e-acceptance/server-8082.log` — không commit |
 | Seed marker (raw, local) | `test-results/quan-e2e-acceptance/seed-20261028.txt` — không commit |
-| Kết quả tích hợp ZCode | `evidence/integration-e12b21b-results.json`, `evidence/integration-e12b21b-environment.json` |
+| Kết quả tích hợp integration | `evidence/integration-e12b21b-results.json`, `evidence/integration-e12b21b-environment.json` |
 | Kết quả sign-off `25e7595` | `evidence/final-signoff-integration-25e7595-results.json`, `evidence/final-signoff-integration-25e7595-environment.json` |
 | A/B fixture poll | `evidence/baseline-fixture-repro-old-suite-results.json`, `evidence/fixed-poll-fixture-social-results.json` |
 

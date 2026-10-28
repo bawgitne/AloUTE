@@ -1,4 +1,4 @@
-# PR Body — QA acceptance stack on PR #85
+# PR Body — QA Acceptance & Release (PR #90)
 
 > Dùng làm `--body-file` khi cập nhật PR #90. Không phải tài liệu acceptance chính.
 
@@ -9,11 +9,11 @@
 - Historical result on this branch alone (`4d00b6a`, base PR #85 without #88): **155 PASS / 4 FAIL / 3 BLOCKED / 3 NOT RUN**; the four failures are BL-22, now PASS on the integration HEAD.
 - Poll fixture stabilization: SOC-P40/41/42/43 no longer depend on seeded post ID `4` or shared `globalThis` state. Each case creates a poll through `POST /api/posts`, verifies it via `GET /api/posts/{id}`, and deletes it in `finally`. A/B on the same shifted-ID database: 3 FAIL + 1 BLOCKED → 0 FAIL.
 - Frontend/a11y hardening: **13 defects fixed** (accessible names, contrast, ARIA roles, auth form method, Vietnamese error mapping, skip link, 44×44 touch targets on desktop/mobile). Axe: **0 serious/critical on 20 routes**.
-- No backend, security, DTO, migration, production config or ZCode worktree changes; the poll fix is test-only.
+- No backend, security, DTO, migration, production config or integration worktree changes; the poll fix is test-only.
 
 ## Scope
 
-- Base: `fix/quan-frontend-hardening-20261027` (PR #85) — stack dependency intentionally unchanged.
+- Base: `master` (retargeted after PR #85 merged as `cd0d85c`).
 - Frontend source: 23 files (3 CSS, 4 JS, 16 templates).
 - Tests: `test/e2e/quan-acceptance/` (165 cases) + `test/frontend/` (396 Node tests) + E2E fixture fix in `suites/social.mjs` (+111 / −47).
 - Documentation/evidence under `docs/audits/quan-e2e-acceptance-2026-10-28/`; historical runs are preserved and the new sign-off run is additive.
@@ -32,7 +32,7 @@
 
 - 3 BLOCKED: Firebase upload (missing service account), private-community join (product decision), Firefox environment crash.
 - 3 NOT RUN: 2FA setup outside canonical OpenAPI, poll expiry, custom feed.
-- BL-22 PASS is only valid on integration HEAD `25e7595` (contains #88). Until #85 + #88 merge and this branch is rebased, the four BL-22 cases still fail on the PR branch itself.
+- BL-22 is fixed on `master`: PR #88 (content-negotiated HTML/JSON errors + entry-point redirect) is merged, and the four BL-22 cases (AUTH-15/16, ADM-05, RES-02) PASS on integration HEAD `25e7595`. The historical baseline `4d00b6a` predates #88 (155 PASS / 4 FAIL).
 - JS-off login renders and submits POST without leaking the password, but authentication still requires JavaScript because the backend has no form-login fallback.
 - Browser coverage: Chrome/Edge/WebKit; Firefox BLOCKED. Local H2 only; no production/PostgreSQL load claim.
 

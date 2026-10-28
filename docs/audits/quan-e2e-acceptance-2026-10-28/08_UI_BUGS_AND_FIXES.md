@@ -19,7 +19,7 @@ Chỉ các thay đổi frontend an toàn (Thymeleaf, CSS, JS) được thực hi
 | QA-UI-11 | Medium | Hardening | Form auth không khai báo `method="post"`; nếu JS lỗi, submit có thể rơi về GET | Fixed | AUTH-22, AUTH-23 |
 | QA-UI-12 | Medium | Functional | `post-like.js` tự ghi đè `aria-label` sau mỗi lần like/repost, gây lệch với nội dung số đếm | Fixed | SOC-P11, SOC-P12, SOC-P16 |
 | QA-UI-13 | Low | Infra/UX | CSS không có ETag, cache 12h; 4 request CDN bên ngoài | Not fixed (ngoài phạm vi frontend an toàn) | PERF-03 |
-| QA-UI-14 | High | Backend | Trang bảo vệ trả JSON 401/403/404 thay vì HTML/redirect (BL-22) | Ticket cho ZCode | AUTH-15/16, ADM-05, RES-02 |
+| QA-UI-14 | High | Backend | Trang bảo vệ trả JSON 401/403/404 thay vì HTML/redirect (BL-22) | Ticket cho integration | AUTH-15/16, ADM-05, RES-02 |
 | QA-UI-15 | Moderate | Accessibility | Hai link icon navbar (Tin nhắn/Thông báo) chỉ rộng 30px ở desktop, dưới baseline 44×44 của BL-17 | Fixed | RESP-06 |
 
 ## 2. Chi tiết fix

@@ -10,7 +10,7 @@ Frontend AloUTE đã được kiểm thử end-to-end bằng browser thật trê
 
 **Trạng thái acceptance (baseline `4d00b6a`): PASS WITH LIMITATIONS cho phạm vi frontend.** Trên integration `25e7595`, BL-22 đã PASS và kết quả là **159/0/3/3**; production vẫn **NOT READY** do Firefox/PostgreSQL/tải thật/CDN chưa xác nhận và còn 3 BLOCKED + 3 NOT RUN.
 
-Đã chạy lại toàn bộ 165 case trên ZCode HEAD `e12b21b` với đúng 23 thay đổi frontend QA: kết quả **155/4/3/3, 0 khác biệt trạng thái** so với baseline; BL-22 khi đó vẫn mở (đã PASS trên `25e7595`). Chi tiết `12_FINAL_HANDOFF.md` và mục 9.
+Đã chạy lại toàn bộ 165 case trên integration HEAD `e12b21b` với đúng 23 thay đổi frontend QA: kết quả **155/4/3/3, 0 khác biệt trạng thái** so với baseline; BL-22 khi đó vẫn mở (đã PASS trên `25e7595`). Chi tiết `12_FINAL_HANDOFF.md` và mục 9.
 
 Run cuối `final-verification-20261028` trên worktree handoff: **165/165 ID duy nhất, 155 PASS / 4 FAIL (đúng BL-22) / 3 BLOCKED / 3 NOT RUN**, guard `RUN-INTEGRITY` PASS; bằng chứng `evidence/final-verification-results.json`.
 
@@ -85,7 +85,7 @@ Ghi chú: `full-run-1` thô có 5 FAIL (4 BL-22 + MSG-07 flake locator); MSG-07 
 | Hiệu năng local | DCL < 3s, API p95 < 800ms | Đạt |
 | Không rò rỉ secret/PII | 0 | Đạt trong phạm vi kiểm tra |
 | Dọn dữ liệu test | Không sót bài/cộng đồng QA | Đạt (SOC-P90, COM-90, CLEAN-01) |
-| Tích hợp ZCode `e12b21b` | Không regression so với baseline | Đạt — 0 khác biệt trạng thái; BL-22 vẫn FAIL |
+| Tích hợp integration `e12b21b` | Không regression so với baseline | Đạt — 0 khác biệt trạng thái; BL-22 vẫn FAIL |
 
 ## 7. Rủi ro còn lại
 
@@ -98,7 +98,7 @@ Ghi chú: `full-run-1` thô có 5 FAIL (4 BL-22 + MSG-07 flake locator); MSG-07 
 
 ## 8. Khuyến nghị
 
-- BL-22 đã được xác minh PASS trên HEAD tích hợp `25e7595` (fix #88). Giữ gate rerun 4 case khi rebase/merge stack; không tuyên bố PASS trên branch PR #90 khi chưa chứa #88.
+- BL-22 đã được xác minh PASS trên integration `25e7595` (fix #88, đã merge vào `master`). PR #90 đã retarget về `master` nên base chứa #88; giữ gate rerun 4 case khi rebase trong tương lai.
 - Cấp Firebase service account cho môi trường demo; chốt đặc tả private community.
 - Chạy lại cross-browser trên Firefox ESR/container Linux.
 - Đo lại hiệu năng với PostgreSQL + dữ liệu lớn trước khi cam kết SLO.
@@ -108,7 +108,7 @@ Ghi chú: `full-run-1` thô có 5 FAIL (4 BL-22 + MSG-07 flake locator); MSG-07 
 
 ### 9.1 Bối cảnh
 
-- Worktree cô lập **detached** `AloUTE-e2e-signoff-20261028` tại `25e7595` (merge 16 PR HEAD mới nhất, gồm #88 BL-22, #86 prod-seed guard, #84 auth follow-ups).
+- Worktree cô lập **detached** `<sign-off worktree>` tại `25e7595` (merge 16 PR HEAD mới nhất, gồm #88 BL-22, #86 prod-seed guard, #84 auth follow-ups).
 - Chỉ áp thay đổi test `test/e2e/quan-acceptance/suites/social.mjs` (+111 / −47); **không** sửa mã sản phẩm.
 - Server `http://127.0.0.1:8086`, profile `dev`, H2 in-memory **mới**, seed `DevTestDataInitializer` + `tools/demo-data.mjs` (18 OK). Không dùng production DB/credential.
 
@@ -148,9 +148,9 @@ BL-22 trên `25e7595`: AUTH-15 PASS (302 → `/login`), AUTH-16 PASS (302 → `/
 
 | Chỉ số | Giá trị |
 |---|---|
-| Lệnh | `mvn -q test` trên worktree `AloUTE-e2e-signoff-20261028` (25e7595 + patch test) |
+| Lệnh | `mvn -q test` trên worktree `<sign-off worktree>` (25e7595 + patch test) |
 | Kết quả | **723 tests, 0 failures, 0 errors, 9 skipped**; exit code 0 |
-| Ghi chú | Khớp số liệu ZCode (723/9 skipped); không chạy IT/container/PostgreSQL |
+| Ghi chú | Khớp số liệu integration (723/9 skipped); không chạy IT/container/PostgreSQL |
 
 ### 9.6 CI
 
@@ -159,4 +159,4 @@ BL-22 trên `25e7595`: AUTH-15 PASS (302 → `/login`), AUTH-16 PASS (302 → `/
 | Workflow | `CI` / job `test-and-build` trên PR #90 |
 | Commit | `25a804e1f47f1f985a1b511bc3ab793f411074e0` |
 | Kết quả | **PASS** — run `40632713237`, 3m37s |
-| Base PR | `fix/quan-frontend-hardening-20261027` (PR #85) — giữ nguyên stack |
+| Base PR | `master` (retargeted after PR #85 merged as `cd0d85c`) |

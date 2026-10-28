@@ -1,8 +1,8 @@
 # 14 — BL-22 Backend Handoff (cho backend reviewer)
 
 **Ticket:** BL-22 — page route trả JSON envelope thay vì HTML/redirect cho guest, non-admin và 404.
-**Mức:** P1 · **Trạng thái QA:** FAIL (4 case) · **Ngày xác minh:** 2026-10-28
-**Phạm vi:** chỉ báo cáo; QA **không sửa backend/security**. Đã xác minh trên QA branch (`74c8a6f` + frontend QA) và ZCode HEAD `e12b21b`; cả hai đều FAIL.
+**Mức:** P1 · **Trạng thái QA (baseline):** FAIL (4 case) · **Ngày xác minh:** 2026-10-28 · **Trạng thái hiện tại:** FIXED (PR #88 merged)
+**Phạm vi:** chỉ báo cáo; QA **không sửa backend/security**. Baseline xác minh trên QA branch (`74c8a6f` + frontend QA) và integration HEAD `e12b21b` đều FAIL; sau khi #88 merge, 4 case PASS (xem cập nhật bên dưới).
 
 > **Cập nhật xác minh (2026-10-28, sau ticket):** trên HEAD tích hợp `25e7595` — có `fix/web-page-error-handling` (#88) — cả 4 case **PASS**: AUTH-15/16 redirect `/login`, ADM-05 `403 text/html`, RES-02 `404` HTML. API `/api/**` vẫn JSON đúng contract. Bằng chứng `evidence/final-signoff-integration-25e7595-results.json`. Các mục dưới đây giữ nguyên mô tả lịch sử trên baseline `4d00b6a`/`e12b21b` và tiêu chí acceptance đã dùng để nghiệm thu fix.
 
