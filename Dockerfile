@@ -23,6 +23,9 @@ USER aloute
 
 # Cloud Run injects $PORT environment variable (default 8080)
 ENV PORT=8080
+# BL-01 fail-closed guard: refuse dev-profile startup in production images.
+# The dev profile seeds accounts with well-known passwords (ProductionProfileGuard).
+ENV ALOUTE_PRODUCTION_MODE=true
 EXPOSE 8080
 
 # Use exec to ensure PID 1 receives SIGTERM for graceful shutdown
