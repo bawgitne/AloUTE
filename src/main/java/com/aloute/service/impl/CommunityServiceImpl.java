@@ -86,14 +86,7 @@ public class CommunityServiceImpl implements CommunityService {
         community.setMemberCount(1);
         community.setPostCount(0);
 
-        if (request.avatarMediaId() != null) {
-            mediaAssetRepository.findById(request.avatarMediaId())
-                    .ifPresent(m -> community.setAvatarUrl(m.getUrl()));
-        }
-        if (request.coverMediaId() != null) {
-            mediaAssetRepository.findById(request.coverMediaId())
-                    .ifPresent(m -> community.setCoverUrl(m.getUrl()));
-        }
+        attachCommunityMedia(community, request.avatarMediaId(), request.coverMediaId(), ownerId);
 
         Community saved = communityRepository.save(community);
 
@@ -130,16 +123,29 @@ public class CommunityServiceImpl implements CommunityService {
         if (request.description() != null) community.setDescription(request.description());
         if (request.isPrivate() != null) community.setPrivateCommunity(request.isPrivate());
 
-        if (request.avatarMediaId() != null) {
-            mediaAssetRepository.findById(request.avatarMediaId())
-                    .ifPresent(m -> community.setAvatarUrl(m.getUrl()));
-        }
-        if (request.coverMediaId() != null) {
-            mediaAssetRepository.findById(request.coverMediaId())
-                    .ifPresent(m -> community.setCoverUrl(m.getUrl()));
-        }
+        attachCommunityMedia(community, request.avatarMediaId(), request.coverMediaId(), userId);
 
         return toResponse(communityRepository.save(community), userId);
+    }
+
+    /**
+     * Community avatar/cover media must belong to the acting user and still exist
+     * (same ownership rule as post media and profile avatar/cover): attaching
+     * another user's asset or a soft-deleted asset is a 404, never a silent attach.
+     */
+    private void attachCommunityMedia(Community community, Long avatarMediaId, Long coverMediaId, Long actorId) {
+        if (avatarMediaId != null) {
+            MediaAsset media = mediaAssetRepository.findByIdAndOwner_IdAndDeletedAtIsNull(avatarMediaId, actorId)
+                    .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Avatar media not found"));
+            community.setAvatarUrl(media.getUrl());
+            media.setAttachedAt(Instant.now());
+        }
+        if (coverMediaId != null) {
+            MediaAsset media = mediaAssetRepository.findByIdAndOwner_IdAndDeletedAtIsNull(coverMediaId, actorId)
+                    .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "MEDIA_NOT_FOUND", "Cover media not found"));
+            community.setCoverUrl(media.getUrl());
+            media.setAttachedAt(Instant.now());
+        }
     }
 
     @Override

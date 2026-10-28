@@ -2,8 +2,8 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <body>
 <div th:fragment="postModals">
-    <!-- Accessible Bootstrap 5 Create Post Modal (Shared Composer) -->
-    <div th:if="${activeNav != 'create-post'}"
+    <!-- Accessible Bootstrap 5 Create Post Modal (Shared Composer, authenticated only) -->
+    <div th:if="${currentUser != null and activeNav != 'create-post'}"
          class="modal fade"
          id="createPostModal"
          tabindex="-1"

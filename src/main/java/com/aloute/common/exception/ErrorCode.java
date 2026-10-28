@@ -45,6 +45,8 @@ public enum ErrorCode {
     BLOCK_SELF_NOT_ALLOWED("BLOCK_SELF_NOT_ALLOWED", HttpStatus.CONFLICT, "A user cannot block themself"),
     BLOCK_ALREADY_EXISTS("BLOCK_ALREADY_EXISTS", HttpStatus.CONFLICT, "Block relationship already exists"),
     BLOCK_NOT_FOUND("BLOCK_NOT_FOUND", HttpStatus.NOT_FOUND, "Block relationship not found"),
+    BLOCKED_BY_RELATIONSHIP("BLOCKED_BY_RELATIONSHIP", HttpStatus.FORBIDDEN,
+            "This interaction is blocked by an existing block relationship"),
     MUTE_SELF_NOT_ALLOWED("MUTE_SELF_NOT_ALLOWED", HttpStatus.CONFLICT, "A user cannot mute themself"),
     MUTE_ALREADY_EXISTS("MUTE_ALREADY_EXISTS", HttpStatus.CONFLICT, "Mute relationship already exists"),
     MUTE_NOT_FOUND("MUTE_NOT_FOUND", HttpStatus.NOT_FOUND, "Mute relationship not found"),

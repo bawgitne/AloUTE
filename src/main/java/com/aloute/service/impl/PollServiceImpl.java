@@ -15,6 +15,7 @@ import com.aloute.repository.PollRepository;
 import com.aloute.repository.PollVoteRepository;
 import com.aloute.repository.UserRepository;
 import com.aloute.service.PollService;
+import com.aloute.service.PostService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,12 +33,14 @@ public class PollServiceImpl implements PollService {
     private final PollOptionRepository pollOptionRepository;
     private final PollVoteRepository pollVoteRepository;
     private final UserRepository userRepository;
+    private final PostService postService;
 
     @Override
     @Transactional(readOnly = true)
     public PollResponse getPollById(Long pollId, Long currentUserId) {
         Poll poll = pollRepository.findById(pollId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "POLL_NOT_FOUND", "Poll not found"));
+        requireParentPostVisible(poll, currentUserId);
         return mapToPollResponse(poll, currentUserId);
     }
 
@@ -50,6 +53,7 @@ public class PollServiceImpl implements PollService {
         // only blocks identical options, not different options from the same user).
         Poll poll = pollRepository.findByIdForUpdate(pollId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "POLL_NOT_FOUND", "Poll not found"));
+        requireParentPostVisible(poll, currentUserId);
 
         if (poll.isClosed()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "POLL_CLOSED", "This poll is closed");
@@ -112,6 +116,18 @@ public class PollServiceImpl implements PollService {
 
         log.info("User {} voted in poll {}", currentUserId, pollId);
         return mapToPollResponse(poll, currentUserId);
+    }
+
+    /**
+     * A poll is only addressable through its parent post (domain §17: Post 1 ─── 0..1 Poll),
+     * so both read and vote must enforce the parent's visibility rule (domain §14).
+     * Deny with the same 404 as a missing poll so polls of invisible posts do not
+     * disclose their existence.
+     */
+    private void requireParentPostVisible(Poll poll, Long viewerId) {
+        if (!postService.isPostVisibleTo(poll.getPost(), viewerId)) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "POLL_NOT_FOUND", "Poll not found");
+        }
     }
 
     @Override

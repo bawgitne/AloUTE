@@ -1,0 +1,1064 @@
+{
+  "base": "http://127.0.0.1:8081",
+  "label": "after",
+  "generatedAt": "2026-10-27T17:20:03.387Z",
+  "viewports": [
+    360,
+    375,
+    390,
+    768,
+    1440
+  ],
+  "runs": [
+    {
+      "width": 360,
+      "route": "/feed",
+      "name": "feed",
+      "metrics": {
+        "title": "Bảng tin — AloUTE",
+        "lang": "vi",
+        "innerWidth": 360,
+        "clientWidth": 360,
+        "scrollWidth": 360,
+        "horizontalOverflow": false,
+        "navbar": {
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 64,
+          "right": 360,
+          "left": 0
+        },
+        "navbarScrollWidth": 360,
+        "navbarClientWidth": 360,
+        "register": {
+          "x": 281.5,
+          "y": 9.5,
+          "w": 70.5,
+          "h": 44,
+          "right": 352,
+          "left": 281.5
+        },
+        "registerHref": "/register",
+        "login": {
+          "x": 189,
+          "y": 9.5,
+          "w": 86.9,
+          "h": 44,
+          "right": 275.9,
+          "left": 189
+        },
+        "loginHref": "/login",
+        "registerClipped": false,
+        "registerVisible": true,
+        "h1s": [
+          "Bảng tin AloUTE"
+        ],
+        "h1Count": 1,
+        "skipLink": {
+          "href": "#main-content",
+          "text": "Bỏ qua điều hướng đến nội dung chính",
+          "rect": {
+            "x": 8,
+            "y": -100,
+            "w": 299.6,
+            "h": 39.3,
+            "right": 307.6,
+            "left": 8
+          }
+        },
+        "mainPresent": true,
+        "composerVisible": false,
+        "replyFormVisible": false,
+        "reportActionCount": 0,
+        "authActionLinks": 6,
+        "hashAuthLinks": 0,
+        "tokenTextPrimary": null,
+        "tokenAlouteTextPrimary": "#0f172a",
+        "smallTargets": []
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "width": 360,
+      "route": "/search?q=hoc-tap",
+      "name": "search",
+      "metrics": {
+        "title": "Tìm kiếm: hoc-tap — AloUTE",
+        "lang": "vi",
+        "innerWidth": 360,
+        "clientWidth": 360,
+        "scrollWidth": 360,
+        "horizontalOverflow": false,
+        "navbar": {
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 64,
+          "right": 360,
+          "left": 0
+        },
+        "navbarScrollWidth": 360,
+        "navbarClientWidth": 360,
+        "register": {
+          "x": 281.5,
+          "y": 9.5,
+          "w": 70.5,
+          "h": 44,
+          "right": 352,
+          "left": 281.5
+        },
+        "registerHref": "/register",
+        "login": {
+          "x": 189,
+          "y": 9.5,
+          "w": 86.9,
+          "h": 44,
+          "right": 275.9,
+          "left": 189
+        },
+        "loginHref": "/login",
+        "registerClipped": false,
+        "registerVisible": true,
+        "h1s": [
+          "Tìm kiếm trên AloUTE"
+        ],
+        "h1Count": 1,
+        "skipLink": {
+          "href": "#main-content",
+          "text": "Bỏ qua điều hướng đến nội dung chính",
+          "rect": {
+            "x": 8,
+            "y": -100,
+            "w": 299.6,
+            "h": 39.3,
+            "right": 307.6,
+            "left": 8
+          }
+        },
+        "mainPresent": true,
+        "composerVisible": false,
+        "replyFormVisible": false,
+        "reportActionCount": 0,
+        "authActionLinks": 6,
+        "hashAuthLinks": 0,
+        "tokenTextPrimary": null,
+        "tokenAlouteTextPrimary": "#0f172a",
+        "smallTargets": []
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "width": 360,
+      "route": "/posts/1",
+      "name": "post-detail",
+      "metrics": {
+        "title": "Chi tiết bài viết — AloUTE",
+        "lang": "vi",
+        "innerWidth": 360,
+        "clientWidth": 360,
+        "scrollWidth": 360,
+        "horizontalOverflow": false,
+        "navbar": {
+          "x": 0,
+          "y": 0,
+          "w": 360,
+          "h": 64,
+          "right": 360,
+          "left": 0
+        },
+        "navbarScrollWidth": 360,
+        "navbarClientWidth": 360,
+        "register": {
+          "x": 281.5,
+          "y": 9.5,
+          "w": 70.5,
+          "h": 44,
+          "right": 352,
+          "left": 281.5
+        },
+        "registerHref": "/register",
+        "login": {
+          "x": 189,
+          "y": 9.5,
+          "w": 86.9,
+          "h": 44,
+          "right": 275.9,
+          "left": 189
+        },
+        "loginHref": "/login",
+        "registerClipped": false,
+        "registerVisible": true,
+        "h1s": [
+          "Chi tiết bài viết"
+        ],
+        "h1Count": 1,
+        "skipLink": {
+          "href": "#main-content",
+          "text": "Bỏ qua điều hướng đến nội dung chính",
+          "rect": {
+            "x": 8,
+            "y": -100,
+            "w": 299.6,
+            "h": 39.3,
+            "right": 307.6,
+            "left": 8
+          }
+        },
+        "mainPresent": true,
+        "composerVisible": false,
+        "replyFormVisible": false,
+        "reportActionCount": 0,
+        "authActionLinks": 6,
+        "hashAuthLinks": 0,
+        "tokenTextPrimary": null,
+        "tokenAlouteTextPrimary": "#0f172a",
+        "smallTargets": []
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "width": 375,
+      "route": "/feed",
+      "name": "feed",
+      "metrics": {
+        "title": "Bảng tin — AloUTE",
+        "lang": "vi",
+        "innerWidth": 375,
+        "clientWidth": 375,
+        "scrollWidth": 375,
+        "horizontalOverflow": false,
+        "navbar": {
+          "x": 0,
+          "y": 0,
+          "w": 375,
+          "h": 64,
+          "right": 375,
+          "left": 0
+        },
+        "navbarScrollWidth": 375,
+        "navbarClientWidth": 375,
+        "register": {
+          "x": 296.5,
+          "y": 9.5,
+          "w": 70.5,
+          "h": 44,
+          "right": 367,
+          "left": 296.5
+        },
+        "registerHref": "/register",
+        "login": {
+          "x": 204,
+          "y": 9.5,
+          "w": 86.9,
+          "h": 44,
+          "right": 290.9,
+          "left": 204
+        },
+        "loginHref": "/login",
+        "registerClipped": false,
+        "registerVisible": true,
+        "h1s": [
+          "Bảng tin AloUTE"
+        ],
+        "h1Count": 1,
+        "skipLink": {
+          "href": "#main-content",
+          "text": "Bỏ qua điều hướng đến nội dung chính",
+          "rect": {
+            "x": 8,
+            "y": -100,
+            "w": 299.6,
+            "h": 39.3,
+            "right": 307.6,
+            "left": 8
+          }
+        },
+        "mainPresent": true,
+        "composerVisible": false,
+        "replyFormVisible": false,
+        "reportActionCount": 0,
+        "authActionLinks": 6,
+        "hashAuthLinks": 0,
+        "tokenTextPrimary": null,
+        "tokenAlouteTextPrimary": "#0f172a",
+        "smallTargets": []
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "width": 375,
+      "route": "/search?q=hoc-tap",
+      "name": "search",
+      "metrics": {
+        "title": "Tìm kiếm: hoc-tap — AloUTE",
+        "lang": "vi",
+        "innerWidth": 375,
+        "clientWidth": 375,
+        "scrollWidth": 375,
+        "horizontalOverflow": false,
+        "navbar": {
+          "x": 0,
+          "y": 0,
+          "w": 375,
+          "h": 64,
+          "right": 375,
+          "left": 0
+        },
+        "navbarScrollWidth": 375,
+        "navbarClientWidth": 375,
+        "register": {
+          "x": 296.5,
+          "y": 9.5,
+          "w": 70.5,
+          "h": 44,
+          "right": 367,
+          "left": 296.5
+        },
+        "registerHref": "/register",
+        "login": {
+          "x": 204,
+          "y": 9.5,
+          "w": 86.9,
+          "h": 44,
+          "right": 290.9,
+          "left": 204
+        },
+        "loginHref": "/login",
+        "registerClipped": false,
+        "registerVisible": true,
+        "h1s": [
+          "Tìm kiếm trên AloUTE"
+        ],
+        "h1Count": 1,
+        "skipLink": {
+          "href": "#main-content",
+          "text": "Bỏ qua điều hướng đến nội dung chính",
+          "rect": {
+            "x": 8,
+            "y": -100,
+            "w": 299.6,
+            "h": 39.3,
+            "right": 307.6,
+            "left": 8
+          }
+        },
+        "mainPresent": true,
+        "composerVisible": false,
+        "replyFormVisible": false,
+        "reportActionCount": 0,
+        "authActionLinks": 6,
+        "hashAuthLinks": 0,
+        "tokenTextPrimary": null,
+        "tokenAlouteTextPrimary": "#0f172a",
+        "smallTargets": []
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "width": 375,
+      "route": "/posts/1",
+      "name": "post-detail",
+      "metrics": {
+        "title": "Chi tiết bài viết — AloUTE",
+        "lang": "vi",
+        "innerWidth": 375,
+        "clientWidth": 375,
+        "scrollWidth": 375,
+        "horizontalOverflow": false,
+        "navbar": {
+          "x": 0,
+          "y": 0,
+          "w": 375,
+          "h": 64,
+          "right": 375,
+          "left": 0
+        },
+        "navbarScrollWidth": 375,
+        "navbarClientWidth": 375,
+        "register": {
+          "x": 296.5,
+          "y": 9.5,
+          "w": 70.5,
+          "h": 44,
+          "right": 367,
+          "left": 296.5
+        },
+        "registerHref": "/register",
+        "login": {
+          "x": 204,
+          "y": 9.5,
+          "w": 86.9,
+          "h": 44,
+          "right": 290.9,
+          "left": 204
+        },
+        "loginHref": "/login",
+        "registerClipped": false,
+        "registerVisible": true,
+        "h1s": [
+          "Chi tiết bài viết"
+        ],
+        "h1Count": 1,
+        "skipLink": {
+          "href": "#main-content",
+          "text": "Bỏ qua điều hướng đến nội dung chính",
+          "rect": {
+            "x": 8,
+            "y": -100,
+            "w": 299.6,
+            "h": 39.3,
+            "right": 307.6,
+            "left": 8
+          }
+        },
+        "mainPresent": true,
+        "composerVisible": false,
+        "replyFormVisible": false,
+        "reportActionCount": 0,
+        "authActionLinks": 6,
+        "hashAuthLinks": 0,
+        "tokenTextPrimary": null,
+        "tokenAlouteTextPrimary": "#0f172a",
+        "smallTargets": []
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "width": 390,
+      "route": "/feed",
+      "name": "feed",
+      "metrics": {
+        "title": "Bảng tin — AloUTE",
+        "lang": "vi",
+        "innerWidth": 390,
+        "clientWidth": 390,
+        "scrollWidth": 390,
+        "horizontalOverflow": false,
+        "navbar": {
+          "x": 0,
+          "y": 0,
+          "w": 390,
+          "h": 64,
+          "right": 390,
+          "left": 0
+        },
+        "navbarScrollWidth": 390,
+        "navbarClientWidth": 390,
+        "register": {
+          "x": 311.5,
+          "y": 9.5,
+          "w": 70.5,
+          "h": 44,
+          "right": 382,
+          "left": 311.5
+        },
+        "registerHref": "/register",
+        "login": {
+          "x": 219,
+          "y": 9.5,
+          "w": 86.9,
+          "h": 44,
+          "right": 305.9,
+          "left": 219
+        },
+        "loginHref": "/login",
+        "registerClipped": false,
+        "registerVisible": true,
+        "h1s": [
+          "Bảng tin AloUTE"
+        ],
+        "h1Count": 1,
+        "skipLink": {
+          "href": "#main-content",
+          "text": "Bỏ qua điều hướng đến nội dung chính",
+          "rect": {
+            "x": 8,
+            "y": -100,
+            "w": 299.6,
+            "h": 39.3,
+            "right": 307.6,
+            "left": 8
+          }
+        },
+        "mainPresent": true,
+        "composerVisible": false,
+        "replyFormVisible": false,
+        "reportActionCount": 0,
+        "authActionLinks": 6,
+        "hashAuthLinks": 0,
+        "tokenTextPrimary": null,
+        "tokenAlouteTextPrimary": "#0f172a",
+        "smallTargets": []
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "width": 390,
+      "route": "/search?q=hoc-tap",
+      "name": "search",
+      "metrics": {
+        "title": "Tìm kiếm: hoc-tap — AloUTE",
+        "lang": "vi",
+        "innerWidth": 390,
+        "clientWidth": 390,
+        "scrollWidth": 390,
+        "horizontalOverflow": false,
+        "navbar": {
+          "x": 0,
+          "y": 0,
+          "w": 390,
+          "h": 64,
+          "right": 390,
+          "left": 0
+        },
+        "navbarScrollWidth": 390,
+        "navbarClientWidth": 390,
+        "register": {
+          "x": 311.5,
+          "y": 9.5,
+          "w": 70.5,
+          "h": 44,
+          "right": 382,
+          "left": 311.5
+        },
+        "registerHref": "/register",
+        "login": {
+          "x": 219,
+          "y": 9.5,
+          "w": 86.9,
+          "h": 44,
+          "right": 305.9,
+          "left": 219
+        },
+        "loginHref": "/login",
+        "registerClipped": false,
+        "registerVisible": true,
+        "h1s": [
+          "Tìm kiếm trên AloUTE"
+        ],
+        "h1Count": 1,
+        "skipLink": {
+          "href": "#main-content",
+          "text": "Bỏ qua điều hướng đến nội dung chính",
+          "rect": {
+            "x": 8,
+            "y": -100,
+            "w": 299.6,
+            "h": 39.3,
+            "right": 307.6,
+            "left": 8
+          }
+        },
+        "mainPresent": true,
+        "composerVisible": false,
+        "replyFormVisible": false,
+        "reportActionCount": 0,
+        "authActionLinks": 6,
+        "hashAuthLinks": 0,
+        "tokenTextPrimary": null,
+        "tokenAlouteTextPrimary": "#0f172a",
+        "smallTargets": []
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "width": 390,
+      "route": "/posts/1",
+      "name": "post-detail",
+      "metrics": {
+        "title": "Chi tiết bài viết — AloUTE",
+        "lang": "vi",
+        "innerWidth": 390,
+        "clientWidth": 390,
+        "scrollWidth": 390,
+        "horizontalOverflow": false,
+        "navbar": {
+          "x": 0,
+          "y": 0,
+          "w": 390,
+          "h": 64,
+          "right": 390,
+          "left": 0
+        },
+        "navbarScrollWidth": 390,
+        "navbarClientWidth": 390,
+        "register": {
+          "x": 311.5,
+          "y": 9.5,
+          "w": 70.5,
+          "h": 44,
+          "right": 382,
+          "left": 311.5
+        },
+        "registerHref": "/register",
+        "login": {
+          "x": 219,
+          "y": 9.5,
+          "w": 86.9,
+          "h": 44,
+          "right": 305.9,
+          "left": 219
+        },
+        "loginHref": "/login",
+        "registerClipped": false,
+        "registerVisible": true,
+        "h1s": [
+          "Chi tiết bài viết"
+        ],
+        "h1Count": 1,
+        "skipLink": {
+          "href": "#main-content",
+          "text": "Bỏ qua điều hướng đến nội dung chính",
+          "rect": {
+            "x": 8,
+            "y": -100,
+            "w": 299.6,
+            "h": 39.3,
+            "right": 307.6,
+            "left": 8
+          }
+        },
+        "mainPresent": true,
+        "composerVisible": false,
+        "replyFormVisible": false,
+        "reportActionCount": 0,
+        "authActionLinks": 6,
+        "hashAuthLinks": 0,
+        "tokenTextPrimary": null,
+        "tokenAlouteTextPrimary": "#0f172a",
+        "smallTargets": []
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "width": 768,
+      "route": "/feed",
+      "name": "feed",
+      "metrics": {
+        "title": "Bảng tin — AloUTE",
+        "lang": "vi",
+        "innerWidth": 768,
+        "clientWidth": 768,
+        "scrollWidth": 768,
+        "horizontalOverflow": false,
+        "navbar": {
+          "x": 0,
+          "y": 0,
+          "w": 768,
+          "h": 64,
+          "right": 768,
+          "left": 0
+        },
+        "navbarScrollWidth": 768,
+        "navbarClientWidth": 768,
+        "register": {
+          "x": 681.5,
+          "y": 9.5,
+          "w": 70.5,
+          "h": 44,
+          "right": 752,
+          "left": 681.5
+        },
+        "registerHref": "/register",
+        "login": {
+          "x": 586.6,
+          "y": 9.5,
+          "w": 86.9,
+          "h": 44,
+          "right": 673.5,
+          "left": 586.6
+        },
+        "loginHref": "/login",
+        "registerClipped": false,
+        "registerVisible": true,
+        "h1s": [
+          "Bảng tin AloUTE"
+        ],
+        "h1Count": 1,
+        "skipLink": {
+          "href": "#main-content",
+          "text": "Bỏ qua điều hướng đến nội dung chính",
+          "rect": {
+            "x": 8,
+            "y": -100,
+            "w": 299.6,
+            "h": 39.3,
+            "right": 307.6,
+            "left": 8
+          }
+        },
+        "mainPresent": true,
+        "composerVisible": false,
+        "replyFormVisible": false,
+        "reportActionCount": 0,
+        "authActionLinks": 6,
+        "hashAuthLinks": 0,
+        "tokenTextPrimary": null,
+        "tokenAlouteTextPrimary": "#0f172a",
+        "smallTargets": []
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "width": 768,
+      "route": "/search?q=hoc-tap",
+      "name": "search",
+      "metrics": {
+        "title": "Tìm kiếm: hoc-tap — AloUTE",
+        "lang": "vi",
+        "innerWidth": 768,
+        "clientWidth": 768,
+        "scrollWidth": 768,
+        "horizontalOverflow": false,
+        "navbar": {
+          "x": 0,
+          "y": 0,
+          "w": 768,
+          "h": 64,
+          "right": 768,
+          "left": 0
+        },
+        "navbarScrollWidth": 768,
+        "navbarClientWidth": 768,
+        "register": {
+          "x": 681.5,
+          "y": 9.5,
+          "w": 70.5,
+          "h": 44,
+          "right": 752,
+          "left": 681.5
+        },
+        "registerHref": "/register",
+        "login": {
+          "x": 586.6,
+          "y": 9.5,
+          "w": 86.9,
+          "h": 44,
+          "right": 673.5,
+          "left": 586.6
+        },
+        "loginHref": "/login",
+        "registerClipped": false,
+        "registerVisible": true,
+        "h1s": [
+          "Tìm kiếm trên AloUTE"
+        ],
+        "h1Count": 1,
+        "skipLink": {
+          "href": "#main-content",
+          "text": "Bỏ qua điều hướng đến nội dung chính",
+          "rect": {
+            "x": 8,
+            "y": -100,
+            "w": 299.6,
+            "h": 39.3,
+            "right": 307.6,
+            "left": 8
+          }
+        },
+        "mainPresent": true,
+        "composerVisible": false,
+        "replyFormVisible": false,
+        "reportActionCount": 0,
+        "authActionLinks": 6,
+        "hashAuthLinks": 0,
+        "tokenTextPrimary": null,
+        "tokenAlouteTextPrimary": "#0f172a",
+        "smallTargets": []
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "width": 768,
+      "route": "/posts/1",
+      "name": "post-detail",
+      "metrics": {
+        "title": "Chi tiết bài viết — AloUTE",
+        "lang": "vi",
+        "innerWidth": 768,
+        "clientWidth": 768,
+        "scrollWidth": 768,
+        "horizontalOverflow": false,
+        "navbar": {
+          "x": 0,
+          "y": 0,
+          "w": 768,
+          "h": 64,
+          "right": 768,
+          "left": 0
+        },
+        "navbarScrollWidth": 768,
+        "navbarClientWidth": 768,
+        "register": {
+          "x": 681.5,
+          "y": 9.5,
+          "w": 70.5,
+          "h": 44,
+          "right": 752,
+          "left": 681.5
+        },
+        "registerHref": "/register",
+        "login": {
+          "x": 586.6,
+          "y": 9.5,
+          "w": 86.9,
+          "h": 44,
+          "right": 673.5,
+          "left": 586.6
+        },
+        "loginHref": "/login",
+        "registerClipped": false,
+        "registerVisible": true,
+        "h1s": [
+          "Chi tiết bài viết"
+        ],
+        "h1Count": 1,
+        "skipLink": {
+          "href": "#main-content",
+          "text": "Bỏ qua điều hướng đến nội dung chính",
+          "rect": {
+            "x": 8,
+            "y": -100,
+            "w": 299.6,
+            "h": 39.3,
+            "right": 307.6,
+            "left": 8
+          }
+        },
+        "mainPresent": true,
+        "composerVisible": false,
+        "replyFormVisible": false,
+        "reportActionCount": 0,
+        "authActionLinks": 6,
+        "hashAuthLinks": 0,
+        "tokenTextPrimary": null,
+        "tokenAlouteTextPrimary": "#0f172a",
+        "smallTargets": []
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "width": 1440,
+      "route": "/feed",
+      "name": "feed",
+      "metrics": {
+        "title": "Bảng tin — AloUTE",
+        "lang": "vi",
+        "innerWidth": 1440,
+        "clientWidth": 1440,
+        "scrollWidth": 1440,
+        "horizontalOverflow": false,
+        "navbar": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 64,
+          "right": 1440,
+          "left": 0
+        },
+        "navbarScrollWidth": 1440,
+        "navbarClientWidth": 1440,
+        "register": {
+          "x": 1353.5,
+          "y": 9.5,
+          "w": 70.5,
+          "h": 44,
+          "right": 1424,
+          "left": 1353.5
+        },
+        "registerHref": "/register",
+        "login": {
+          "x": 1258.6,
+          "y": 9.5,
+          "w": 86.9,
+          "h": 44,
+          "right": 1345.5,
+          "left": 1258.6
+        },
+        "loginHref": "/login",
+        "registerClipped": false,
+        "registerVisible": true,
+        "h1s": [
+          "Bảng tin AloUTE"
+        ],
+        "h1Count": 1,
+        "skipLink": {
+          "href": "#main-content",
+          "text": "Bỏ qua điều hướng đến nội dung chính",
+          "rect": {
+            "x": 8,
+            "y": -100,
+            "w": 299.6,
+            "h": 39.3,
+            "right": 307.6,
+            "left": 8
+          }
+        },
+        "mainPresent": true,
+        "composerVisible": false,
+        "replyFormVisible": false,
+        "reportActionCount": 0,
+        "authActionLinks": 6,
+        "hashAuthLinks": 0,
+        "tokenTextPrimary": null,
+        "tokenAlouteTextPrimary": "#0f172a",
+        "smallTargets": []
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "width": 1440,
+      "route": "/search?q=hoc-tap",
+      "name": "search",
+      "metrics": {
+        "title": "Tìm kiếm: hoc-tap — AloUTE",
+        "lang": "vi",
+        "innerWidth": 1440,
+        "clientWidth": 1440,
+        "scrollWidth": 1440,
+        "horizontalOverflow": false,
+        "navbar": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 64,
+          "right": 1440,
+          "left": 0
+        },
+        "navbarScrollWidth": 1440,
+        "navbarClientWidth": 1440,
+        "register": {
+          "x": 1353.5,
+          "y": 9.5,
+          "w": 70.5,
+          "h": 44,
+          "right": 1424,
+          "left": 1353.5
+        },
+        "registerHref": "/register",
+        "login": {
+          "x": 1258.6,
+          "y": 9.5,
+          "w": 86.9,
+          "h": 44,
+          "right": 1345.5,
+          "left": 1258.6
+        },
+        "loginHref": "/login",
+        "registerClipped": false,
+        "registerVisible": true,
+        "h1s": [
+          "Tìm kiếm trên AloUTE"
+        ],
+        "h1Count": 1,
+        "skipLink": {
+          "href": "#main-content",
+          "text": "Bỏ qua điều hướng đến nội dung chính",
+          "rect": {
+            "x": 8,
+            "y": -100,
+            "w": 299.6,
+            "h": 39.3,
+            "right": 307.6,
+            "left": 8
+          }
+        },
+        "mainPresent": true,
+        "composerVisible": false,
+        "replyFormVisible": false,
+        "reportActionCount": 0,
+        "authActionLinks": 6,
+        "hashAuthLinks": 0,
+        "tokenTextPrimary": null,
+        "tokenAlouteTextPrimary": "#0f172a",
+        "smallTargets": []
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "width": 1440,
+      "route": "/posts/1",
+      "name": "post-detail",
+      "metrics": {
+        "title": "Chi tiết bài viết — AloUTE",
+        "lang": "vi",
+        "innerWidth": 1440,
+        "clientWidth": 1440,
+        "scrollWidth": 1440,
+        "horizontalOverflow": false,
+        "navbar": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 64,
+          "right": 1440,
+          "left": 0
+        },
+        "navbarScrollWidth": 1440,
+        "navbarClientWidth": 1440,
+        "register": {
+          "x": 1353.5,
+          "y": 9.5,
+          "w": 70.5,
+          "h": 44,
+          "right": 1424,
+          "left": 1353.5
+        },
+        "registerHref": "/register",
+        "login": {
+          "x": 1258.6,
+          "y": 9.5,
+          "w": 86.9,
+          "h": 44,
+          "right": 1345.5,
+          "left": 1258.6
+        },
+        "loginHref": "/login",
+        "registerClipped": false,
+        "registerVisible": true,
+        "h1s": [
+          "Chi tiết bài viết"
+        ],
+        "h1Count": 1,
+        "skipLink": {
+          "href": "#main-content",
+          "text": "Bỏ qua điều hướng đến nội dung chính",
+          "rect": {
+            "x": 8,
+            "y": -100,
+            "w": 299.6,
+            "h": 39.3,
+            "right": 307.6,
+            "left": 8
+          }
+        },
+        "mainPresent": true,
+        "composerVisible": false,
+        "replyFormVisible": false,
+        "reportActionCount": 0,
+        "authActionLinks": 6,
+        "hashAuthLinks": 0,
+        "tokenTextPrimary": null,
+        "tokenAlouteTextPrimary": "#0f172a",
+        "smallTargets": []
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    }
+  ]
+}
