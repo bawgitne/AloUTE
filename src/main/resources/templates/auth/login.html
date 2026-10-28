@@ -24,6 +24,16 @@
             <span>Bạn đã đăng xuất thành công khỏi hệ thống.</span>
         </div>
 
+        <div th:if="${param.deactivated != null}" class="alert alert-success py-2 small mb-3" role="status">
+            <i class="bi bi-check-circle me-1" aria-hidden="true"></i>
+            <span>Tài khoản đã được vô hiệu hóa. Liên hệ ban quản trị nếu bạn muốn mở lại tài khoản.</span>
+        </div>
+
+        <div th:if="${param.expired != null}" class="alert alert-warning py-2 small mb-3" role="status">
+            <i class="bi bi-clock-history me-1" aria-hidden="true"></i>
+            <span>Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục.</span>
+        </div>
+
         <!-- Step 1: Credentials Section -->
         <div id="login-credentials-section">
             <!-- Email Field -->
