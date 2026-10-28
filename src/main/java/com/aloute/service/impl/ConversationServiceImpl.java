@@ -42,9 +42,22 @@ public class ConversationServiceImpl implements ConversationService {
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
     private final ProfileRepository profileRepository;
+    private final com.aloute.repository.BlockRepository blockRepository;
 
     @Autowired(required = false)
     private SimpMessagingTemplate messagingTemplate;
+
+    /**
+     * BL-11: a two-way block relationship is a business-permission input for
+     * direct messaging (domain §6.2). Applies to both directions so neither
+     * party can open or continue a DIRECT conversation across a block.
+     */
+    private void requireNoBlockBetween(Long a, Long b) {
+        if (blockRepository.existsByBlockerIdAndBlockedId(a, b)
+                || blockRepository.existsByBlockerIdAndBlockedId(b, a)) {
+            throw new ApiException(com.aloute.common.exception.ErrorCode.BLOCKED_BY_RELATIONSHIP);
+        }
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -91,10 +104,21 @@ public class ConversationServiceImpl implements ConversationService {
             memberIdSet.add(targetUserId);
         }
 
-        if (type == ConversationType.DIRECT && targetUserId != null) {
+        if (type == ConversationType.DIRECT) {
+            if (targetUserId == null) {
+                throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "VALIDATION_FAILED",
+                        "Direct conversations require exactly one other participant");
+            }
+            // BL-11: DIRECT is exactly two participants; a memberIds payload with
+            // extra users must not silently become a multi-member "direct" room.
+            if (memberIdSet.size() > 2) {
+                throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "VALIDATION_FAILED",
+                        "Direct conversations allow exactly two participants; use GROUP instead");
+            }
             if (targetUserId.equals(currentUserId)) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "Cannot create a direct conversation with yourself");
             }
+            requireNoBlockBetween(currentUserId, targetUserId);
             var existing = conversationRepository.findDirectConversationBetween(currentUserId, targetUserId);
             if (existing.isPresent()) {
                 return mapToConversationResponse(existing.get(), currentUserId);
@@ -142,6 +166,18 @@ public class ConversationServiceImpl implements ConversationService {
 
         Conversation conv = conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "CONVERSATION_NOT_FOUND", "Conversation not found"));
+
+        // BL-11: a block created after the conversation exists still stops direct messages.
+        if (conv.getType() == ConversationType.DIRECT) {
+            Long otherUserId = conv.getMembers().stream()
+                    .map(m -> m.getUser() != null ? m.getUser().getId() : null)
+                    .filter(id -> id != null && !id.equals(currentUserId))
+                    .findFirst()
+                    .orElse(null);
+            if (otherUserId != null) {
+                requireNoBlockBetween(currentUserId, otherUserId);
+            }
+        }
 
         User sender = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found"));
