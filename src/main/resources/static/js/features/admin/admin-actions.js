@@ -732,6 +732,129 @@
         });
     }
 
+    // User Moderation: Suspend / Reactivate
+    function initUserModerationModal() {
+        const modal = document.getElementById('adminUserModerationModal');
+        if (!modal) return;
+
+        const form = document.getElementById('adminUserModerationForm');
+        const submitBtn = document.getElementById('btnConfirmUserModeration');
+        const errorAlert = document.getElementById('userModerationErrorAlert');
+        let inFlight = false;
+        let moderation = null; // { userId, mode: 'suspend' | 'reactivate' }
+
+        function openModeration(btn, mode) {
+            moderation = {
+                userId: btn.getAttribute('data-user-id'),
+                mode: mode
+            };
+            const name = btn.getAttribute('data-user-name') || '';
+            form.reset();
+            if (errorAlert) {
+                errorAlert.classList.add('d-none');
+                errorAlert.textContent = '';
+            }
+            const nameEl = document.getElementById('userModerationTargetName');
+            if (nameEl) nameEl.textContent = name;
+            const idEl = document.getElementById('userModerationTargetId');
+            if (idEl) idEl.textContent = '# ' + moderation.userId;
+
+            const isSuspend = mode === 'suspend';
+            const title = document.getElementById('userModerationModalTitle');
+            if (title) title.textContent = isSuspend ? 'Đình chỉ tài khoản' : 'Kích hoạt lại tài khoản';
+            const hint = document.getElementById('userModerationHint');
+            if (hint) {
+                hint.textContent = isSuspend
+                    ? 'Tài khoản sẽ bị đình chỉ và mọi phiên đăng nhập hiện tại bị thu hồi ngay lập tức.'
+                    : 'Tài khoản sẽ được hoạt động trở lại; người dùng cần đăng nhập lại.';
+            }
+            const label = document.getElementById('btnConfirmUserModerationLabel');
+            if (label) label.textContent = isSuspend ? 'Xác nhận đình chỉ' : 'Xác nhận kích hoạt';
+            if (submitBtn) {
+                submitBtn.classList.toggle('btn-danger', isSuspend);
+                submitBtn.classList.toggle('btn-success', !isSuspend);
+            }
+            const counterEl = document.getElementById('userModerationReasonCounter');
+            if (counterEl) counterEl.textContent = '0 / 1000 (Tối thiểu 10 ký tự)';
+
+            if (window.bootstrap && window.bootstrap.Modal) {
+                window.bootstrap.Modal.getOrCreateInstance(modal).show();
+            }
+        }
+
+        document.querySelectorAll('[data-action="open-user-suspend"]').forEach(function (btn) {
+            btn.addEventListener('click', function () { openModeration(btn, 'suspend'); });
+        });
+        document.querySelectorAll('[data-action="open-user-reactivate"]').forEach(function (btn) {
+            btn.addEventListener('click', function () { openModeration(btn, 'reactivate'); });
+        });
+
+        if (!form) return;
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            if (inFlight || !moderation) return;
+
+            const reasonCode = document.getElementById('userModerationReasonCode').value;
+            const reasonDetail = document.getElementById('userModerationReasonDetail').value.trim();
+
+            if (!reasonCode) {
+                if (errorAlert) {
+                    errorAlert.textContent = 'Vui lòng chọn danh mục lý do.';
+                    errorAlert.classList.remove('d-none');
+                }
+                return;
+            }
+            if (reasonDetail.length < 10 || reasonDetail.length > 1000) {
+                if (errorAlert) {
+                    errorAlert.textContent = 'Chi tiết lý do bắt buộc từ 10 đến 1000 ký tự.';
+                    errorAlert.classList.remove('d-none');
+                }
+                return;
+            }
+
+            inFlight = true;
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Đang xử lý...';
+            }
+            if (errorAlert) errorAlert.classList.add('d-none');
+
+            try {
+                const endpoint = '/api/admin/users/' + moderation.userId + (moderation.mode === 'suspend' ? '/suspend' : '/reactivate');
+                const response = await window.alouteHttp.request(endpoint, {
+                    method: 'POST',
+                    body: { reasonCode: reasonCode, reasonDetail: reasonDetail }
+                });
+                const json = await window.alouteHttp.readJson(response);
+                if (response.ok && json && json.success) {
+                    showToast(moderation.mode === 'suspend' ? 'Đã đình chỉ tài khoản thành công.' : 'Đã kích hoạt lại tài khoản thành công.', 'success');
+                    setTimeout(function () { window.location.reload(); }, 600);
+                } else {
+                    const errMsg = extractErrorMessage(json, response.status);
+                    if (errorAlert) {
+                        errorAlert.textContent = errMsg;
+                        errorAlert.classList.remove('d-none');
+                    }
+                    inFlight = false;
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = moderation.mode === 'suspend' ? 'Xác nhận đình chỉ' : 'Xác nhận kích hoạt';
+                    }
+                }
+            } catch (err) {
+                if (errorAlert) {
+                    errorAlert.textContent = 'Lỗi kết nối mạng: Không thể gửi yêu cầu xử lý tài khoản.';
+                    errorAlert.classList.remove('d-none');
+                }
+                inFlight = false;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = moderation.mode === 'suspend' ? 'Xác nhận đình chỉ' : 'Xác nhận kích hoạt';
+                }
+            }
+        });
+    }
+
     // Initialize all modules on DOM ready
     function init() {
         formatUtcDates();
@@ -741,6 +864,7 @@
         initReportStartReview();
         initReportDecisionModal();
         initModerationActionDetailModal();
+        initUserModerationModal();
         initFilterFormReset();
         initLogout();
     }

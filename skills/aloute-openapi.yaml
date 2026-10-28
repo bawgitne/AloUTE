@@ -2131,6 +2131,78 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/admin/users/{userId}/suspend:
+    post:
+      tags: [Admin]
+      summary: Suspend a user account (SYSTEM_ADMIN only)
+      description: |
+        Sets the account inactive, revokes every outstanding session (auth version bump)
+        and records a USER_SUSPEND moderation action. Refused for the acting admin's own
+        account, for the last remaining SYSTEM_ADMIN, and when the account is already
+        suspended (409).
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserModerationRequest'
+      responses:
+        '200':
+          description: Account suspended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserModerationActionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Self-suspension, last-admin protection, or already suspended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/admin/users/{userId}/reactivate:
+    post:
+      tags: [Admin]
+      summary: Reactivate a suspended user account (SYSTEM_ADMIN only)
+      description: |
+        Restores the active flag, forces a fresh sign-in (auth version bump) and records
+        a USER_REACTIVATE moderation action. Refused when the account is already active (409).
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserModerationRequest'
+      responses:
+        '200':
+          description: Account reactivated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserModerationActionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Account already active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
   /api/admin/users/{userId}/posts:
     get:
       tags: [Admin]
@@ -4640,6 +4712,50 @@ components:
           const: true
         data:
           $ref: '#/components/schemas/AdminUserDetailResponse'
+        meta:
+          type: 'null'
+
+    AdminUserModerationRequest:
+      type: object
+      required: [reasonCode, reasonDetail]
+      properties:
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        reasonDetail:
+          type: string
+          minLength: 10
+          maxLength: 1000
+
+    AdminUserModerationActionResponse:
+      type: object
+      required: [actionId, userId, active, actionType, reasonCode, occurredAt]
+      properties:
+        actionId:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        active:
+          type: boolean
+        actionType:
+          type: string
+          enum: [USER_SUSPEND, USER_REACTIVATE]
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        occurredAt:
+          type: string
+          format: date-time
+
+    AdminUserModerationActionEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/AdminUserModerationActionResponse'
         meta:
           type: 'null'
 
