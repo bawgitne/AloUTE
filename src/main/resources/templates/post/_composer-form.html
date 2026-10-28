@@ -44,6 +44,29 @@
             </select>
         </div>
 
+        <!-- Topic Tagging (optional, POST /api/posts with CreatePostRequest.topicIds) -->
+        <div class="mb-3" id="post-topic-picker">
+            <label for="topic-search-input" class="form-label fw-semibold small">Chủ đề</label>
+            <div id="post-topic-chips" class="d-flex flex-wrap gap-1 mb-2"></div>
+            <div class="position-relative">
+                <input type="text"
+                       class="form-control form-control-sm"
+                       id="topic-search-input"
+                       placeholder="Tìm chủ đề (ví dụ: học tập, sự kiện...)"
+                       autocomplete="off"
+                       maxlength="60"
+                       aria-controls="post-topic-suggestions"
+                       aria-expanded="false">
+                <div id="post-topic-suggestions"
+                     class="list-group position-absolute w-100 shadow-sm d-none"
+                     role="listbox"
+                     aria-label="Gợi ý chủ đề"
+                     style="z-index: 1080; max-height: 220px; overflow-y: auto;"></div>
+            </div>
+            <div class="form-text small text-muted">Chọn tối đa 5 chủ đề để bài viết dễ được tìm thấy hơn.</div>
+            <div id="post-topic-status" class="small text-danger mt-1 d-none" role="alert"></div>
+        </div>
+
         <!-- Media Attachments (Supported via POST /api/media) -->
         <div class="mb-3">
             <div class="d-flex align-items-center justify-content-between mb-2">

@@ -87,6 +87,174 @@
         const statusBox = document.getElementById('create-post-status');
         const contentError = document.getElementById('post-content-error');
 
+        // =====================================================================
+        // Topic tagging: optional multi-select backed by GET /api/topics.
+        // Selected topic ids travel as CreatePostRequest.topicIds. The picker is
+        // absent on reply forms, so every element lookup stays guarded.
+        // =====================================================================
+        const TOPIC_MAX = 5;
+        const topicSearchInput = document.getElementById('topic-search-input');
+        const topicSuggestions = document.getElementById('post-topic-suggestions');
+        const topicChips = document.getElementById('post-topic-chips');
+        const topicStatus = document.getElementById('post-topic-status');
+        const selectedTopics = [];
+        let topicCatalog = null;
+        let topicCatalogPromise = null;
+
+        function setTopicStatus(message) {
+            if (!topicStatus) return;
+            if (!message) {
+                topicStatus.classList.add('d-none');
+                topicStatus.textContent = '';
+                return;
+            }
+            topicStatus.textContent = message;
+            topicStatus.classList.remove('d-none');
+        }
+
+        function isTopicSelected(topicId) {
+            return selectedTopics.some(function (t) { return String(t.id) === String(topicId); });
+        }
+
+        function renderTopicChips() {
+            if (!topicChips) return;
+            topicChips.textContent = '';
+            selectedTopics.forEach(function (topic) {
+                const chip = document.createElement('span');
+                chip.className = 'badge rounded-pill bg-primary-subtle text-primary-emphasis border border-primary-subtle d-inline-flex align-items-center gap-1';
+                chip.setAttribute('data-topic-id', topic.id);
+                const label = document.createElement('span');
+                label.textContent = '#' + topic.name;
+                chip.appendChild(label);
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'btn btn-sm p-0 border-0 text-primary-emphasis';
+                remove.setAttribute('aria-label', 'Bỏ chủ đề ' + topic.name);
+                remove.setAttribute('data-remove-topic', String(topic.id));
+                remove.innerHTML = '<i class="bi bi-x-lg" aria-hidden="true"></i>';
+                chip.appendChild(remove);
+                topicChips.appendChild(chip);
+            });
+        }
+
+        function addTopic(topic) {
+            if (!topic || topic.id == null) return;
+            if (isTopicSelected(topic.id)) { setTopicStatus(null); return; }
+            if (selectedTopics.length >= TOPIC_MAX) {
+                setTopicStatus('Chỉ được chọn tối đa ' + TOPIC_MAX + ' chủ đề.');
+                return;
+            }
+            selectedTopics.push({ id: topic.id, name: topic.name });
+            setTopicStatus(null);
+            renderTopicChips();
+        }
+
+        function removeTopic(topicId) {
+            const idx = selectedTopics.findIndex(function (t) { return String(t.id) === String(topicId); });
+            if (idx >= 0) selectedTopics.splice(idx, 1);
+            setTopicStatus(null);
+            renderTopicChips();
+        }
+
+        function hideTopicSuggestions() {
+            if (!topicSuggestions) return;
+            topicSuggestions.classList.add('d-none');
+            topicSuggestions.textContent = '';
+            if (topicSearchInput) topicSearchInput.setAttribute('aria-expanded', 'false');
+        }
+
+        function loadTopicCatalog() {
+            if (topicCatalog) return Promise.resolve(topicCatalog);
+            if (topicCatalogPromise) return topicCatalogPromise;
+            topicCatalogPromise = fetch('/api/topics?size=100', {
+                method: 'GET',
+                credentials: 'include',
+                headers: { 'Accept': 'application/json' }
+            }).then(function (res) {
+                if (!res.ok) throw new Error('topic list unavailable');
+                return res.json();
+            }).then(function (body) {
+                const data = body && Array.isArray(body.data) ? body.data : [];
+                topicCatalog = data.filter(function (t) { return t && t.id != null && t.name; });
+                topicCatalogPromise = null;
+                return topicCatalog;
+            }).catch(function () {
+                topicCatalogPromise = null;
+                setTopicStatus('Không tải được danh sách chủ đề. Bạn vẫn có thể đăng bài mà không gắn chủ đề.');
+                return [];
+            });
+            return topicCatalogPromise;
+        }
+
+        function renderTopicSuggestions(term) {
+            if (!topicSuggestions) return;
+            const needle = (term || '').trim().toLowerCase();
+            const pool = (topicCatalog || []).filter(function (t) { return !isTopicSelected(t.id); });
+            const matches = (needle
+                ? pool.filter(function (t) {
+                    return String(t.name).toLowerCase().includes(needle)
+                        || String(t.slug || '').toLowerCase().includes(needle);
+                })
+                : pool
+            ).slice(0, 12);
+
+            topicSuggestions.textContent = '';
+            if (matches.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'list-group-item small text-muted';
+                empty.textContent = needle ? 'Không tìm thấy chủ đề phù hợp.' : 'Không còn chủ đề để chọn.';
+                topicSuggestions.appendChild(empty);
+                topicSuggestions.classList.remove('d-none');
+                if (topicSearchInput) topicSearchInput.setAttribute('aria-expanded', 'true');
+                return;
+            }
+            matches.forEach(function (topic) {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'list-group-item list-group-item-action py-2';
+                item.setAttribute('role', 'option');
+                item.setAttribute('data-topic-option-id', String(topic.id));
+                item.textContent = '#' + topic.name;
+                topicSuggestions.appendChild(item);
+            });
+            topicSuggestions.classList.remove('d-none');
+            if (topicSearchInput) topicSearchInput.setAttribute('aria-expanded', 'true');
+        }
+
+        if (topicSearchInput && topicSuggestions) {
+            topicSearchInput.addEventListener('focus', function () {
+                loadTopicCatalog().then(function () { renderTopicSuggestions(topicSearchInput.value); });
+            });
+            topicSearchInput.addEventListener('input', function () {
+                loadTopicCatalog().then(function () { renderTopicSuggestions(topicSearchInput.value); });
+            });
+            topicSearchInput.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') { hideTopicSuggestions(); }
+            });
+            topicSuggestions.addEventListener('click', function (event) {
+                const option = event.target instanceof Element
+                    ? event.target.closest('[data-topic-option-id]') : null;
+                if (!option) return;
+                const id = option.getAttribute('data-topic-option-id');
+                const topic = (topicCatalog || []).find(function (t) { return String(t.id) === String(id); });
+                addTopic(topic);
+                if (topicSearchInput) topicSearchInput.value = '';
+                hideTopicSuggestions();
+                if (topicSearchInput) topicSearchInput.focus();
+            });
+            document.addEventListener('click', function (event) {
+                if (event.target instanceof Element && event.target.closest('#post-topic-picker')) return;
+                hideTopicSuggestions();
+            });
+        }
+        if (topicChips) {
+            topicChips.addEventListener('click', function (event) {
+                const btn = event.target instanceof Element ? event.target.closest('[data-remove-topic]') : null;
+                if (!btn) return;
+                removeTopic(btn.getAttribute('data-remove-topic'));
+            });
+        }
+
         function updateSubmitButtonState() {
             if (!submitBtn) return;
             if (isSubmitting) {
@@ -212,6 +380,14 @@
                 allowQuoteInput.checked = draft.allowQuote;
             }
             restorePollDraftState(draft.poll);
+            if (Array.isArray(draft.topics)) {
+                draft.topics.forEach(function (t) {
+                    if (t && t.id != null && t.name && !isTopicSelected(t.id) && selectedTopics.length < TOPIC_MAX) {
+                        selectedTopics.push({ id: t.id, name: t.name });
+                    }
+                });
+                renderTopicChips();
+            }
             updateCharCount();
             updateSubmitButtonState();
             showDraftNotice(draft.savedAt);
@@ -283,6 +459,7 @@
                     visibility: (visibilitySelect && visibilitySelect.value) || 'PUBLIC',
                     allowReply: allowReplyInput ? allowReplyInput.checked : true,
                     allowQuote: allowQuoteInput ? allowQuoteInput.checked : true,
+                    topics: selectedTopics.map(function (t) { return { id: t.id, name: t.name }; }),
                     poll: collectPollDraftState(),
                     savedAt: Date.now()
                 };
@@ -847,6 +1024,10 @@
 
             if (pollResult.poll) {
                 payload.poll = pollResult.poll;
+            }
+
+            if (selectedTopics.length > 0) {
+                payload.topicIds = selectedTopics.map(function (t) { return t.id; });
             }
 
             // Loading state: disable button to prevent duplicate submissions
