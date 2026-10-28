@@ -476,6 +476,13 @@ p {
   color: var(--aloute-text-muted);
 }
 
+.post-card a.text-reset[data-page="user-profile"],
+.post-timestamp {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+}
+
 .post-badge {
   font-size: 0.7rem;
   padding: 0.15rem 0.4rem;
@@ -581,7 +588,7 @@ p {
 }
 
 .interaction-btn-like.is-active {
-  color: var(--aloute-danger);
+  color: var(--aloute-danger-emphasis);
   background-color: var(--aloute-danger-bg);
 }
 

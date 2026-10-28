@@ -642,9 +642,9 @@ describe('AloUTE Real Notification Module Integration (notification.js)', () => 
     describe('Valid Unread Counts (0, 99, >99, MAX_SAFE_INTEGER)', () => {
         const testCases = [
             { count: 0, expectedText: '0', isHidden: true, badgeLabel: 'Không có thông báo mới', parentLabel: 'Thông báo' },
-            { count: 99, expectedText: '99', isHidden: false, badgeLabel: '99 thông báo chưa đọc', parentLabel: 'Thông báo (99 chưa đọc)' },
-            { count: 100, expectedText: '99+', isHidden: false, badgeLabel: 'Hơn 99 thông báo chưa đọc', parentLabel: 'Thông báo (99+ chưa đọc)' },
-            { count: Number.MAX_SAFE_INTEGER, expectedText: '99+', isHidden: false, badgeLabel: 'Hơn 99 thông báo chưa đọc', parentLabel: 'Thông báo (99+ chưa đọc)' }
+            { count: 99, expectedText: '99', isHidden: false, badgeLabel: '99 thông báo chưa đọc', parentLabel: 'Thông báo 99 chưa đọc' },
+            { count: 100, expectedText: '99+', isHidden: false, badgeLabel: 'Hơn 99 thông báo chưa đọc', parentLabel: 'Thông báo 99+ chưa đọc' },
+            { count: Number.MAX_SAFE_INTEGER, expectedText: '99+', isHidden: false, badgeLabel: 'Hơn 99 thông báo chưa đọc', parentLabel: 'Thông báo 99+ chưa đọc' }
         ];
 
         for (const tc of testCases) {

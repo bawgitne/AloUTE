@@ -511,7 +511,7 @@
         const num = raw;
         const text = num > 99 ? '99+' : String(num);
         const isHidden = num <= 0;
-        const parentLabel = num <= 0 ? 'Thông báo' : (num > 99 ? 'Thông báo (Hơn 99 thông báo chưa đọc)' : 'Thông báo (' + num + ' thông báo chưa đọc)');
+        const parentLabel = num <= 0 ? 'Thông báo' : (num > 99 ? 'Thông báo hơn 99 chưa đọc' : 'Thông báo ' + num + ' chưa đọc');
         const badgeLabel = num <= 0 ? 'Không có thông báo mới' : (num > 99 ? 'Hơn 99 thông báo chưa đọc' : (num + ' thông báo chưa đọc'));
 
         if (badgeUnread) {
@@ -524,7 +524,7 @@
         const navBadges = document.querySelectorAll('#navbar-notification-badge, .navbar-notification-badge');
         navBadges.forEach(function (badge) {
             badge.textContent = isHidden ? '0' : text;
-            badge.setAttribute('aria-label', badgeLabel);
+            badge.setAttribute('aria-hidden', 'true');
             if (isHidden) badge.classList.add('d-none');
             else badge.classList.remove('d-none');
             const parentLink = badge.closest('a');
