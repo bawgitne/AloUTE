@@ -1,6 +1,7 @@
 package com.aloute.integration;
 
 import com.aloute.config.DevTestDataInitializer;
+import com.aloute.entity.UserNotificationSetting;
 import com.aloute.entity.ModerationAction;
 import com.aloute.entity.ModerationTargetType;
 import com.aloute.entity.Mute;
@@ -11,6 +12,7 @@ import com.aloute.security.authorization.Role;
 import com.aloute.repository.ModerationActionRepository;
 import com.aloute.repository.MuteRepository;
 import com.aloute.repository.ProfileRepository;
+import com.aloute.repository.UserNotificationSettingRepository;
 import com.aloute.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -55,6 +57,7 @@ class AdminUserAccountManagementIntegrationTest {
     @Autowired private ProfileRepository profileRepository;
     @Autowired private ModerationActionRepository moderationActionRepository;
     @Autowired private MuteRepository muteRepository;
+    @Autowired private UserNotificationSettingRepository notificationSettingRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private TransactionTemplate transactionTemplate;
     @Autowired private ObjectMapper objectMapper;
@@ -367,5 +370,66 @@ class AdminUserAccountManagementIntegrationTest {
                 .andReturn();
         assertThat(objectMapper.readTree(invalidRole.getResponse().getContentAsString())
                 .path("error").path("code").asText()).isEqualTo("BAD_REQUEST");
+    }
+
+    @Test
+    @DisplayName("warning is delivered even when the recipient disabled every notification preference")
+    void warningBypassesNotificationPreferences() throws Exception {
+        User target = createUser("warn_pref");
+        Cookie targetCookie = login(target.getEmail(), PASSWORD);
+        transactionTemplate.executeWithoutResult(status -> notificationSettingRepository.save(
+                UserNotificationSetting.builder()
+                        .user(userRepository.findById(target.getId()).orElseThrow())
+                        .likesEnabled(false)
+                        .commentsEnabled(false)
+                        .followsEnabled(false)
+                        .mentionsEnabled(false)
+                        .build()));
+
+        MvcResult result = warn(adminCookie, target.getId(), ReportReason.SPAM,
+                "Cảnh cáo vi phạm quy định đăng bài viết.");
+        assertThat(result.getResponse().getStatus()).isEqualTo(200);
+        assertThat(objectMapper.readTree(result.getResponse().getContentAsString())
+                .path("data").path("notificationId").asLong()).isPositive();
+
+        boolean found = false;
+        for (JsonNode notification : notifications(targetCookie)) {
+            if ("USER_WARN".equals(notification.path("type").asText())
+                    && notification.path("targetId").asLong() == target.getId()) {
+                found = true;
+            }
+        }
+        assertThat(found)
+                .as("an administrative warning ignores the recipient's preference switches")
+                .isTrue();
+    }
+
+    @Test
+    @DisplayName("role demotion revokes the old JWT and returns the account to USER after fresh login")
+    void roleDemotionRevokesOldJwtAndDropsAuthority() throws Exception {
+        User target = createUser("demote");
+        // Make the target a second active SYSTEM_ADMIN (the seeded admin remains active,
+        // so the invariant is never at risk), then demote through the API.
+        transactionTemplate.executeWithoutResult(status -> {
+            User admin = userRepository.findById(target.getId()).orElseThrow();
+            admin.setRole(Role.SYSTEM_ADMIN);
+            userRepository.save(admin);
+        });
+        Cookie oldTargetCookie = login(target.getEmail(), PASSWORD);
+        mockMvc.perform(get("/api/admin/users").cookie(oldTargetCookie)).andExpect(status().isOk());
+
+        MvcResult demote = changeRole(adminCookie, target.getId(), "USER",
+                "Hạ quyền quản trị viên theo quyết định của ban quản trị.");
+        assertThat(demote.getResponse().getStatus()).isEqualTo(200);
+        JsonNode data = objectMapper.readTree(demote.getResponse().getContentAsString()).path("data");
+        assertThat(data.path("previousRole").asText()).isEqualTo("SYSTEM_ADMIN");
+        assertThat(data.path("newRole").asText()).isEqualTo("USER");
+
+        // The token minted while SYSTEM_ADMIN must fail closed after the authVersion bump.
+        mockMvc.perform(get("/api/admin/users").cookie(oldTargetCookie)).andExpect(status().isUnauthorized());
+
+        // A fresh login yields a plain USER token: admin endpoints refuse with 403 again.
+        Cookie freshCookie = login(target.getEmail(), PASSWORD);
+        mockMvc.perform(get("/api/admin/users").cookie(freshCookie)).andExpect(status().isForbidden());
     }
 }
