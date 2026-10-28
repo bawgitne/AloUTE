@@ -118,10 +118,11 @@ if (Test-Path "$RepoRoot\mvnw.cmd") {
     }
 }
 
-if (-not $env:JAVA_HOME -or -not (Test-Path $env:JAVA_HOME)) {
-    if (Test-Path "C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot") {
-        $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot"
-    }
+if (Test-Path "C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot") {
+    $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot"
+}
+if ($env:JAVA_HOME -and (Test-Path "$env:JAVA_HOME\bin")) {
+    $env:Path = "$env:JAVA_HOME\bin;$env:Path"
 }
 
 if (-not $mvnCmd) {
