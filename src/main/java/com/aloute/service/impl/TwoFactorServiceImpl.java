@@ -84,7 +84,13 @@ public class TwoFactorServiceImpl implements TwoFactorService {
                     "Chưa khởi tạo thiết lập 2FA. Vui lòng bấm quét mã QR trước.");
         }
 
-        String decryptedSecret = twoFactorEncryptionService.decrypt(user.getTwoFactorTempSecret());
+        String decryptedSecret = decryptOrNull(user.getTwoFactorTempSecret());
+        if (decryptedSecret == null) {
+            // A temp secret written under a previous master key can never be
+            // confirmed; the user has to start the setup over.
+            throw new ApiException(HttpStatus.BAD_REQUEST, "AUTH_2FA_SETUP_STALE",
+                    "Thiết lập 2FA đã cũ hoặc không còn giải mã được. Vui lòng bấm quét lại mã QR.");
+        }
         boolean isValid = totpService.verifyCode(decryptedSecret, code);
         if (!isValid) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "AUTH_2FA_INVALID_CODE",
@@ -179,17 +185,21 @@ public class TwoFactorServiceImpl implements TwoFactorService {
         }
 
         boolean codeValid = false;
-        if (user.getTwoFactorSecret() != null) {
-            String decryptedSecret = twoFactorEncryptionService.decrypt(user.getTwoFactorSecret());
+        // A secret encrypted under a previous master key cannot be decrypted. That
+        // must not 500 and must not silently disable 2FA: fall through to the
+        // backup-code and email-OTP proofs, which do not depend on the key.
+        String decryptedSecret = decryptOrNull(user.getTwoFactorSecret());
+        if (decryptedSecret != null) {
             codeValid = totpService.verifyCode(decryptedSecret, code);
         }
 
         if (!codeValid) {
-            // Check backup code
-            String hashed = totpService.hashBackupCode(code);
+            // Check backup code. Codes are stored as salted PBKDF2 (v2) or legacy
+            // unsalted SHA-256, so the stored hash has to be verified, never
+            // re-hashed and compared.
             List<UserBackupCode> unusedCodes = userBackupCodeRepository.findByUserIdAndUsedFalse(userId);
             for (UserBackupCode ubc : unusedCodes) {
-                if (ubc.getCodeHash().equals(hashed)) {
+                if (totpService.verifyBackupCode(code, ubc.getCodeHash())) {
                     codeValid = true;
                     ubc.setUsed(true);
                     ubc.setUsedAt(Instant.now());
@@ -310,18 +320,12 @@ public class TwoFactorServiceImpl implements TwoFactorService {
                 }
             }
         } else {
-            // Try TOTP first
-            if (user.getTwoFactorSecret() != null) {
-                try {
-                    String decryptedSecret = twoFactorEncryptionService.decrypt(user.getTwoFactorSecret());
-                    verified = totpService.verifyCode(decryptedSecret, rawCode);
-                } catch (RuntimeException ex) {
-                    // Key rotation or a corrupted secret must not surface a 500 on the
-                    // login path: treat as unverified; the email-OTP fallback below
-                    // still offers the user a way in.
-                    log.warn("2FA secret decryption failed for user {}; treating as unverified", userId);
-                    verified = false;
-                }
+            // Try TOTP first. A key rotation or a corrupted secret must not surface
+            // a 500 on the login path: treat it as unverified; the email-OTP
+            // fallback below still offers the user a way in.
+            String decryptedSecret = decryptOrNull(user.getTwoFactorSecret());
+            if (decryptedSecret != null) {
+                verified = totpService.verifyCode(decryptedSecret, rawCode);
             }
 
             // If TOTP failed, check fallback email OTP
@@ -483,5 +487,24 @@ public class TwoFactorServiceImpl implements TwoFactorService {
     private User requireUser(Long id) {
         return userRepository.findById(id).orElseThrow(() ->
                 new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Người dùng không tồn tại"));
+    }
+
+    /**
+     * Decrypts a stored TOTP secret, returning {@code null} when it is absent or
+     * unreadable. Unreadable means the row was encrypted under a different master
+     * key (rotation) or is corrupt; callers then fall back to a proof that does not
+     * need the key. The raw secret and the key are never logged.
+     */
+    private String decryptOrNull(String encryptedSecret) {
+        if (encryptedSecret == null || encryptedSecret.isBlank()) {
+            return null;
+        }
+        try {
+            return twoFactorEncryptionService.decrypt(encryptedSecret);
+        } catch (RuntimeException ex) {
+            log.warn("Stored 2FA secret is not decryptable with the configured master key ({})",
+                    ex.getClass().getSimpleName());
+            return null;
+        }
     }
 }
