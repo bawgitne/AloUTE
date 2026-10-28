@@ -1,10 +1,10 @@
 # Báo cáo thu thập ảnh giao diện thực tế (Runtime UI Capture)
 
 **Ngày thực hiện:** 2026-10-20 (giờ máy: 23:29 – 00:20, 20–21/10/2026)
-**Nhánh thực hiện:** `zcode/ui-runtime-capture-20261020`
+**Nhánh thực hiện:** `zcode/ui-runtime-capture-20261020` (tên nhánh lịch sử)
 **Commit baseline:** `4891554b80fd37d0a9544a49770fd88af7534764`
 **Môi trường chạy:** local, profile `dev`, CSDL H2 in-memory (`jdbc:h2:mem:aloutedb`), cổng `8098`
-**Công cụ chụp:** trình duyệt Chromium thật ở viewport 1440×900 — ZCode in-app browser (Playwright surface) cho phần lớn màn hình, `chrome-headless-shell` qua CDP cho màn hình `/friends` bị treo bộ dựng hình
+**Công cụ chụp:** trình duyệt Chromium thật ở viewport 1440×900 — Playwright cho phần lớn màn hình, `chrome-headless-shell` qua CDP cho màn hình `/friends` bị treo bộ dựng hình
 **Tổng số ảnh chụp thành công:** **25**
 
 ---

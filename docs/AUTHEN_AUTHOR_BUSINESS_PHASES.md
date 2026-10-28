@@ -1,10 +1,10 @@
 # ALOUTE — TÀI LIỆU ĐẶC TẢ NGHIỆP VỤ AUTHENTICATION & AUTHORIZATION THEO CÁC PHASE
 
 > **Căn cứ tài liệu chuẩn (Source of Truth):**
-> - Quy tắc Spring Security: [`skills/author_rule.md`](file:///c:/Users/LENOVO/OneDrive/Videos/aloute/skills/author_rule.md)
-> - Quy tắc Nghiệp vụ Domain: [`skills/domain_system.md`](file:///c:/Users/LENOVO/OneDrive/Videos/aloute/skills/domain_system.md)
-> - Kiến trúc hệ thống & ErrorCode: [`skills/system_architecture.md`](file:///c:/Users/LENOVO/OneDrive/Videos/aloute/skills/system_architecture.md)
-> - Hợp đồng API: [`skills/aloute-openapi.yaml`](file:///c:/Users/LENOVO/OneDrive/Videos/aloute/skills/aloute-openapi.yaml)
+> - Quy tắc Spring Security: [`skills/author_rule.md`](../skills/author_rule.md)
+> - Quy tắc Nghiệp vụ Domain: [`skills/domain_system.md`](../skills/domain_system.md)
+> - Kiến trúc hệ thống & ErrorCode: [`skills/system_architecture.md`](../skills/system_architecture.md)
+> - Hợp đồng API: [`skills/aloute-openapi.yaml`](../skills/aloute-openapi.yaml)
 > - Thành viên phụ trách Module Auth/Security: **Nguyễn Đoàn Minh Khôi (24110259)**
 
 ---
@@ -44,12 +44,12 @@ Giai đoạn thiết lập danh tính ban đầu, chuẩn hóa thông tin ngư�
      - Mật khẩu tối thiểu 8 ký tự, khuyến nghị có chữ hoa, chữ thường, số.
      - **BẮT BUỘC BĂM (HASH):** Sử dụng `BCryptPasswordEncoder` với salt tự động. Tuyệt đối không lưu mật khẩu dạng plaintext.
   4. **Tạo thực thể liên đới:**
-     - Tạo bản ghi [`User`](file:///c:/Users/LENOVO/OneDrive/Videos/aloute/current/src/main/java/com/aloute/entity/User.java) với:
+     - Tạo bản ghi [`User`](../src/main/java/com/aloute/entity/User.java) với:
        - `role = Role.USER` (Mặc định).
        - `isActive = true`.
        - `isVerified = false`.
        - `isPrivate = false`.
-     - Tự động khởi tạo bản ghi [`Profile`](file:///c:/Users/LENOVO/OneDrive/Videos/aloute/current/src/main/java/com/aloute/entity/Profile.java) tương ứng (`user_id` làm khóa chính) với `displayName = username` và các bộ đếm ban đầu bằng 0.
+     - Tự động khởi tạo bản ghi [`Profile`](../src/main/java/com/aloute/entity/Profile.java) tương ứng (`user_id` làm khóa chính) với `displayName = username` và các bộ đếm ban đầu bằng 0.
 
 ### 1.2. Vòng đời Trạng thái Tài khoản (Account States)
 - `isActive` (`boolean`): Nếu chuyển sang `false` (bị vô hiệu hóa hoặc đình chỉ), người dùng bị chặn ngay lập tức ở cả tầng đăng nhập lẫn tầng kiểm tra token mỗi request (`UserPrincipal.isEnabled() == false`).
@@ -67,14 +67,14 @@ Giai đoạn đối chiếu thông tin xác thực, sinh vé xác thực (JWT) v
 - **Luồng xử lý:**
   1. Client gửi `email` + `password`.
   2. Controller chuyển sang `AuthService.login()`, đóng gói thành `UsernamePasswordAuthenticationToken(email, password)`.
-  3. `AuthenticationManager` kích hoạt `DaoAuthenticationProvider` phối hợp cùng [`CustomUserDetailsService`](file:///c:/Users/LENOVO/OneDrive/Videos/aloute/current/src/main/java/com/aloute/security/principal/CustomUserDetailsService.java):
+  3. `AuthenticationManager` kích hoạt `DaoAuthenticationProvider` phối hợp cùng [`CustomUserDetailsService`](../src/main/java/com/aloute/security/principal/CustomUserDetailsService.java):
      - Truy vấn User theo Email. Nếu không thấy hoặc tài khoản `isActive == false` → Ném `BadCredentialsException` / `DisabledException`.
      - Đối chiếu mật khẩu bằng `BCryptPasswordEncoder.matches()`.
   4. **Quy tắc an toàn (Security Invariant):**
      - Khi sai email hoặc sai mật khẩu, hệ thống **luôn trả về cùng một thông điệp chung** `HTTP 401 UNAUTHORIZED` với `ErrorCode: AUTH_INVALID_CREDENTIALS` ("Invalid email or password"). Không phân biệt "email không tồn tại" hay "sai mật khẩu" để chống tấn công dò quét tài khoản (Username Enumeration).
 
 ### 2.2. Sinh JWT Token (Token Generation)
-Sau khi xác thực thành công, [`JwtTokenProvider`](file:///c:/Users/LENOVO/OneDrive/Videos/aloute/current/src/main/java/com/aloute/security/jwt/JwtTokenProvider.java) phát hành JWT:
+Sau khi xác thực thành công, [`JwtTokenProvider`](../src/main/java/com/aloute/security/jwt/JwtTokenProvider.java) phát hành JWT:
 - **Thuật toán ký:** HMAC-SHA256 với Secret Key tối thiểu 32 bytes (256-bit).
 - **Cấu trúc Payload (Claims):**
   - `sub`: ID của người dùng (`userId.toString()`).
@@ -96,7 +96,7 @@ ALOUTE hỗ trợ cả giao diện Server-Side Rendering (Thymeleaf) và REST AP
    - JWT được gửi qua Header tiêu chuẩn: `Authorization: Bearer <token>`.
 
 ### 2.4. Cơ chế Bảo vệ Chống Giả mạo (CSRF Protection)
-- Sử dụng mô hình **Double Submit Cookie** qua `CookieCsrfTokenRepository.withHttpOnlyFalse()` và [`CsrfCookieFilter`](file:///c:/Users/LENOVO/OneDrive/Videos/aloute/current/src/main/java/com/aloute/security/config/CsrfCookieFilter.java).
+- Sử dụng mô hình **Double Submit Cookie** qua `CookieCsrfTokenRepository.withHttpOnlyFalse()` và [`CsrfCookieFilter`](../src/main/java/com/aloute/security/config/CsrfCookieFilter.java).
 - Client nhận cookie `XSRF-TOKEN` và phải gửi lại trong Header `X-XSRF-TOKEN` đối với toàn bộ yêu cầu làm thay đổi dữ liệu (`POST`, `PUT`, `PATCH`, `DELETE`) khi thực hiện từ Cookie.
 - Yêu cầu dùng `Authorization: Bearer` được cấu hình bỏ qua kiểm tra CSRF tự động vì bản chất Token Bearer không bị trình duyệt tự động gửi ngầm.
 
@@ -143,21 +143,21 @@ sequenceDiagram
     end
 ```
 
-### 3.1. Trật tự Trích xuất Token trong [`JwtAuthenticationFilter`](file:///c:/Users/LENOVO/OneDrive/Videos/aloute/current/src/main/java/com/aloute/security/jwt/JwtAuthenticationFilter.java)
+### 3.1. Trật tự Trích xuất Token trong [`JwtAuthenticationFilter`](../src/main/java/com/aloute/security/jwt/JwtAuthenticationFilter.java)
 - **Bước 1:** Đọc từ Cookie có tên `aloute_access_token`.
 - **Bước 2:** Nếu Cookie không tồn tại hoặc rỗng, đọc từ Header `Authorization` bắt đầu bằng tiền tố `"Bearer "`.
 - **Bước 3:** Nếu có Token, kiểm tra tính toàn vẹn chữ ký và hạn dùng.
 - **Bước 4 (DB Check):** Gọi `CustomUserDetailsService.loadById(userId)`. Bước này đảm bảo nếu tài khoản vừa bị khóa (`isActive = false`) trong cơ sở dữ liệu thì phiên làm việc sẽ bị từ chối ngay lập tức, không phụ thuộc vào hạn dùng của token.
 
 ### 3.2. Thiết lập `UserPrincipal` & `SecurityContext`
-- Sau khi xác thực, một đối tượng [`UserPrincipal`](file:///c:/Users/LENOVO/OneDrive/Videos/aloute/current/src/main/java/com/aloute/security/principal/UserPrincipal.java) hoàn chỉnh được gắn vào `SecurityContextHolder.getContext().setAuthentication(auth)`.
+- Sau khi xác thực, một đối tượng [`UserPrincipal`](../src/main/java/com/aloute/security/principal/UserPrincipal.java) hoàn chỉnh được gắn vào `SecurityContextHolder.getContext().setAuthentication(auth)`.
 - `UserPrincipal` triển khai `UserDetails`, nắm giữ:
   - `id`: Mã định danh người dùng.
   - `email`: Tên đăng nhập chính thức.
   - `role`: Global Role (`USER` hoặc `SYSTEM_ADMIN`).
   - `authorities`: Tập quyền Spring Security (ví dụ: `ROLE_USER`, `ROLE_SYSTEM_ADMIN`, `REPORT_REVIEW`, `USER_SUSPEND`).
 
-### 3.3. Trừu tượng hóa Định danh: [`CurrentUserProvider`](file:///c:/Users/LENOVO/OneDrive/Videos/aloute/current/src/main/java/com/aloute/security/currentuser/CurrentUserProvider.java)
+### 3.3. Trừu tượng hóa Định danh: [`CurrentUserProvider`](../src/main/java/com/aloute/security/currentuser/CurrentUserProvider.java)
 - Toàn bộ Controller và Service **tuyệt đối không được tự giải mã JWT** hoặc lấy `userId` truyền lên từ Client.
 - Bắt buộc gọi qua `CurrentUserProvider`:
   - `requireUserId()`: Trả về ID của user hiện tại, tự động ném ngoại lệ `HTTP 401 UNAUTHORIZED` nếu chưa đăng nhập.
@@ -173,7 +173,7 @@ Giai đoạn quyết định Request có được phép đi vào hệ thống ha
 ### 4.1. Nguyên tắc Bất biến: "Deny by Default" (Chặn mặc định)
 Mọi tài nguyên không được khai báo rõ ràng trong danh sách trắng (Whitelist) đều bị chặn và bắt buộc phải đăng nhập thành công (`.anyRequest().authenticated()`).
 
-### 4.2. Phân loại Tuyến đường trong [`SecurityConfig`](file:///c:/Users/LENOVO/OneDrive/Videos/aloute/current/src/main/java/com/aloute/security/config/SecurityConfig.java)
+### 4.2. Phân loại Tuyến đường trong [`SecurityConfig`](../src/main/java/com/aloute/security/config/SecurityConfig.java)
 1. **Public Routes (Không cần đăng nhập):**
    - Đăng ký, đăng nhập: `/api/auth/register`, `/api/auth/login`.
    - Xem nội dung công khai (chỉ đọc `GET`): `/api/posts`, `/api/posts/*`, `/api/topics/**`, `/api/communities/**`, `/api/users/*`.
@@ -190,8 +190,8 @@ Mọi tài nguyên không được khai báo rõ ràng trong danh sách trắng 
 
 ### 4.3. Xử lý Thất bại Đồng nhất (Error Translation)
 Khi vi phạm bảo mật, hệ thống không trả về trang lỗi mặc định của Spring mà đóng gói thành `ApiResponse<T>` theo chuẩn kiến trúc:
-- **Chưa đăng nhập (401 Unauthorized):** Do [`AuthenticationFailureHandler`](file:///c:/Users/LENOVO/OneDrive/Videos/aloute/current/src/main/java/com/aloute/security/handler/AuthenticationFailureHandler.java) bắt, trả mã `AUTH_UNAUTHORIZED` hoặc `AUTH_TOKEN_EXPIRED`.
-- **Không đủ quyền hạn (403 Forbidden):** Do [`AccessDeniedHandler`](file:///c:/Users/LENOVO/OneDrive/Videos/aloute/current/src/main/java/com/aloute/security/handler/AccessDeniedHandler.java) bắt, trả mã `AUTH_FORBIDDEN`.
+- **Chưa đăng nhập (401 Unauthorized):** Do [`AuthenticationFailureHandler`](../src/main/java/com/aloute/security/handler/AuthenticationFailureHandler.java) bắt, trả mã `AUTH_UNAUTHORIZED` hoặc `AUTH_TOKEN_EXPIRED`.
+- **Không đủ quyền hạn (403 Forbidden):** Do [`AccessDeniedHandler`](../src/main/java/com/aloute/security/handler/AccessDeniedHandler.java) bắt, trả mã `AUTH_FORBIDDEN`.
 
 ---
 
@@ -286,7 +286,7 @@ Người dùng có `global_role = 'SYSTEM_ADMIN'` được nạp 2 quyền kỹ 
    - Cấm đăng bài hoặc giới hạn tính năng toàn hệ thống.
 
 ### 7.2. Ghi vết Kiểm duyệt (Audit Trail & Moderation Log)
-- Mọi thao tác gỡ bài, khóa người dùng hoặc giải quyết báo cáo bắt buộc phải ghi vào bảng [`ModerationAction`](file:///c:/Users/LENOVO/OneDrive/Videos/aloute/current/src/main/java/com/aloute/entity/ModerationAction.java).
+- Mọi thao tác gỡ bài, khóa người dùng hoặc giải quyết báo cáo bắt buộc phải ghi vào bảng [`ModerationAction`](../src/main/java/com/aloute/entity/ModerationAction.java).
 - Dữ liệu ghi vết bao gồm:
   - `actor_id`: ID của Admin thực hiện (lấy từ `CurrentUserProvider.requireUserId()`, tuyệt đối không lấy từ form).
   - `target_type`: Loại đối tượng (`POST`, `USER`, `COMMUNITY`).

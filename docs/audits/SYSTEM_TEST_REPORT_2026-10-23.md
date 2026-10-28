@@ -1,9 +1,11 @@
-# BÁO CÁO KIỂM THỬ TOÀN BỘ HỆ THỐNG ALOUTE — ZCODE FULL SYSTEM TEST
+# BÁO CÁO KIỂM THỬ TOÀN BỘ HỆ THỐNG ALOUTE — 2026-10-23
+
+> **Loại tài liệu:** snapshot kiểm thử lịch sử (2026-10-23). Số liệu, baseline và kết quả giữ nguyên tại thời điểm đo; không phản ánh trạng thái `master` hiện tại. Tên nhánh trong báo cáo là tên nhánh lịch sử.
 
 - **Ngày**: 2026-10-23
 - **Baseline (origin/master)**: `dd293e9` — `fix(db): remove redundant SET NAMES to prevent multi-statement 1064 syntax error`
-- **Nhánh kiểm thử/sửa lỗi**: `zcode/full-system-audit-20261023` (tạo từ `origin/master`, worktree riêng `../AloUTE-audit-20261023`, không merge/deploy)
-- **Người thực hiện**: ZCode (Senior Full-Stack / QA Automation / Security Tester / Code Reviewer)
+- **Nhánh kiểm thử/sửa lỗi**: `zcode/full-system-audit-20261023` (tên nhánh lịch sử; tạo từ `origin/master` trong worktree riêng, không merge/deploy)
+- **Nhóm thực hiện**: Nhóm 13 — kiểm thử tích hợp, tự động hóa và review bảo mật
 - **Tài liệu canonical đã đọc trước khi code**: `AGENTS.md`, `skills/INDEX.md`, `skills/domain_system.md`, `skills/system_architecture.md`, `skills/aloute-openapi.yaml`, `skills/backend_rule.md`, `skills/author_rule.md` (phần liên quan)
 
 ---
@@ -22,7 +24,7 @@
 | Server test | `java -jar target/aloute-app-0.0.1-SNAPSHOT.jar --spring.profiles.active=dev --server.port=8090` |
 | Firebase | **TẮT** (`ALOUTE_FIREBASE_ENABLED=false`) — không dùng credentials production theo quy tắc đề bài |
 | OTP secret | Base64 32-byte duy nhất (fixture công khai bị `RegistrationOtpServiceImpl` từ chối ngoài profile test — hành vi đúng) |
-| Browser | ZCode In-app Browser (Chromium) — điều khiển bằng Playwright API thật, có screenshot |
+| Browser | Chromium thật — điều khiển bằng Playwright API, có screenshot |
 
 ### Số liệu tổng
 
@@ -102,7 +104,7 @@ Ký hiệu: **PASS** = tự động hóa; **B-E2E** = browser thật; **RT** = r
   - `src/main/resources/static/js/features/post/post-composer.js:225` (gửi JSON blob)
 - **Giải pháp (sửa tại gốc — layer transport/binding của controller, đúng trách nhiệm Controller theo backend_rule)**:
   - Nhận `@RequestPart("purpose") String purpose` + hàm `parsePurpose()` chuẩn hóa: strip quote JSON, trim, uppercase; sai → `422 MEDIA_PURPOSE_INVALID`/`MEDIA_PURPOSE_REQUIRED`. Nhận **cả hai** dạng client hiện có (tương thích ngược composer) và mọi client tương lai gửi multipart tự nhiên.
-  - Vì `StringHttpMessageConverter` (hỗ trợ `*/*`, đứng trước Jackson) có thể读 JSON string part về **kèm dấu ngoặc kép**, parser phải strip `"` — đã xử lý và có test riêng cho ca này.
+  - Vì `StringHttpMessageConverter` (hỗ trợ `*/*`, đứng trước Jackson) có thể đọc JSON string part về **kèm dấu ngoặc kép**, parser phải strip `"` — đã xử lý và có test riêng cho ca này.
 - **Regression test**: `MediaControllerPurposeBindingTest` (5 unit) + `MediaUploadPurposeBindingIntegrationTest` (3 MockMvc multipart, firebase disabled → kỳ vọng 503 = chứng minh bind thành công tới storage port). **8/8 PASS.**
 - **Kết quả sau sửa (runtime thật)**: text/plain `USER_AVATAR` → **503 MEDIA_STORAGE_UNAVAILABLE** (đúng — Firebase tắt cục bộ); JSON blob `POST` → 503 (không hồi quy); `WRONG` → 422. Browser: UI Settings giờ hiển thị đúng lỗi thật "Firebase media storage is disabled".
 
@@ -234,10 +236,10 @@ Chạy trên commit sửa cuối của nhánh `zcode/full-system-audit-20261023`
    - Node 329/329 PASS.
 
 6. **Có lỗi phân quyền/bảo mật chưa giải quyết?**
-   Không phát hiện lỗi phân quyền mới. Hai ghi nhận mở: JWT trong body login (P2, đã知 từ PR #53 addendum, vẫn tồn tại) và thiếu part `purpose` → 500 thay vì 4xx (P3, đề xuất bổ sung handler). CSRF double-submit cookie hoạt động đúng (các 403 tôi gặp lúc đầu là do dùng token cũ trong cookie jar của curl — không phải bug, thí nghiệm đã revert).
+   Không phát hiện lỗi phân quyền mới. Hai ghi nhận mở: JWT trong body login (P2, đã biết từ PR #53 addendum, vẫn tồn tại) và thiếu part `purpose` → 500 thay vì 4xx (P3, đề xuất bổ sung handler). CSRF double-submit cookie hoạt động đúng (các 403 gặp lúc đầu là do dùng token cũ trong cookie jar của curl — không phải bug, thí nghiệm đã revert).
 
 7. **WebSocket, MySQL 8, Firebase, Email OTP, 2FA đã test thực tế ở mức nào?**
-   - **WebSocket/STOMP**: SKIP đột này (runtime đã verify 2026-10-20 trên nhánh codex/recovery-stomp-verified; integration test vẫn trong suite Maven).
+   - **WebSocket/STOMP**: SKIP đợt này (runtime đã verify 2026-10-20 trên nhánh codex/recovery-stomp-verified; integration test vẫn trong suite Maven).
    - **MySQL 8**: BLOCKED — không có mysql/docker trên máy; mọi DB test là H2 (theo đúng design dev/test). Không dùng H2 PASS thay thế MySQL.
    - **Firebase**: BLOCKED — chỉ verify tới ranh giới `MediaStoragePort` (503 đúng).
    - **Email OTP / 2FA**: không runtime lại đợt này (đã verify trong các QA trước — PR #38, #62); suite Maven có test cho các module này.
@@ -251,7 +253,7 @@ Chạy trên commit sửa cuối của nhánh `zcode/full-system-audit-20261023`
 
 10. **Có đủ điều kiện cho owner kiểm thử nghiệm thu và triển khai?**
     - **Web core (đăng bài text-only, feed, settings UI, admin SSR): ĐỦ** trên nhánh `zcode/full-system-audit-20261023` sau khi `mvn clean verify` xanh (xem mục D).
-    - **Điều kiện còn thiếu trước khi deploy production**: (a) cấu hình Firebase test/prod đúng để xác nhận upload thật + URL công khai tải được; (b) chạy bộ MySQL 8 verification trên môi trường có MySQL (script có sẵn trong repo); (c) quyết định JWT-in-body; (d) merge nhánh audit qua PR (tôi không tự merge theo quy tắc).
+    - **Điều kiện còn thiếu trước khi deploy production**: (a) cấu hình Firebase test/prod đúng để xác nhận upload thật + URL công khai tải được; (b) chạy bộ MySQL 8 verification trên môi trường có MySQL (script có sẵn trong repo); (c) quyết định JWT-in-body; (d) merge nhánh audit qua PR (không tự merge theo quy tắc).
 
 ---
 

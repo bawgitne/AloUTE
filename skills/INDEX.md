@@ -92,8 +92,9 @@ Theo kế hoạch thực hiện 3 tuần chính thức nộp GVHD Th.S Nguyễn 
 > `system_architecture.md` = ALOUTE_SYSTEM_ARCHITECTURE.md, `backend_rule.md` =
 > ALOUTE_SPRING_BOOT_BACKEND_CONVENTION.md, `author_rule.md` = SPRING_SECURITY_CONVENTION.md,
 > `frontend_rule.md` = ALOUTE_FRONTEND_CONVENTION.md, `docker_reverse_proxy_rule.md` =
-> ALOUTE_DOCKER_REVERSE_PROXY_CONVENTION.md). `RULE.md`, `README.md` gốc và hai file owner
-> MEDIA/REALTIME **chưa tồn tại** — đọc `AGENTS.md` thay RULE.md và phần boundary tương ứng trong
+> ALOUTE_DOCKER_REVERSE_PROXY_CONVENTION.md). `README.md` gốc **đã tồn tại** ở thư mục gốc repository
+> (tổng quan dự án, stack, chạy local, test, triển khai). `RULE.md` và hai file owner
+> MEDIA/REALTIME **vẫn chưa tồn tại** — đọc `AGENTS.md` thay RULE.md và phần boundary tương ứng trong
 > `system_architecture.md` (§20 Firebase, §21 WebSocket).
 
 Luôn dùng bộ tài liệu final:
@@ -143,6 +144,8 @@ VẤN ĐỀ NÀY THUỘC FILE NÀO?
 # 4. README.md
 
 README là bản đồ của bộ tài liệu.
+
+> **Ghi chú 2026-10-28:** `README.md` gốc hiện đã có trên `master` và mô tả tổng quan dự án (mục tiêu, chức năng, stack, kiến trúc, chạy local, test, triển khai). Vai trò "bản đồ tài liệu" dưới đây là mô tả lý thuyết; khi có khác biệt, owner file trong `skills/` vẫn thắng.
 
 Dùng để biết:
 

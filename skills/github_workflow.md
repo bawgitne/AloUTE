@@ -30,7 +30,7 @@
 Git workflow của ALOUTE phải đảm bảo:
 
 ```text
-main luôn chạy được
+master luôn chạy được
 commit dễ đọc
 branch dễ hiểu
 PR nhỏ
@@ -50,7 +50,7 @@ ALOUTE dùng:
 
 ```text
 1 repository
-1 main branch
+1 master branch
 n feature/fix/refactor/docs branches
 ```
 
@@ -59,7 +59,7 @@ Không tạo mỗi thành viên một repository riêng để cuối kỳ copy c
 Canonical:
 
 ```text
-origin/main
+origin/master
 → source tích hợp chính của project
 ```
 
@@ -67,7 +67,7 @@ origin/main
 
 # 3. MAIN BRANCH
 
-`main` phải luôn ở trạng thái:
+`master` phải luôn ở trạng thái:
 
 ```text
 compile được
@@ -77,9 +77,9 @@ không chứa code đang làm dở
 không chứa secret
 ```
 
-Không commit trực tiếp vào `main`.
+Không commit trực tiếp vào `master`.
 
-Mọi thay đổi vào `main` qua Pull Request.
+Mọi thay đổi vào `master` qua Pull Request.
 
 ---
 
@@ -98,7 +98,7 @@ nếu project chưa cần.
 ALOUTE dùng:
 
 ```text
-main
+master
 +
 short-lived branches
 ```
@@ -198,11 +198,11 @@ history sạch
 
 # 7. TẠO BRANCH
 
-Luôn branch từ `main` mới nhất.
+Luôn branch từ `master` mới nhất.
 
 ```bash
-git checkout main
-git pull origin main
+git checkout master
+git pull origin master
 git checkout -b feature/post-create
 ```
 
@@ -215,7 +215,7 @@ Không tạo branch từ một feature branch cũ trừ khi dependency rõ và t
 Developer phải:
 
 ```text
-1. pull main mới nhất
+1. pull master mới nhất
 2. đọc RULE.md
 3. đọc source-of-truth docs liên quan
 4. xác định task scope
@@ -539,7 +539,7 @@ Sau lần đầu:
 git push
 ```
 
-Không force push `main`.
+Không force push `master`.
 
 ---
 
@@ -551,7 +551,7 @@ Không dùng:
 git push --force
 ```
 
-trên shared branch hoặc `main`.
+trên shared branch hoặc `master`.
 
 Nếu thật sự cần rewrite branch cá nhân:
 
@@ -572,7 +572,7 @@ Trước PR/merge:
 ```bash
 git fetch origin
 git checkout feature/post-create
-git merge origin/main
+git merge origin/master
 ```
 
 Hoặc rebase nếu team thành thạo.
@@ -580,7 +580,7 @@ Hoặc rebase nếu team thành thạo.
 Cho ALOUTE mặc định:
 
 ```text
-merge main into feature branch
+merge master into feature branch
 ```
 
 dễ dùng và ít gây lỗi history cho sinh viên hơn.
@@ -597,7 +597,7 @@ Nếu dùng rebase trên branch cá nhân:
 
 ```bash
 git fetch origin
-git rebase origin/main
+git rebase origin/master
 ```
 
 sau đó:
@@ -606,7 +606,7 @@ sau đó:
 git push --force-with-lease
 ```
 
-Không rebase `main`.
+Không rebase `master`.
 
 ---
 
@@ -648,7 +648,7 @@ phải review kỹ.
 
 # 24. PULL REQUEST
 
-Mọi change vào `main` qua Pull Request.
+Mọi change vào `master` qua Pull Request.
 
 PR nên nhỏ.
 
@@ -793,7 +793,7 @@ Squash and Merge
 Lý do:
 
 ```text
-main history gọn
+master history gọn
 1 PR = 1 logical commit
 rollback dễ
 ```
@@ -1067,10 +1067,10 @@ ALOUTE không cần `release/*` branch mặc định.
 Release từ:
 
 ```text
-main
+master
 ```
 
-khi main đã stable.
+khi master đã stable.
 
 Nếu cuối kỳ cần freeze demo:
 
@@ -1087,7 +1087,7 @@ thay vì tạo branch phức tạp.
 Bug nghiêm trọng sau release:
 
 ```text
-main
+master
 ↓
 hotfix/<name>
 ↓
@@ -1095,7 +1095,7 @@ fix + test
 ↓
 PR
 ↓
-main
+master
 ↓
 new patch release
 ```
@@ -1124,7 +1124,7 @@ git revert <commit>
 
 hoặc GitHub Revert PR.
 
-Không reset/force-push `main` để xóa history.
+Không reset/force-push `master` để xóa history.
 
 Main history phải giữ audit trail.
 
@@ -1132,7 +1132,7 @@ Main history phải giữ audit trail.
 
 # 43. DATABASE MIGRATION + GIT
 
-Migration file đã merge vào `main`:
+Migration file đã merge vào `master`:
 
 ```text
 KHÔNG sửa nội dung migration cũ đã dùng.
@@ -1172,7 +1172,7 @@ V12__...
 branch merge sau phải:
 
 ```text
-sync main
+sync master
 ↓
 rename migration thành version mới
 ↓
@@ -1336,7 +1336,7 @@ change quan trọng cần owner review.
 
 # 52. PROTECTED MAIN
 
-GitHub `main` nên bật branch protection nếu plan hỗ trợ.
+GitHub `master` nên bật branch protection nếu plan hỗ trợ.
 
 Recommended:
 
@@ -1348,7 +1348,7 @@ Block deletion
 Require status checks nếu CI có
 ```
 
-Không cho mọi người push trực tiếp main.
+Không cho mọi người push trực tiếp master.
 
 ---
 
@@ -1488,7 +1488,7 @@ Không một branch `feature/chat` sống 3 tuần.
 
 # 60. DAILY SYNC
 
-Developer nên sync `main` thường xuyên.
+Developer nên sync `master` thường xuyên.
 
 Ít nhất:
 
@@ -1577,7 +1577,7 @@ aloute:a1b2c3d
 Trước tag release:
 
 ```text
-□ main up-to-date
+□ master up-to-date
 □ build pass
 □ critical tests pass
 □ DB migrations valid
@@ -1610,7 +1610,7 @@ build/deploy
 Trước buổi demo:
 
 ```text
-không demo từ random latest main commit.
+không demo từ random latest master commit.
 ```
 
 Tạo stable tag:
@@ -1680,7 +1680,7 @@ Task
 ↓
 read RULE.md + owner docs
 ↓
-pull main
+pull master
 ↓
 create branch
 ↓
@@ -1688,7 +1688,7 @@ code
 ↓
 small meaningful commits
 ↓
-sync main
+sync master
 ↓
 local build/test
 ↓
@@ -1704,7 +1704,7 @@ Squash and Merge
 ↓
 delete branch
 ↓
-main
+master
 ```
 
 ---
@@ -1720,8 +1720,8 @@ POST-05 Like Post
 Commands:
 
 ```bash
-git checkout main
-git pull origin main
+git checkout master
+git pull origin master
 
 git checkout -b feature/post-like
 ```
@@ -1752,7 +1752,7 @@ Merge:
 Squash and Merge
 ```
 
-Final main commit:
+Final master commit:
 
 ```text
 feat(post): add like and unlike flow
@@ -1763,8 +1763,8 @@ feat(post): add like and unlike flow
 # 70. BUG FIX FLOW EXAMPLE
 
 ```bash
-git checkout main
-git pull origin main
+git checkout master
+git pull origin master
 git checkout -b fix/post-like-counter
 ```
 
@@ -1795,8 +1795,8 @@ v1.0.1
 Không:
 
 ```text
-push trực tiếp main
-force-push main
+push trực tiếp master
+force-push master
 commit secret
 commit target/
 commit random database dump
@@ -1815,15 +1815,15 @@ resolve conflict mù
 # 72. QUICK RULES
 
 1. Một repository.
-2. `main` luôn stable.
-3. Không push trực tiếp `main`.
+2. `master` luôn stable.
+3. Không push trực tiếp `master`.
 4. Branch ngắn.
 5. Branch name semantic.
 6. Một branch một mục tiêu.
 7. Commit nhỏ.
 8. Conventional Commits.
 9. Không commit secret.
-10. Sync main trước PR.
+10. Sync master trước PR.
 11. PR nhỏ.
 12. PR title semantic.
 13. Review trước merge.
@@ -1854,7 +1854,7 @@ Trước khi merge hỏi:
 
 ```text
 PR scope nhỏ chưa?
-Đã sync main chưa?
+Đã sync master chưa?
 CI pass chưa?
 Có reviewer chưa?
 Canonical docs còn khớp code không?
