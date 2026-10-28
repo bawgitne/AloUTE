@@ -4,13 +4,12 @@ Tài liệu này quy định cách đóng góp vào repository AloUTE. Đây là
 
 ## 1. Đọc trước khi viết code
 
-Nguồn sự thật của dự án là thư mục `skills/` theo nguyên tắc **ONE RULE → ONE OWNER → ONE SOURCE OF TRUTH**. Trước khi sửa code, đọc:
+Trước khi thực hiện sửa đổi mã nguồn hoặc thêm tính năng mới, vui lòng đọc các tài liệu kỹ thuật chuẩn của dự án:
 
-1. [`skills/INDEX.md`](skills/INDEX.md) — bản đồ định tuyến chủ đề → file owner.
-2. File owner tương ứng: [`skills/domain_system.md`](skills/domain_system.md), [`skills/system_architecture.md`](skills/system_architecture.md), [`skills/backend_rule.md`](skills/backend_rule.md), [`skills/author_rule.md`](skills/author_rule.md), [`skills/frontend_rule.md`](skills/frontend_rule.md), [`skills/docker_reverse_proxy_rule.md`](skills/docker_reverse_proxy_rule.md).
-3. [`skills/aloute-openapi.yaml`](skills/aloute-openapi.yaml) khi làm việc với HTTP API.
-
-Các file `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `GEMINI.md`, `.claude/CLAUDE.md`, `.agents/rules/skills.md`, `.github/copilot-instructions.md` là cấu hình được các công cụ soạn thảo/trợ lý đọc tự động; chúng chỉ trỏ về bộ `skills/` và không thay thế nội dung canonical.
+1. [`README.md`](README.md) — Tổng quan hệ thống, hướng dẫn chạy cục bộ và cấu hình môi trường.
+2. [`ARCHITECTURE_TEMPLATE.md`](ARCHITECTURE_TEMPLATE.md) — Khung kiến trúc phân lớp, nguyên tắc Controller - Service - Repository.
+3. [`UI_DESIGN_SYSTEM.md`](UI_DESIGN_SYSTEM.md) & [`SCREEN_FLOW.md`](SCREEN_FLOW.md) — Quy chuẩn thiết kế giao diện và luồng màn hình.
+4. [`docs/README.md`](docs/README.md) — Bản đồ tài liệu kỹ thuật, báo cáo phân tích và kịch bản demo.
 
 ## 2. Branch và commit
 
@@ -42,12 +41,12 @@ git diff --check                       # kiểm tra whitespace/conflict markers
 
 Test backend chạy trên H2, **không** tự chứng minh tương thích MySQL 8; xác minh MySQL riêng khi cần.
 
-## 5. Quy ước kỹ thuật (tóm tắt — chi tiết trong `skills/`)
+## 5. Quy ước kỹ thuật (tóm tắt)
 
 - Controller chỉ xử lý HTTP và gọi Service; Repository chỉ được Service truy cập.
 - `authorId`/`userId` luôn lấy từ Principal đã xác thực, không tin từ request body.
 - Mọi phản hồi REST tuân theo envelope `ApiResponse<T>`; phân trang 0-indexed.
-- Không tự chế endpoint/response khác với `skills/aloute-openapi.yaml`.
+- Tuân thủ thiết kế DTO và response contract đã thống nhất.
 - Không commit secret (JWT secret, khóa 2FA, mail, Firebase).
 
 ## 6. Tài liệu
