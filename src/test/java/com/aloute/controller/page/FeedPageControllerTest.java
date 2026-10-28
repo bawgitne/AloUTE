@@ -647,12 +647,12 @@ class FeedPageControllerTest {
         assertThat(prevLi).contains("href=\"/feed?page=-1\"");
 
         // Next control: element-specific isolation
-        String nextLi = extractControlLi(html, "Trang tiếp");
+        String nextLi = extractControlLi(html, "Trang sau");
         assertThat(nextLi).doesNotContain("disabled");
         assertThat(nextLi).contains("href=\"/feed?page=1\"");
         assertThat(nextLi).doesNotContain("aria-disabled=\"true\"");
         assertThat(nextLi).doesNotContain("tabindex=\"-1\"");
-        assertThat(nextLi).contains("aria-label=\"Trang tiếp\"");
+        assertThat(nextLi).contains("aria-label=\"Trang sau\"");
     }
 
     @Test
@@ -675,12 +675,12 @@ class FeedPageControllerTest {
         assertThat(prevLi).contains("aria-label=\"Trang trước\"");
 
         // Next control: element-specific isolation
-        String nextLi = extractControlLi(html, "Trang tiếp");
+        String nextLi = extractControlLi(html, "Trang sau");
         assertThat(nextLi).doesNotContain("disabled");
         assertThat(nextLi).contains("href=\"/feed?page=2\"");
         assertThat(nextLi).doesNotContain("aria-disabled=\"true\"");
         assertThat(nextLi).doesNotContain("tabindex=\"-1\"");
-        assertThat(nextLi).contains("aria-label=\"Trang tiếp\"");
+        assertThat(nextLi).contains("aria-label=\"Trang sau\"");
     }
 
     @Test
@@ -703,11 +703,11 @@ class FeedPageControllerTest {
         assertThat(prevLi).contains("aria-label=\"Trang trước\"");
 
         // Next control: element-specific isolation
-        String nextLi = extractControlLi(html, "Trang tiếp");
+        String nextLi = extractControlLi(html, "Trang sau");
         assertThat(nextLi).contains("class=\"page-item disabled\"");
         assertThat(nextLi).contains("aria-disabled=\"true\"");
         assertThat(nextLi).contains("tabindex=\"-1\"");
-        assertThat(nextLi).contains("aria-label=\"Trang tiếp\"");
+        assertThat(nextLi).contains("aria-label=\"Trang sau\"");
         assertThat(nextLi).contains("href=\"/feed?page=3\"");
     }
 
