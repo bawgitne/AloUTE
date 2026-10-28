@@ -2,6 +2,8 @@
 
 > Checklist trình chiếu. Chạy `node tools/demo-data.mjs` trước buổi demo (idempotent — chạy lại an toàn).
 > Nếu demo trên môi trường đã có dữ liệu thật, chỉ dùng bước 1 và 2 với tài khoản có sẵn; đừng seed thêm.
+>
+> **Cảnh báo bảo mật:** các tài khoản/mật khẩu bên dưới chỉ tồn tại khi chạy profile `dev` với H2 in-memory (`DevTestDataInitializer`). **Không** dùng các thông tin này trên production. Seeder `tools/demo-data.mjs` từ chối mọi host không phải loopback.
 
 ## Tài khoản
 

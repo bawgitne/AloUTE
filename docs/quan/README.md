@@ -6,7 +6,8 @@
 > **Nhánh làm việc hiện tại:** `fix/quan-frontend-hardening-20261027`
 > **Baseline đã xác minh:** `origin/master` @ [`99ab72e`](https://github.com/bawgitne/AloUTE/commit/99ab72ee450fd7cfb7bfae91af4f8e40d23d5ab6) (PR #73 đã merge)
 > **Ngày lập hồ sơ:** 2026-10-27
-> **Trạng thái thay đổi frontend hardening:** có trong working tree, **chưa commit, chưa push, chưa deploy**
+> **Trạng thái tại thời điểm đo (2026-10-27):** thay đổi frontend hardening nằm trong working tree trên nhánh `fix/quan-frontend-hardening-20261027`; các số liệu test dưới đây đo tại baseline này.
+> **Trạng thái hiện tại (2026-10-28):** các thay đổi frontend hardening **đã merge vào `master` qua PR #85** (merge commit [`cd0d85c`](https://github.com/bawgitne/AloUTE/commit/cd0d85c)); **chưa deploy production**.
 
 ## 1. Mục đích và giới hạn
 
@@ -42,9 +43,9 @@ Không có artifact thiết kế nào được sao chép vào thư mục này; c
 - **Đo responsive:** 3 route × 5 viewport (360/375/390/768/1440), trước và sau — [`baseline/measurements.json`](../../test-results/quan-frontend-hardening/baseline/measurements.json), [`after/measurements.json`](../../test-results/quan-frontend-hardening/after/measurements.json).
 - **Không** coi test tĩnh Node là bằng chứng browser E2E; hai loại bằng chứng được tách riêng trong [`FRONTEND_TEST_CASES.md`](FRONTEND_TEST_CASES.md).
 
-## 4. Phạm vi thay đổi frontend hardening (working tree)
+## 4. Phạm vi thay đổi frontend hardening (đã merge qua PR #85)
 
-Các file thay đổi so với `99ab72e`:
+Các file thay đổi so với `99ab72e`; nay đã nằm trên `master` qua PR #85:
 
 | Nhóm | File | Mục đích |
 | :--- | :--- | :--- |
@@ -66,7 +67,7 @@ Các mục dưới đây **không được dùng làm bằng chứng duy nhất*
 1. `WEEK2_UI_STYLE_DECISION.md` — có trên máy (20.645 byte, sửa lần cuối 2026-09-30) nhưng **không được track trong git**. Vì vậy không thể xác minh lịch sử phê duyệt, tác giả hoặc nội dung trên GitHub. Các tài liệu tracked [`UI_DESIGN_SYSTEM.md`](../../UI_DESIGN_SYSTEM.md) và [`docs/ui/wireframes/README.md`](../ui/wireframes/README.md) có liên kết tới file này; liên kết chỉ resolve trong workspace local, không resolve trên GitHub. Không suy đoán nội dung quyết định.
 2. `Nhom13_KeHoachCodeTest.docx` — file Word gốc không được track; nội dung phân công 3 tuần chỉ được tóm tắt lại trong [`skills/INDEX.md`](../../skills/INDEX.md) (tracked) và các file kế hoạch local (`MODULE_ASSIGNMENT.md`, `PROJECT_EXECUTION_PLAN.md`, `FE_WEEK2_IMPLEMENTATION_PLAN.md`).
 3. `FE_WEEK2_IMPLEMENTATION_PLAN.md`, `FE_INTEGRATION_PLAN.md`, `MODULE_ASSIGNMENT.md`, `ANTI-Q-FE-TASK.md` — không track; chỉ dùng làm bối cảnh local.
-4. `docs/audits/independent-full-audit-2026-10-27/**` — bộ audit ngày 2026-10-27 chưa được commit; các liên kết trong hồ sơ này là liên kết workspace.
+4. `docs/audits/independent-full-audit-2026-10-27/**` — bộ audit ngày 2026-10-27 **local-only, không có trong repository** (chưa được commit); các liên kết trong hồ sơ này chỉ resolve trong workspace local.
 5. **Không xác minh được commit production.** Audit live ghi nhận `origin/master` tại thời điểm audit là `6f257eb`, trong khi master hiện tại đã là `99ab72e` sau PR #73. Không có GitHub Deployment/environment record hay endpoint version công khai.
 
 ## 6. Cách đọc trạng thái
@@ -74,4 +75,4 @@ Các mục dưới đây **không được dùng làm bằng chứng duy nhất*
 - **PASS**: đã chạy và có output thực tế trong workspace.
 - **PARTIAL**: phần frontend đã làm, phần phụ thuộc backend bị chặn.
 - **BLOCKED / NOT VERIFIED**: chưa có tài khoản, môi trường hoặc bằng chứng để kết luận.
-- Commit lịch sử dùng SHA GitHub; thay đổi hiện tại chỉ có trong working tree và được ghi rõ là chưa commit.
+- Commit lịch sử dùng SHA GitHub. Các số liệu trong hồ sơ được đo tại baseline lịch sử (`99ab72e`, 2026-10-27) và giữ nguyên; trạng thái mã nguồn hiện tại là đã merge qua PR #85 (merge commit `cd0d85c`).

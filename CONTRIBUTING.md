@@ -1,0 +1,62 @@
+# Đóng góp cho AloUTE
+
+Tài liệu này quy định cách đóng góp vào repository AloUTE. Đây là tài liệu trung lập dành cho mọi thành viên, người kiểm thử và người review, không phụ thuộc công cụ soạn thảo.
+
+## 1. Đọc trước khi viết code
+
+Nguồn sự thật của dự án là thư mục `skills/` theo nguyên tắc **ONE RULE → ONE OWNER → ONE SOURCE OF TRUTH**. Trước khi sửa code, đọc:
+
+1. [`skills/INDEX.md`](skills/INDEX.md) — bản đồ định tuyến chủ đề → file owner.
+2. File owner tương ứng: [`skills/domain_system.md`](skills/domain_system.md), [`skills/system_architecture.md`](skills/system_architecture.md), [`skills/backend_rule.md`](skills/backend_rule.md), [`skills/author_rule.md`](skills/author_rule.md), [`skills/frontend_rule.md`](skills/frontend_rule.md), [`skills/docker_reverse_proxy_rule.md`](skills/docker_reverse_proxy_rule.md).
+3. [`skills/aloute-openapi.yaml`](skills/aloute-openapi.yaml) khi làm việc với HTTP API.
+
+Các file `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `GEMINI.md`, `.claude/CLAUDE.md`, `.agents/rules/skills.md`, `.github/copilot-instructions.md` là cấu hình được các công cụ soạn thảo/trợ lý đọc tự động; chúng chỉ trỏ về bộ `skills/` và không thay thế nội dung canonical.
+
+## 2. Branch và commit
+
+- Luôn tạo branch từ `master` mới nhất.
+- Tên branch theo loại thay đổi + mô tả ngắn (kebab-case), ví dụ: `feat/post-composer`, `fix/pagination-bound`, `docs/release-runbook`, `chore/deps`. Không dùng tên công cụ soạn thảo làm tiền tố branch.
+- Mỗi branch chỉ nên có một mục tiêu chính; tách thay đổi không liên quan sang branch/PR khác.
+- Commit message theo Conventional Commits: `type(scope): mô tả ngắn`.
+- Không force-push lên `master` hoặc branch dùng chung.
+
+## 3. Pull Request
+
+Mô tả PR cần nêu rõ:
+
+1. Vấn đề/động lực.
+2. Thay đổi chính và file ảnh hưởng.
+3. Cách kiểm chứng (lệnh đã chạy, kết quả).
+4. Giới hạn chưa xác minh.
+5. Phương án rollback.
+
+Ưu tiên PR nhỏ, dễ review. Ghi rõ nếu có thay đổi backend/DB/production config.
+
+## 4. Kiểm thử cục bộ
+
+```bash
+node --test test/frontend/*.test.mjs   # test tĩnh frontend
+mvn -B test                            # test backend (H2)
+git diff --check                       # kiểm tra whitespace/conflict markers
+```
+
+Test backend chạy trên H2, **không** tự chứng minh tương thích MySQL 8; xác minh MySQL riêng khi cần.
+
+## 5. Quy ước kỹ thuật (tóm tắt — chi tiết trong `skills/`)
+
+- Controller chỉ xử lý HTTP và gọi Service; Repository chỉ được Service truy cập.
+- `authorId`/`userId` luôn lấy từ Principal đã xác thực, không tin từ request body.
+- Mọi phản hồi REST tuân theo envelope `ApiResponse<T>`; phân trang 0-indexed.
+- Không tự chế endpoint/response khác với `skills/aloute-openapi.yaml`.
+- Không commit secret (JWT secret, khóa 2FA, mail, Firebase).
+
+## 6. Tài liệu
+
+- Tài liệu kỹ thuật hiện hành dùng tên theo chức năng; không dùng tên công cụ soạn thảo làm tên người thực hiện hay loại báo cáo.
+- Báo cáo kiểm thử lịch sử giữ nguyên baseline, số liệu và kết quả tại thời điểm đo; ghi rõ đây là snapshot lịch sử, không phải trạng thái hiện tại.
+- Không xóa bằng chứng (evidence) hoặc test case có giá trị truy xuất nguồn gốc.
+
+## 7. Ngôn ngữ
+
+- Tài liệu nghiệp vụ và hướng dẫn: tiếng Việt.
+- Định danh code, tên biến, commit type/scope: tiếng Anh.

@@ -7,7 +7,7 @@ import { getAnalytics } from "firebase/analytics";
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCoE1xYkQbD6s4gAW4QnncvAOg5IPm2xOY",
+  apiKey: "<FIREBASE_WEB_API_KEY>", // lấy từ Firebase Console; không commit khóa thật vào repo
   authDomain: "cnpm-f1a39.firebaseapp.com",
   projectId: "cnpm-f1a39",
   storageBucket: "cnpm-f1a39.firebasestorage.app",
