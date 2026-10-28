@@ -565,7 +565,17 @@ Query: `?contentState=ACTIVE&page=0&size=20`; return AdminPostSummary Page (cùn
 
 Query: `?page=0&size=20&sort=createdAt,desc`; return ModerationAction Page; cùng nguồn log section 11, không nhân đôi bảng.
 
-### 8.5. `POST /api/admin/users/{userId}/warnings` `[P2][PROPOSED]`
+> **HỢP ĐỒNG ĐÃ TRIỂN KHAI — 2026-10-29 (backend #104, frontend #106).** Các mục 8.5–8.8 dưới đây là thiết kế đề xuất ban đầu; implementation canonical dùng endpoint và payload sau, đồng bộ với `AdminUserController` và OpenAPI của #104:
+>
+> - **Capabilities** trên `GET /api/admin/users/{userId}`: `canWarn`, `canSuspend`, `canResetProfile`, `canChangeGlobalRole`. UI chỉ render nút theo các cờ này; không hardcode quyền.
+> - `POST /api/admin/users/{userId}/warn` — body `{ "reasonCode": "...", "reasonDetail": "10–1000 ký tự" }`. Trả `AdminUserWarnResponse` gồm `actionId`, `userId`, `notificationId`, `actionType="USER_WARN"`, `reasonCode`, `occurredAt`. Ghi audit, gửi notification `USER_WARN`; **không** đổi `isActive` hay role.
+> - `POST /api/admin/users/{userId}/reset-profile` — body `{ "reasonCode": "...", "reasonDetail": "...", "confirmUsername": "<đúng username>" }`. Xóa các trường hiển thị `displayName` (về username), `bio`, `website`, `avatarUrl`, `coverUrl`; giữ email, mật khẩu, role, trạng thái và session. Sai username trả 409 `USER_PROFILE_RESET_CONFIRMATION_MISMATCH`.
+> - `POST /api/admin/users/{userId}/role` — body `{ "newRole": "USER" | "SYSTEM_ADMIN", "reasonCode": "...", "reasonDetail": "..." }`. Chỉ đổi global role; thu hồi JWT cũ của target. Tự đổi role: 409 `USER_SELF_ROLE_CHANGE_NOT_ALLOWED`; tài khoản bị đình chỉ: 409 `USER_ROLE_CHANGE_REQUIRES_ACTIVE`; role không đổi: 409 `USER_ROLE_UNCHANGED`; admin cuối cùng: 409 `USER_LAST_ADMIN_PROTECTED`.
+> - **UI detail** (`templates/admin/users/detail.html`): nút “Về Admin Dashboard” (`/admin`), badge global role, nút cảnh báo/đặt lại hồ sơ/đổi vai trò theo capabilities, ẩn warn và role với chính mình, giữ reset cho self theo backend. Ba modal trong `fragments/admin/modals.html` xác nhận rõ phạm vi, khóa nút khi submit, chống double-submit và reload audit sau thành công.
+> - **Map lỗi UI:** 400 `BAD_REQUEST`, 401 hết phiên, 403 thiếu `SYSTEM_ADMIN`, 404 `USER_NOT_FOUND`, 409 theo mã nghiệp vụ, 422 `VALIDATION_FAILED`; lỗi hiển thị trong modal, không đóng form hay mất dữ liệu đã nhập.
+> - **Notification UI** (`notification/index.html`, `notification.js`) nhận diện `USER_WARN` với nhãn “cảnh báo chính thức từ ban quản trị”.
+
+### 8.5. `POST /api/admin/users/{userId}/warnings` `[P2][PROPOSED — superseded by implemented contract above]`
 
 **Request body:**
 

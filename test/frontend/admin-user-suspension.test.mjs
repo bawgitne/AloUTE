@@ -25,6 +25,7 @@ const read = (rel) => fs.readFileSync(path.resolve(repoRoot, rel), 'utf-8');
 const detailTemplate = read('src/main/resources/templates/admin/users/detail.html');
 const modalsTemplate = read('src/main/resources/templates/fragments/admin/modals.html');
 const adminActionsSource = read('src/main/resources/static/js/features/admin/admin-actions.js');
+const adminCss = read('src/main/resources/static/css/admin/admin.css');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -371,5 +372,49 @@ describe('Admin account actions — controller', () => {
         assert.equal(env.requests[0].url, '/api/admin/users/9/role');
         assert.equal(env.requests[0].opts.body.newRole, 'USER');
         assert.ok(env.byId.get('userRoleErrorAlert').textContent.includes('đã có vai trò'));
+    });
+
+    it('keeps warn/reset/role submits locked while the success refresh is pending', async () => {
+        async function submitTwice(buildDom, triggerAction, prepare) {
+            const env = createEnv();
+            const form = buildDom(env);
+            addAccountTrigger(env, triggerAction.action, 42, 'Target User', triggerAction.extra || {});
+            vm.runInContext(adminActionsSource, vm.createContext(env.window));
+            env.document.querySelectorAll(`[data-action="${triggerAction.action}"]`)[0].dispatchEvent({ type: 'click' });
+            prepare(env);
+            form.dispatchEvent({ type: 'submit', preventDefault() {} });
+            await sleep(20);
+            assert.equal(env.requests.length, 1, `${triggerAction.action} sends one request`);
+            const submitBtn = env.byId.get(triggerAction.button);
+            assert.equal(submitBtn.disabled, true, `${triggerAction.action} button stays disabled after success`);
+            form.dispatchEvent({ type: 'submit', preventDefault() {} });
+            await sleep(20);
+            assert.equal(env.requests.length, 1, `${triggerAction.action} cannot double-submit`);
+        }
+
+        await submitTwice(buildWarnDom, { action: 'open-user-warn', button: 'btnConfirmUserWarn' }, (env) => {
+            env.byId.get('userWarnReasonCode').value = 'HARASSMENT';
+            env.byId.get('userWarnReasonDetail').value = 'Quấy rối nhiều thành viên trong cộng đồng.';
+        });
+        await submitTwice(buildResetDom, { action: 'open-user-reset', button: 'btnConfirmUserReset', extra: { 'user-username': 'target_user' } }, (env) => {
+            env.byId.get('userResetConfirmUsername').value = 'target_user';
+            env.byId.get('userResetConfirmUsername').dispatchEvent({ type: 'input' });
+            env.byId.get('userResetReasonCode').value = 'OTHER';
+            env.byId.get('userResetReasonDetail').value = 'Đặt lại hồ sơ theo yêu cầu kiểm duyệt.';
+        });
+        await submitTwice(buildRoleDom, { action: 'open-user-role', button: 'btnConfirmUserRole', extra: { 'current-role': 'USER' } }, (env) => {
+            env.byId.get('userRoleNewRole').value = 'SYSTEM_ADMIN';
+            env.byId.get('userRoleReasonCode').value = 'OTHER';
+            env.byId.get('userRoleReasonDetail').value = 'Bổ nhiệm theo quyết định quản trị.';
+        });
+    });
+
+    it('keeps 44px admin action targets from being overridden by the base 38px rule', () => {
+        const baseRule = adminCss.indexOf('.admin-user-actions > .btn {');
+        const mobileRule = adminCss.indexOf('min-height: 44px;');
+        const baseMinHeight = adminCss.indexOf('min-height: 38px;');
+        assert.ok(baseRule >= 0 && baseMinHeight >= 0 && mobileRule >= 0, 'admin action sizing rules exist');
+        assert.ok(baseRule < mobileRule, 'base rule must precede the mobile override');
+        assert.ok(baseMinHeight < mobileRule, 'mobile 44px override must come after the base 38px rule');
     });
 });

@@ -928,12 +928,14 @@
         const reasonCounter = document.getElementById('userWarnReasonCounter');
         let target = null;
         let inFlight = false;
+        let completed = false;
 
         function open(btn) {
             target = {
                 id: btn.getAttribute('data-user-id'),
                 name: btn.getAttribute('data-user-name') || ''
             };
+            completed = false;
             if (form) form.reset();
             setFeedback(errorAlert, '');
             if (targetName) targetName.textContent = target.name;
@@ -959,7 +961,7 @@
         if (!form) return;
         form.addEventListener('submit', async function (e) {
             e.preventDefault();
-            if (inFlight || !target) return;
+            if (inFlight || completed || !target) return;
 
             const code = reasonCode ? reasonCode.value : '';
             const detail = reasonDetail ? reasonDetail.value.trim() : '';
@@ -982,19 +984,17 @@
                 });
                 const json = await window.alouteHttp.readJson(response);
                 if (response.ok && json && json.success) {
+                    completed = true;
                     showToast('Đã gửi cảnh báo và thông báo tới tài khoản ' + target.name + '.', 'success');
                     setTimeout(function () { window.location.reload(); }, 600);
                     return;
                 }
                 setFeedback(errorAlert, extractAccountActionError(json, response.status));
-                if (window.bootstrap && window.bootstrap.Modal) {
-                    window.bootstrap.Modal.getOrCreateInstance(modal).show();
-                }
             } catch (err) {
                 setFeedback(errorAlert, 'Lỗi kết nối mạng: không thể gửi cảnh báo. Vui lòng thử lại.');
             } finally {
                 inFlight = false;
-                setButtonBusy(submitBtn, false, '');
+                if (!completed) setButtonBusy(submitBtn, false, '');
             }
         });
     }
@@ -1017,6 +1017,7 @@
         const reasonCounter = document.getElementById('userResetReasonCounter');
         let target = null;
         let inFlight = false;
+        let completed = false;
 
         function matchesUsername() {
             return !!target && !!confirmInput && confirmInput.value.trim() === target.username;
@@ -1038,6 +1039,7 @@
                 username: btn.getAttribute('data-user-username') || '',
                 name: btn.getAttribute('data-user-name') || ''
             };
+            completed = false;
             if (form) form.reset();
             setFeedback(errorAlert, '');
             if (targetName) targetName.textContent = target.name;
@@ -1067,7 +1069,7 @@
         if (!form) return;
         form.addEventListener('submit', async function (e) {
             e.preventDefault();
-            if (inFlight || !target) return;
+            if (inFlight || completed || !target) return;
             if (!matchesUsername()) {
                 setFeedback(errorAlert, 'Tên đăng nhập xác nhận không khớp với tài khoản cần đặt lại.');
                 if (confirmInput && typeof confirmInput.focus === 'function') confirmInput.focus();
@@ -1094,6 +1096,7 @@
                 });
                 const json = await window.alouteHttp.readJson(response);
                 if (response.ok && json && json.success) {
+                    completed = true;
                     showToast('Đã đặt lại hồ sơ của tài khoản ' + target.name + '.', 'success');
                     setTimeout(function () { window.location.reload(); }, 600);
                     return;
@@ -1103,9 +1106,10 @@
                 setFeedback(errorAlert, 'Lỗi kết nối mạng: không thể đặt lại hồ sơ. Vui lòng thử lại.');
             } finally {
                 inFlight = false;
-                if (submitBtn) submitBtn.disabled = !matchesUsername();
-                setButtonBusy(submitBtn, false, '');
-                if (submitBtn) submitBtn.disabled = !matchesUsername();
+                if (!completed) {
+                    setButtonBusy(submitBtn, false, '');
+                    syncConfirmState();
+                }
             }
         });
     }
@@ -1127,6 +1131,7 @@
         const reasonCounter = document.getElementById('userRoleReasonCounter');
         let target = null;
         let inFlight = false;
+        let completed = false;
 
         function roleLabel(role) {
             if (role === 'SYSTEM_ADMIN') return 'Quản trị viên hệ thống (SYSTEM_ADMIN)';
@@ -1140,6 +1145,7 @@
                 name: btn.getAttribute('data-user-name') || '',
                 currentRole: btn.getAttribute('data-current-role') || ''
             };
+            completed = false;
             if (form) form.reset();
             setFeedback(errorAlert, '');
             if (targetName) targetName.textContent = target.name;
@@ -1164,7 +1170,7 @@
         if (!form) return;
         form.addEventListener('submit', async function (e) {
             e.preventDefault();
-            if (inFlight || !target) return;
+            if (inFlight || completed || !target) return;
             const selectedRole = newRole ? newRole.value : '';
             if (!selectedRole || (selectedRole !== 'USER' && selectedRole !== 'SYSTEM_ADMIN')) {
                 setFeedback(errorAlert, 'Vui lòng chọn vai trò USER hoặc SYSTEM_ADMIN.');
@@ -1191,6 +1197,7 @@
                 });
                 const json = await window.alouteHttp.readJson(response);
                 if (response.ok && json && json.success) {
+                    completed = true;
                     showToast('Đã đổi vai trò hệ thống của ' + target.name + ' thành ' + roleLabel(selectedRole) + '.', 'success');
                     setTimeout(function () { window.location.reload(); }, 600);
                     return;
@@ -1200,7 +1207,7 @@
                 setFeedback(errorAlert, 'Lỗi kết nối mạng: không thể đổi vai trò hệ thống. Vui lòng thử lại.');
             } finally {
                 inFlight = false;
-                setButtonBusy(submitBtn, false, '');
+                if (!completed) setButtonBusy(submitBtn, false, '');
             }
         });
     }

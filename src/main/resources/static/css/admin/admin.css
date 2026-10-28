@@ -559,6 +559,10 @@
   width: auto;
 }
 
+.admin-user-actions > .btn {
+  min-height: 38px;
+}
+
 @media (max-width: 575.98px) {
   .admin-back-link {
     width: 100%;
@@ -570,8 +574,4 @@
     justify-content: center;
     min-height: 44px;
   }
-}
-
-.admin-user-actions > .btn {
-  min-height: 38px;
 }
