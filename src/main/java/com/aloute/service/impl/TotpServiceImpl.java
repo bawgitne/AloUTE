@@ -27,6 +27,7 @@ public class TotpServiceImpl implements TotpService {
     private static final String HMAC_ALGO = "HmacSHA1";
     private static final String BASE32_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
     private static final String BACKUP_CODE_CHARS = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // No ambiguous 0/O, 1/I
+    private static final int PBKDF2_ITERATIONS = 60_000;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -116,12 +117,50 @@ public class TotpServiceImpl implements TotpService {
         if (rawCode == null) return null;
         String clean = rawCode.replaceAll("[^A-Za-z0-9]", "").toUpperCase().trim();
         try {
-            MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
-            byte[] hash = sha256.digest(clean.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hash);
+            // BL-08: per-code salted PBKDF2 ("v2:" prefix). Legacy unsalted
+            // SHA-256 rows stay verifiable via verifyBackupCode until the user
+            // regenerates their codes.
+            byte[] salt = new byte[16];
+            secureRandom.nextBytes(salt);
+            byte[] derived = pbkdf2(clean.getBytes(StandardCharsets.UTF_8), salt);
+            return "v2:" + Base64.getEncoder().encodeToString(salt)
+                    + ":" + Base64.getEncoder().encodeToString(derived);
         } catch (Exception ex) {
             throw new RuntimeException("Error hashing backup code", ex);
         }
+    }
+
+    @Override
+    public boolean verifyBackupCode(String rawCode, String storedHash) {
+        if (rawCode == null || storedHash == null) return false;
+        String clean = rawCode.replaceAll("[^A-Za-z0-9]", "").toUpperCase().trim();
+        try {
+            if (storedHash.startsWith("v2:")) {
+                String[] parts = storedHash.split(":", 3);
+                if (parts.length != 3) return false;
+                byte[] salt = Base64.getDecoder().decode(parts[1]);
+                byte[] expected = Base64.getDecoder().decode(parts[2]);
+                byte[] derived = pbkdf2(clean.getBytes(StandardCharsets.UTF_8), salt);
+                return MessageDigest.isEqual(expected, derived);
+            }
+            // Legacy unsalted SHA-256 rows (pre-BL-08 accounts keep working).
+            MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+            byte[] legacy = sha256.digest(clean.getBytes(StandardCharsets.UTF_8));
+            byte[] expected = Base64.getDecoder().decode(storedHash);
+            return MessageDigest.isEqual(expected, legacy);
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private byte[] pbkdf2(byte[] input, byte[] salt) throws Exception {
+        javax.crypto.spec.PBEKeySpec spec = new javax.crypto.spec.PBEKeySpec(
+                new String(input, StandardCharsets.UTF_8).toCharArray(), salt, PBKDF2_ITERATIONS, 256);
+        javax.crypto.SecretKeyFactory factory =
+                javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+        byte[] derived = factory.generateSecret(spec).getEncoded();
+        spec.clearPassword();
+        return derived;
     }
 
     private String generateCodeForStep(byte[] keyBytes, long step) throws Exception {

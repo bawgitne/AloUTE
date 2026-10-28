@@ -225,6 +225,10 @@ public class PasswordResetServiceImpl implements PasswordResetService {
         userRepository.save(user);
 
         tokenRepository.delete(currentToken);
+        // A completed password reset is proof of account ownership: clear any
+        // login-lockout state so the user can sign in immediately with the new
+        // password instead of waiting out the lockout window.
+        userRepository.resetLoginFailureState(user.getId());
         log.info("Password reset completed successfully for userId {}", user.getId());
     }
 
