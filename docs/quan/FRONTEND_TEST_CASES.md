@@ -3,7 +3,7 @@
 > **Ngày chạy:** 2026-10-27 (Asia/Ho_Chi_Minh)
 > **Nhánh:** `fix/quan-frontend-hardening-20261027`
 > **Baseline:** `origin/master` @ `99ab72ee450fd7cfb7bfae91af4f8e40d23d5ab6`
-> **Trạng thái mã nguồn:** working tree có thay đổi chưa commit; không có SHA riêng cho bản hardening.
+> **Trạng thái mã nguồn tại thời điểm đo (2026-10-27):** working tree có thay đổi chưa commit; không có SHA riêng cho bản hardening. **Hiện tại (2026-10-28):** đã merge vào `master` qua PR #85 (merge commit `cd0d85c`).
 > **Nguyên tắc:** test tĩnh Node **không** được tính là bằng chứng browser E2E; mỗi loại được ghi riêng.
 
 ## 1. Môi trường
@@ -83,7 +83,7 @@ Các test này không thuộc phạm vi frontend và không được tính là P
 
 ```bash
 cd test-results/quan-frontend-hardening
-NODE_PATH="C:/Users/My Laptop/AppData/Local/npm-cache/_npx/e41f203b7505f1fb/node_modules" \
+NODE_PATH="/path/to/playwright/node_modules" \
 BASE_URL="http://127.0.0.1:8081" OUT_DIR="after" \
 ALOUTE_SEED_EMAIL="<seed-email-local>" ALOUTE_SEED_PASSWORD="<seed-password-local>" \
 node tools/verify.cjs

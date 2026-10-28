@@ -146,7 +146,8 @@ CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) chạy tuần tự: 
 ## 9. Cấu hình an toàn & lưu ý vận hành
 
 - **Bí mật:** không bao giờ commit `JWT secret`, `ALOUTE_TWO_FACTOR_MASTER_KEY`, thông tin mail hay Firebase vào repository.
-- **Profile production:** production phải chạy với profile `prod` và cờ `aloute.production-mode=true` để bật các guard fail-closed (không seed dữ liệu dev, từ chối khởi động nếu thiếu khóa 2FA mạnh). Điều này được thực thi bởi `ProductionProfileGuard`.
+- **Profile production:** production phải chạy với profile `prod`; profile `prod` đặt mặc định `aloute.production-mode=true`. `ProductionProfileGuard` (BL-01) fail-closed khi `aloute.production-mode=true` **và** profile `dev` cùng bật — mục đích là chặn việc seed tài khoản dev trên môi trường production. Guard này **không** kiểm tra độ mạnh khóa 2FA.
+- **Khóa mã hóa 2FA:** trên `master`, `TwoFactorEncryptionService` dùng một khóa dev mặc định công khai và **chưa** fail-closed ở production. Cơ chế từ chối khởi động khi thiếu/ngắn/dùng khóa dev mặc định là hạng mục BL-07 thuộc **PR #84 (chưa merge)**, dùng biến `ALOUTE_TWO_FACTOR_MASTER_KEY`. Không mô tả cơ chế này là đã có trên `master`.
 - **Migration:** các script DDL được thực thi **thủ công** theo hướng dẫn trong `src/main/resources/db/migration/README.md`. Luôn có phương án rollback.
 
 ## 10. Thành viên và phân công
@@ -156,7 +157,7 @@ Phân công dựa trên bằng chứng commit/PR trong repository và [`skills/I
 | Vai trò | Phạm vi |
 | :--- | :--- |
 | **Backend / Domain / Security** | Spring Boot, JPA, authorization, messaging, notification, 2FA |
-| **Frontend / UI-UX / E2E** | Thymeleaf templates, CSS/JS, responsive, accessibility (bằng chứng frontend nằm trong `docs/quan/`, được bổ sung cùng nhánh frontend hardening) |
+| **Frontend / UI-UX / E2E** | Thymeleaf templates, CSS/JS, responsive, accessibility (bằng chứng frontend nằm trong `docs/quan/`, bổ sung qua nhánh frontend hardening đã merge — PR #85) |
 | **Tester / QA** | Kịch bản kiểm thử và sequence diagrams (xem [`docs/bang/USE_CASE_MATRIX.md`](docs/bang/USE_CASE_MATRIX.md), [`docs/bang/sequence/`](docs/bang/sequence/)) |
 
 Bằng chứng backend/thiết kế: [`docs/khoi/`](docs/khoi/WEEK2_WEEK3_IMPLEMENTATION.md), [`docs/BAO_CAO_THIET_KE_DEN_XU_LY.md`](docs/BAO_CAO_THIET_KE_DEN_XU_LY.md). Đặc tả admin: [`docs/ALOUTE_ADMIN_DASHBOARD_SPEC.md`](docs/ALOUTE_ADMIN_DASHBOARD_SPEC.md). Kế hoạch 2FA: [`docs/TWO_FACTOR_AUTHENTICATION_PLAN.md`](docs/TWO_FACTOR_AUTHENTICATION_PLAN.md).
@@ -172,7 +173,16 @@ Bằng chứng backend/thiết kế: [`docs/khoi/`](docs/khoi/WEEK2_WEEK3_IMPLEM
 
 Dự án hỗ trợ đóng gói bằng Docker ([`Dockerfile`](Dockerfile), [`docker-compose.yml`](docker-compose.yml)) với Nginx làm reverse proxy (xem [`skills/docker_reverse_proxy_rule.md`](skills/docker_reverse_proxy_rule.md)).
 
-> **Trạng thái triển khai:** quy trình tự động triển khai (CI/CD → môi trường chạy) **chưa được xác minh** trong repository này. Không suy diễn rằng một lần CI xanh đồng nghĩa với việc production đã được cập nhật.
+> **Trạng thái triển khai:** theo xác nhận của nhóm, triển khai production được thực hiện **thủ công**; CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) chỉ chạy test và build, **không** có bước deploy/publish. Hạ tầng cụ thể (VPS + Docker Compose, fat JAR + systemd hay PaaS), reverse proxy và vị trí database **chưa được xác minh** trong repository này. Một lần CI xanh **không** đồng nghĩa production đã được cập nhật.
+
+Quy trình triển khai thủ công có điều kiện (backup, rollback, health check, xác minh SHA release) được mô tả trong [`docs/release/MANUAL_DEPLOYMENT_RUNBOOK.md`](docs/release/MANUAL_DEPLOYMENT_RUNBOOK.md). Bằng chứng merge lô đầu tiên (PR #74–#77) nằm trong [`docs/release/BATCH1_MERGE_EVIDENCE_2026-10-28.md`](docs/release/BATCH1_MERGE_EVIDENCE_2026-10-28.md).
+
+## 13. Đóng góp & tài liệu dự án
+
+- Quy tắc đóng góp, quy ước branch/commit/PR: [`CONTRIBUTING.md`](CONTRIBUTING.md).
+- Bản đồ tài liệu (hiện hành / lịch sử / bàn giao): [`docs/README.md`](docs/README.md).
+- Quy trình triển khai thủ công: [`docs/release/MANUAL_DEPLOYMENT_RUNBOOK.md`](docs/release/MANUAL_DEPLOYMENT_RUNBOOK.md).
+- Snapshot kiểm thử hệ thống lịch sử: [`docs/audits/SYSTEM_TEST_REPORT_2026-10-23.md`](docs/audits/SYSTEM_TEST_REPORT_2026-10-23.md).
 
 ---
 

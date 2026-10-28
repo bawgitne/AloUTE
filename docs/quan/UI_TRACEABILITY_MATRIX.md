@@ -2,7 +2,7 @@
 
 > **Phạm vi:** 10 màn hình trong [`docs/ui/wireframes/`](../ui/wireframes/README.md).
 > **Nguyên tắc:** mỗi cột là một loại bằng chứng khác nhau; không thay thế cột này bằng cột khác.
-> **Baseline source:** `origin/master` @ `99ab72e` + working tree hardening chưa commit.
+> **Baseline source:** `origin/master` @ `99ab72e` + working tree hardening (đo 2026-10-27; nay đã merge qua PR #85, merge commit `cd0d85c`).
 > **Runtime evidence:** local, profile `dev`, H2 in-memory, 2026-10-20/21 (PR #42, #49) — không phải production.
 > **Production evidence:** guest-only audit ngày 2026-10-27 trên `https://justneed.food`; commit production không xác minh được.
 

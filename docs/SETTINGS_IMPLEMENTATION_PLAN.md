@@ -155,10 +155,10 @@ User nhập Mật khẩu cũ & Mật khẩu mới -> Submit
 ## 5. LỘ TRÌNH TRIỂN KHAI THEO TỪNG GIAI ĐOẠN
 
 ### Giai đoạn 1: Xây dựng UI Settings Chuẩn & Các tính năng Nhóm 1 (Làm ngay)
-1. Cải tiến [templates/settings/index.html](src/main/resources/templates/settings/index.html):
+1. Cải tiến [templates/settings/index.html](../src/main/resources/templates/settings/index.html):
    - Tạo Tab Sidebar bên trái: Hồ sơ, Quyền riêng tư, Bảo mật, Giao diện.
    - Tạo các Form chi tiết cho từng Section tương ứng.
-2. Viết file JS điều khiển [static/js/features/settings/settings.js](src/main/resources/static/js/features/settings/settings.js):
+2. Viết file JS điều khiển [static/js/features/settings/settings.js](../src/main/resources/static/js/features/settings/settings.js):
    - Xử lý chuyển tab mượt mà (URL hash / click).
    - Xử lý lưu Profile qua `httpClient.patch('/api/users/me/profile', data)`.
    - Xử lý upload avatar trực tiếp lên Firebase Storage qua `POST /api/media`.

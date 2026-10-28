@@ -3,7 +3,8 @@
 > **Ngày:** 2026-10-27
 > **Nhánh:** `fix/quan-frontend-hardening-20261027`
 > **Baseline:** `origin/master` @ `99ab72ee450fd7cfb7bfae91af4f8e40d23d5ab6`
-> **Trạng thái:** thay đổi nằm trong working tree, **chưa commit, chưa push, chưa deploy**
+> **Trạng thái tại thời điểm đo (2026-10-27):** thay đổi nằm trong working tree trên nhánh `fix/quan-frontend-hardening-20261027`.
+> **Trạng thái hiện tại (2026-10-28):** đã merge vào `master` qua PR #85 (merge commit `cd0d85c`); chưa deploy production.
 > **Ràng buộc đã giữ:** không sửa backend security, không sửa schema/migration, không sửa deployment/production, không đổi authorization hoặc business rule.
 > **Môi trường kiểm chứng:** local `http://127.0.0.1:8081`, profile `dev`, H2 in-memory; browser Chrome thật qua Playwright 1.64.1.
 
@@ -278,4 +279,4 @@ Sửa BL-22 cần thay đổi backend security/exception handling (entry point t
 3. **BL-25** còn hex/`!important` legacy và CDN external; cache dài hạn cho asset hash bị **DEFERRED** vì cần cấu hình server theo path, không thể sửa an toàn chỉ bằng `period` toàn cục.
 4. **BL-17** cần xác minh production đã có PR #59 hay chưa.
 5. `currentUser` best-effort ở `FeedPageController`/`CommunityManagePageController` có thể khiến user đăng nhập thấy UI guest khi lookup lỗi; cần backend xử lý nếu muốn loại bỏ hoàn toàn.
-6. Không commit/push/merge cho tới khi được cho phép.
+6. (Lịch sử) Không commit/push/merge cho tới khi được cho phép — ràng buộc này đã được gỡ khi owner phê duyệt merge qua PR #85.
