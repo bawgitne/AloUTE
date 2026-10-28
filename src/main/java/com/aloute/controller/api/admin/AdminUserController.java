@@ -2,12 +2,15 @@ package com.aloute.controller.api.admin;
 
 import com.aloute.common.api.ApiResponse;
 import com.aloute.common.api.PageMeta;
+import com.aloute.dto.request.admin.AdminUserModerationRequest;
 import com.aloute.dto.response.admin.AdminPostSummaryResponse;
 import com.aloute.dto.response.admin.AdminUserDetailResponse;
+import com.aloute.dto.response.admin.AdminUserModerationActionResponse;
 import com.aloute.dto.response.admin.AdminUserSummaryResponse;
 import com.aloute.security.currentuser.CurrentUserProvider;
 import com.aloute.service.admin.AdminPostService;
 import com.aloute.service.admin.AdminUserService;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
@@ -55,6 +58,24 @@ public class AdminUserController {
             @PathVariable @Positive Long userId
     ) {
         return ApiResponse.success(adminUserService.getUserDetail(userId));
+    }
+
+    @PostMapping("/users/{userId}/suspend")
+    public ApiResponse<AdminUserModerationActionResponse> suspendUser(
+            @PathVariable @Positive Long userId,
+            @Valid @RequestBody AdminUserModerationRequest request
+    ) {
+        Long adminId = currentUserProvider.requireUserId();
+        return ApiResponse.success(adminUserService.suspendUser(adminId, userId, request));
+    }
+
+    @PostMapping("/users/{userId}/reactivate")
+    public ApiResponse<AdminUserModerationActionResponse> reactivateUser(
+            @PathVariable @Positive Long userId,
+            @Valid @RequestBody AdminUserModerationRequest request
+    ) {
+        Long adminId = currentUserProvider.requireUserId();
+        return ApiResponse.success(adminUserService.reactivateUser(adminId, userId, request));
     }
 
     @GetMapping("/users/{userId}/posts")
