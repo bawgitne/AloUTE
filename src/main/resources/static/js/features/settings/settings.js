@@ -58,6 +58,14 @@
     // =========================================================================
     // 1. Alerts & Notifications Helper
     // =========================================================================
+    function redirectToLogin(url) {
+        if (window.location && typeof window.location.replace === 'function') {
+            window.location.replace(url);
+        } else {
+            window.location.href = url;
+        }
+    }
+
     function showAlert(message, type) {
         const container = document.getElementById('settings-alert-container');
         const box = document.getElementById('settings-alert-box');
@@ -671,7 +679,7 @@
                 try {
                     await window.alouteHttp.request('/api/auth/logout', { method: 'POST' });
                 } catch (_) {}
-                window.location.href = '/login';
+                redirectToLogin('/login');
             });
         });
     }
@@ -1706,28 +1714,123 @@
             const btnConfirmDeactivate = document.getElementById('btn-confirm-deactivate-submit');
             const deactivateSpinner = document.getElementById('deactivate-spinner');
 
-            if (btnOpenDeactivate && deactivateModal) {
-                btnOpenDeactivate.addEventListener('click', function() {
+            let isDeactivating = false;
+            let isDeactivated = false;
+
+            const DEACTIVATE_ERROR_MESSAGES = {
+                INVALID_PASSWORD: 'Mật khẩu xác nhận không chính xác.',
+                USER_LAST_ADMIN_PROTECTED: 'Không thể vô hiệu hóa tài khoản quản trị viên hệ thống cuối cùng. Vui lòng chuyển quyền quản trị cho tài khoản khác trước.',
+                AUTH_TOKEN_EXPIRED: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+                AUTH_UNAUTHENTICATED: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+                AUTH_ACCOUNT_DEACTIVATED: 'Tài khoản đã ở trạng thái vô hiệu hóa. Vui lòng liên hệ ban quản trị để mở lại.',
+                AUTH_ACCOUNT_LOCKED: 'Tài khoản đang bị tạm khóa. Vui lòng liên hệ ban quản trị.',
+                AUTH_FORBIDDEN: 'Bạn không có quyền vô hiệu hóa tài khoản này.',
+                FORBIDDEN: 'Bạn không có quyền vô hiệu hóa tài khoản này.',
+                USER_SUSPENSION_ALREADY_ACTIVE: 'Tài khoản đã ở trạng thái vô hiệu hóa.',
+                USER_NOT_FOUND: 'Không tìm thấy tài khoản cần vô hiệu hóa.',
+                VALIDATION_FAILED: 'Mật khẩu xác nhận không hợp lệ.'
+            };
+
+            function deactivateErrorMessage(response, result) {
+                const error = result && result.error;
+                const code = error && error.code;
+                if (code && DEACTIVATE_ERROR_MESSAGES[code]) {
+                    return DEACTIVATE_ERROR_MESSAGES[code];
+                }
+                const status = response ? response.status : 0;
+                if (status === 400 || status === 422) {
+                    return 'Dữ liệu xác nhận không hợp lệ. Vui lòng kiểm tra lại mật khẩu.';
+                }
+                if (status === 401) {
+                    return DEACTIVATE_ERROR_MESSAGES.AUTH_TOKEN_EXPIRED;
+                }
+                if (status === 403) {
+                    return DEACTIVATE_ERROR_MESSAGES.AUTH_FORBIDDEN;
+                }
+                if (status === 404) {
+                    return DEACTIVATE_ERROR_MESSAGES.USER_NOT_FOUND;
+                }
+                if (status === 409) {
+                    return 'Không thể vô hiệu hóa tài khoản do xung đột trạng thái. Vui lòng tải lại trang và thử lại.';
+                }
+                if (status >= 500) {
+                    return 'Hệ thống đang gặp sự cố. Vui lòng thử lại sau.';
+                }
+                return 'Không thể vô hiệu hóa tài khoản. Vui lòng thử lại.';
+            }
+
+            function setDeactivateBusy(busy) {
+                if (btnConfirmDeactivate) {
+                    btnConfirmDeactivate.disabled = busy;
+                    if (busy) {
+                        btnConfirmDeactivate.setAttribute('aria-busy', 'true');
+                    } else {
+                        btnConfirmDeactivate.removeAttribute('aria-busy');
+                    }
+                }
+                if (deactivatePasswordInput) {
+                    deactivatePasswordInput.disabled = busy;
+                }
+                if (deactivateSpinner) {
+                    deactivateSpinner.classList.toggle('d-none', !busy);
+                }
+            }
+
+            function restoreDeactivateForm() {
+                isDeactivating = false;
+                setDeactivateBusy(false);
+                if (deactivatePasswordInput) {
+                    deactivatePasswordInput.value = '';
+                    deactivatePasswordInput.focus();
+                }
+            }
+
+            if (deactivateModalEl) {
+                deactivateModalEl.addEventListener('hidden.bs.modal', function () {
+                    if (deactivatePasswordInput) {
+                        deactivatePasswordInput.value = '';
+                    }
+                    if (!isDeactivating && deactivateFeedback) {
+                        deactivateFeedback.classList.add('d-none');
+                    }
+                });
+                deactivateModalEl.addEventListener('shown.bs.modal', function () {
+                    if (deactivatePasswordInput && !deactivatePasswordInput.disabled) {
+                        deactivatePasswordInput.focus();
+                    }
+                });
+            }
+
+            if (btnOpenDeactivate) {
+                btnOpenDeactivate.addEventListener('click', function () {
+                    if (isDeactivating || isDeactivated || btnOpenDeactivate.disabled) return;
                     if (deactivatePasswordInput) deactivatePasswordInput.value = '';
                     if (deactivateFeedback) deactivateFeedback.classList.add('d-none');
-                    deactivateModal.show();
+                    if (deactivateModal) deactivateModal.show();
                 });
             }
 
             if (formDeactivate) {
-                formDeactivate.addEventListener('submit', async function(e) {
+                formDeactivate.addEventListener('submit', async function (e) {
                     e.preventDefault();
+                    if (isDeactivating || isDeactivated) {
+                        return;
+                    }
+
                     const password = deactivatePasswordInput ? deactivatePasswordInput.value : '';
                     if (!password) {
                         if (deactivateFeedback) {
                             deactivateFeedback.textContent = 'Vui lòng nhập mật khẩu xác nhận.';
                             deactivateFeedback.classList.remove('d-none');
                         }
+                        if (deactivatePasswordInput) {
+                            deactivatePasswordInput.focus();
+                        }
                         return;
                     }
 
-                    if (btnConfirmDeactivate) btnConfirmDeactivate.disabled = true;
-                    if (deactivateSpinner) deactivateSpinner.classList.remove('d-none');
+                    isDeactivating = true;
+                    setDeactivateBusy(true);
                     if (deactivateFeedback) deactivateFeedback.classList.add('d-none');
 
                     try {
@@ -1737,29 +1840,51 @@
                         });
                         const result = await window.alouteHttp.readJson(response);
 
-                        if (response.ok) {
-                            if (deactivateModal) deactivateModal.hide();
-                            showAlert('Tài khoản của bạn đã được vô hiệu hóa thành công. Đang chuyển về trang đăng nhập...', 'success');
-                            setTimeout(function () {
-                                window.location.href = '/login?deactivated=true';
-                            }, 1500);
-                        } else {
-                            const msg = (result && result.error && result.error.message) || 'Mật khẩu xác nhận không chính xác.';
-                            if (deactivateFeedback) {
-                                deactivateFeedback.textContent = msg;
-                                deactivateFeedback.classList.remove('d-none');
+                        if (response && response.ok) {
+                            isDeactivated = true;
+                            if (deactivatePasswordInput) {
+                                deactivatePasswordInput.value = '';
                             }
+                            if (btnOpenDeactivate) {
+                                btnOpenDeactivate.disabled = true;
+                            }
+                            if (deactivateModal) {
+                                deactivateModal.hide();
+                            }
+                            showAlert('Tài khoản của bạn đã được vô hiệu hóa thành công. Đang chuyển về trang đăng nhập...', 'success');
+                            (window.setTimeout || setTimeout)(function () {
+                                redirectToLogin('/login?deactivated=true');
+                            }, 1500);
+                            return;
+                        }
+
+                        const msg = deactivateErrorMessage(response, result);
+                        if (deactivateFeedback) {
+                            deactivateFeedback.textContent = msg;
+                            deactivateFeedback.classList.remove('d-none');
+                        }
+                        restoreDeactivateForm();
+                        if (response && response.status === 401) {
+                            (window.setTimeout || setTimeout)(function () {
+                                redirectToLogin('/login?expired=true');
+                            }, 1200);
                         }
                     } catch (err) {
                         if (deactivateFeedback) {
-                            deactivateFeedback.textContent = 'Lỗi kết nối máy chủ.';
+                            deactivateFeedback.textContent = 'Lỗi kết nối máy chủ. Vui lòng thử lại sau.';
                             deactivateFeedback.classList.remove('d-none');
                         }
-                    } finally {
-                        if (btnConfirmDeactivate) btnConfirmDeactivate.disabled = false;
-                        if (deactivateSpinner) deactivateSpinner.classList.add('d-none');
+                        restoreDeactivateForm();
                     }
                 });
             }
         }
+
+    if (typeof window !== 'undefined' && window.addEventListener) {
+        window.addEventListener('pageshow', function (event) {
+            if (event.persisted && window.location && typeof window.location.reload === 'function') {
+                window.location.reload();
+            }
+        });
+    }
 })();
