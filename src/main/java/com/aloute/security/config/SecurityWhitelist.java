@@ -95,8 +95,6 @@ public final class SecurityWhitelist {
             "/*.svg",
             "/*.ico",
             "/error",
-            "/khoi-test",
-            "/khoi-test/**",
             "/ws",
             "/ws/**"
     };
