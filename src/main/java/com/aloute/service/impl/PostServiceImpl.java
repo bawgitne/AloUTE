@@ -31,6 +31,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -230,9 +231,14 @@ public class PostServiceImpl implements PostService {
             }
         }
 
-        // Save topic tags
+        // Save topic tags. topicIds is client-supplied, so it may repeat an id or carry
+        // nulls; PostTopic has a unique (post_id, topic_id) index, so duplicates must be
+        // collapsed here or the second insert fails the whole create with a 500.
         if (request.topicIds() != null && !request.topicIds().isEmpty()) {
-            for (Long topicId : request.topicIds()) {
+            for (Long topicId : new LinkedHashSet<>(request.topicIds())) {
+                if (topicId == null) {
+                    continue;
+                }
                 Topic topic = topicRepository.findById(topicId).orElse(null);
                 if (topic != null) {
                     postTopicRepository.save(new PostTopic(savedPost, topic));
