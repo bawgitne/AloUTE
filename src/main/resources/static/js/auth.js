@@ -100,6 +100,7 @@
 
         if (code === 'AUTH_INVALID_CREDENTIALS') return 'Email hoặc mật khẩu không chính xác.';
         if (code === 'AUTH_FORBIDDEN') return 'Bạn không có quyền thực hiện thao tác này.';
+        if (code === 'AUTH_ACCOUNT_DEACTIVATED') return 'Tài khoản của bạn đang bị vô hiệu hóa. Vui lòng liên hệ ban quản trị để kích hoạt lại.';
         if (code === 'AUTH_TOKEN_EXPIRED') return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
         if (code === 'USER_NOT_FOUND') return 'Không tìm thấy thông tin người dùng.';
         if (code === 'USER_INACTIVE') return 'Tài khoản người dùng đã bị khóa hoặc chưa kích hoạt.';
