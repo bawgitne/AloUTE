@@ -109,9 +109,28 @@
                     <button type="button" class="btn btn-sm btn-outline-secondary" disabled aria-disabled="true" title="Chức năng cảnh báo chưa khả dụng">
                         <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>Cảnh báo tài khoản
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled aria-disabled="true" title="Chức năng đình chỉ chưa khả dụng">
+
+                    <!-- Suspension is a real, backend-enforced SYSTEM_ADMIN capability.
+                         Hidden for the acting admin's own account and for the last admin. -->
+                    <button th:if="${user.isActive and (currentUserId == null or user.id != currentUserId) and user.capabilities != null and user.capabilities.canSuspend}"
+                            type="button"
+                            class="btn btn-sm btn-outline-danger"
+                            data-action="open-user-suspend"
+                            th:attr="data-user-id=${user.id},data-user-name=${user.displayName != null and !user.displayName.isEmpty() ? user.displayName : user.username}">
                         <i class="bi bi-person-x me-1" aria-hidden="true"></i>Đình chỉ tài khoản
                     </button>
+                    <button th:if="${!user.isActive}"
+                            type="button"
+                            class="btn btn-sm btn-outline-success"
+                            data-action="open-user-reactivate"
+                            th:attr="data-user-id=${user.id},data-user-name=${user.displayName != null and !user.displayName.isEmpty() ? user.displayName : user.username}">
+                        <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Kích hoạt lại tài khoản
+                    </button>
+                    <span th:if="${user.isActive and currentUserId != null and user.id == currentUserId}"
+                          class="badge bg-light text-secondary border align-self-center">
+                        Không thể tự đình chỉ tài khoản của bạn
+                    </span>
+
                     <button type="button" class="btn btn-sm btn-outline-secondary" disabled aria-disabled="true" title="Chức năng đặt lại hồ sơ chưa khả dụng">
                         <i class="bi bi-person-lines-fill me-1" aria-hidden="true"></i>Đặt lại hồ sơ
                     </button>
