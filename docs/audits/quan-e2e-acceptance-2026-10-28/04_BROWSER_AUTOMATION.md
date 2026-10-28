@@ -102,12 +102,18 @@ Quy ước:
 | `run-community3` | community | 20 | 0 | 1 | 0 | Baseline |
 | `run-resilience-2` | resilience | 10 | 1 | 0 | 0 | RES-02 BL-22 |
 | `final-verification-20261028` | cả 6 suite | 155 | 4 | 3 | 3 | Sau fix 44px/auth-23/race; 165 ID duy nhất; guard PASS |
+| `baseline-fixture-repro-20261028` | social, DB lệch ID | 29 | 3 | 2 | 2 | Tái hiện lỗi fixture poll (SOC-P40/42/43 + P41 BLOCKED) |
+| `fixed-social-shifted-db-20261028` | social, cùng DB lệch ID | 33 | 0 | 1 | 2 | Sau khi fixture tự tạo/xác minh/cleanup |
+| `final-signoff-20261028-r2` | cả 6 suite, integration `25e7595` | **159** | **0** | 3 | 3 | 165/165 ID; BL-22 PASS; guard không lệch |
 
-Kết quả hợp nhất cuối (best run mỗi suite, cùng code): **155 PASS / 4 FAIL / 3 BLOCKED / 3 NOT RUN**.
+Kết quả trên branch QA `4d00b6a` (lịch sử): **155 PASS / 4 FAIL / 3 BLOCKED / 3 NOT RUN**.
+Kết quả sign-off trên integration `25e7595`: **159 PASS / 0 FAIL / 3 BLOCKED / 3 NOT RUN**.
 
 ## 7. Flake đã xử lý
 
 **MSG-07** ban đầu dùng `waitBubble(page, '__qaMsgXss')` và `.last()`. Marker này còn xuất hiện trong tin nhắn của lần chạy trước và trong case MSG-04 cùng suite, nên locator có thể trúng bubble cũ trước khi tin mới render → FAIL giả. Đã đổi sang chờ chính xác `payload` đầy đủ (chứa tag duy nhất của lần chạy), sau đó assert `textContent`. Rerun `full-run-4`: PASS.
+
+**SOC-P40/41/42/43 — fixture poll hardcode `postId=4`** — FAIL/BLOCKED giả trên H2 mới khi poll không còn ở ID 4 (xem `01_ACCEPTANCE_SUMMARY.md` mục 9). Đã thay bằng fixture tạo qua API, xác minh bằng `GET /api/posts/{id}`, cleanup trong `finally`; mỗi case độc lập, không dùng `globalThis`, không phụ thuộc thứ tự. A/B trên cùng DB lệch ID: 3 FAIL + 1 BLOCKED → 0 FAIL.
 
 ## 8. Tái chạy tích hợp ZCode HEAD
 
@@ -126,7 +132,22 @@ Kết quả `integration-e12b21b-20261028-0907`: **165 case — 155 PASS / 4 FAI
 
 Lần chạy đầu (`...-0903`) không hợp lệ vì chưa seed demo-data (AUTH-01 FAIL giả); đã hủy và không dùng làm bằng chứng.
 
-## 9. Giới hạn
+## 9. Sign-off trên integration HEAD `25e7595` (2026-10-28)
+
+| Bước | Thực hiện |
+|---|---|
+| Worktree | `git worktree add --detach D:\PROJECT\cnpm-project\AloUTE-e2e-signoff-20261028 25e7595` — cô lập, không sửa `AloUTE-integration-final`/ZCode |
+| Patch test | Chỉ `test/e2e/quan-acceptance/suites/social.mjs` (+111 / −47): fixture poll tự tạo/xác minh/cleanup |
+| Build / chạy | `mvn -q -DskipTests -DskipITs package`; jar profile `dev`, cổng `8086`, H2 in-memory mới |
+| Seed | `node tools/demo-data.mjs http://127.0.0.1:8086` — 18 OK, 0 failed |
+| Chạy suite | `BASE_URL=http://127.0.0.1:8086 OUT_DIR=<run> node run.mjs` (đủ 6 suite) |
+| Kết quả | **165/165 ID — 159 PASS / 0 FAIL / 3 BLOCKED / 3 NOT RUN**; BL-22 PASS; không phát hiện lệch integrity |
+| Node | `node --test test/frontend/*.test.mjs` — 396/396 PASS |
+| Maven | Full `mvn test` — xem `01_ACCEPTANCE_SUMMARY.md` mục 9.5 |
+
+Bằng chứng: `evidence/final-signoff-integration-25e7595-results.json`, `evidence/final-signoff-integration-25e7595-environment.json`, `evidence/baseline-fixture-repro-old-suite-results.json`, `evidence/fixed-poll-fixture-social-results.json`.
+
+## 10. Giới hạn
 
 - Chỉ chạy local, chưa nối CI; kết quả phụ thuộc server/H2/seed.
 - Không kiểm tra tải đồng thời, không có network throttling, không có mobile browser thật (chỉ viewport giả lập).

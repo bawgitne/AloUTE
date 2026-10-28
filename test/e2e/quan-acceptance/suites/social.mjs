@@ -453,63 +453,127 @@ export async function run({ browser, results }) {
 
   /* ---------------- Poll ---------------- */
 
-  await test(results, S, 'SOC-P40', 'Poll: tác giả chưa vote thấy form, vote thành công và giữ sau refresh', async () => {
-    let postId = 4;
-    let poll = (await getPost(an, postId)).body.data.poll;
-    if (!poll) throw new Error('Bài seed 4 không có poll');
-    if (poll.userVotedOptionId != null) {
-      const fresh = await createPostApi(user, `Poll tái lập QA ${tag}`, {
-        poll: { question: `Chọn phương án QA ${tag}`, allowMultiple: false, options: ['A', 'B', 'C'] }
-      });
-      created.push(fresh.id);
-      postId = fresh.id;
-      poll = fresh.poll;
-    }
-    await openPost(an, postId);
-    const pollId = poll.id;
-    const optionId = poll.options[2].id;
-    const before = poll.totalVotes;
-    await voteInPoll(an.page, pollId, [optionId]);
-    const after = await getPost(an, postId);
-    assertEqual(after.body.data.poll.totalVotes, before + 1, 'totalVotes sau vote');
-    assertEqual(after.body.data.poll.userVotedOptionId, optionId, 'userVotedOptionId');
-    await an.page.reload({ waitUntil: 'domcontentloaded' });
-    const persisted = await getPost(an, postId);
-    assertEqual(persisted.body.data.poll.userVotedOptionId, optionId, 'Vote phải giữ sau refresh');
-    await screenshot(an.page, 'social-poll-result');
-    globalThis.__qaPoll = { postId, pollId, optionId };
-    return { pollId, optionId, totalVotes: after.body.data.poll.totalVotes };
-  });
+  // The dev H2 seed only creates accounts/topics, and database IDs are not stable
+  // across fresh databases, so every poll case creates and verifies its own poll
+  // through the public API instead of relying on a seeded post ID.
+  let pollFixtureSeq = 0;
 
-  const pollFixture = globalThis.__qaPoll;
-  if (!pollFixture) {
-    blocked(results, S, 'SOC-P41', 'Vote lặp lại bị từ chối', 'Không có fixture poll từ SOC-P40');
-  } else {
-    await test(results, S, 'SOC-P41', 'Vote lặp lại bị từ chối (409/400)', async () => {
-      const r = await apiWrite(an, 'POST', `/api/polls/${pollFixture.pollId}/votes`, { optionId: pollFixture.optionId });
-      assert([400, 409].includes(r.status), `Vote lặp phải bị từ chối, nhận ${r.status}`);
-      return { status: r.status, code: r.body?.error?.code ?? null };
+  async function createPollFixture(session, label) {
+    const fixtureName = `${label}-${++pollFixtureSeq}-${tag}`;
+    const r = await apiWrite(session, 'POST', '/api/posts', {
+      content: `Fixture poll ${fixtureName}`,
+      visibility: 'PUBLIC',
+      allowReply: true,
+      allowQuote: true,
+      poll: {
+        question: `Câu hỏi fixture ${fixtureName}`,
+        allowMultiple: false,
+        options: [`Lựa chọn 1 ${fixtureName}`, `Lựa chọn 2 ${fixtureName}`, `Lựa chọn 3 ${fixtureName}`]
+      }
     });
+    if (r.status !== 201) {
+      throw new Error(`FIXTURE: tạo poll ${fixtureName} thất bại (HTTP ${r.status}): ${String(r.text).slice(0, 160)}`);
+    }
+    const post = r.body?.data;
+    if (!post?.id || !post?.poll?.id) {
+      throw new Error(`FIXTURE: phản hồi tạo poll ${fixtureName} thiếu post/poll`);
+    }
+    try {
+      const read = await getPost(session, post.id);
+      const poll = read.body?.data?.poll;
+      if (read.status !== 200 || !poll?.id || !Array.isArray(poll.options) || poll.options.length !== 3) {
+        throw new Error(`FIXTURE: không xác minh được poll ${fixtureName} qua GET /api/posts/${post.id} (HTTP ${read.status})`);
+      }
+      if (poll.userVotedOptionId != null) {
+        throw new Error(`FIXTURE: poll ${fixtureName} mới tạo đã ghi nhận vote`);
+      }
+      return { postId: post.id, pollId: poll.id, poll, optionIds: poll.options.map(o => o.id) };
+    } catch (error) {
+      await deletePostApi(session, post.id).catch(() => null);
+      throw error;
+    }
   }
 
-  await test(results, S, 'SOC-P42', 'Guest vote bị chặn 401', async () => {
-    const g = await guest(browser);
-    const fixture = globalThis.__qaPoll || { pollId: (await getPost(an, 4)).body.data.poll.id, optionId: (await getPost(an, 4)).body.data.poll.options[0].id };
-    const r = await api({ context: g.context }, 'POST', `/api/polls/${fixture.pollId}/votes`, { optionId: fixture.optionId }, {
-      headers: { 'Content-Type': 'application/json' }
+  async function withPollFixture(session, label, fn) {
+    const fixture = await createPollFixture(session, label);
+    let result;
+    let failure = null;
+    try {
+      result = await fn(fixture);
+    } catch (error) {
+      failure = error;
+    }
+    const cleanup = await deletePostApi(session, fixture.postId).catch(() => null);
+    if (failure) throw failure;
+    if (![200, 204, 404].includes(cleanup)) {
+      throw new Error(`FIXTURE CLEANUP: không xóa được post ${fixture.postId} của ${label} (HTTP ${cleanup})`);
+    }
+    return result && typeof result === 'object'
+      ? { ...result, fixtureCleanup: { postId: fixture.postId, status: cleanup } }
+      : result;
+  }
+
+  await test(results, S, 'SOC-P40', 'Poll: tác giả chưa vote thấy form, vote thành công và giữ sau refresh', async () => {
+    return withPollFixture(an, 'SOC-P40', async fixture => {
+      const { postId, pollId, optionIds } = fixture;
+      await openPost(an, postId);
+      await an.page.locator(`.post-poll-container[data-poll-id="${pollId}"] .poll-vote-form`)
+        .waitFor({ state: 'visible', timeout: 8000 });
+      const optionId = optionIds[2];
+      await voteInPoll(an.page, pollId, [optionId]);
+      const after = await getPost(an, postId);
+      assertEqual(after.body.data.poll.totalVotes, fixture.poll.totalVotes + 1, 'totalVotes sau vote');
+      assertEqual(after.body.data.poll.userVotedOptionId, optionId, 'userVotedOptionId');
+      await an.page.reload({ waitUntil: 'domcontentloaded' });
+      const persisted = await getPost(an, postId);
+      assertEqual(persisted.body.data.poll.userVotedOptionId, optionId, 'Vote phải giữ sau refresh');
+      await screenshot(an.page, 'social-poll-result');
+      return { pollId, optionId, totalVotes: after.body.data.poll.totalVotes };
     });
-    assert([401, 403].includes(r.status), `Guest vote phải bị chặn 401/403, nhận ${r.status}`);
-    await g.context.close();
+  });
+
+  await test(results, S, 'SOC-P41', 'Vote lặp lại bị từ chối (409/400)', async () => {
+    return withPollFixture(an, 'SOC-P41', async fixture => {
+      const first = await apiWrite(an, 'POST', `/api/polls/${fixture.pollId}/votes`, { optionId: fixture.optionIds[0] });
+      assertEqual(first.status, 200, 'Vote đầu tiên phải thành công');
+      const before = (await getPost(an, fixture.postId)).body.data.poll;
+      const r = await apiWrite(an, 'POST', `/api/polls/${fixture.pollId}/votes`, { optionId: fixture.optionIds[0] });
+      assert([400, 409].includes(r.status), `Vote lặp phải bị từ chối, nhận ${r.status}`);
+      const after = (await getPost(an, fixture.postId)).body.data.poll;
+      assertEqual(after.totalVotes, before.totalVotes, 'Vote lặp không được làm tăng totalVotes');
+      assertEqual(after.userVotedOptionId, before.userVotedOptionId, 'Vote lặp không được đổi lựa chọn');
+      return { status: r.status, code: r.body?.error?.code ?? null };
+    });
+  });
+
+  await test(results, S, 'SOC-P42', 'Guest vote bị chặn 401', async () => {
+    return withPollFixture(an, 'SOC-P42', async fixture => {
+      const g = await guest(browser);
+      try {
+        const r = await api({ context: g.context }, 'POST', `/api/polls/${fixture.pollId}/votes`, {
+          optionId: fixture.optionIds[0]
+        }, {
+          headers: { 'Content-Type': 'application/json' }
+        });
+        assert([401, 403].includes(r.status), `Guest vote phải bị chặn 401/403, nhận ${r.status}`);
+        const after = (await getPost(an, fixture.postId)).body.data.poll;
+        assertEqual(after.totalVotes, 0, 'Guest không được ghi vote');
+        return { status: r.status };
+      } finally {
+        await g.context.close();
+      }
+    });
   });
 
   await test(results, S, 'SOC-P43', 'Option không tồn tại bị từ chối', async () => {
-    const fixture = globalThis.__qaPoll || { pollId: (await getPost(an, 4)).body.data.poll.id };
-    const g = await login(browser, 'demobinh');
-    await open(g, '/feed');
-    const r = await apiWrite(g, 'POST', `/api/polls/${fixture.pollId}/votes`, { optionId: 999999 });
-    assert([400, 404, 409, 422].includes(r.status), `Option sai phải bị từ chối, nhận ${r.status}`);
-    await g.context.close();
-    return { status: r.status };
+    return withPollFixture(user, 'SOC-P43', async fixture => {
+      const bogusOptionId = Math.max(...fixture.optionIds) + 1000000;
+      const r = await apiWrite(binh, 'POST', `/api/polls/${fixture.pollId}/votes`, { optionId: bogusOptionId });
+      assert([400, 404, 409, 422].includes(r.status), `Option sai phải bị từ chối, nhận ${r.status}`);
+      const after = (await getPost(user, fixture.postId)).body.data.poll;
+      assertEqual(after.totalVotes, 0, 'Option sai không được ghi vote');
+      return { status: r.status };
+    });
   });
 
   await test(results, S, 'SOC-P44', 'Poll nhiều lựa chọn: API tạo, UI render checkbox, chọn 2 đáp án', async () => {

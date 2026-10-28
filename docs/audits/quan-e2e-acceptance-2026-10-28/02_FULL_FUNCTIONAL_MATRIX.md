@@ -7,7 +7,8 @@
 - Run chuẩn theo module: auth `full-run-3`; social/community/resilience `full-run-1`; messaging/admin `full-run-4`; cross-a11y `cross-run-2`.
 - `full-run-1` có 5 FAIL: 4 BL-22 + MSG-07 flake locator (đã sửa test, `full-run-4` PASS). Con số hợp nhất cuối là **4 FAIL**.
 - JS tắt: form login dùng POST và không đưa mật khẩu vào URL, nhưng backend không có form-login fallback nên **không thể đăng nhập nếu tắt JS**; đây là giới hạn đã biết, không tính là PASS cho đăng nhập.
-- Run cuối `final-verification-20261028`: 165/165 ID, 155 PASS / 4 FAIL / 3 BLOCKED / 3 NOT RUN (`evidence/final-verification-results.json`).
+- Run cuối trên branch QA `final-verification-20261028`: 165/165 ID, 155 PASS / 4 FAIL / 3 BLOCKED / 3 NOT RUN (`evidence/final-verification-results.json`).
+- **Run sign-off trên integration `25e7595`** (`final-signoff-20261028-r2`): 165/165 ID, **159 PASS / 0 FAIL / 3 BLOCKED / 3 NOT RUN** (`evidence/final-signoff-integration-25e7595-results.json`). Trạng thái trong cột cuối phản ánh run sign-off; ghi chú "(BL-22)" giữ lại lịch sử baseline `4d00b6a`.
 
 ## 1. Xác thực & tài khoản (auth)
 
@@ -18,7 +19,7 @@
 | 1.3 | Đăng nhập đúng → `/feed`, cookie HttpOnly | form + redirect | `/login` → `/feed` | `POST /api/auth/login` | AUTH-03, AUTH-08 | PASS |
 | 1.4 | Sai mật khẩu/rỗng báo lỗi tại chỗ | `#auth-status` | `/login` | `POST /api/auth/login` | AUTH-04, AUTH-05 | PASS |
 | 1.5 | Guest vào route bảo vệ → `/login` | redirect | `/messages`, `/notifications`, `/saved`, `/settings`, `/friends`, `/profile` | — | AUTH-06 | PASS |
-| 1.6 | Guest vào page bảo vệ nhận HTML/redirect | — | `/post/create`, `/admin` | — | AUTH-15, AUTH-16 | **FAIL** (BL-22: 401 JSON) |
+| 1.6 | Guest vào page bảo vệ nhận HTML/redirect | — | `/post/create`, `/admin` | — | AUTH-15, AUTH-16 | PASS (sign-off `25e7595`); FAIL 401 JSON trên baseline `4d00b6a` |
 | 1.7 | Guest gọi API riêng tư → JSON 401 | — | — | `/api/auth/me`, `/api/notifications`, `/api/conversations` | AUTH-07, MSG-01, NTF-01 | PASS |
 | 1.8 | Đăng xuất qua menu, cookie thu hồi | menu tài khoản | `/feed` | `POST /api/auth/logout` | AUTH-09 | PASS |
 | 1.9 | Back sau logout không lộ nội dung | — | — | — | AUTH-10 | PASS |
@@ -98,6 +99,8 @@
 | 5.8 | Poll một lựa chọn không cho chọn 2 | poll UI | `/feed` | — | SOC-P46 | PASS |
 | 5.9 | Poll hết hạn | — | — | — | SOC-P47 | NOT RUN |
 
+**Fixture poll (sign-off):** SOC-P40/41/42/43 mỗi case tạo poll riêng qua `POST /api/posts` với `poll`, xác minh lại bằng `GET /api/posts/{id}` (đúng 3 option, chưa có vote), rồi xóa bài trong `finally`. Không dùng post ID seed, không dùng state chung giữa case, không phụ thuộc thứ tự suite. Chi tiết root cause và A/B: `01_ACCEPTANCE_SUMMARY.md` mục 9.
+
 ## 6. Cộng đồng
 
 | # | Chức năng | UI | Route | API | Case | Trạng thái |
@@ -162,7 +165,7 @@
 | 9.2 | Danh sách + tìm user | table | `/admin/users` | `GET /api/admin/users` | ADM-02 | PASS |
 | 9.3 | Danh sách bài | table | `/admin/posts` | `GET /api/admin/posts` | ADM-03 | PASS |
 | 9.4 | API admin chặn user thường | — | — | admin APIs | ADM-04 | PASS |
-| 9.5 | Trang admin chặn user thường đúng UX | — | `/admin` | — | ADM-05 | **FAIL** (BL-22: 403 JSON) |
+| 9.5 | Trang admin chặn user thường đúng UX | — | `/admin` | — | ADM-05 | PASS (sign-off `25e7595`, 403 HTML); FAIL 403 JSON trên baseline |
 | 9.6 | Xem report PENDING, nhận xử lý | detail | `/admin/reports/{id}` | `POST .../start-review` | ADM-06 | PASS |
 | 9.7 | Từ chối report qua modal | modal | `/admin/reports/{id}` | `POST .../decisions` | ADM-07 | PASS |
 | 9.8 | Gỡ bài kèm lý do, ẩn công khai | modal | `/admin/reports/{id}` | `POST .../remove` | ADM-08 | PASS |
@@ -176,7 +179,7 @@
 | # | Chức năng | UI | Route | API | Case | Trạng thái |
 |---|---|---|---|---|---|---|
 | 10.1 | Guest feed → CTA → login | feed | `/feed` | — | RES-01 | PASS |
-| 10.2 | 404 page HTML có link feed | error page | `/khong-ton-tai-*` | — | RES-02 | **FAIL** (BL-22: JSON) |
+| 10.2 | 404 page HTML có link feed | error page | `/khong-ton-tai-*` | — | RES-02 | PASS (sign-off `25e7595`, 404 HTML); FAIL JSON trên baseline |
 | 10.3 | API 404 JSON envelope | — | — | `/api/posts/999999` | RES-03 | PASS |
 | 10.4 | Phiên hết hạn → 401 JSON | — | — | `/api/auth/me` | RES-04 | PASS |
 | 10.5 | Thiếu CSRF → 403 | — | — | POST | RES-05 | PASS |
@@ -203,6 +206,18 @@
 | 11.10 | Static CSS | 200, content-type, cache | PERF-03 | PASS |
 
 ## 12. Tổng hợp trạng thái
+
+### 12.1 Run sign-off — integration `25e7595` (`final-signoff-20261028-r2`)
+
+| Trạng thái | Số case | Ghi chú |
+|---|---|---|
+| PASS | **159** | Toàn bộ luồng chính + phụ đã chạy browser thật; BL-22 PASS |
+| FAIL | **0** | — |
+| BLOCKED | **3** | SOC-P06 (Firebase), COM-14b (đặc tả), XB-03 (Firefox) |
+| NOT RUN | **3** | AUTH-26b (2FA contract), SOC-P47 (poll hết hạn), SOC-P52 (custom feed stub) |
+| **Tổng / ID duy nhất** | **165 / 165** | `RUN-INTEGRITY` không phát hiện lệch hoặc trùng ID |
+
+### 12.2 Baseline branch QA `4d00b6a` (`final-verification-20261028`) — lịch sử
 
 | Trạng thái | Số case | Ghi chú |
 |---|---|---|

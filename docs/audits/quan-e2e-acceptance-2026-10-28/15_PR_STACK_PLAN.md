@@ -55,9 +55,10 @@ Không dùng `--force`, không push `fix/quan-frontend-hardening-20261027`, khô
 **Title:** `test(qa): independent E2E acceptance suite and accessibility handoff`
 
 **Summary:**
-- 165 Playwright E2E cases trên 6 suite; 155 PASS / 4 FAIL (BL-22) / 3 BLOCKED / 3 NOT RUN.
+- 165 Playwright E2E cases trên 6 suite; sign-off trên integration `25e7595`: **159 PASS / 0 FAIL / 3 BLOCKED / 3 NOT RUN**. Baseline lịch sử trên branch QA `4d00b6a`: 155/4/3/3 (4 FAIL BL-22).
+- 4 case BL-22 PASS trên HEAD tích hợp có #88; PR #90 giữ base #85 nên branch PR vẫn cần rebase sau khi #85/#88 merge.
 - 13 lỗi frontend/a11y đã sửa; axe 0 serious/critical trên 20 route; touch target 44×44 cả mobile và desktop.
-- 4 case FAIL có ticket BL-22 kèm expected/actual/repro; không sửa backend.
+- Poll fixture SOC-P40..P43 đã sửa test-only: tự tạo/xác minh/cleanup, không dùng ID seed.
 - 13 báo cáo acceptance + demo 20 phút/8–10 phút + bằng chứng JSON/ảnh đã sanitize.
 
 **Không có trong PR:** backend, security, DTO, migration, cấu hình production, credential, log, `test-results/`.
@@ -70,4 +71,4 @@ Không dùng `--force`, không push `fix/quan-frontend-hardening-20261027`, khô
 | Ghi đè branch PR #85 | Không push vào branch đó; chỉ push `test/quan-e2e-acceptance` |
 | Xung đột `app.css` khi PR #85 tiến lên | Giữ cả hai rule; rebase chỉ commit QA |
 | Lộ log/ảnh/JSON thô | `.gitignore` chặn `test-results/`; chỉ commit evidence đã curation |
-| Tuyên bố quá mức | PR ghi rõ 4 FAIL, 3 BLOCKED, 3 NOT RUN; không nói production-ready |
+| Tuyên bố quá mức | PR ghi rõ 0 FAIL chỉ trên integration `25e7595`; 3 BLOCKED, 3 NOT RUN; không nói production-ready |

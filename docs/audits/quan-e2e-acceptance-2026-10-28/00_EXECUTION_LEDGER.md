@@ -25,6 +25,8 @@
 | Firefox | 157.0 — BLOCKED do crash môi trường |
 | Server | `http://127.0.0.1:8082`, log `test-results/quan-e2e-acceptance/server-8082.log` |
 | Seed | `DevTestDataInitializer` (profile dev) + `tools/demo-data.mjs`; tài khoản local-only lấy từ `docs/DEMO_CHECKLIST_VI.md` |
+| Worktree sign-off | `D:\PROJECT\cnpm-project\AloUTE-e2e-signoff-20261028` — **detached tại `25e7595`** (16 PR HEAD mới nhất), chỉ áp patch test poll fixture; không checkout/sửa worktree ZCode |
+| Server sign-off | `http://127.0.0.1:8086`, H2 in-memory mới, profile `dev`, seed `tools/demo-data.mjs` 18 OK |
 
 Không sử dụng tài khoản production, không seed lên website live, không in credential/token/OTP trong báo cáo hay ảnh.
 
@@ -52,6 +54,10 @@ Không sử dụng tài khoản production, không seed lên website live, khôn
 | 09:03 | Integration run đầu trên ZCode `e12b21b` | Không hợp lệ: chưa seed demo-data → AUTH-01 FAIL; hủy, không dùng |
 | 09:04–09:07 | Seed demo-data + full rerun trên `e12b21b` | 155 PASS / 4 FAIL / 3 BLOCKED / 3 NOT RUN; 0 khác biệt baseline (`integration-e12b21b-results.json`) |
 | 09:47–09:52 | Final verification sau handoff (`final-verification-20261028`) | 165/165 ID, 155 PASS / 4 FAIL / 3 BLOCKED / 3 NOT RUN; guard PASS |
+| 04:12 (UTC) | Tái hiện lỗi fixture poll trên H2 mới (`baseline-fixture-repro-20261028`) | 3 FAIL (SOC-P40/42/43) + SOC-P41 BLOCKED; 29 PASS trên cùng DB — lỗi test, không phải sản phẩm |
+| 04:13 (UTC) | Chạy lại social với fixture tự tạo (`fixed-social-shifted-db-20261028`) | 33 PASS / 0 FAIL / 1 BLOCKED / 2 NOT RUN trên đúng DB lệch ID |
+| 04:14–04:17 (UTC) | Sign-off run đầu trên worktree tích hợp `25e7595` + patch fixture (`final-signoff-20261028`) | 165/165 ID, 159 PASS / 0 FAIL / 3 BLOCKED / 3 NOT RUN; dùng để phát hiện 2 điểm cleanup cần siết |
+| 04:25–04:29 (UTC) | **Final sign-off rerun** với code test cuối (`final-signoff-20261028-r2`) | **165/165 ID, 159 PASS / 0 FAIL / 3 BLOCKED / 3 NOT RUN**; fixture poll cleanup 204; BL-22 PASS; `RUN-INTEGRITY` không lệch |
 
 `full-run-2` không hợp lệ: thiếu biến môi trường tài khoản seed, 12 case FAIL do không đăng nhập được. Không dùng làm bằng chứng sản phẩm.
 
@@ -66,12 +72,15 @@ Không sử dụng tài khoản production, không seed lên website live, khôn
 | MSG-07 flake locator | FAIL giả do bubble cũ cùng marker/tag | Sửa test chờ đúng payload đầy đủ; `full-run-4` PASS |
 | `cp` sang `target/classes` lỗi đường dẫn | Thay đổi template không được server nhận | Dùng đường dẫn tuyệt đối; xác minh lại bằng browser sau mỗi lần sync |
 | Integration run thiếu demo-data | Run `integration-...-0903` có AUTH-01 FAIL giả | Hủy run, chạy `tools/demo-data.mjs`, rerun `integration-...-0907` |
+| Poll fixture hardcode `postId=4` | Trên H2 mới/thứ tự seed khác, post 4 không có poll → SOC-P40 FAIL, SOC-P42/P43 TypeError, SOC-P41 BLOCKED | Xác định là lỗi fixture, không phải sản phẩm. Sửa test: mỗi case tạo poll qua API, xác minh `GET /api/posts/{id}`, cleanup `finally`; bỏ `globalThis.__qaPoll` và phụ thuộc thứ tự. Baseline tái hiện 3 FAIL + 1 BLOCKED; sau sửa 0 FAIL (`evidence/baseline-fixture-repro-old-suite-results.json`, `evidence/fixed-poll-fixture-social-results.json`) |
 
 ## 5. Thay đổi mã nguồn trong worktree
 
 - 23 tệp: 3 CSS, 4 JS, 16 template. Tổng +106 / −48 dòng.
 - Không thay đổi backend, security, DTO, repository, migration, cấu hình production, route hay API contract.
 - Chi tiết từng fix: `08_UI_BUGS_AND_FIXES.md`.
+- Sign-off: chỉ sửa `test/e2e/quan-acceptance/suites/social.mjs` (+111 / −47) để tạo poll fixture xác định; không đổi assertion nghiệp vụ, không đổi mã sản phẩm.
+- Test bổ sung trong sign-off: Node `node --test test/frontend/*.test.mjs` — **396/396 PASS**; Maven `mvn -q test` — **723 tests, 0 failures, 0 errors, 9 skipped** (exit 0).
 - Trạng thái git cuối: xem `12_FINAL_HANDOFF.md`.
 
 ## 6. Bằng chứng và tính toàn vẹn
@@ -86,6 +95,8 @@ Không sử dụng tài khoản production, không seed lên website live, khôn
 | Server log (raw, local) | `test-results/quan-e2e-acceptance/server-8082.log` — không commit |
 | Seed marker (raw, local) | `test-results/quan-e2e-acceptance/seed-20261028.txt` — không commit |
 | Kết quả tích hợp ZCode | `evidence/integration-e12b21b-results.json`, `evidence/integration-e12b21b-environment.json` |
+| Kết quả sign-off `25e7595` | `evidence/final-signoff-integration-25e7595-results.json`, `evidence/final-signoff-integration-25e7595-environment.json` |
+| A/B fixture poll | `evidence/baseline-fixture-repro-old-suite-results.json`, `evidence/fixed-poll-fixture-social-results.json` |
 
 Không có credential, token, OTP hay nội dung tin nhắn riêng tư trong tài liệu. Tên tài khoản seed chỉ là local (`@aloute.local`, `@aloute.test`).
 
