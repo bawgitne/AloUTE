@@ -2,9 +2,9 @@ package com.aloute.service.admin;
 
 import com.aloute.common.exception.ApiException;
 import com.aloute.dto.request.admin.AdminUserModerationRequest;
+import com.aloute.dto.response.admin.AdminUserDetailResponse;
 import com.aloute.dto.response.admin.AdminUserModerationActionResponse;
 import com.aloute.entity.ModerationAction;
-import com.aloute.entity.ModerationTargetType;
 import com.aloute.entity.Profile;
 import com.aloute.entity.ReportReason;
 import com.aloute.entity.User;
@@ -19,12 +19,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -32,8 +34,9 @@ import static org.mockito.Mockito.when;
 
 /**
  * Guard and audit-trail unit tests for System-admin account suspension.
- * Covers: self-suspension refusal, last-admin protection, already-suspended
- * conflict, session revocation (authVersion bump) and audit logging.
+ * Covers: self-suspension refusal, last-active-admin protection (via the real
+ * SystemAdminGuard), already-suspended conflict, session revocation (authVersion bump),
+ * audit logging, and the reported capabilities.
  */
 class AdminUserSuspensionServiceTest {
 
@@ -66,7 +69,8 @@ class AdminUserSuspensionServiceTest {
         postRepository = mock(PostRepository.class);
         reportRepository = mock(ReportRepository.class);
         moderationActionRepository = mock(ModerationActionRepository.class);
-        service = new AdminUserServiceImpl(userRepository, profileRepository, postRepository, reportRepository, moderationActionRepository);
+        service = new AdminUserServiceImpl(userRepository, profileRepository, postRepository,
+                reportRepository, moderationActionRepository, new SystemAdminGuard(userRepository));
         when(moderationActionRepository.save(any(ModerationAction.class))).thenAnswer(inv -> {
             ModerationAction a = inv.getArgument(0);
             a.setId(500L);
@@ -75,7 +79,7 @@ class AdminUserSuspensionServiceTest {
     }
 
     @Test
-    @DisplayName("suspending another account sets inactive and bumps authVersion (session revocation)")
+    @DisplayName("suspending a normal account sets inactive and bumps authVersion (session revocation)")
     void suspendBumpsAuthVersionAndDeactivates() {
         User admin = user(1L, Role.SYSTEM_ADMIN, true);
         User target = user(2L, Role.USER, true);
@@ -105,18 +109,37 @@ class AdminUserSuspensionServiceTest {
     }
 
     @Test
-    @DisplayName("the last remaining SYSTEM_ADMIN cannot be suspended")
-    void lastAdminIsProtected() {
-        User admin = user(1L, Role.SYSTEM_ADMIN, true);
+    @DisplayName("the last active SYSTEM_ADMIN cannot be suspended (guard uses active-admin count, not total)")
+    void lastActiveAdminIsProtected() {
+        User actor = user(1L, Role.SYSTEM_ADMIN, true);
         User targetAdmin = user(2L, Role.SYSTEM_ADMIN, true);
         when(userRepository.findById(2L)).thenReturn(Optional.of(targetAdmin));
-        when(userRepository.countByRole(Role.SYSTEM_ADMIN)).thenReturn(1L);
+        // Locked admin set: target is the only ACTIVE admin (a second admin exists but is inactive).
+        User inactiveAdmin = user(3L, Role.SYSTEM_ADMIN, false);
+        when(userRepository.lockByRoleOrdered(Role.SYSTEM_ADMIN)).thenReturn(List.of(targetAdmin, inactiveAdmin));
 
         assertThatThrownBy(() -> service.suspendUser(1L, 2L, reason()))
                 .isInstanceOf(ApiException.class)
                 .hasMessageContaining("cuối cùng");
         assertThat(targetAdmin.isActive()).isTrue();
+        assertThat(targetAdmin.getAuthVersion()).isZero();
         verify(userRepository, never()).save(any(User.class));
+        verify(moderationActionRepository, never()).save(any(ModerationAction.class));
+    }
+
+    @Test
+    @DisplayName("a SYSTEM_ADMIN can be suspended while another active admin remains, using the locked state")
+    void adminSuspensionAllowedWithPeer() {
+        User actor = user(1L, Role.SYSTEM_ADMIN, true);
+        User targetAdmin = user(2L, Role.SYSTEM_ADMIN, true);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(actor));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(targetAdmin));
+        when(userRepository.lockByRoleOrdered(Role.SYSTEM_ADMIN)).thenReturn(List.of(actor, targetAdmin));
+
+        AdminUserModerationActionResponse res = service.suspendUser(1L, 2L, reason());
+
+        assertThat(res.active()).isFalse();
+        assertThat(targetAdmin.isActive()).isFalse();
     }
 
     @Test
@@ -164,5 +187,41 @@ class AdminUserSuspensionServiceTest {
         assertThatThrownBy(() -> service.reactivateUser(1L, 2L, reason()))
                 .isInstanceOf(ApiException.class)
                 .hasMessageContaining("hoạt động");
+    }
+
+    @Test
+    @DisplayName("capabilities: canSuspend mirrors reality and canChangeGlobalRole is false (no such API)")
+    void capabilitiesReflectReality() {
+        User normal = user(2L, Role.USER, true);
+        Profile p = new Profile();
+        p.setUserId(2L);
+        when(userRepository.findById(2L)).thenReturn(Optional.of(normal));
+        when(profileRepository.findById(2L)).thenReturn(Optional.of(p));
+        when(postRepository.countByUserIdAndParentPostIsNullAndDeletedAtIsNull(2L)).thenReturn(0L);
+        when(reportRepository.countByReportedUserId(2L)).thenReturn(0L);
+        when(userRepository.countByRoleAndActive(Role.SYSTEM_ADMIN, true)).thenReturn(3L);
+
+        AdminUserDetailResponse detail = service.getUserDetail(2L);
+        assertThat(detail.capabilities().canSuspend()).isTrue();
+        assertThat(detail.capabilities().canChangeGlobalRole()).isFalse();
+    }
+
+    @Test
+    @DisplayName("capabilities: the last active admin cannot be suspended, an inactive account cannot either")
+    void capabilitiesForLastAdminAndInactive() {
+        User lastAdmin = user(2L, Role.SYSTEM_ADMIN, true);
+        Profile p = new Profile();
+        p.setUserId(2L);
+        when(userRepository.findById(2L)).thenReturn(Optional.of(lastAdmin));
+        when(profileRepository.findById(2L)).thenReturn(Optional.of(p));
+        when(postRepository.countByUserIdAndParentPostIsNullAndDeletedAtIsNull(anyLong())).thenReturn(0L);
+        when(reportRepository.countByReportedUserId(anyLong())).thenReturn(0L);
+        when(userRepository.countByRoleAndActive(Role.SYSTEM_ADMIN, true)).thenReturn(1L);
+
+        assertThat(service.getUserDetail(2L).capabilities().canSuspend()).isFalse();
+
+        User inactive = user(4L, Role.USER, false);
+        when(userRepository.findById(4L)).thenReturn(Optional.of(inactive));
+        assertThat(service.getUserDetail(4L).capabilities().canSuspend()).isFalse();
     }
 }

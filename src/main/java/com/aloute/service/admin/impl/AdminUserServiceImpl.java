@@ -17,6 +17,7 @@ import com.aloute.repository.ReportRepository;
 import com.aloute.repository.UserRepository;
 import com.aloute.security.authorization.Role;
 import com.aloute.service.admin.AdminUserService;
+import com.aloute.service.admin.SystemAdminGuard;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -40,6 +41,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final PostRepository postRepository;
     private final ReportRepository reportRepository;
     private final ModerationActionRepository moderationActionRepository;
+    private final SystemAdminGuard systemAdminGuard;
 
     @Override
     public Page<AdminUserSummaryResponse> getUsers(String query, String roleStr, Boolean active, Pageable pageable) {
@@ -81,14 +83,15 @@ public class AdminUserServiceImpl implements AdminUserService {
         long postCount = postRepository.countByUserIdAndParentPostIsNullAndDeletedAtIsNull(userId);
         long reportsCount = reportRepository.countByReportedUserId(userId);
 
-        long adminCount = userRepository.countByRole(Role.SYSTEM_ADMIN);
-        boolean isSoleAdmin = user.getRole() == Role.SYSTEM_ADMIN && adminCount <= 1;
+        long activeAdminCount = userRepository.countByRoleAndActive(Role.SYSTEM_ADMIN, true);
 
-        // Suspension is a real, backed capability now: allowed for any account that is
-        // not the last remaining SYSTEM_ADMIN. The self-suspension guard is enforced at
-        // action time (the actor id is not part of this read-only detail lookup).
-        boolean canSuspend = !isSoleAdmin;
-        boolean canChangeGlobalRole = !isSoleAdmin;
+        // canSuspend mirrors the backend rule exactly: an account can be suspended only
+        // while it is active and it is not the last active SYSTEM_ADMIN. Self-suspension
+        // is refused at action time (the actor id is not part of this read-only getter).
+        boolean isLastActiveAdmin = user.getRole() == Role.SYSTEM_ADMIN && activeAdminCount <= 1L;
+        boolean canSuspend = user.isActive() && !isLastActiveAdmin;
+        // No global-role change endpoint exists, so the capability must not advertise one.
+        boolean canChangeGlobalRole = false;
 
         AdminUserDetailResponse.UserCounts counts = new AdminUserDetailResponse.UserCounts(postCount, reportsCount);
         AdminUserDetailResponse.UserCapabilities capabilities = new AdminUserDetailResponse.UserCapabilities(
@@ -136,13 +139,15 @@ public class AdminUserServiceImpl implements AdminUserService {
     public AdminUserModerationActionResponse suspendUser(Long adminId, Long userId, AdminUserModerationRequest request) {
         User target = requireTarget(userId);
         requireNotSelf(adminId, target);
+
+        // For a SYSTEM_ADMIN target the last-active-admin invariant is enforced under a
+        // database lock (see SystemAdminGuard): the lock is taken BEFORE the state is
+        // re-read, so two admins suspending each other concurrently cannot both proceed.
+        // The guard returns the lock-managed instance, whose active flag is authoritative.
+        target = systemAdminGuard.lockAndRequireAdminRemains(target);
+
         if (!target.isActive()) {
             throw new ApiException(HttpStatus.CONFLICT, "USER_ALREADY_SUSPENDED", "Tài khoản đã bị đình chỉ trước đó.");
-        }
-        // A system must always keep at least one administrator able to sign in.
-        if (target.getRole() == Role.SYSTEM_ADMIN && userRepository.countByRole(Role.SYSTEM_ADMIN) <= 1) {
-            throw new ApiException(ErrorCode.USER_LAST_ADMIN_PROTECTED,
-                    "Không thể đình chỉ quản trị viên hệ thống cuối cùng.");
         }
         return applyStateChange(adminId, target, false, "USER_SUSPEND", request);
     }
