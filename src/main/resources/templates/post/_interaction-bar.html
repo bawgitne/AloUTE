@@ -7,9 +7,9 @@
     <button type="button"
             class="interaction-btn interaction-btn-like"
             th:classappend="${post.viewerState != null and post.viewerState.liked} ? 'is-active' : ''"
-            th:attr="data-action='like',data-post-id=${post.id != null ? post.id : ''},aria-pressed=${post.viewerState != null and post.viewerState.liked ? 'true' : 'false'}"
-            aria-label="Thích bài viết">
+            th:attr="data-action='like',data-post-id=${post.id != null ? post.id : ''},aria-pressed=${post.viewerState != null and post.viewerState.liked ? 'true' : 'false'}">
         <i class="bi" th:classappend="${post.viewerState != null and post.viewerState.liked} ? 'bi-heart-fill' : 'bi-heart'" aria-hidden="true"></i>
+        <span class="visually-hidden">Thích bài viết,</span>
         <span class="interaction-count" th:text="${post.likeCount != null ? post.likeCount : 0}">0</span>
         <span class="visually-hidden">lượt thích</span>
     </button>
@@ -18,18 +18,18 @@
     <a th:if="${post.id != null}"
        th:href="@{/posts/{postId}(postId=${post.id})}"
        class="interaction-btn text-decoration-none"
-       th:attr="data-action='view-comments',data-post-id=${post.id}"
-       aria-label="Bình luận và xem phản hồi">
+       th:attr="data-action='view-comments',data-post-id=${post.id}">
         <i class="bi bi-chat" aria-hidden="true"></i>
+        <span class="visually-hidden">Bình luận và xem phản hồi,</span>
         <span class="interaction-count" th:text="${post.replyCount != null ? post.replyCount : 0}">0</span>
         <span class="visually-hidden">bình luận</span>
     </a>
     <button th:if="${post.id == null}"
             type="button"
             class="interaction-btn"
-            data-action="view-comments"
-            aria-label="Bình luận và xem phản hồi">
+            data-action="view-comments">
         <i class="bi bi-chat" aria-hidden="true"></i>
+        <span class="visually-hidden">Bình luận và xem phản hồi,</span>
         <span class="interaction-count" th:text="${post.replyCount != null ? post.replyCount : 0}">0</span>
         <span class="visually-hidden">bình luận</span>
     </button>
@@ -38,9 +38,9 @@
     <button type="button"
             class="interaction-btn"
             th:classappend="${post.viewerState != null and post.viewerState.reposted} ? 'is-active' : ''"
-            th:attr="data-action='repost',data-post-id=${post.id != null ? post.id : ''},aria-pressed=${post.viewerState != null and post.viewerState.reposted ? 'true' : 'false'}"
-            aria-label="Chia sẻ lại bài viết">
+            th:attr="data-action='repost',data-post-id=${post.id != null ? post.id : ''},aria-pressed=${post.viewerState != null and post.viewerState.reposted ? 'true' : 'false'}">
         <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+        <span class="visually-hidden">Chia sẻ lại bài viết,</span>
         <span class="interaction-count" th:text="${post.repostCount != null ? post.repostCount : 0}">0</span>
         <span class="visually-hidden">chia sẻ</span>
     </button>
@@ -50,9 +50,9 @@
             type="button"
             class="interaction-btn interaction-btn-quote"
             th:attr="data-action='open-quote-modal',data-post-id=${post.id != null ? post.id : ''},data-post-author=${post.author != null ? (post.author.displayName ?: post.author.username) : ''},data-post-username=${post.author != null ? post.author.username : ''},data-post-content=${post.content != null ? post.content : ''}"
-            aria-label="Trích dẫn bài viết"
             title="Trích dẫn bài viết">
         <i class="bi bi-quote" aria-hidden="true"></i>
+        <span class="visually-hidden">Trích dẫn bài viết,</span>
         <span class="interaction-count" th:text="${post.quoteCount != null ? post.quoteCount : 0}">0</span>
         <span class="visually-hidden">lượt trích dẫn</span>
     </button>

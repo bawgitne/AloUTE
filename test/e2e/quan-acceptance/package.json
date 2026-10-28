@@ -1,0 +1,20 @@
+{
+  "name": "aloute-quan-e2e-acceptance",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Independent browser acceptance suite for AloUTE (Quan QA, 2026-10-28)",
+  "scripts": {
+    "test": "node run.mjs",
+    "test:auth": "node run.mjs --suite auth-guest",
+    "test:social": "node run.mjs --suite social",
+    "test:community": "node run.mjs --suite community",
+    "test:messaging": "node run.mjs --suite messaging-admin",
+    "test:cross": "node run.mjs --suite cross-a11y",
+    "test:resilience": "node run.mjs --suite resilience"
+  },
+  "devDependencies": {
+    "axe-core": "^4.10.2",
+    "playwright": "1.64.1"
+  }
+}
