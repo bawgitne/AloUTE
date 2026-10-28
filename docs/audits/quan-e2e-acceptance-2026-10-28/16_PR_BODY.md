@@ -26,7 +26,7 @@
 - [x] Full browser E2E on isolated integration `25e7595` + fixture patch — 165 unique cases, 159 PASS / 0 FAIL / 3 BLOCKED / 3 NOT RUN; run-integrity OK
 - [x] Targeted A/B for poll fixture on shifted-ID H2 — old suite 3 FAIL + 1 BLOCKED; fixed suite 0 FAIL
 - [x] `git diff --check`; secret/PII scan of committed evidence
-- [ ] GitHub Actions on the new head SHA (checked after push)
+- [x] GitHub Actions on `25a804e` — PASS (CI run `40632713237`, 3m37s)
 
 ## Known limitations
 
