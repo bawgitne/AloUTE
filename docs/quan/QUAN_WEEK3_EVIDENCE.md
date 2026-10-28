@@ -93,7 +93,7 @@ Không phải mọi PR trên đều thuần frontend; một số PR sửa backen
 | Responsive measurement | 3 route × 5 viewport, trước/sau | [`RESPONSIVE_ACCESSIBILITY_REPORT.md`](RESPONSIVE_ACCESSIBILITY_REPORT.md) |
 | Regression mới | 26 test tĩnh cho BL-17/20/21/23/25 | [`guest-ux-accessibility.test.mjs`](../../test/frontend/guest-ux-accessibility.test.mjs) |
 
-Các thay đổi hardening ngày 2026-10-27 nằm trong working tree trên nhánh `fix/quan-frontend-hardening-20261027`, baseline `99ab72e`; **chưa commit**, nên không có SHA/PR cho chính các thay đổi này.
+Các thay đổi hardening ngày 2026-10-27 được đo trên nhánh `fix/quan-frontend-hardening-20261027`, baseline `99ab72e`. Tại thời điểm đo các thay đổi **chưa commit**. Hiện nay (2026-10-28) các thay đổi đã merge vào `master` qua **PR #85** (merge commit [`cd0d85c`](https://github.com/bawgitne/AloUTE/commit/cd0d85c)); các số liệu trong hồ sơ giữ nguyên giá trị đo lịch sử.
 
 ## 6. Production và giới hạn xác minh
 

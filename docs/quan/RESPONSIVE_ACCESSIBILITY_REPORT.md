@@ -1,7 +1,7 @@
 # Báo cáo responsive & accessibility — Frontend hardening
 
 > **Ngày đo:** 2026-10-27
-> **Nhánh:** `fix/quan-frontend-hardening-20261027` (working tree chưa commit), baseline `99ab72e`
+> **Nhánh:** `fix/quan-frontend-hardening-20261027` (đo tại working tree chưa commit, 2026-10-27; nay đã merge qua PR #85, merge commit `cd0d85c`), baseline `99ab72e`
 > **Môi trường:** local `http://127.0.0.1:8081`, profile `dev`, H2 in-memory
 > **Công cụ:** Playwright 1.64.1 + Chrome thật (`channel: 'chrome'`), headless; viewport height 900
 > **Dữ liệu thô:** [`baseline/measurements.json`](../../test-results/quan-frontend-hardening/baseline/measurements.json), [`after/measurements.json`](../../test-results/quan-frontend-hardening/after/measurements.json)

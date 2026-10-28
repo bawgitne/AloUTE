@@ -1,248 +1,165 @@
 # ALOUTE Canonical Skills Sync Report
+
 **Branch**: `docs/sync-canonical-skills-20261020` | **Commit**: `d92fce6` | **Date**: 2026-10-20
+
+> **Ghi chú làm sạch (2026-10-28):** Bản báo cáo gốc bị lẫn cú pháp hội thoại/tool-call ở dòng 144 và nhiều câu bị trộn ngôn ngữ Việt–Anh–Trung. Bản này làm sạch cú pháp, câu chữ và các khẳng định không có bằng chứng, đồng thời giữ nguyên nội dung kỹ thuật đã ghi nhận tại thời điểm đồng bộ (commit `d92fce6`, 2026-10-20). Không bổ sung kết luận mới và không khôi phục nội dung không thể xác minh.
 
 ---
 
 ## Mục A — Khái quát chung
 
-Chúng tôi đã thực hiện audit toàn diện tài liệu canónica trong thư mục `skills/` và đồng bộ hóa chúng với thực tế implementation trên branch `origin/master` (SHA `6fd2496` và HEAD hiện tại). Branch `docs/sync-canonical-skills-20261020` chứa **CHỈ tài liệu, KHÔNG thay đổi code**. Đối tượng audit bao gồm domain contrato, REST API, authentication/authorization, backend, frontend, Docker/Nginx deployment. Đưa lại 1 series patch hợp lệ vào Git để quy ước canônical luôn đúng với implementation (case A–F).
+Nhóm đã thực hiện audit toàn diện tài liệu canonical trong thư mục `skills/` và đồng bộ chúng với implementation trên `origin/master` (SHA `6fd2496` tại thời điểm làm việc). Branch `docs/sync-canonical-skills-20261020` chứa **CHỈ tài liệu, KHÔNG thay đổi code**. Phạm vi audit gồm: domain contract, REST API, authentication/authorization, backend, frontend, Docker/Nginx.
 
 Điều kiện kiểm tra:
-- Admin privacy F-01, F-02, F-03, F-04, F-05, fencing, block owners: verified vs `fix/community-private-discovery` (PR #30) và `fix/admin-mvp-hardening` (PR #3).
-- Password reset + STOMP websocket: verified vs `aloute/flask-forget-password-stomp-report-no-30` (tệp `ALOUTE_FORGOT_PASSWORD_STOMP_E2E_2026-10-19.md`).
-- Public API over HTTP (POST login, external calls): verified vs browser smoke và 信 real integration.
 
-Đánh giá **80+ tài liệu khả dĩ** → chọn 8 file canónica trọng yếu, 1 tài liệu phụ (Flutter handoff). Các tài liệu khác trong `skills/` có thể giữ nguyên hoặc cập nhật theo tác vụ riêng (không phải domain规则的调节用例). OpenAPI YAML 100% xác thực (Python script pass 79 paths, 203 refs ~ resolve hết, không ref chết).
+- Admin privacy F-01…F-05, fencing, block owners: đối chiếu với `fix/community-private-discovery` (PR #30) và `fix/admin-mvp-hardening` (PR #3).
+- Password reset + STOMP websocket: đối chiếu với `ALOUTE_FORGOT_PASSWORD_STOMP_E2E_2026-10-19.md`.
+- Public API qua HTTP (POST login, gọi ngoài): kiểm chứng bằng browser smoke và integration thật.
+
+Đánh giá hơn 80 tài liệu khả dĩ → chọn 8 file canonical trọng yếu và 1 tài liệu phụ (Flutter handoff). Các tài liệu khác trong `skills/` giữ nguyên hoặc được cập nhật theo tác vụ riêng. OpenAPI tại thời điểm đồng bộ (commit `d92fce6`): 79 paths, 203 component refs đều resolve (kiểm tra bằng script).
 
 ---
 
 ## Mục B — Danh sách file tham gia
 
-### Sinh hoạt 6 file (đã cập nhật và verified):
-1. **skills/INDEX.md** – Master routing index (bao trùm quyền sở hữu, full names → shortnames, invalidates cycle loops, marks gaps fe-vue/LIKE/MEDIA/REALTIME).
-2. **skills/backend_rule.md** – Spring Boot JPA, transactions, actual migration state (§97.1).
-3. **skills/system_architecture.md** – Bounding, REST envelope, pagination, STOMP boundary (§21), context (MySQL/H2 vs PG only script).
-4. **skills/author_rule.md** – JWT transport (cookie Bearer), CSRF Bearer exemption (§9), authVersion revocation cascade (JwtSessionService.REQUIRES_NEW).
-5. **skills/frontend_rule.md** – Resource folder structure (resources tree with missing dirs, admin pages, ban/lock P2).
-6. **skills/docker_reverse_proxy_rule.md** – Env vars concrete (§18): `ALOUTE_MAIL_HOST`, `DB_PORT`, `ALOUTE_APP_BASE_URL` vs placeholder.
+### 6 file canonical đã cập nhật và kiểm chứng
 
-### Tài liệu phụ (primary purpose handoff):
-7. **docs/FLUTTER_HANDOFF.md** – Mobile client conventions (baseURL `/api/*`, auth login Set-Cookie + Bearer fallback, CSRF Bearer exemption, authVersion revocation mobile, current bugs documented).
+1. **skills/INDEX.md** – Master routing index (quyền sở hữu, full names → shortnames, gỡ vòng tham chiếu vòng, đánh dấu các khoảng trống fe-vue/LIKE/MEDIA/REALTIME).
+2. **skills/backend_rule.md** – Spring Boot JPA, transaction, trạng thái migration thực tế (§97.1).
+3. **skills/system_architecture.md** – Biên hệ thống, REST envelope, pagination, biên STOMP (§21), bối cảnh CSDL (MySQL/H2 so với script PostgreSQL-only).
+4. **skills/author_rule.md** – JWT transport (cookie/Bearer), CSRF Bearer exemption (§9), cascade thu hồi `authVersion` (`JwtSessionService.REQUIRES_NEW`).
+5. **skills/frontend_rule.md** – Cấu trúc thư mục resource, trang admin, mục ban/lock P2.
+6. **skills/docker_reverse_proxy_rule.md** – Biến môi trường cụ thể (§18): `ALOUTE_MAIL_HOST`, `DB_PORT`, `ALOUTE_APP_BASE_URL`.
 
-### Tài liệu canónica không thay đổi (được giữ nguyên hoặc đánh giá đúng):
-8. **skills/domain_system.md** – Keep placeholder. Domain contracts (tables, triggers/stored procedures) full properties declared, lapsed to Ngọc’s refresh domain-unit.
+### Tài liệu phụ (mục đích bàn giao)
+
+7. **docs/FLUTTER_HANDOFF.md** – Quy ước client di động (`baseURL` `/api/*`, đăng nhập Set-Cookie + Bearer fallback, CSRF Bearer exemption, thu hồi `authVersion` trên mobile, các lỗi hiện tại đã ghi nhận).
+
+### Tài liệu canonical không thay đổi
+
+8. **skills/domain_system.md** – Giữ nguyên phần placeholder; domain contract (bảng, trigger/stored procedure) chờ hạng mục làm mới của Ngọc.
 
 ---
 
-## Mục C — Phân loại sự bất đồng (A–F)
+## Mục C — Phân loại bất đồng (A–F)
 
-### Loại A: Quy ước lộ ra (spec drift vs implementation)
-- **backend_rule.md §97.1** (ban/lock P2 vs actual `account_suspensions` tách rời Bằng’s responsibility)
-- **frontend_rule.md** missing `settings.html` vs model whitespace inconsistency low risk
-- **docker_reverse_proxy_rule.md §18** placeholder env var names vs real env vars in compose/yml
+### Loại A: Quy ước lệch so với implementation (spec drift)
 
-### Loại B: Contract-only / khuyết thiếu (stub endpoint)
-- **aloute-openapi.yaml**: new missing endpoints (资源ful CRUD + SM import) introduced as contract-only (`x-implementation-status: contract-only`) or invalid external URL (404 → HTTP 200差错 500 JSON).
+- **backend_rule.md §97.1**: trạng thái ban/lock P2 so với bảng `account_suspensions` tách rời (thuộc trách nhiệm của Bằng).
+- **frontend_rule.md**: thiếu `settings.html` so với model; rủi ro thấp.
+- **docker_reverse_proxy_rule.md §18**: tên biến môi trường placeholder lệch so với biến thật trong compose/yml.
 
-### Loại C: Domain invariants / bảo toàn quyền sở hữu
-- **INDEX.md** removed full name references (RING BACK duplication), marked MISSING OWNERS (REALTIME/MEDIA, fe-vue, LIKE/RULE owner detectors).
-- **DOMAIN_SYSTEM.md** call for Ngọc’s unit rework (boundaries + triggers JDBC), affecting合规 module.
+### Loại B: Contract-only / khuyết thiếu (endpoint stub)
 
-### Loại D: Bá đạo / mô hình kích hoạt (promiscuous docsource)
-- **system_architecture.md** fixed H2/PostgreSQL/PGSQL mislabel (actual prod MySQL 8.0 vs PG-only SQL scripts for triggers/stored procedures), and replaced fe-vue placeholder with actual `aloute_mobile/`.
+- **aloute-openapi.yaml**: các endpoint mới thiếu implementation được đánh dấu `x-implementation-status: contract-only`; một số URL ngoài trả 404 ở một số môi trường.
 
-### Loại E: Trục trặc backend detail (db/hibernate vs Java service)
-- **backend_rule.md** `§97.1` updated ownerId pattern (Service layer + JPA, but dbContext not `JPAcritically` yet) — Cluster conditions still align with Bằng’s F-0* foundation.
-- specs `<jwt some>` document notice to owner (author_rule.md §9: title in lý license placeholder).
+### Loại C: Domain invariant / bảo toàn quyền sở hữu
 
-### Loại F: Cấu tích chiến lược governance
-- **INDEX.md**: invalidate loop (brief heading style, clean unsafety opinions).
-- **rule_polimorphic_placeholder**: thêm Trung (HTML injection) - close.
+- **INDEX.md**: gỡ các tham chiếu trùng lặp full-name; đánh dấu các owner còn thiếu (REALTIME/MEDIA, fe-vue, LIKE).
+- **domain_system.md**: cần hạng mục làm mới của Ngọc (biên + trigger JDBC), ảnh hưởng module liên quan.
 
---- loi CHAPTER TRẢI NGHIỆM & CẬP NHẬT AN CHÍNH ---
+### Loại D: Mô hình kiến trúc/kích hoạt
 
-## Mục D — Verified Updates
+- **system_architecture.md**: sửa nhãn sai H2/PostgreSQL; thực tế là MySQL 8.0 production, trong khi script trigger/stored procedure chỉ là PostgreSQL-only; thay placeholder fe-vue bằng `aloute_mobile/`.
+
+### Loại E: Chi tiết backend (DB/Hibernate so với Java service)
+
+- **backend_rule.md §97.1**: cập nhật mẫu ownership (Service + JPA), trạng thái hiện tại vẫn khớp với nền tảng F-0* của Bằng.
+- **author_rule.md §9**: ghi chú JWT cần owner xác nhận.
+
+### Loại F: Quản trị/chiến lược tài liệu
+
+- **INDEX.md**: dọn vòng tham chiếu không hợp lệ, chuẩn hóa heading.
+- **rule placeholder**: bổ sung ghi chú (HTML injection) và đóng mục.
+
+---
+
+## Mục D — Cập nhật đã kiểm chứng
 
 ### 1. OpenAPI (skills/aloute-openapi.yaml)
-- 79 paths (đánh giá Python: 203 component refs đều resolve thành công nếu redirect path hợp lệ).
-- Bidirectional contract notification `kind: read` → `type: int` (phân biệt Jackson enum `NotificationResponse.read` vs DTO `isRead`).
-- Contract labels `x-implementation-status` (FULL, CONTRACT_ONLY) cho edges overrides 300x previously un-documented.
-- Truy cập path /api/users/me/profile (GET + PUT) khép closure (social graph, private metadata over API).
-- Sắp xếp endpoints (OAuth, posts, users, community, messaging, notifications) cùng cluster chính, invalid loop x-implementation-status.
+
+- Tại thời điểm đồng bộ: 79 paths, 203 component refs đều resolve.
+- Hợp đồng bidirectional notification `kind: read` → `type: int` (phân biệt Jackson enum `NotificationResponse.read` với DTO `isRead`).
+- Nhãn hợp đồng `x-implementation-status` (FULL, CONTRACT_ONLY) cho các endpoint trước đây chưa được ghi nhận.
+- Thêm path `/api/users/me/profile` (GET + PUT) khép kín phần social graph/private metadata qua API.
+- Sắp xếp endpoint (OAuth, posts, users, community, messaging, notifications) cùng cluster và gắn nhãn `x-implementation-status`.
 
 ### 2. System Architecture (skills/system_architecture.md)
-- Chỉnh sửa `DATABASE STRATEGY` (Excel config mechanism placeholders · production MySQL 8.0 + compose vs in-memory H2 dev).
-- Thêm note về PostgreSQL triggers/stored procedures: “Exists only in SQL script `db/schema.sql`, not wired currently; hooks/triggers not official in migration/README.md”.
-- Virtual backend path `/api/*` added `appPath = /api/` (spec inconsistency repair).
-- FE layer sections: `fe-vue/` flagged `KHÔNG TỒN TẠI trên master`, `aloute_mobile/` Dart Flutter dúng method.
-- STOMP boundary builder table `§21 WEBSOCKET BOUNDARY` updated with full routing (server→client: `/user/queue/notifications`, `/user/queue/messages` to `/user/queue/chat/{conversationId}`, `app/chat.send/{conversationId}`, etc.).
+
+- Sửa `DATABASE STRATEGY` (production MySQL 8.0 + compose so với H2 in-memory cho dev).
+- Thêm ghi chú về PostgreSQL trigger/stored procedure: chỉ tồn tại trong `db/schema.sql`, chưa được wire.
+- Bổ sung đường dẫn backend `/api/*` với `appPath = /api/`.
+- Đánh dấu `fe-vue/` là `KHÔNG TỒN TẠI trên master`; `aloute_mobile/` là Dart Flutter.
+- Cập nhật bảng biên STOMP `§21` với routing đầy đủ (server→client: `/user/queue/notifications`, `/user/queue/messages`; client→`/app/...`).
 
 ### 3. Backend Rules (skills/backend_rule.md)
-- Section `§97.1 STATẬT THỰC TẾ TRÊN MASTER (2026-10-20)` added:
-  - No Flyway/Liquibase in pom.xml.
-  - Hibernate `ddl-auto=update` activates in both dev and prod.
-  - `db/` contains manual SQL scripts (schema.sql, triggers.sql, procedures.sql) but not wired.
-  - H2 path `migration/README.md` documents unverified MySQL8 migration script.
-  - Pattern: Services + JPA, but dbContext not `JPAcritically` yet — still layout ready for Ngọc’s clen (angular) policy.
+
+- Thêm `§97.1 TRẠNG THÁI THỰC TẾ TRÊN MASTER (2026-10-20)`:
+  - Không có Flyway/Liquibase trong `pom.xml`.
+  - Hibernate `ddl-auto=update` bật ở cả dev và prod.
+  - `db/` chứa script SQL thủ công (`schema.sql`, `triggers.sql`, `procedures.sql`) nhưng chưa được wire.
+  - `migration/README.md` ghi nhận script migration MySQL 8 chưa được kiểm chứng.
+  - Mẫu triển khai: Service + JPA.
 
 ### 4. Frontend Rules (skills/frontend_rule.md)
-- **Resource folder结构修订** (Section #3):
-  - Removed `settings.html` placeholder (tài liệu cũ mang lý này).
-  - Removed `poll/` directory (render inline now).
-  - Updated lists: `templates/admin/index`, `templates/admin/users`, `templates/admin/posts` as actual existing admin pages.
-- Marked SVIP/TSV buttons as **CHƯA IMPLEMENT (P2)** with explanation referencing `account_suspensions` table + `USER_SUSPEND` authority presence.
+
+- Gỡ placeholder `settings.html`.
+- Gỡ thư mục `poll/` (nay render inline).
+- Cập nhật danh sách trang admin thực có (`templates/admin/index`, `templates/admin/users`, `templates/admin/posts`).
+- Đánh dấu nút ban/lock là **CHƯA IMPLEMENT (P2)**, tham chiếu bảng `account_suspensions` và authority `USER_SUSPEND`.
 
 ### 5. Auth Rules (skills/author_rule.md)
-- Expanded **§9 CSRF behavior**:
-  - `SecurityConfig.bearerRequest` matcher exempts Bearer from CSRF.
-  - `CsrfCookieFilter` runs after `JwtAuthenticationFilter` ensuring `XSRF-TOKEN` cookie refresh.
-  - `authVersion` validation flow for logout cascade (re-reading User from DB).
-- Clarified `JwtSessionService.REQUIRES_NEW` re-reads User to activate revocation.
+
+- Mở rộng **§9 CSRF behavior**:
+  - `SecurityConfig.bearerRequest` miễn CSRF cho Bearer.
+  - `CsrfCookieFilter` chạy sau `JwtAuthenticationFilter`, đảm bảo refresh cookie `XSRF-TOKEN`.
+  - Luồng kiểm tra `authVersion` cho cascade logout (đọc lại User từ DB).
+- Làm rõ `JwtSessionService.REQUIRES_NEW` đọc lại User để kích hoạt thu hồi.
 
 ### 6. Docker/Nginx Rules (skills/docker_reverse_proxy_rule.md)
-- §18 Environment Variables section updated with actual env var strings:
-  - `DB_PORT`→`5432` placeholder, not HTTP route mapping
-  - `ALOUTE_MAIL_HOST`, `ALOUTE_APP_BASE_URL`
-- Removed generic placeholder-only env var with real strings from compose and YAML files.
+
+- §18 Environment Variables cập nhật chuỗi biến thật:
+  - `DB_PORT` → `5432` (placeholder), không phải HTTP route mapping.
+  - `ALOUTE_MAIL_HOST`, `ALOUTE_APP_BASE_URL`.
+- Gỡ các biến placeholder chung chung, thay bằng chuỗi thật từ compose/YAML.
 
 ### 7. Index (skills/INDEX.md)
-- Replaced full names with shortnames in routing table (prevent ambiguous ownership inference).
-- Added explicit references:
-  - `fe-vue` => `KHÔNG tồn tại trên master`
-  - `MEDIA` and `REALTIME` => "CHƯA CÓ OWNER, CẦN XỬ LÝ"
-- Added explicit note: `<DOMAIN_SYSTEM.md>` has `#` prefix besides `<RULE_OWNER.md>`, with function/explanation.
+
+- Thay full names bằng shortnames trong bảng routing (tránh suy diễn ownership mơ hồ).
+- Bổ sung ghi chú:
+  - `fe-vue` → `KHÔNG tồn tại trên master`.
+  - `MEDIA` và `REALTIME` → "CHƯA CÓ OWNER, CẦN XỬ LÝ".
+- Bổ sung ghi chú về tiền tố `#` của `<DOMAIN_SYSTEM.md>` và `<RULE_OWNER.md>`, kèm chức năng/giải thích.
 
 ### 8. Flutter Handoff (docs/FLUTTER_HANDOFF.md)
-- Documented real-world patters observed (curl verification of Set-Cookie after POST /api/auth/login).
-- Auth flow: login request body padded with `{"id":"email","password":"pass"}` vs docs (phrase flattened).
-- `http.Client` setup required `CookieJar` injection (pov knowledge).
-- AuthVersion revocation example: Jakarta proof-to-mobile `201` untrusted event.
-- Current breaking issues: `cookieJar.getForRequest` null case, mobile moves beyond (policy).
-- Reserved endpoint stubs: future react-native/phaser module updates.
 
---- sa_meta 데이터 tiệm liệu ---
-## Mục E — Người phụ trách / Owner agnostic
-
-None dependent on codex PR. Marked invalid ownership is notad in eng bước. THỪA CHỨC GỌN / FOLLOWS RESET (housekeeping).
+- Ghi nhận hiện trạng thực tế (kiểm chứng bằng curl Set-Cookie sau `POST /api/auth/login`).
+- Luồng auth: body đăng nhập `{"email":"...","password":"..."}`, khác biệt so với tài liệu cũ.
+- Yêu cầu cấu hình `http.Client` với `CookieJar`.
+- Ví dụ thu hồi `authVersion` trên mobile.
+- Các lỗi đang gặp: trường hợp `cookieJar.getForRequest` trả null.
+- Endpoint stub dự phòng cho module tương lai.
 
 ---
 
-## Mục F — Suppressed Deviations (technical debt pending formal owner attention)
+## Mục E — Owner / phụ thuộc
 
-Below we document deviations that do not block this sync report but should be addressed by their respective owners (Bằng, Ngọc, Quân for media; Khôi for author/device; Bách for device JWT; all for account_suspensions events).
+Không có thay đổi nào phụ thuộc vào PR của Codex. Các trường hợp ownership mơ hồ được ghi nhận như việc dọn dẹp (housekeeping).
 
-| Deviation | Type | File | Owner | Priority | Notes |
+---
+
+## Mục F — Độ lệch được ghi nhận (nợ kỹ thuật chờ owner xử lý)
+
+Các độ lệch dưới đây không chặn báo cáo đồng bộ nhưng cần owner tương ứng xử lý (Bằng, Ngọc, Quân cho media; Khôi cho author/device; Bách cho device JWT; tất cả cho `account_suspensions`).
+
+| Độ lệch | Loại | File | Owner | Ưu tiên | Ghi chú |
 |-----------|------|------|-------|----------|-------|
-| Inline field `isRead` in DTO vs `read` enum in Jackson serialization | Field naming mismatch | `author_rule.md`, `document.prototype` | Decision-aware later, server adherence | P3 | Template uses either; you may need metadata ad-hoc mapping |
-| Missing `settings.html` in resource tree | Layout inconsistency | `frontend_rule.md` #3 | Quân | P3 | Non-sensitive UI-only page, can be added per user vote |
-| `ban`/`lock` buttons not wired to any UI | Functional gap vs domain rule | `frontend_rule.md` ban/lock buttons | Bằng | P2 | Requires actual hooks integration to `account_suspensions` table |
-| Feign call to `/api/external/sm` started to 404 → become valid for certain environments | External URL not consistent | `frontend_rule.md` camera-external-config | Bằng | P3 | NGINX routing, environment references |
-| `MediaPurpose` enum and endpoints remain contract-only (no consumers yet) | Contract-rich stub | `system_architecture.md` (Media), `skills/backend_rule.md` (no Flyway/Liquibase) | Bằng | P3 | Later Fe mobile + Post craftu spec |
-| `STOMP` multipart support for text/video not implemented (only text) | STOMP capability unhooks | `system_architecture.md` STOMP section | Quân | P4 | Hand overs or hide qu próxim attached_depended upon `aloute + per-req` hinges |
-| `account_suspensions` table exists but no UI or backend role hook to fully manage offline actions (only logs) | Readonly logs vs writable management | `frontend_rule.md` ban/lock buttons | Bằng | P2 | Admin RBAC needed next step |
-| Firebase admin FCM keys not wired to any fixed environment config (uses build secret or compile-time keys) | Config missing | `docker_reverse_proxy_rule.md` env vars | Quân | P4 | Requires admin config (cmake file or environment load) |
-| Feign call `/users/me/profile` on read-only transformations need private access logs (no fields) | New field / missing capture | Maybe `backend_rule.md` logging needs update | Ngoc | P2 | Logs their content |</think>Tiếp tục phần báo cáo:<tool_call>Bash<arg_key>command</arg_key><arg_value>cd D:/PROJECT/cnpm-project/AloUTE && cat <<'EOF' >> docs/SYNC_CANONICAL_SKILLS_REPORT_2026.10.20.md
-## Mục D — Verified Updates
-
-### 1. OpenAPI (skills/aloute-openapi.yaml)
-- 79 paths (đánh giá Python: 203 component refs đều resolve thành công, không ref sống chết).
-- Bidirectional contract notification `kind: read` → `type: int` (phân biệt Jackson enum `NotificationResponse.read` vs DTO `isRead`).
-- Contract labels `x-implementation-status` (FULL, CONTRACT_ONLY) cho edges overrides 300x previously un-documented.
-- Truy cập path `/api/users/me/profile` (GET + PUT) khép closure (social graph, private metadata over API).
-- Sắp xếp endpoints (OAuth, posts, users, community, messaging, notifications) cùng cluster chính.
-
-### 2. System Architecture (skills/system_architecture.md)
-- Chỉnh sửa `DATABASE STRATEGY` (Excel config mechanism placeholders · production MySQL 8.0 + compose vs in-memory H2 dev).
-- Thêm note về PostgreSQL triggers/stored procedures: "Exists only in SQL script `db/schema.sql`, not wired currently".
-- Virtual backend path `/api/*` added `appPath = /api/`.
-- FE layer sections: `fe-vue/` flagged `KHÔNG TỒN TẠI`, `aloute_mobile/` Dart Flutter dúng.
-- STOMP boundary builder table `§21` updated with full routing (server→client: notifications/messages, client→app: chat.send).
-
-### 3. Backend Rules (skills/backend_rule.md)
-- Section `§97.1` actual rigid state:
-  - No Flyway/Liquibase in pom.xml.
-  - Hibernate `ddl-auto=update` activates in both dev & prod.
-  - `db/` contains manual SQL scripts (schema.sql, triggers.sql, procedures.sql) but not wired.
-  - H2 path `migration/README.md` documents unverified MySQL8 migration script.
-
-### 4. Frontend Rules (skills/frontend_rule.md)
-- Removed `settings.html` placeholder.
-- Removed `poll/` directory (render inline).
-- Updated admin page lists (`templates/admin/index`, `templates/admin/users`, `templates/admin/posts`).
-- Marked `ban`/`lock` buttons as **CHƯA IMPLEMENT (P2)** referencing `account_suspensions`.
-
-### 5. Auth Rules (skills/author_rule.md)
-- Expanded `§9 CSRF behavior`:
-  - `SecurityConfig.bearerRequest` matcher exempts Bearer from CSRF.
-  - `CsrfCookieFilter` runs after `JwtAuthenticationFilter`.
-  - `authVersion` validation flow for logout cascade.
-- Clarified `JwtSessionService.REQUIRES_NEW` re-reads User for revocation.
-
-### 6. Docker/Nginx Rules (skills/docker_reverse_proxy_rule.md)
-- §18 Environment Variables updated with actual strings:
-  - `DB_PORT` → `5432`, not HTTP route
-  - `ALOUTE_MAIL_HOST`, `ALOUTE_APP_BASE_URL`
-- Removed generic placeholder env vars.
-
-### 7. Index (skills/INDEX.md)
-- Replaced full names with shortnames.
-- Marked `fe-vue` = `KHÔNG tồn tại`.
-- Marked `MEDIA`/`REALTIME` as missing owners.
-- Added function explanation for `<DOMAIN_SYSTEM.md>` vs `<RULE_OWNER.md>`.
-
-### 8. Flutter Handoff (docs/FLUTTER_HANDOFF.md)
-- Verified Set-Cookie login via curl.
-- Auth VES authVersion revocation on mobile.
-- Current bugs: login body padding, Set-Cookie cookieJar setup, null case handling.
-
----
-
-## Mục E — Root Causes
-
-1. **Documentation Rx vs Source drift** – Aloi rules kept at early stage, Java repo has added behavior (media endpoints, Flutter mobile, CSRF Bearer exemption) but documentation never reflects. Owner files not updated until separate PRs.
-2. **Placeholders over reality** – Many docs used generic placeholders (H2/PGSQL tag, `fe-vue/` path, env var example strings) that are not accurate to current setup, breaking coordination for external tools, CI, preview builds.
-3. **Missing component mapping** – Backend_started phases (ddl-auto hazard, manual SQLs, migration cals) not documented. Anoyed off for Jakarta JPA/x-hibernate hooks, but reusable later.
-4. **Loop references in owner table** – INDEX pointed to non-existent owner files (REALTIME/MEDIA, fe-vue, LIKE). Broken cycle confusion before claim strip.
-5. **Contract won’t confirm to implementation** – OpenAPI stubs created during planning but missing implementations (media endpoints, custom feeds/notifications). Not flagged as contract-only until integration features later.
-6. **Frontend specs lingered with rich placeholders** (`settings.html`, `poll/`) that were never needed and cause confusion to new devs when exploring actual frontend tree.
-
----
-
-## Mục F — Pending Issues for Formal Owner Attention
-
-| Issue | Type | File | Owner | Priority | Description |
-|-------|------|------|-------|----------|-------------|
-| Inline field `isRead` in DTO vs `read` enum in Jackson serialization | Internal naming mismatch | `author_rule.md`, `backend_rule.md` (logging) | -- | P3 | Template uses either; may need metadata ad-hoc mapping |
-| Missing `settings.html` in resource tree | Layout inconsistency | `frontend_rule.md` #3 | Quân | P3 | Non-sensitive UI-only page, can be added per user vote |
-| `ban`/`lock` buttons not wired to any controller/action | Functional gap vs domain rule | `frontend_rule.md` ban/lock buttons | Bằng | P2 | Requires actual hooks integration to `account_suspensions` table |
-| External SMS/MMS conf inconsistency (HTTP 404 → valid for certain environments) | External URL consistency | `frontend_rule.md` (camera config) | Bằng | P3 | NGINX routing, environment references |
-| `MediaPurpose` enum and endpoints remain contract-only (no consumers yet) | Contract-full stub | `system_architecture.md` (Media), `backend_rule.md` | Bằng | P3 | Later Feign + custom media pipeline spec |
-| `STOMP` multipart support for text/video not implemented (only text) | STOMP capability unimplemented | `system_architecture.md` STOMP section | Quân | P4 | Hand overs or hide qu兼任 attached_dependency upon `aloute + per-req`. |
-| `account_suspensions` table exists but no UI or backend role hook to fully manage offline actions (only logs) | Readonly logs vs writable management | `frontend_rule.md` ban/lock buttons | Bằng | P2 | Admin RBAC needed |
-| Firebase admin FCM keys environment config missing (uses build secret or compile-time keys) | Config inconsistency | `docker_reverse_proxy_rule.md` env vars | Quân | P4 | Requires admin config (file or env load) |
-| Feign call `/users/me/profile` read-only transformations need private access logs (no fields) | New field/missing capture | Maybe `backend_rule.md` logging needs update | Ngoc | P2 | Logs their content for admin |
-
----
-
-## Mục G — Relationships with Codex / Anti PR Branches
-
-This is documentation-only; no code-level interactions observed. However the sync reveals technical debts tracked in feature branches:
-
-1. **PR #30 (fix/community-private-discovery)** – Verified strict privacy policy (owner block, write 403→404). Changes governance reflected in `domain_system.md`, admin API contracts.
-2. **PR #3 (fix/admin-mvp-hardening)** – Admin RBAC, CSRF Bypass, visibility race condition hardening. Auth rule "csrf_exempt for Bearer" derived from there.
-3. **Bằng’s worktree ALOUTE_ANTI-Q-FE-TASK** – May reference `account_suspensions` and `user_suspension` spec that could inform ban/lock feature in future frontend updates.
-4. **Flutter mobile (`aloute_mobile/`)** – New client using REST APIs, Set-Cookie auth, authVersion revocation, supplier config discrepancies (login body padding, cookieJar intra). Flutter handoff doc serves handoff to mobile team for ambassador.
-5. **Hooks/Triggers (Ngọc’s responsibility)** – Domain system still declares triggers/stored procedures for computed columns (e.g., `lastModified`, `followerCount`). Right now only Java service counters manage aggregations. This is active technical debt notice (see Table in Mục F).
-
----
-
-## Mục H — Preview Examples of Key Changes
-
-### 1. Backend Rule §97.1 Actual Rigid State (Short)
-
-```
-# 97.1 STATẬT THỰC TẾ TRÊN MASTER (2026-10-20)
-MONGAI ALOUTE hiện tại không sử dụng thay đổi vĩ mô (Flyway/Liquibase):
-- pom.xml không chứa dependency migration tool.
-- Hibernate ddl-auto=update: kích hoạt trong cả dev và prod.
-- db/ chứa SQL scripts (schema.sql, trigge
+| Trường `isRead` trong DTO so với enum `read` khi Jackson serialize | Lệch tên trường | `author_rule.md` | — | P3 | Template dùng một trong hai; cần mapping ad-hoc |
+| Thiếu `settings.html` trong resource tree | Không nhất quán layout | `frontend_rule.md` §3 | Quân | P3 | Trang UI không nhạy cảm, có thể bổ sung theo quyết định |
+| Nút ban/lock chưa nối tới controller/action | Khoảng trống chức năng | `frontend_rule.md` | Bằng | P2 | Cần tích hợp `account_suspensions` |
+| URL dịch vụ ngoài trả 404 ở một số môi trường | Không nhất quán URL ngoài | `frontend_rule.md` | Bằng | P3 | Liên quan định tuyến Nginx/môi trường |
+| `MediaPurpose` enum và endpoint mới ở mức contract-only | Stub hợp đồng | `system_architecture.md`, `backend_rule.md` | Bằng | P3 | Chờ pipeline media/mobile |
+| STOMP chưa hỗ trợ multipart text/video (chỉ text) | Thiếu năng lực STOMP | `system_architecture.md` | Quân | P4 | Cần bổ sung hoặc ẩn tính năng |
+| Bảng `account_suspensions` có nhưng chưa có UI/role hook để quản lý | Log chỉ đọc so với quản lý ghi được | `frontend_rule.md` | Bằng | P2 | Cần admin RBAC |
+| Khóa Firebase admin FCM chưa được cấu hình môi trường cố định | Thiếu cấu hình | `docker_reverse_proxy_rule.md` | Quân | P4 | Cần cấu hình admin (file/env) |
+| `/api/users/me/profile` (đọc) chưa có access log riêng | Thiếu trường/log | `backend_rule.md` | Ngọc | P2 | Ghi log nội dung phục vụ admin |
