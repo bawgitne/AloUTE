@@ -8,6 +8,8 @@ Frontend AloUTE đã được kiểm thử end-to-end bằng browser thật trê
 
 **Trạng thái acceptance: PASS WITH LIMITATIONS cho phạm vi frontend; NOT READY cho production do BL-22 và các hạng mục chưa kiểm chứng.**
 
+Đã chạy lại toàn bộ 165 case trên ZCode HEAD `e12b21b` với đúng 23 thay đổi frontend QA: kết quả **155/4/3/3, 0 khác biệt trạng thái** so với baseline; BL-22 vẫn mở. Chi tiết `12_FINAL_HANDOFF.md`.
+
 ## 2. Con số
 
 | Chỉ số | Giá trị |
@@ -77,6 +79,7 @@ Frontend AloUTE đã được kiểm thử end-to-end bằng browser thật trê
 | Hiệu năng local | DCL < 3s, API p95 < 800ms | Đạt |
 | Không rò rỉ secret/PII | 0 | Đạt trong phạm vi kiểm tra |
 | Dọn dữ liệu test | Không sót bài/cộng đồng QA | Đạt (SOC-P90, COM-90, CLEAN-01) |
+| Tích hợp ZCode `e12b21b` | Không regression so với baseline | Đạt — 0 khác biệt trạng thái; BL-22 vẫn FAIL |
 
 ## 7. Rủi ro còn lại
 
@@ -89,7 +92,7 @@ Frontend AloUTE đã được kiểm thử end-to-end bằng browser thật trê
 
 ## 8. Khuyến nghị
 
-- ZCode xử lý BL-22 trước khi release; QA chạy lại 4 case AUTH-15/16, ADM-05, RES-02.
+- ZCode xử lý BL-22 trước khi release; QA chạy lại 4 case AUTH-15/16, ADM-05, RES-02. Đã xác minh lại trên `e12b21b`: cả 4 case vẫn FAIL.
 - Cấp Firebase service account cho môi trường demo; chốt đặc tả private community.
 - Chạy lại cross-browser trên Firefox ESR/container Linux.
 - Đo lại hiệu năng với PostgreSQL + dữ liệu lớn trước khi cam kết SLO.

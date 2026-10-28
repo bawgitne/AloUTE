@@ -13,7 +13,7 @@
 | Branch | `test/quan-e2e-acceptance` |
 | Base commit | `74c8a6f71be9e08d5fec0177fec2e86eb6daa6e9` (`fix(ui): harden guest experience and accessibility`) |
 | Upstream tham chiếu | `AloUTE` (branch `fix/quan-frontend-hardening-20261027`) — cùng commit nền |
-| ZCode worktree | `D:\PROJECT\cnpm-project\AloUTE-zc-release` (branch `fix/release-integration-20261028`) — **không sửa, không checkout** |
+| ZCode worktree | `D:\PROJECT\cnpm-project\AloUTE-zc-release` (branch `fix/release-integration-20261028`) — **không sửa, không checkout**; kiểm thử tích hợp qua worktree tạm detached tại `e12b21b` |
 | OS | Windows 10.0.26200 x64 |
 | Java | 21.0.8 |
 | Spring Boot | 3.2.5, profile `dev`, H2 in-memory `jdbc:h2:mem:aloutedb` |
@@ -49,6 +49,8 @@ Không sử dụng tài khoản production, không seed lên website live, khôn
 | 01:44–01:47 | Full regression 6 suite (`full-run-1`) | 153 PASS / 5 FAIL / 4 BLOCKED / 3 NOT RUN |
 | 01:49–01:50 | Rerun auth + messaging có JWT secret (`full-run-3`) | Auth 24 PASS / 2 FAIL / 1 NOT RUN; messaging còn flake MSG-07 |
 | 01:51 | Rerun messaging sau khi sửa locator (`full-run-4`) | 34 PASS / 1 FAIL (ADM-05) |
+| 09:03 | Integration run đầu trên ZCode `e12b21b` | Không hợp lệ: chưa seed demo-data → AUTH-01 FAIL; hủy, không dùng |
+| 09:04–09:07 | Seed demo-data + full rerun trên `e12b21b` | 155 PASS / 4 FAIL / 3 BLOCKED / 3 NOT RUN; 0 khác biệt baseline (`integration-e12b21b-results.json`) |
 
 `full-run-2` không hợp lệ: thiếu biến môi trường tài khoản seed, 12 case FAIL do không đăng nhập được. Không dùng làm bằng chứng sản phẩm.
 
@@ -62,6 +64,7 @@ Không sử dụng tài khoản production, không seed lên website live, khôn
 | Thiếu biến tài khoản seed | `full-run-2` invalid | Rerun với biến local từ demo checklist |
 | MSG-07 flake locator | FAIL giả do bubble cũ cùng marker/tag | Sửa test chờ đúng payload đầy đủ; `full-run-4` PASS |
 | `cp` sang `target/classes` lỗi đường dẫn | Thay đổi template không được server nhận | Dùng đường dẫn tuyệt đối; xác minh lại bằng browser sau mỗi lần sync |
+| Integration run thiếu demo-data | Run `integration-...-0903` có AUTH-01 FAIL giả | Hủy run, chạy `tools/demo-data.mjs`, rerun `integration-...-0907` |
 
 ## 5. Thay đổi mã nguồn trong worktree
 
@@ -80,6 +83,7 @@ Không sử dụng tài khoản production, không seed lên website live, khôn
 | Fixture tạo/dọn | `social-fixtures.json`, `community-fixtures.json`, `admin-report-fixture.json` |
 | Server log | `test-results/quan-e2e-acceptance/server-8082.log` |
 | Seed marker | `test-results/quan-e2e-acceptance/seed-20261028.txt` |
+| Kết quả tích hợp ZCode | `evidence/integration-e12b21b-results.json`, `evidence/integration-e12b21b-environment.json` |
 
 Không có credential, token, OTP hay nội dung tin nhắn riêng tư trong tài liệu. Tên tài khoản seed chỉ là local (`@aloute.local`, `@aloute.test`).
 
