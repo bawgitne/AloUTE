@@ -1,0 +1,424 @@
+{
+  "runId": "baseline-fixture-repro-20261028",
+  "baseUrl": "http://127.0.0.1:8086",
+  "browserChannel": "chrome",
+  "startedAt": "2026-10-28T04:12:32.894Z",
+  "suites": [
+    "social"
+  ],
+  "environment": {
+    "node": "v24.19.0",
+    "platform": "win32",
+    "headless": true,
+    "baseUrl": "http://127.0.0.1:8086"
+  },
+  "entries": [
+    {
+      "id": "SOC-P01",
+      "suite": "social",
+      "name": "Hồ sơ cá nhân hiển thị tên, username, tab và nút chỉnh sửa",
+      "status": "PASS",
+      "detail": {
+        "tabs": 4
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:12:38.238Z"
+    },
+    {
+      "id": "SOC-P02",
+      "suite": "social",
+      "name": "Chỉnh sửa hồ sơ: tên hiển thị + bio, lưu và giữ sau reload",
+      "status": "PASS",
+      "detail": {
+        "bioLength": 41
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:12:39.914Z"
+    },
+    {
+      "id": "SOC-P03",
+      "suite": "social",
+      "name": "Xem hồ sơ người khác: không có nút sửa, có follow/nhắn tin",
+      "status": "PASS",
+      "detail": null,
+      "evidence": null,
+      "at": "2026-10-28T04:12:40.543Z"
+    },
+    {
+      "id": "SOC-P04",
+      "suite": "social",
+      "name": "Theo dõi / bỏ theo dõi qua UI cập nhật trạng thái và bộ đếm",
+      "status": "PASS",
+      "detail": {
+        "initial": "Đang theo dõi",
+        "after": "Theo dõi"
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:12:42.803Z"
+    },
+    {
+      "id": "SOC-P05",
+      "suite": "social",
+      "name": "Tab hồ sơ: Bài viết / Phản hồi / Ảnh / Đã lưu chuyển đúng pane",
+      "status": "PASS",
+      "detail": null,
+      "evidence": null,
+      "at": "2026-10-28T04:12:44.488Z"
+    },
+    {
+      "id": "SOC-P06",
+      "suite": "social",
+      "name": "Upload avatar/cover",
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "Firebase Storage cần serviceAccountKey.json; môi trường QA local không cấu hình (demo checklist ghi rõ)"
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:12:44.488Z"
+    },
+    {
+      "id": "SOC-P10",
+      "suite": "social",
+      "name": "Tạo bài text qua UI (tiếng Việt có dấu) và chuyển trang chi tiết",
+      "status": "PASS",
+      "detail": {
+        "postId": 7
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:12:45.822Z"
+    },
+    {
+      "id": "SOC-P11",
+      "suite": "social",
+      "name": "Like / unlike qua UI cập nhật bộ đếm, aria-pressed và API",
+      "status": "PASS",
+      "detail": {
+        "before": 0
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:12:46.261Z"
+    },
+    {
+      "id": "SOC-P12",
+      "suite": "social",
+      "name": "Like nhấp nhanh liên tiếp không tạo trạng thái sai",
+      "status": "PASS",
+      "detail": {
+        "finalLiked": false
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:12:47.601Z"
+    },
+    {
+      "id": "SOC-P13",
+      "suite": "social",
+      "name": "Lưu / bỏ lưu bài viết; bài xuất hiện và biến mất khỏi /saved",
+      "status": "PASS",
+      "detail": {
+        "savedVisible": true
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:12:49.487Z"
+    },
+    {
+      "id": "SOC-P14",
+      "suite": "social",
+      "name": "Bình luận bài viết: gửi thành công, tăng bộ đếm, giữ sau refresh",
+      "status": "PASS",
+      "detail": {
+        "replyCount": 1
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:12:50.242Z"
+    },
+    {
+      "id": "SOC-P15",
+      "suite": "social",
+      "name": "Trích dẫn bài viết: tạo quote, tăng quoteCount, hiển thị bài gốc",
+      "status": "PASS",
+      "detail": {
+        "quotePostId": 9
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:12:52.161Z"
+    },
+    {
+      "id": "SOC-P16",
+      "suite": "social",
+      "name": "Chia sẻ lại (repost) bật/tắt và đồng bộ API",
+      "status": "PASS",
+      "detail": null,
+      "evidence": null,
+      "at": "2026-10-28T04:12:52.801Z"
+    },
+    {
+      "id": "SOC-P17",
+      "suite": "social",
+      "name": "Sao chép liên kết bài viết và mở đúng permalink",
+      "status": "PASS",
+      "detail": {
+        "toast": "Đã sao chép liên kết bài viết vào clipboard!",
+        "clipboardHost": "127.0.0.1:8086"
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:12:53.697Z"
+    },
+    {
+      "id": "SOC-P18",
+      "suite": "social",
+      "name": "Chỉnh sửa bài của mình: nội dung đổi tức thì và giữ sau reload",
+      "status": "PASS",
+      "detail": {
+        "updated": true
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:12:55.746Z"
+    },
+    {
+      "id": "SOC-P19",
+      "suite": "social",
+      "name": "Báo cáo bài viết qua modal, API trả 201",
+      "status": "PASS",
+      "detail": {
+        "reportStatus": 201
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:12:57.137Z"
+    },
+    {
+      "id": "SOC-P20",
+      "suite": "social",
+      "name": "Nháp soạn bài được khôi phục sau khi rời trang",
+      "status": "PASS",
+      "detail": {
+        "draftLength": 41
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:12:59.693Z"
+    },
+    {
+      "id": "SOC-P21",
+      "suite": "social",
+      "name": "XSS trong nội dung bài được escape, không thực thi script",
+      "status": "PASS",
+      "detail": {
+        "escaped": true
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:13:00.238Z"
+    },
+    {
+      "id": "SOC-P22",
+      "suite": "social",
+      "name": "Xóa bài của mình qua modal; biến mất khỏi API và feed",
+      "status": "PASS",
+      "detail": {
+        "deletedStatus": 404
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:13:02.115Z"
+    },
+    {
+      "id": "SOC-P23",
+      "suite": "social",
+      "name": "Guest không thể tương tác qua API (like/bookmark/repost/vote)",
+      "status": "PASS",
+      "detail": {
+        "like": 403
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:13:02.357Z"
+    },
+    {
+      "id": "SOC-P30",
+      "suite": "social",
+      "name": "Feed home/following/explore: quyền truy cập và dữ liệu",
+      "status": "PASS",
+      "detail": {
+        "home": 5,
+        "following": 3,
+        "explore": 5
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:13:02.738Z"
+    },
+    {
+      "id": "SOC-P31",
+      "suite": "social",
+      "name": "Phân trang API 0-indexed trả trang khác nhau",
+      "status": "PASS",
+      "detail": {
+        "pageSize": 2,
+        "hasMeta": true
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:13:02.825Z"
+    },
+    {
+      "id": "SOC-P32",
+      "suite": "social",
+      "name": "Feed UI có composer cho user và CTA cho guest",
+      "status": "PASS",
+      "detail": null,
+      "evidence": null,
+      "at": "2026-10-28T04:13:04.531Z"
+    },
+    {
+      "id": "SOC-P33",
+      "suite": "social",
+      "name": "Trang feed ngoài phạm vi trang hiển thị empty/out-of-range nhất quán",
+      "status": "PASS",
+      "detail": {
+        "handled": true
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:13:04.700Z"
+    },
+    {
+      "id": "SOC-P40",
+      "suite": "social",
+      "name": "Poll: tác giả chưa vote thấy form, vote thành công và giữ sau refresh",
+      "status": "FAIL",
+      "detail": {
+        "error": "Bài seed 4 không có poll",
+        "stack": "Error: Bài seed 4 không có poll\n    at file:///D:/PROJECT/cnpm-project/AloUTE-e2e-signoff-20261028/test/e2e/quan-acceptance/suites/social.mjs:459:22\n    at async test (file:///D:/PROJECT/cnpm-project/AloUTE-e2e-signoff-20261028/test/e2e/quan-acceptance/lib/harness.mjs:69:20)\n    at async Module.run (file:///D:/PROJECT/cnpm-project/AloUTE-e2e-signoff-20261028/test/e2e/quan-acceptance/suites/social.mjs:456:3)"
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:13:04.717Z"
+    },
+    {
+      "id": "SOC-P41",
+      "suite": "social",
+      "name": "Vote lặp lại bị từ chối",
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "Không có fixture poll từ SOC-P40"
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:13:04.717Z"
+    },
+    {
+      "id": "SOC-P42",
+      "suite": "social",
+      "name": "Guest vote bị chặn 401",
+      "status": "FAIL",
+      "detail": {
+        "error": "Cannot read properties of null (reading 'id')",
+        "stack": "TypeError: Cannot read properties of null (reading 'id')\n    at file:///D:/PROJECT/cnpm-project/AloUTE-e2e-signoff-20261028/test/e2e/quan-acceptance/suites/social.mjs:497:92\n    at async test (file:///D:/PROJECT/cnpm-project/AloUTE-e2e-signoff-20261028/test/e2e/quan-acceptance/lib/harness.mjs:69:20)\n    at async Module.run (file:///D:/PROJECT/cnpm-project/AloUTE-e2e-signoff-20261028/test/e2e/quan-acceptance/suites/social.mjs:495:3)"
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:13:04.931Z"
+    },
+    {
+      "id": "SOC-P43",
+      "suite": "social",
+      "name": "Option không tồn tại bị từ chối",
+      "status": "FAIL",
+      "detail": {
+        "error": "Cannot read properties of null (reading 'id')",
+        "stack": "TypeError: Cannot read properties of null (reading 'id')\n    at file:///D:/PROJECT/cnpm-project/AloUTE-e2e-signoff-20261028/test/e2e/quan-acceptance/suites/social.mjs:506:92\n    at async test (file:///D:/PROJECT/cnpm-project/AloUTE-e2e-signoff-20261028/test/e2e/quan-acceptance/lib/harness.mjs:69:20)\n    at async Module.run (file:///D:/PROJECT/cnpm-project/AloUTE-e2e-signoff-20261028/test/e2e/quan-acceptance/suites/social.mjs:505:3)"
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:13:04.948Z"
+    },
+    {
+      "id": "SOC-P44",
+      "suite": "social",
+      "name": "Poll nhiều lựa chọn: API tạo, UI render checkbox, chọn 2 đáp án",
+      "status": "PASS",
+      "detail": {
+        "pollId": 2,
+        "selected": 2
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:13:05.651Z"
+    },
+    {
+      "id": "SOC-P45",
+      "suite": "social",
+      "name": "Poll thiếu phương án bị validation chặn",
+      "status": "PASS",
+      "detail": {
+        "blockedAtValidation": true
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:13:07.441Z"
+    },
+    {
+      "id": "SOC-P46",
+      "suite": "social",
+      "name": "Poll giới hạn một lựa chọn không cho chọn 2 qua UI",
+      "status": "PASS",
+      "detail": {
+        "pollId": 3
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:13:08.032Z"
+    },
+    {
+      "id": "SOC-P47",
+      "suite": "social",
+      "name": "Poll hết hạn",
+      "status": "NOT RUN",
+      "detail": {
+        "reason": "Cần chờ 1–365 ngày hoặc thao tác DB; ngoài phạm vi QA không sửa dữ liệu trực tiếp"
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:13:08.032Z"
+    },
+    {
+      "id": "SOC-P50",
+      "suite": "social",
+      "name": "Bài FOLLOWERS ẩn với guest và người không theo dõi",
+      "status": "PASS",
+      "detail": {
+        "guest": 403,
+        "outsider": 403
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:13:08.315Z"
+    },
+    {
+      "id": "SOC-P51",
+      "suite": "social",
+      "name": "Bài đã xóa không xuất hiện trong tìm kiếm/feed người khác",
+      "status": "PASS",
+      "detail": {
+        "deleteStatus": 204
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:13:08.374Z"
+    },
+    {
+      "id": "SOC-P52",
+      "suite": "social",
+      "name": "Custom Feed đầy đủ",
+      "status": "NOT RUN",
+      "detail": {
+        "reason": "API /api/feeds HTTP 200; stub/contract-only, chưa có UI hoàn chỉnh"
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:13:08.383Z"
+    },
+    {
+      "id": "SOC-P90",
+      "suite": "social",
+      "name": "Dọn dẹp bài QA do suite tạo (trừ bài đã xóa)",
+      "status": "PASS",
+      "detail": {
+        "removed": 8
+      },
+      "evidence": null,
+      "at": "2026-10-28T04:13:08.479Z"
+    }
+  ],
+  "accountsConfigured": true,
+  "finishedAt": "2026-10-28T04:13:08.948Z",
+  "counts": {
+    "PASS": 29,
+    "BLOCKED": 2,
+    "FAIL": 3,
+    "NOT RUN": 2
+  },
+  "overall": "FAIL"
+}

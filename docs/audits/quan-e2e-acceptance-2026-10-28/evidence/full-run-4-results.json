@@ -1,0 +1,444 @@
+{
+  "runId": "full-run-4",
+  "baseUrl": "http://127.0.0.1:8082",
+  "browserChannel": "chrome",
+  "startedAt": "2026-10-28T01:51:13.150Z",
+  "suites": [
+    "messaging-admin"
+  ],
+  "environment": {
+    "node": "v24.19.0",
+    "platform": "win32",
+    "headless": true,
+    "baseUrl": "http://127.0.0.1:8082"
+  },
+  "entries": [
+    {
+      "id": "MSG-01",
+      "suite": "messaging-admin",
+      "name": "API hội thoại chặn guest (401/403 JSON)",
+      "status": "PASS",
+      "detail": {
+        "status": 401
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:15.234Z"
+    },
+    {
+      "id": "MSG-02",
+      "suite": "messaging-admin",
+      "name": "Trang /messages: danh sách hội thoại tải qua REST",
+      "status": "PASS",
+      "detail": {
+        "conversations": 1
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:16.688Z"
+    },
+    {
+      "id": "MSG-03",
+      "suite": "messaging-admin",
+      "name": "Deep link /messages/{id}: mở đúng hội thoại và tải lịch sử",
+      "status": "PASS",
+      "detail": {
+        "convId": 1,
+        "history": 14,
+        "title": "AloUTE Admin"
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:18.092Z"
+    },
+    {
+      "id": "MSG-04",
+      "suite": "messaging-admin",
+      "name": "Gửi tin nhắn qua UI: bubble outgoing, input xóa, API lưu đúng",
+      "status": "PASS",
+      "detail": {
+        "convId": 1,
+        "contentLength": 46
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:18.269Z"
+    },
+    {
+      "id": "MSG-05",
+      "suite": "messaging-admin",
+      "name": "Submit rỗng không phát sinh request gửi tin",
+      "status": "PASS",
+      "detail": {
+        "requests": 0
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:18.921Z"
+    },
+    {
+      "id": "MSG-06",
+      "suite": "messaging-admin",
+      "name": "Chặn tin nhắn vượt 2000 ký tự phía client",
+      "status": "PASS",
+      "detail": {
+        "message": "Tin nhắn vượt quá giới hạn 2000 ký tự."
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:18.978Z"
+    },
+    {
+      "id": "MSG-07",
+      "suite": "messaging-admin",
+      "name": "Nội dung tin nhắn HTML/JS được escape (không XSS)",
+      "status": "PASS",
+      "detail": {
+        "payload": "<img src=x onerror=\"window.__qaMsgXss=1\"> mvrgkdc4jaik"
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:19.113Z"
+    },
+    {
+      "id": "MSG-08",
+      "suite": "messaging-admin",
+      "name": "Bộ lọc danh sách hội thoại phía client",
+      "status": "PASS",
+      "detail": {
+        "before": 1,
+        "after": 1
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:19.146Z"
+    },
+    {
+      "id": "MSG-09",
+      "suite": "messaging-admin",
+      "name": "Hội thoại không tồn tại hiển thị lỗi tiếng Việt (không lộ message backend)",
+      "status": "PASS",
+      "detail": {
+        "message": "Bạn không phải thành viên của cuộc trò chuyện này.",
+        "backendNote": "Backend trả 403 FORBIDDEN cho cả hội thoại không tồn tại; cần 404 CONVERSATION_NOT_FOUND."
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:20.611Z"
+    },
+    {
+      "id": "MSG-10",
+      "suite": "messaging-admin",
+      "name": "Realtime WebSocket: tin nhắn mới xuất hiện không cần reload",
+      "status": "PASS",
+      "detail": {
+        "conversationId": 2,
+        "messageId": 27,
+        "transport": "STOMP /ws"
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:22.460Z"
+    },
+    {
+      "id": "MSG-11",
+      "suite": "messaging-admin",
+      "name": "Unread count tăng khi rời trang và thanh toán qua read receipt",
+      "status": "PASS",
+      "detail": {
+        "before": 1,
+        "after": 0
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:23.143Z"
+    },
+    {
+      "id": "MSG-12",
+      "suite": "messaging-admin",
+      "name": "Cách ly hội thoại: người ngoài không đọc/gửi được",
+      "status": "PASS",
+      "detail": {
+        "read": 403,
+        "write": 403
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:23.161Z"
+    },
+    {
+      "id": "MSG-13",
+      "suite": "messaging-admin",
+      "name": "Bong bóng chat không render lỗi console trên luồng chính",
+      "status": "PASS",
+      "detail": {
+        "pageErrors": 0,
+        "consoleErrors": 0
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:24.115Z"
+    },
+    {
+      "id": "NTF-01",
+      "suite": "messaging-admin",
+      "name": "API thông báo chặn guest",
+      "status": "PASS",
+      "detail": {
+        "status": 401
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:24.146Z"
+    },
+    {
+      "id": "NTF-02",
+      "suite": "messaging-admin",
+      "name": "Sinh thông báo LIKE/FOLLOW/REPLY qua tương tác thật",
+      "status": "PASS",
+      "detail": {
+        "types": [
+          "POST_REPLY",
+          "FOLLOW",
+          "POST_LIKE"
+        ],
+        "likeStatus": 200,
+        "followStatus": 200,
+        "replyStatus": 201
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:24.850Z"
+    },
+    {
+      "id": "NTF-03",
+      "suite": "messaging-admin",
+      "name": "Trang /notifications: danh sách, badge chưa đọc, 5 bộ lọc",
+      "status": "PASS",
+      "detail": {
+        "tabs": 5,
+        "unreadRows": 4
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:26.051Z"
+    },
+    {
+      "id": "NTF-04",
+      "suite": "messaging-admin",
+      "name": "Bộ lọc LIKE chỉ trả thông báo lượt thích",
+      "status": "PASS",
+      "detail": {
+        "items": 8
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:26.219Z"
+    },
+    {
+      "id": "NTF-05",
+      "suite": "messaging-admin",
+      "name": "Đánh dấu một thông báo đã đọc (UI + API count)",
+      "status": "PASS",
+      "detail": {
+        "before": 4,
+        "after": 3,
+        "notificationId": 40
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:27.070Z"
+    },
+    {
+      "id": "NTF-06",
+      "suite": "messaging-admin",
+      "name": "Đánh dấu tất cả đã đọc",
+      "status": "PASS",
+      "detail": {
+        "feedback": "Đã đánh dấu tất cả thông báo là đã đọc."
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:27.846Z"
+    },
+    {
+      "id": "NTF-07",
+      "suite": "messaging-admin",
+      "name": "Xóa một thông báo khỏi trung tâm",
+      "status": "PASS",
+      "detail": {
+        "removedId": "40",
+        "before": 20,
+        "after": 19
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:28.601Z"
+    },
+    {
+      "id": "NTF-08",
+      "suite": "messaging-admin",
+      "name": "Bộ lọc không có dữ liệu hiển thị empty state",
+      "status": "PASS",
+      "detail": {
+        "filter": "MENTION"
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:28.722Z"
+    },
+    {
+      "id": "NTF-09",
+      "suite": "messaging-admin",
+      "name": "Preview REPLY escape HTML (không XSS)",
+      "status": "PASS",
+      "detail": {
+        "escaped": true
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:29.606Z"
+    },
+    {
+      "id": "ADM-01",
+      "suite": "messaging-admin",
+      "name": "Tổng quan admin hiển thị KPI",
+      "status": "PASS",
+      "detail": {
+        "cards": 5
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:30.955Z"
+    },
+    {
+      "id": "ADM-02",
+      "suite": "messaging-admin",
+      "name": "Danh sách người dùng và tìm kiếm theo username",
+      "status": "PASS",
+      "detail": {
+        "containsDemoan": true
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:31.613Z"
+    },
+    {
+      "id": "ADM-03",
+      "suite": "messaging-admin",
+      "name": "Danh sách bài viết admin tải được",
+      "status": "PASS",
+      "detail": {
+        "rows": 20
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:32.358Z"
+    },
+    {
+      "id": "ADM-04",
+      "suite": "messaging-admin",
+      "name": "API admin chặn người dùng thường bằng 403",
+      "status": "PASS",
+      "detail": {
+        "status": 403,
+        "code": "AUTH_FORBIDDEN"
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:32.365Z"
+    },
+    {
+      "id": "ADM-05",
+      "suite": "messaging-admin",
+      "name": "Trang /admin chặn người dùng thường đúng chuẩn UX (BL-22)",
+      "status": "FAIL",
+      "detail": {
+        "error": "BL-22: /admin trả HTTP 403 (application/json) thay vì trang lỗi HTML/redirect; người dùng thấy JSON thô.",
+        "stack": "Error: BL-22: /admin trả HTTP 403 (application/json) thay vì trang lỗi HTML/redirect; người dùng thấy JSON thô.\n    at file:///D:/PROJECT/cnpm-project/AloUTE-qoder-acceptance/test/e2e/quan-acceptance/suites/messaging-admin.mjs:479:13\n    at async test (file:///D:/PROJECT/cnpm-project/AloUTE-qoder-acceptance/test/e2e/quan-acceptance/lib/harness.mjs:69:20)\n    at async Module.run (file:///D:/PROJECT/cnpm-project/AloUTE-qoder-acceptance/test/e2e/quan-acceptance/suites/messaging-admin.mjs:474:3)"
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:32.777Z"
+    },
+    {
+      "id": "ADM-06",
+      "suite": "messaging-admin",
+      "name": "Chi tiết báo cáo PENDING và nhận xử lý qua UI",
+      "status": "PASS",
+      "detail": {
+        "reportId": 10,
+        "status": "REVIEWED"
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:34.733Z"
+    },
+    {
+      "id": "ADM-07",
+      "suite": "messaging-admin",
+      "name": "Từ chối báo cáo qua modal quyết định",
+      "status": "PASS",
+      "detail": {
+        "status": "REJECTED"
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:36.181Z"
+    },
+    {
+      "id": "ADM-08",
+      "suite": "messaging-admin",
+      "name": "Gỡ bài viết qua UI (reason bắt buộc) và ẩn khỏi công khai",
+      "status": "PASS",
+      "detail": {
+        "contentState": "ADMIN_REMOVED",
+        "publicStatus": 404
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:38.113Z"
+    },
+    {
+      "id": "ADM-09",
+      "suite": "messaging-admin",
+      "name": "Khôi phục bài viết qua UI và hiển thị công khai trở lại",
+      "status": "PASS",
+      "detail": {
+        "contentState": "ACTIVE",
+        "publicStatus": 200
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:40.032Z"
+    },
+    {
+      "id": "ADM-10",
+      "suite": "messaging-admin",
+      "name": "Nhật ký kiểm duyệt ghi nhận gỡ và khôi phục",
+      "status": "PASS",
+      "detail": {
+        "types": [
+          "POST_RESTORE",
+          "POST_REMOVE"
+        ]
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:40.697Z"
+    },
+    {
+      "id": "ADM-11",
+      "suite": "messaging-admin",
+      "name": "Trang admin xử lý ID không tồn tại bằng trạng thái rỗng",
+      "status": "PASS",
+      "detail": {
+        "message": "Không tìm thấy báo cáo"
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:41.182Z"
+    },
+    {
+      "id": "ADM-12",
+      "suite": "messaging-admin",
+      "name": "Bộ lọc trạng thái nội dung bài viết admin",
+      "status": "PASS",
+      "detail": {
+        "filter": "ADMIN_REMOVED"
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:41.776Z"
+    },
+    {
+      "id": "CLEAN-01",
+      "suite": "messaging-admin",
+      "name": "Dữ liệu kiểm thử đã được dọn (bài viết QA)",
+      "status": "PASS",
+      "detail": {
+        "deleted": [
+          71,
+          74
+        ],
+        "conversationLeft": 2,
+        "note": "Hội thoại demoan↔demobinh và report đã đóng được giữ lại trong H2 cục bộ."
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:51:41.794Z"
+    }
+  ],
+  "accountsConfigured": true,
+  "finishedAt": "2026-10-28T01:51:42.380Z",
+  "counts": {
+    "PASS": 34,
+    "FAIL": 1
+  },
+  "overall": "FAIL"
+}
