@@ -652,6 +652,43 @@ describe('AloUTE Frontend UX Upgrade Batch 1', () => {
             assert.equal(commInput.value, '42', 'Community context 42 must be transferred to post-community-id');
         });
 
+        it('Does not leak community context from unrelated post-card actions on a feed', async () => {
+            const env = createDOMEnvironment();
+            const modalEl = env.document.createElement('DIV');
+            modalEl.id = 'createPostModal';
+            const commInput = env.document.createElement('INPUT');
+            commInput.id = 'post-community-id';
+            commInput.value = '7';
+            modalEl.appendChild(commInput);
+            env.document.body.appendChild(modalEl);
+
+            // A community post card on the feed exposes data-community-id on its
+            // moderation controls; it must never become the feed composer context.
+            const postCardAction = env.document.createElement('BUTTON');
+            postCardAction.setAttribute('data-action', 'community-remove-post');
+            postCardAction.setAttribute('data-community-id', '42');
+            env.document.body.appendChild(postCardAction);
+
+            class MockBootstrapModal {
+                constructor(el) { this.el = el; }
+                show() {}
+                static getInstance(el) { return new MockBootstrapModal(el); }
+            }
+            env.window.bootstrap = { Modal: MockBootstrapModal };
+
+            const triggerBtn = env.document.createElement('BUTTON');
+            triggerBtn.setAttribute('data-action', 'navigate-create-post');
+            env.document.body.appendChild(triggerBtn);
+
+            const ctx = vm.createContext(env.window);
+            vm.runInContext(httpClientSource, ctx);
+            vm.runInContext(pageActionsSource, ctx);
+
+            triggerBtn.dispatchEvent(new MockCustomEvent('click', { bubbles: true, cancelable: true }));
+
+            assert.equal(commInput.value, '', 'Feed composer must clear community context instead of borrowing a post-card id');
+        });
+
         it('Restores invoking trigger focus on hidden.bs.modal after Escape/backdrop/close dismissal', async () => {
             const env = createDOMEnvironment();
             const modalEl = env.document.createElement('DIV');
