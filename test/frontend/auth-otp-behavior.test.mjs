@@ -308,5 +308,48 @@ describe('Auth & Registration OTP Frontend Behavior', () => {
         assert.ok(!statusBox.textContent.includes('đã được gửi'), 'Must not claim reset email has been sent');
         assert.ok(statusBox.textContent.includes('Yêu cầu đặt lại mật khẩu đã được tiếp nhận'), 'Must state request is received');
         assert.ok(statusBox.textContent.includes('hộp thư'), 'Must guide user to check inbox/spam');
+
+    it('displays the throttling message and clears the password on 429 AUTH_TOO_MANY_ATTEMPTS', async () => {
+        const harness = createMockHarness('http://localhost:8080/login');
+        const emailInput = harness.makeElement('input', 'email');
+        emailInput.value = 'locked-user@aloute.local';
+        const passwordInput = harness.makeElement('input', 'password');
+        passwordInput.value = 'WrongPass123';
+        harness.makeElement('button', 'login-submit-btn');
+
+        const mockBody = {
+            success: false,
+            error: {
+                code: 'AUTH_TOO_MANY_ATTEMPTS',
+                message: 'Too many failed login attempts. Please try again later.'
+            }
+        };
+        harness.window.fetch = async () => ({
+            status: 429,
+            ok: false,
+            headers: { get: () => 'application/json' },
+            text: async () => JSON.stringify(mockBody),
+            json: async () => mockBody
+        });
+
+        const context = vm.createContext({
+            window: harness.window,
+            document: harness.document,
+            fetch: harness.window.fetch,
+            URLSearchParams: URLSearchParams,
+            encodeURIComponent: encodeURIComponent,
+            decodeURIComponent: decodeURIComponent
+        });
+
+        vm.runInContext(authSource, context);
+        harness.forms.login.dispatchEvent({ type: 'submit', preventDefault() {} });
+        await new Promise(r => setTimeout(r, 30));
+
+        const statusBox = harness.document.getElementById('auth-status');
+        assert.ok(statusBox, 'Status box should be created');
+        assert.ok(statusBox.textContent.includes('quá nhiều lần'), 'Must explain too many failed attempts');
+        assert.ok(!statusBox.textContent.includes('HTTP 429'), 'Must not leak the raw status code');
+        assert.strictEqual(passwordInput.value, '', 'Password must be cleared after lockout response');
+    });
     });
 });
