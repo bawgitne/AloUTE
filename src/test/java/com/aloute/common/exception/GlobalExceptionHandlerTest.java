@@ -15,6 +15,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@SuppressWarnings("unchecked")
 class GlobalExceptionHandlerTest {
 
     private GlobalExceptionHandler handler;
@@ -31,7 +32,7 @@ class GlobalExceptionHandlerTest {
     @DisplayName("handleAppException with ErrorCode returns mapped status, code, and traceId")
     void handleAppExceptionWithErrorCode() {
         AppException ex = new AppException(ErrorCode.POST_NOT_FOUND);
-        ResponseEntity<ErrorResponse> response = handler.handleAppException(ex, request);
+        ResponseEntity<ErrorResponse> response = (ResponseEntity<ErrorResponse>) (Object) handler.handleAppException(ex, request);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(response.getBody()).isNotNull();
@@ -45,7 +46,7 @@ class GlobalExceptionHandlerTest {
     @DisplayName("handleAppException with ResourceNotFoundException returns 404")
     void handleResourceNotFoundException() {
         ResourceNotFoundException ex = new ResourceNotFoundException("Post", 999L);
-        ResponseEntity<ErrorResponse> response = handler.handleAppException(ex, request);
+        ResponseEntity<ErrorResponse> response = (ResponseEntity<ErrorResponse>) (Object) handler.handleAppException(ex, request);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(response.getBody()).isNotNull();
@@ -57,7 +58,7 @@ class GlobalExceptionHandlerTest {
     @DisplayName("handleAccessDenied returns 403 AUTH_FORBIDDEN")
     void handleAccessDenied() {
         AccessDeniedException ex = new AccessDeniedException("Access denied");
-        ResponseEntity<ErrorResponse> response = handler.handleAccessDenied(ex, request);
+        ResponseEntity<ErrorResponse> response = (ResponseEntity<ErrorResponse>) (Object) handler.handleAccessDenied(ex, request);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(response.getBody()).isNotNull();
@@ -68,7 +69,7 @@ class GlobalExceptionHandlerTest {
     @DisplayName("handleAuthentication returns 401 AUTH_UNAUTHENTICATED")
     void handleAuthentication() {
         BadCredentialsException ex = new BadCredentialsException("Bad creds");
-        ResponseEntity<ErrorResponse> response = handler.handleAuthentication(ex, request);
+        ResponseEntity<ErrorResponse> response = (ResponseEntity<ErrorResponse>) (Object) handler.handleAuthentication(ex, request);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(response.getBody()).isNotNull();
@@ -79,7 +80,7 @@ class GlobalExceptionHandlerTest {
     @DisplayName("handleDataIntegrity returns 409 CONFLICT")
     void handleDataIntegrity() {
         DataIntegrityViolationException ex = new DataIntegrityViolationException("Unique constraint");
-        ResponseEntity<ErrorResponse> response = handler.handleDataIntegrity(ex, request);
+        ResponseEntity<ErrorResponse> response = (ResponseEntity<ErrorResponse>) (Object) handler.handleDataIntegrity(ex, request);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(response.getBody()).isNotNull();
@@ -90,7 +91,7 @@ class GlobalExceptionHandlerTest {
     @DisplayName("handleRequestValidation returns 422 VALIDATION_FAILED with fieldErrors")
     void handleRequestValidation() {
         RequestValidationException ex = new RequestValidationException(Map.of("content", List.of("Must not be blank")));
-        ResponseEntity<ErrorResponse> response = handler.handleRequestValidation(ex, request);
+        ResponseEntity<ErrorResponse> response = (ResponseEntity<ErrorResponse>) (Object) handler.handleRequestValidation(ex, request);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
         assertThat(response.getBody()).isNotNull();
@@ -102,7 +103,7 @@ class GlobalExceptionHandlerTest {
     @DisplayName("handleUnexpected returns 500 INTERNAL_ERROR")
     void handleUnexpected() {
         RuntimeException ex = new RuntimeException("Unexpected db crash");
-        ResponseEntity<ErrorResponse> response = handler.handleUnexpected(ex, request);
+        ResponseEntity<ErrorResponse> response = (ResponseEntity<ErrorResponse>) (Object) handler.handleUnexpected(ex, request);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.getBody()).isNotNull();
@@ -115,7 +116,7 @@ class GlobalExceptionHandlerTest {
     void handleOptimisticLockConflict() {
         org.springframework.orm.ObjectOptimisticLockingFailureException ex =
                 new org.springframework.orm.ObjectOptimisticLockingFailureException("Report", 50L);
-        ResponseEntity<ErrorResponse> response = handler.handleOptimisticLockConflict(ex, request);
+        ResponseEntity<ErrorResponse> response = (ResponseEntity<ErrorResponse>) (Object) handler.handleOptimisticLockConflict(ex, request);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(response.getBody()).isNotNull();
