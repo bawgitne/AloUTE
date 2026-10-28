@@ -94,34 +94,25 @@ jobs:
         id: verify
         run: |
           set -euo pipefail
-          MYSQL() { docker exec -i -e MYSQL_PWD "$CONTAINER_ID" mysql --protocol=TCP -h127.0.0.1 -u root -N -s aloutedb_proof; }
+          M() { docker exec -i -e MYSQL_PWD "$CONTAINER_ID" mysql --protocol=TCP -h127.0.0.1 -u root -N -s "$@"; }
 
-          echo "== users columns =="
-          MYSQL <<'SQL'
-          SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT
-          FROM information_schema.COLUMNS
-          WHERE TABLE_SCHEMA='aloutedb_proof' AND TABLE_NAME='users'
-            AND COLUMN_NAME IN ('failed_login_attempts','locked_until')
-          ORDER BY COLUMN_NAME;
-          SQL
+          echo "== users columns after migration =="
+          M aloutedb_proof -e "SHOW COLUMNS FROM users" | tee /tmp/users_cols.txt
+          grep -Eq '^failed_login_attempts[[:space:]]+int' /tmp/users_cols.txt || { echo "ERROR: failed_login_attempts missing"; exit 1; }
+          grep -Eq '^locked_until[[:space:]]+timestamp' /tmp/users_cols.txt || { echo "ERROR: locked_until missing"; exit 1; }
 
-          FAIL_ATTEMPTS=$(MYSQL -e "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='aloutedb_proof' AND TABLE_NAME='users' AND COLUMN_NAME='failed_login_attempts';")
-          LOCKED_UNTIL=$(MYSQL -e "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='aloutedb_proof' AND TABLE_NAME='users' AND COLUMN_NAME='locked_until';")
-          TICKET_TABLE=$(MYSQL -e "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='aloutedb_proof' AND TABLE_NAME='used_two_factor_tickets';")
-          TICKET_UNIQUE=$(MYSQL -e "SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA='aloutedb_proof' AND TABLE_NAME='used_two_factor_tickets' AND INDEX_NAME='uk_2fa_used_tickets_hash';")
+          echo "== ticket table after migration =="
+          M aloutedb_proof -e "SHOW CREATE TABLE used_two_factor_tickets" | tee /tmp/ticket.txt
+          grep -q 'uk_2fa_used_tickets_hash' /tmp/ticket.txt || { echo "ERROR: unique ticket_hash constraint missing"; exit 1; }
+          grep -q 'idx_2fa_used_tickets_consumed_at' /tmp/ticket.txt || { echo "ERROR: consumed_at index missing"; exit 1; }
 
-          [ "$FAIL_ATTEMPTS" = "1" ] || { echo "ERROR: failed_login_attempts missing"; exit 1; }
-          [ "$LOCKED_UNTIL" = "1" ] || { echo "ERROR: locked_until missing"; exit 1; }
-          [ "$TICKET_TABLE" = "1" ] || { echo "ERROR: used_two_factor_tickets missing"; exit 1; }
-          [ "$TICKET_UNIQUE" -ge 1 ] || { echo "ERROR: unique ticket_hash constraint missing"; exit 1; }
+          echo "== legacy rows preserved with additive defaults =="
+          M aloutedb_proof -e "SELECT username, failed_login_attempts, locked_until FROM users ORDER BY username" | tee /tmp/legacy.txt
+          grep -q 'legacy_alice' /tmp/legacy.txt || { echo "ERROR: legacy_alice lost"; exit 1; }
+          grep -q 'legacy_bob' /tmp/legacy.txt || { echo "ERROR: legacy_bob lost"; exit 1; }
+          grep -Eq 'legacy_alice[[:space:]]+0[[:space:]]+NULL' /tmp/legacy.txt || { echo "ERROR: legacy_alice defaults wrong"; exit 1; }
+          grep -Eq 'legacy_bob[[:space:]]+0[[:space:]]+NULL' /tmp/legacy.txt || { echo "ERROR: legacy_bob defaults wrong"; exit 1; }
 
-          echo "== legacy rows preserved with defaults =="
-          ROWS=$(MYSQL -e "SELECT COUNT(*) FROM users WHERE username IN ('legacy_alice','legacy_bob');")
-          DEFAULTS_OK=$(MYSQL -e "SELECT COUNT(*) FROM users WHERE username IN ('legacy_alice','legacy_bob') AND failed_login_attempts=0 AND locked_until IS NULL;")
-          [ "$ROWS" = "2" ] || { echo "ERROR: legacy rows lost"; exit 1; }
-          [ "$DEFAULTS_OK" = "2" ] || { echo "ERROR: legacy rows missing defaults"; exit 1; }
-
-          MYSQL -e "SELECT username, failed_login_attempts, locked_until FROM users ORDER BY username;"
           echo "MIGRATION PROOF: PASS"
 
       - name: Prove idempotence guard (second run must fail loudly, not silently corrupt)
