@@ -40,9 +40,12 @@ public class TwoFactorServiceImpl implements TwoFactorService {
     private static final long EMAIL_OTP_EXPIRY_SECONDS = 300; // 5 minutes validity
     private static final long EMAIL_OTP_COOLDOWN_SECONDS = 60; // 60 seconds cooldown between resends
     private static final int MAX_ACTIVE_EMAIL_OTPS_PER_USER = 3;
+    /** Consumed tickets are kept slightly longer than the 5-minute ticket TTL. */
+    private static final Duration TICKET_RETENTION = Duration.ofMinutes(10);
 
     private final UserRepository userRepository;
     private final UserBackupCodeRepository userBackupCodeRepository;
+    private final com.aloute.repository.UsedTwoFactorTicketRepository usedTwoFactorTicketRepository;
     private final TotpService totpService;
     private final TwoFactorEncryptionService twoFactorEncryptionService;
     private final PasswordEncoder passwordEncoder;
@@ -81,7 +84,13 @@ public class TwoFactorServiceImpl implements TwoFactorService {
                     "Chưa khởi tạo thiết lập 2FA. Vui lòng bấm quét mã QR trước.");
         }
 
-        String decryptedSecret = twoFactorEncryptionService.decrypt(user.getTwoFactorTempSecret());
+        String decryptedSecret = decryptOrNull(user.getTwoFactorTempSecret());
+        if (decryptedSecret == null) {
+            // A temp secret written under a previous master key can never be
+            // confirmed; the user has to start the setup over.
+            throw new ApiException(HttpStatus.BAD_REQUEST, "AUTH_2FA_SETUP_STALE",
+                    "Thiết lập 2FA đã cũ hoặc không còn giải mã được. Vui lòng bấm quét lại mã QR.");
+        }
         boolean isValid = totpService.verifyCode(decryptedSecret, code);
         if (!isValid) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "AUTH_2FA_INVALID_CODE",
@@ -176,17 +185,21 @@ public class TwoFactorServiceImpl implements TwoFactorService {
         }
 
         boolean codeValid = false;
-        if (user.getTwoFactorSecret() != null) {
-            String decryptedSecret = twoFactorEncryptionService.decrypt(user.getTwoFactorSecret());
+        // A secret encrypted under a previous master key cannot be decrypted. That
+        // must not 500 and must not silently disable 2FA: fall through to the
+        // backup-code and email-OTP proofs, which do not depend on the key.
+        String decryptedSecret = decryptOrNull(user.getTwoFactorSecret());
+        if (decryptedSecret != null) {
             codeValid = totpService.verifyCode(decryptedSecret, code);
         }
 
         if (!codeValid) {
-            // Check backup code
-            String hashed = totpService.hashBackupCode(code);
+            // Check backup code. Codes are stored as salted PBKDF2 (v2) or legacy
+            // unsalted SHA-256, so the stored hash has to be verified, never
+            // re-hashed and compared.
             List<UserBackupCode> unusedCodes = userBackupCodeRepository.findByUserIdAndUsedFalse(userId);
             for (UserBackupCode ubc : unusedCodes) {
-                if (ubc.getCodeHash().equals(hashed)) {
+                if (totpService.verifyBackupCode(code, ubc.getCodeHash())) {
                     codeValid = true;
                     ubc.setUsed(true);
                     ubc.setUsedAt(Instant.now());
@@ -275,6 +288,15 @@ public class TwoFactorServiceImpl implements TwoFactorService {
             throw new ApiException(HttpStatus.FORBIDDEN, "AUTH_ACCOUNT_INACTIVE", "Tài khoản đang bị vô hiệu hóa.");
         }
 
+        // BL-08: a ticket minted before a global revocation (logout-everywhere,
+        // credential change) must not mint a session afterwards.
+        Number ticketAuthVersion = claims.get("authVersion", Number.class);
+        long currentAuthVersion = user.getAuthVersion() != null ? user.getAuthVersion() : 0L;
+        if (ticketAuthVersion == null || ticketAuthVersion.longValue() != currentAuthVersion) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_INVALID_2FA_TICKET",
+                    "Phiên xác thực 2 bước không hợp lệ hoặc đã hết hạn (5 phút). Vui lòng đăng nhập lại.");
+        }
+
         int failed = ticketFailedAttempts.getOrDefault(ticket, 0);
         if (failed >= MAX_FAILED_ATTEMPTS) {
             ticketFailedAttempts.remove(ticket);
@@ -286,22 +308,23 @@ public class TwoFactorServiceImpl implements TwoFactorService {
         String rawCode = request.code().trim();
 
         if (request.isBackupCode() || rawCode.contains("-") || rawCode.length() == 8) {
-            // Verify backup code
-            String hashed = totpService.hashBackupCode(rawCode);
+            // Verify backup code: constant-shape comparison and an atomic
+            // conditional UPDATE, so concurrent redemptions of the same code
+            // cannot both succeed (double-spend fix).
             List<UserBackupCode> unused = userBackupCodeRepository.findByUserIdAndUsedFalse(userId);
             for (UserBackupCode ubc : unused) {
-                if (ubc.getCodeHash().equals(hashed)) {
+                if (totpService.verifyBackupCode(rawCode, ubc.getCodeHash())
+                        && userBackupCodeRepository.redeemById(ubc.getId(), Instant.now()) == 1) {
                     verified = true;
-                    ubc.setUsed(true);
-                    ubc.setUsedAt(Instant.now());
-                    userBackupCodeRepository.save(ubc);
                     break;
                 }
             }
         } else {
-            // Try TOTP first
-            if (user.getTwoFactorSecret() != null) {
-                String decryptedSecret = twoFactorEncryptionService.decrypt(user.getTwoFactorSecret());
+            // Try TOTP first. A key rotation or a corrupted secret must not surface
+            // a 500 on the login path: treat it as unverified; the email-OTP
+            // fallback below still offers the user a way in.
+            String decryptedSecret = decryptOrNull(user.getTwoFactorSecret());
+            if (decryptedSecret != null) {
                 verified = totpService.verifyCode(decryptedSecret, rawCode);
             }
 
@@ -321,6 +344,7 @@ public class TwoFactorServiceImpl implements TwoFactorService {
 
         // Successfully verified
         ticketFailedAttempts.remove(ticket);
+        consumeTicket(ticket, user.getId());
         UserPrincipal principal = UserPrincipal.from(user);
         String sessionToken = jwtTokenProvider.generate(principal);
         UserResponse userResponse = new UserResponse(
@@ -329,6 +353,44 @@ public class TwoFactorServiceImpl implements TwoFactorService {
         );
 
         return new AuthenticatedSession(principal, userResponse, sessionToken);
+    }
+
+    /**
+     * BL-08: records the ticket in the one-time store before the session is
+     * returned, so the same ticket can never verify twice (replay within its
+     * TTL, or from another instance, hits the unique constraint).
+     */
+    private void consumeTicket(String ticket, Long userId) {
+        String ticketHash = sha256Hex(ticket);
+        if (usedTwoFactorTicketRepository.existsByTicketHash(ticketHash)) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_2FA_TICKET_ALREADY_USED",
+                    "Phiên xác thực này đã được sử dụng. Vui lòng đăng nhập lại.");
+        }
+        usedTwoFactorTicketRepository.deleteByConsumedAtBefore(Instant.now().minus(TICKET_RETENTION));
+        try {
+            usedTwoFactorTicketRepository.saveAndFlush(com.aloute.entity.UsedTwoFactorTicket.builder()
+                    .ticketHash(ticketHash)
+                    .userId(userId)
+                    .consumedAt(Instant.now())
+                    .build());
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_2FA_TICKET_ALREADY_USED",
+                    "Phiên xác thực này đã được sử dụng. Vui lòng đăng nhập lại.");
+        }
+    }
+
+    private String sha256Hex(String input) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(digest.length * 2);
+            for (byte b : digest) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        } catch (Exception ex) {
+            throw new IllegalStateException("SHA-256 unavailable", ex);
+        }
     }
 
     @Override
@@ -425,5 +487,24 @@ public class TwoFactorServiceImpl implements TwoFactorService {
     private User requireUser(Long id) {
         return userRepository.findById(id).orElseThrow(() ->
                 new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Người dùng không tồn tại"));
+    }
+
+    /**
+     * Decrypts a stored TOTP secret, returning {@code null} when it is absent or
+     * unreadable. Unreadable means the row was encrypted under a different master
+     * key (rotation) or is corrupt; callers then fall back to a proof that does not
+     * need the key. The raw secret and the key are never logged.
+     */
+    private String decryptOrNull(String encryptedSecret) {
+        if (encryptedSecret == null || encryptedSecret.isBlank()) {
+            return null;
+        }
+        try {
+            return twoFactorEncryptionService.decrypt(encryptedSecret);
+        } catch (RuntimeException ex) {
+            log.warn("Stored 2FA secret is not decryptable with the configured master key ({})",
+                    ex.getClass().getSimpleName());
+            return null;
+        }
     }
 }

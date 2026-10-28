@@ -23,9 +23,25 @@ public class TwoFactorEncryptionService {
     private final SecretKey masterKey;
     private final SecureRandom secureRandom = new SecureRandom();
 
+    private static final String DEV_DEFAULT_KEY = "aloute-dev-master-encryption-key-for-2fa-totp-secrets-32b!";
+
     public TwoFactorEncryptionService(
-            @Value("${aloute.auth.two-factor-master-key:aloute-dev-master-encryption-key-for-2fa-totp-secrets-32b!}")
-            String configuredKey) {
+            @Value("${aloute.auth.two-factor-master-key:" + DEV_DEFAULT_KEY + "}")
+            String configuredKey,
+            org.springframework.core.env.Environment environment) {
+        // BL-07: the well-known dev default must never guard production secrets.
+        // Fail fast only when the instance is flagged as production so existing
+        // dev databases (and their encrypted secrets) stay untouched.
+        boolean productionMode = environment.getProperty("aloute.production-mode", Boolean.class, false);
+        if (productionMode
+                && (DEV_DEFAULT_KEY.equals(configuredKey) || configuredKey == null || configuredKey.isBlank()
+                        || configuredKey.length() < 16)) {
+            throw new IllegalStateException(
+                    "Refusing to start: aloute.auth.two-factor-master-key is missing, too short, or still set to "
+                            + "the public dev default while aloute.production-mode=true. Set a strong unique key "
+                            + "via the ALOUTE_TWO_FACTOR_MASTER_KEY environment variable. Rotating the key later "
+                            + "requires re-encrypting stored two-factor secrets.");
+        }
         try {
             MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
             byte[] keyBytes = sha256.digest(configuredKey.getBytes(StandardCharsets.UTF_8));

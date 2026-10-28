@@ -105,7 +105,7 @@ class Pr51AuthenticationCompatibilityIntegrationTest {
     @Test
     @DisplayName("Negative security gate: 2FA challenge ticket must NOT authenticate protected HTTP endpoint via Bearer or Cookie")
     void twoFactorChallengeTicket_mustBeRejectedForProtectedResource() throws Exception {
-        String challengeTicket = jwtTokenProvider.generateTwoFactorTicket(testUser.getId(), "TOTP", 300);
+        String challengeTicket = jwtTokenProvider.generateTwoFactorTicket(testUser.getId(), "TOTP", 300, 0L);
 
         // Verify Bearer rejection
         mockMvc.perform(get("/api/users/profile")

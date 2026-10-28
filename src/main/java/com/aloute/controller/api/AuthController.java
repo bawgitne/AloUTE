@@ -77,7 +77,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request, HttpServletRequest servletRequest) {
         AuthService.LoginOutcome outcome = authService.login(request);
         if (outcome.twoFactorRequired()) {
-            String ticket = tokenProvider.generateTwoFactorTicket(outcome.userId(), outcome.twoFactorType(), 300); // 5 minutes
+            String ticket = tokenProvider.generateTwoFactorTicket(outcome.userId(), outcome.twoFactorType(), 300, outcome.authVersion()); // 5 minutes
             if ("EMAIL".equalsIgnoreCase(outcome.twoFactorType())) {
                 try {
                     twoFactorService.sendEmailFallbackOtp(ticket);
