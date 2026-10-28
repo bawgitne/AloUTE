@@ -53,6 +53,10 @@ public class JwtTokenProvider {
     public String generateTwoFactorTicket(Long userId, String type, long expirationSeconds, long authVersion) {
         Instant now = Instant.now();
         return Jwts.builder()
+                // REL-2FA-02: iat/exp only have second resolution, so two challenges
+                // minted inside the same second would otherwise be the same JWT and
+                // the one-time ticket store would refuse the second legitimate login.
+                .id(UUID.randomUUID().toString())
                 .subject(userId.toString())
                 .claim("purpose", "2FA_CHALLENGE")
                 .claim("type", type != null ? type : "TOTP")
