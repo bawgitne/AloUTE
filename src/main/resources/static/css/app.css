@@ -308,6 +308,7 @@ p {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  min-height: 44px;
   padding: 0.625rem 0.875rem;
   border-radius: var(--aloute-radius-md);
   color: var(--aloute-text-secondary);
@@ -527,8 +528,8 @@ p {
   padding: 0.375rem 0.625rem;
   border-radius: var(--aloute-radius-md);
   cursor: pointer;
-  min-height: 38px;
-  min-width: 38px;
+  min-height: 44px;
+  min-width: 44px;
   transition: all var(--aloute-transition-fast);
 }
 
@@ -2262,5 +2263,98 @@ p {
     transition: none;
     animation: none;
     scroll-behavior: auto;
+  }
+}
+
+/* ==========================================================================
+   Guest Experience & Accessibility Hardening — 2026-10-27
+   Additive rules only. Every color resolves through a design token; no new
+   palette values and no changes to global Bootstrap element styling.
+   ========================================================================== */
+
+.aloute-skip-link {
+  position: fixed;
+  top: -100px;
+  left: var(--aloute-space-sm);
+  z-index: 1080;
+  padding: var(--aloute-space-sm) var(--aloute-space-md);
+  background-color: var(--aloute-accent);
+  color: var(--aloute-accent-contrast);
+  border-radius: var(--aloute-radius-md);
+  font-weight: var(--aloute-font-weight-semibold);
+  text-decoration: none;
+  box-shadow: var(--aloute-shadow-lg);
+  transition: top var(--aloute-transition-fast);
+}
+
+.aloute-skip-link:focus,
+.aloute-skip-link:focus-visible {
+  top: var(--aloute-space-sm);
+  outline: 2px solid var(--aloute-text-inverse);
+  outline-offset: 2px;
+}
+
+.guest-prompt-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--aloute-radius-md);
+  background-color: var(--aloute-accent-subtle);
+  color: var(--aloute-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.1rem;
+}
+
+.guest-prompt-icon-sm {
+  width: 32px;
+  height: 32px;
+  font-size: 0.95rem;
+}
+
+/* 44px touch-target floor for navbar controls and secondary post controls */
+.aloute-navbar .btn {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Dense notification-menu text actions are not navigation targets: keep them compact */
+.aloute-navbar .dropdown-menu .btn {
+  min-height: 0;
+  display: inline-block;
+}
+
+/* Primary CTAs outside the navbar (guest login prompts, topic/community actions) */
+.aloute-auth-cta {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.post-card-header .dropdown > .btn {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.poll-vote-form .btn-vote-poll,
+#btn-submit-reply {
+  min-height: 44px;
+}
+
+@media (max-width: 575.98px) {
+  .aloute-navbar .aloute-guest-actions {
+    margin-right: var(--aloute-space-xs);
+  }
+
+  #search-tab-list .nav-link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
   }
 }

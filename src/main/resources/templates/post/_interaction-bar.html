@@ -46,7 +46,7 @@
     </button>
 
     <!-- Quote Action Button (P2-A: Quote Repost - Strictly fail-closed) -->
-    <button th:if="${post.allowQuote == true and post.capabilities != null and post.capabilities.canQuote == true}"
+    <button th:if="${currentUser != null and post.allowQuote == true and post.capabilities != null and post.capabilities.canQuote == true}"
             type="button"
             class="interaction-btn interaction-btn-quote"
             th:attr="data-action='open-quote-modal',data-post-id=${post.id != null ? post.id : ''},data-post-author=${post.author != null ? (post.author.displayName ?: post.author.username) : ''},data-post-username=${post.author != null ? post.author.username : ''},data-post-content=${post.content != null ? post.content : ''}"

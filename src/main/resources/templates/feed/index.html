@@ -6,7 +6,7 @@
     <h1 class="visually-hidden">Bảng tin AloUTE</h1>
 
     <!-- Single Visible Feed Create Post Entry: Clean Quick-Composer Card -->
-    <section class="composer-box" aria-label="Tạo bài viết nhanh">
+    <section th:if="${currentUser != null}" class="composer-box" aria-label="Tạo bài viết nhanh">
         <a th:href="@{/post/create}" href="/post/create" data-page="post-create" data-action="navigate-create-post" class="composer-card-link text-decoration-none d-flex align-items-center justify-content-between p-3 rounded" title="Soạn bài viết mới">
             <div class="d-flex align-items-center gap-3 flex-grow-1">
                 <img th:src="${currentUser != null and currentUser.avatarUrl != null and !currentUser.avatarUrl.isEmpty()} ? ${currentUser.avatarUrl} : @{/images/avatar-fallback.svg}"
@@ -27,6 +27,21 @@
             </div>
             <i class="bi bi-chevron-right text-muted fs-5 ms-2" aria-hidden="true"></i>
         </a>
+    </section>
+
+    <!-- Guest CTA replaces the composer: posting requires an account -->
+    <section th:if="${currentUser == null}" class="aloute-card p-3" aria-label="Đăng nhập để đăng bài">
+        <div class="d-flex align-items-start gap-3">
+            <span class="guest-prompt-icon" aria-hidden="true"><i class="bi bi-pencil-square"></i></span>
+            <div class="aloute-min-w-0">
+                <h2 class="fs-6 fw-bold mb-1">Chia sẻ với cộng đồng AloUTE</h2>
+                <p class="text-secondary small mb-0">Đăng nhập để viết bài, bình luận và tương tác với sinh viên HCMUTE.</p>
+            </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            <a th:href="@{/login}" href="/login" class="btn btn-sm btn-primary aloute-auth-cta">Đăng nhập</a>
+            <a th:href="@{/register}" href="/register" class="btn btn-sm btn-outline-secondary aloute-auth-cta">Tạo tài khoản</a>
+        </div>
     </section>
 
     <!-- Activity Stream / Posts List -->

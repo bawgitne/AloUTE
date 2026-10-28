@@ -42,7 +42,7 @@
                                 </span>
                                 <button th:if="${currentUser != null and !(community.isOwner == true or (community.ownerId != null and community.ownerId == currentUser.id)) and community.currentUserRole != null}"
                                         type="button"
-                                        class="btn btn-sm btn-outline-danger rounded-pill px-3"
+                                        class="btn btn-sm btn-outline-danger rounded-pill px-3 aloute-auth-cta"
                                         id="btn-leave-community"
                                         data-action="leave-community"
                                         th:attr="data-community-id=${community.id}">
@@ -50,7 +50,7 @@
                                 </button>
                                 <button th:if="${currentUser != null and !(community.isOwner == true or (community.ownerId != null and community.ownerId == currentUser.id)) and community.currentUserRole == null}"
                                         type="button"
-                                        class="btn btn-sm btn-primary rounded-pill px-3"
+                                        class="btn btn-sm btn-primary rounded-pill px-3 aloute-auth-cta"
                                         id="btn-join-community"
                                         data-action="join-community"
                                         th:attr="data-community-id=${community.id}">
@@ -61,7 +61,7 @@
                                    href="/login"
                                    data-page="auth-login"
                                    data-action="navigate-login"
-                                   class="btn btn-sm btn-primary rounded-pill px-3">
+                                   class="btn btn-sm btn-primary rounded-pill px-3 aloute-auth-cta">
                                     <i class="bi bi-box-arrow-in-right me-1" aria-hidden="true"></i>Đăng nhập để tham gia
                                 </a>
                             </div>
@@ -73,7 +73,7 @@
                                data-page="post-create"
                                data-action="navigate-create-post"
                                th:attr="data-community-id=${community.id}"
-                               th:class="${community.currentUserRole != null} ? 'btn btn-sm btn-primary rounded-pill' : 'btn btn-sm btn-primary rounded-pill d-none'">
+                               th:class="${community.currentUserRole != null} ? 'btn btn-sm btn-primary rounded-pill aloute-auth-cta' : 'btn btn-sm btn-primary rounded-pill aloute-auth-cta d-none'">
                                 <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Đăng bài
                             </a>
 
