@@ -2,7 +2,8 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org" th:fragment="layout(title, content)">
 <head th:replace="~{fragments/head :: head(${title})}"></head>
 <body class="aloute-auth-body">
-    <main class="auth-container" role="main">
+    <a class="aloute-skip-link" href="#main-content">Bỏ qua điều hướng đến nội dung chính</a>
+    <main class="auth-container" id="main-content" role="main" tabindex="-1">
         <div class="auth-card">
             <!-- Brand Identity Header -->
             <div class="auth-brand text-center mb-3">

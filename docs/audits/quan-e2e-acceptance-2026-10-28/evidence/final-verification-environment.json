@@ -1,0 +1,16 @@
+{
+  "baseUrl": "http://127.0.0.1:8084",
+  "channel": "chrome",
+  "headless": true,
+  "node": "v24.19.0",
+  "out": "D:\\PROJECT\\cnpm-project\\AloUTE-qoder-acceptance\\test-results\\quan-e2e-acceptance\\final-verification-20261028",
+  "suites": [
+    "auth-guest",
+    "social",
+    "community",
+    "messaging-admin",
+    "cross-a11y",
+    "resilience"
+  ],
+  "accountsConfigured": true
+}

@@ -175,8 +175,8 @@
         if (code === 'INTERNAL_SERVER_ERROR') return 'Hệ thống đang gặp sự cố. Vui lòng thử lại sau.';
         if (code === 'ACCESS_DENIED') return 'Bạn không có quyền thực hiện thao tác này.';
         if (code === 'COMMUNITY_NOT_FOUND') return 'Không tìm thấy cộng đồng.';
-        if (code === 'COMMUNITY_NAME_DUPLICATED' || code === 'COMMUNITY_NAME_ALREADY_EXISTS') return 'Tên cộng đồng đã được sử dụng.';
-        if (code === 'COMMUNITY_SLUG_DUPLICATED' || code === 'COMMUNITY_SLUG_ALREADY_EXISTS') return 'Đường dẫn (slug) cộng đồng đã được sử dụng.';
+        if (code === 'COMMUNITY_NAME_DUPLICATED' || code === 'COMMUNITY_NAME_ALREADY_EXISTS' || code === 'COMMUNITY_NAME_EXISTS') return 'Tên cộng đồng đã được sử dụng.';
+        if (code === 'COMMUNITY_SLUG_DUPLICATED' || code === 'COMMUNITY_SLUG_ALREADY_EXISTS' || code === 'COMMUNITY_SLUG_EXISTS') return 'Đường dẫn (slug) cộng đồng đã được sử dụng.';
         if (code === 'COMMUNITY_MEMBER_ALREADY_EXISTS') return 'Bạn đã là thành viên của cộng đồng này.';
         if (code === 'COMMUNITY_MEMBER_NOT_FOUND') return 'Bạn chưa tham gia cộng đồng này.';
         if (code === 'OWNER_CANNOT_LEAVE' || code === 'COMMUNITY_OWNER_CANNOT_LEAVE') return 'Chủ sở hữu không thể rời cộng đồng khi chưa chuyển quyền sở hữu.';
@@ -2767,6 +2767,7 @@
             if (opt.selectedByCurrentUser || opt.id === poll.userVotedOptionId) {
                 const checkIcon = document.createElement('i');
                 checkIcon.className = 'bi bi-check-circle-fill text-primary';
+                checkIcon.setAttribute('role', 'img');
                 checkIcon.setAttribute('aria-label', 'Lựa chọn của bạn');
                 leftCol.appendChild(checkIcon);
             }

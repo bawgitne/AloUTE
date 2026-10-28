@@ -84,12 +84,48 @@ p {
   line-height: var(--aloute-line-height-base);
 }
 
+/* Bootstrap utilities ship with !important; repeat it so the AloUTE tokens win and
+   secondary/muted text keeps WCAG AA contrast on the #f8fafc page background. */
 .text-muted {
-  color: var(--aloute-text-muted);
+  color: var(--aloute-text-muted) !important;
 }
 
 .text-secondary {
-  color: var(--aloute-text-secondary);
+  color: var(--aloute-text-secondary) !important;
+}
+
+/* Tinted badges: the -subtle backgrounds need the darker emphasis foreground,
+   otherwise primary/success text drops to ~3.4:1 on the light tint. */
+.bg-primary-subtle.text-primary {
+  color: #084298 !important;
+}
+
+.bg-success-subtle.text-success {
+  color: #0f5132 !important;
+}
+
+.bg-danger-subtle.text-danger {
+  color: #842029 !important;
+}
+
+.bg-warning-subtle.text-warning {
+  color: #664d03 !important;
+}
+
+.bg-info-subtle.text-info {
+  color: #055160 !important;
+}
+
+/* Active nav pills use a blue surface, so muted helper text must switch to a light tone. */
+.nav-pills .nav-link.active .text-muted,
+.nav-pills .nav-link.active .text-secondary {
+  color: #fff !important;
+}
+
+/* Outline buttons inherit Bootstrap's #6c757d, which is 4.48:1 on #f8fafc. */
+.btn-outline-secondary {
+  --bs-btn-color: var(--aloute-text-secondary);
+  --bs-btn-border-color: #94a3b8;
 }
 
 /* ==========================================================================
@@ -1985,6 +2021,18 @@ p {
     width: auto !important;
     max-width: none !important;
     transform: none !important;
+  }
+}
+
+/* Navbar icon links keep a 44x44 hit area on tablet/desktop as well. */
+@media (min-width: 576px) {
+  .aloute-navbar .btn-link.p-1,
+  .aloute-navbar .navbar-notification-link {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 }
 /* ==========================================================================

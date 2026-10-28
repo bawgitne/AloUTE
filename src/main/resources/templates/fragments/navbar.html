@@ -97,7 +97,7 @@
                         id="userNavbarDropdown"
                         data-bs-toggle="dropdown"
                         aria-expanded="false"
-                        aria-label="Menu tài khoản">
+                        th:attr="aria-label=${'Menu tài khoản của ' + (currentUser?.displayName ?: currentUser?.username ?: 'Sinh viên')}">
                     <img th:src="${currentUser.avatarUrl != null and !currentUser.avatarUrl.isEmpty()} ? ${currentUser.avatarUrl} : @{/images/avatar-fallback.svg}"
                          src="/images/avatar-fallback.svg"
                          alt="Avatar người dùng"

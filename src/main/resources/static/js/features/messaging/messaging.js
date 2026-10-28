@@ -54,7 +54,7 @@
         if (!error) return defaultMsg || 'Đã xảy ra lỗi.';
         const code = error.code;
         if (code === 'CONVERSATION_NOT_FOUND') return 'Không tìm thấy cuộc trò chuyện.';
-        if (code === 'CONVERSATION_MEMBERSHIP_REQUIRED' || code === 'ACCESS_DENIED') return 'Bạn không phải thành viên của cuộc trò chuyện này.';
+        if (code === 'CONVERSATION_MEMBERSHIP_REQUIRED' || code === 'ACCESS_DENIED' || code === 'FORBIDDEN') return 'Bạn không phải thành viên của cuộc trò chuyện này.';
         if (code === 'USER_NOT_FOUND') return 'Không tìm thấy người dùng.';
         if (code === 'VALIDATION_FAILED') {
             if (error.fieldErrors && error.fieldErrors.content) {
@@ -466,7 +466,11 @@
             if (elLoading) elLoading.classList.add('d-none');
             if (elError) {
                 elError.classList.remove('d-none');
-                if (elErrorMsg) elErrorMsg.textContent = err.message || 'Không thể kết nối đến máy chủ.';
+                if (elErrorMsg) {
+                    elErrorMsg.textContent = err && err.name === 'TypeError'
+                        ? 'Không thể kết nối đến máy chủ.'
+                        : (err.message || 'Không thể kết nối đến máy chủ.');
+                }
             }
         } finally {
             state.isLoadingConversations = false;
@@ -697,7 +701,11 @@
             if (elMessagesLoading) elMessagesLoading.classList.add('d-none');
             if (elMessagesError) {
                 elMessagesError.classList.remove('d-none');
-                if (elMessagesErrorMsg) elMessagesErrorMsg.textContent = err.message || 'Không thể tải tin nhắn.';
+                if (elMessagesErrorMsg) {
+                    elMessagesErrorMsg.textContent = err && err.name === 'TypeError'
+                        ? 'Không thể kết nối đến máy chủ.'
+                        : (err.message || 'Không thể tải tin nhắn.');
+                }
             }
         } finally {
             if (currentReqId === messagesRequestId && conversationId === state.activeConversationId) {
@@ -825,7 +833,9 @@
         } catch (err) {
             if (targetConvId === state.activeConversationId) {
                 state.lastFailedDraft = content;
-                showSendError(err.message || 'Lỗi gửi tin nhắn.');
+                showSendError(err && err.name === 'TypeError'
+                    ? 'Không thể kết nối đến máy chủ. Vui lòng thử lại.'
+                    : (err.message || 'Lỗi gửi tin nhắn.'));
             }
         } finally {
             state.isSendingMessage = false;

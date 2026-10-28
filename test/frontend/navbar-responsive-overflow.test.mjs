@@ -113,7 +113,10 @@ describe('AloUTE navbar responsive overflow contract', () => {
                 'the brand must stay a link to /feed');
             assert.ok(/alt="AloUTE"/.test(navbarTemplate),
                 'the brand logo must keep alt="AloUTE" so the brand keeps its accessible name');
-            assert.ok(/id="userNavbarDropdown"[\s\S]{0,400}aria-label="Menu tài khoản"/.test(navbarTemplate),
+            const accountButton = /id="userNavbarDropdown"[\s\S]{0,400}/.exec(navbarTemplate)?.[0] || '';
+            assert.ok(
+                accountButton.includes('aria-label="Menu tài khoản"')
+                || accountButton.includes(`th:attr="aria-label=\${'Menu tài khoản của '`),
                 'the account dropdown button must keep an accessible label');
         });
 

@@ -3,7 +3,7 @@
       th:replace="~{layouts/auth :: layout(title='Xác thực tài khoản', content=~{::#verify-otp-content})}">
 <body>
 <div id="verify-otp-content">
-    <form id="verify-otp-form" data-action="verify-otp" class="needs-validation" novalidate>
+    <form id="verify-otp-form" data-action="verify-otp" method="post" class="needs-validation" novalidate>
         <div id="auth-status" class="alert d-none py-2 small mb-3" role="status" aria-live="polite"></div>
 
         <div id="email-display-group">
