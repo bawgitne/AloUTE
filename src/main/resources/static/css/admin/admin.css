@@ -390,13 +390,13 @@
 
 .admin-badge-success {
   background-color: #f0fdf4;
-  color: #16a34a;
+  color: #166534;
   border: 1px solid #bbf7d0;
 }
 
 .admin-badge-danger {
   background-color: #fef2f2;
-  color: #dc2626;
+  color: #b91c1c;
   border: 1px solid #fecaca;
 }
 
@@ -418,7 +418,7 @@
 
 .admin-badge-secondary {
   background-color: #f1f5f9;
-  color: #64748b;
+  color: #475569;
   border: 1px solid #e2e8f0;
 }
 
@@ -540,4 +540,16 @@
 .utc-date {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* Bootstrap's outline-warning text (#ffc107) is 1.6:1 on white; use the warning emphasis tone. */
+.btn-outline-warning {
+  --bs-btn-color: #664d03;
+  --bs-btn-border-color: #ffc107;
+  --bs-btn-hover-color: #000;
+  --bs-btn-hover-bg: #ffc107;
+  --bs-btn-hover-border-color: #ffc107;
+  --bs-btn-active-color: #000;
+  --bs-btn-active-bg: #ffc107;
+  --bs-btn-active-border-color: #ffc107;
 }

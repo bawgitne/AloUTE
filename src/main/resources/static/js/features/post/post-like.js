@@ -82,7 +82,6 @@
 
             const icon = btn.querySelector('i');
             if (action === 'like') {
-                btn.setAttribute('aria-label', active ? 'Bỏ thích bài viết' : 'Thích bài viết');
                 if (icon) {
                     icon.classList.remove(active ? 'bi-heart' : 'bi-heart-fill');
                     icon.classList.add(active ? 'bi-heart-fill' : 'bi-heart');
@@ -94,7 +93,6 @@
                     icon.classList.add(active ? 'bi-bookmark-fill' : 'bi-bookmark');
                 }
             } else if (action === 'repost') {
-                btn.setAttribute('aria-label', active ? 'Hủy chia sẻ lại bài viết' : 'Chia sẻ lại bài viết');
                 if (icon) {
                     if (!icon.classList.contains('bi-arrow-repeat')) {
                         icon.className = 'bi bi-arrow-repeat';

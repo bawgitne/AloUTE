@@ -1,0 +1,623 @@
+{
+  "runId": "cross-run-2",
+  "baseUrl": "http://127.0.0.1:8082",
+  "browserChannel": "chrome",
+  "startedAt": "2026-10-28T01:43:08.775Z",
+  "suites": [
+    "cross-a11y"
+  ],
+  "environment": {
+    "node": "v24.19.0",
+    "platform": "win32",
+    "headless": true,
+    "baseUrl": "http://127.0.0.1:8082"
+  },
+  "entries": [
+    {
+      "id": "A11Y-01",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — guest /",
+      "status": "PASS",
+      "detail": {
+        "route": "/",
+        "passes": 26,
+        "violations": [],
+        "incomplete": []
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:12.112Z"
+    },
+    {
+      "id": "A11Y-02",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — guest /login",
+      "status": "PASS",
+      "detail": {
+        "route": "/login",
+        "passes": 26,
+        "violations": [],
+        "incomplete": []
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:13.255Z"
+    },
+    {
+      "id": "A11Y-03",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — guest /register",
+      "status": "PASS",
+      "detail": {
+        "route": "/register",
+        "passes": 26,
+        "violations": [],
+        "incomplete": []
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:14.521Z"
+    },
+    {
+      "id": "A11Y-04",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — user /feed",
+      "status": "PASS",
+      "detail": {
+        "route": "/feed",
+        "passes": 29,
+        "violations": [],
+        "incomplete": [
+          "aria-prohibited-attr",
+          "color-contrast"
+        ]
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:16.662Z"
+    },
+    {
+      "id": "A11Y-05",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — user /posts/1",
+      "status": "PASS",
+      "detail": {
+        "route": "/posts/1",
+        "passes": 28,
+        "violations": [],
+        "incomplete": [
+          "aria-prohibited-attr",
+          "color-contrast"
+        ]
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:18.166Z"
+    },
+    {
+      "id": "A11Y-06",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — user /users/demoan",
+      "status": "PASS",
+      "detail": {
+        "route": "/users/demoan",
+        "passes": 31,
+        "violations": [],
+        "incomplete": [
+          "aria-prohibited-attr",
+          "color-contrast"
+        ]
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:19.783Z"
+    },
+    {
+      "id": "A11Y-07",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — user /notifications",
+      "status": "PASS",
+      "detail": {
+        "route": "/notifications",
+        "passes": 29,
+        "violations": [],
+        "incomplete": [
+          "aria-prohibited-attr",
+          "color-contrast"
+        ]
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:21.221Z"
+    },
+    {
+      "id": "A11Y-08",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — user /messages",
+      "status": "PASS",
+      "detail": {
+        "route": "/messages",
+        "passes": 32,
+        "violations": [],
+        "incomplete": [
+          "aria-prohibited-attr",
+          "color-contrast"
+        ]
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:22.649Z"
+    },
+    {
+      "id": "A11Y-09",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — user /settings",
+      "status": "PASS",
+      "detail": {
+        "route": "/settings",
+        "passes": 28,
+        "violations": [],
+        "incomplete": []
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:24.225Z"
+    },
+    {
+      "id": "A11Y-10",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — user /communities",
+      "status": "PASS",
+      "detail": {
+        "route": "/communities",
+        "passes": 28,
+        "violations": [],
+        "incomplete": [
+          "aria-prohibited-attr",
+          "color-contrast"
+        ]
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:25.648Z"
+    },
+    {
+      "id": "A11Y-11",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — user /topics/hoc-tap",
+      "status": "PASS",
+      "detail": {
+        "route": "/topics/hoc-tap",
+        "passes": 28,
+        "violations": [],
+        "incomplete": [
+          "aria-prohibited-attr",
+          "color-contrast"
+        ]
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:27.133Z"
+    },
+    {
+      "id": "A11Y-12",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — user /friends",
+      "status": "PASS",
+      "detail": {
+        "route": "/friends",
+        "passes": 30,
+        "violations": [],
+        "incomplete": [
+          "aria-prohibited-attr",
+          "color-contrast"
+        ]
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:28.563Z"
+    },
+    {
+      "id": "A11Y-13",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — user /saved",
+      "status": "PASS",
+      "detail": {
+        "route": "/saved",
+        "passes": 27,
+        "violations": [],
+        "incomplete": [
+          "aria-prohibited-attr",
+          "color-contrast"
+        ]
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:30.004Z"
+    },
+    {
+      "id": "A11Y-14",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — user /search?q=aloute",
+      "status": "PASS",
+      "detail": {
+        "route": "/search?q=aloute",
+        "passes": 30,
+        "violations": [],
+        "incomplete": [
+          "aria-prohibited-attr",
+          "color-contrast"
+        ]
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:31.510Z"
+    },
+    {
+      "id": "A11Y-15",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — admin /admin",
+      "status": "PASS",
+      "detail": {
+        "route": "/admin",
+        "passes": 25,
+        "violations": [],
+        "incomplete": [
+          "color-contrast"
+        ]
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:33.517Z"
+    },
+    {
+      "id": "A11Y-16",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — admin /admin/users",
+      "status": "PASS",
+      "detail": {
+        "route": "/admin/users",
+        "passes": 30,
+        "violations": [],
+        "incomplete": [
+          "color-contrast"
+        ]
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:35.020Z"
+    },
+    {
+      "id": "A11Y-17",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — admin /admin/posts",
+      "status": "PASS",
+      "detail": {
+        "route": "/admin/posts",
+        "passes": 31,
+        "violations": [],
+        "incomplete": [
+          "color-contrast"
+        ]
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:36.794Z"
+    },
+    {
+      "id": "A11Y-18",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — admin /admin/reports",
+      "status": "PASS",
+      "detail": {
+        "route": "/admin/reports",
+        "passes": 31,
+        "violations": [],
+        "incomplete": [
+          "color-contrast"
+        ]
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:38.297Z"
+    },
+    {
+      "id": "A11Y-19",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — admin /admin/moderation-actions",
+      "status": "PASS",
+      "detail": {
+        "route": "/admin/moderation-actions",
+        "passes": 31,
+        "violations": [],
+        "incomplete": [
+          "color-contrast"
+        ]
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:39.840Z"
+    },
+    {
+      "id": "A11Y-20",
+      "suite": "cross-a11y",
+      "name": "Axe WCAG 2.0/2.1/2.2 AA — user /c/qa-a11y-mvrgan9ersfg",
+      "status": "PASS",
+      "detail": {
+        "route": "/c/qa-a11y-mvrgan9ersfg",
+        "passes": 28,
+        "violations": [],
+        "incomplete": [
+          "aria-prohibited-attr",
+          "color-contrast"
+        ]
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:41.337Z"
+    },
+    {
+      "id": "A11Y-21",
+      "suite": "cross-a11y",
+      "name": "Cấu trúc tài liệu: lang, title, một main, có h1, skip link",
+      "status": "PASS",
+      "detail": {
+        "lang": "vi",
+        "title": "Bảng tin — AloUTE",
+        "mainCount": 1,
+        "h1Count": 1,
+        "skipLinks": 1,
+        "mainId": "main-content"
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:42.186Z"
+    },
+    {
+      "id": "A11Y-22",
+      "suite": "cross-a11y",
+      "name": "Keyboard: Tab trúng skip link, Enter chuyển focus vào main",
+      "status": "PASS",
+      "detail": {
+        "first": {
+          "tag": "A",
+          "cls": "aloute-skip-link"
+        },
+        "focused": {
+          "id": "main-content",
+          "tag": "MAIN"
+        }
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:43.454Z"
+    },
+    {
+      "id": "RESP-01",
+      "suite": "cross-a11y",
+      "name": "Mobile 360×800: feed không tràn ngang, menu offcanvas hiện, sidebar ẩn",
+      "status": "PASS",
+      "detail": {
+        "scrollWidth": 360,
+        "clientWidth": 360,
+        "innerWidth": 360
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:45.421Z"
+    },
+    {
+      "id": "RESP-02",
+      "suite": "cross-a11y",
+      "name": "Tablet 768×1024: sidebar hiện, không tràn ngang",
+      "status": "PASS",
+      "detail": {
+        "scrollWidth": 768,
+        "clientWidth": 768,
+        "innerWidth": 768
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:47.389Z"
+    },
+    {
+      "id": "RESP-03",
+      "suite": "cross-a11y",
+      "name": "Desktop 1440×900: sidebar + ô tìm kiếm hiện, không tràn ngang",
+      "status": "PASS",
+      "detail": {
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "innerWidth": 1440
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:49.340Z"
+    },
+    {
+      "id": "RESP-04",
+      "suite": "cross-a11y",
+      "name": "Mobile 360: trang Tin nhắn không tràn ngang, pane hội thoại dùng được",
+      "status": "PASS",
+      "detail": {
+        "scrollWidth": 360,
+        "clientWidth": 360,
+        "innerWidth": 360,
+        "panes": {
+          "conversation": true,
+          "chat": false
+        }
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:51.274Z"
+    },
+    {
+      "id": "RESP-05",
+      "suite": "cross-a11y",
+      "name": "Mobile 360: trang quản trị không tràn ngang, bảng cuộn trong container",
+      "status": "PASS",
+      "detail": {
+        "scrollWidth": 360,
+        "clientWidth": 360,
+        "innerWidth": 360,
+        "tables": 1
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:53.251Z"
+    },
+    {
+      "id": "RESP-06",
+      "suite": "cross-a11y",
+      "name": "Touch target ≥ 24×24 px cho nút navbar và thanh tương tác (mobile)",
+      "status": "PASS",
+      "detail": {
+        "checked": true
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:55.126Z"
+    },
+    {
+      "id": "XB-01",
+      "suite": "cross-a11y",
+      "name": "Cross-browser smoke — Chromium (Chrome)",
+      "status": "PASS",
+      "detail": {
+        "engineVersion": "153.0.8010.53",
+        "posts": 4,
+        "title": "Đăng nhập — AloUTE",
+        "bodyBg": "rgb(248, 250, 252)",
+        "token": "#0f172a"
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:43:58.174Z"
+    },
+    {
+      "id": "XB-02",
+      "suite": "cross-a11y",
+      "name": "Cross-browser smoke — Chromium (Edge)",
+      "status": "PASS",
+      "detail": {
+        "engineVersion": "156.0.4314.50",
+        "posts": 4,
+        "title": "Đăng nhập — AloUTE",
+        "bodyBg": "rgb(248, 250, 252)",
+        "token": "#0f172a"
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:44:01.530Z"
+    },
+    {
+      "id": "XB-03",
+      "suite": "cross-a11y",
+      "name": "Cross-browser smoke — Firefox",
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "Trình duyệt Firefox 157.0 không tạo được trang trên máy này: browserContext.newPage: Target crashed "
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:44:04.032Z"
+    },
+    {
+      "id": "XB-04",
+      "suite": "cross-a11y",
+      "name": "Cross-browser smoke — WebKit (Safari engine)",
+      "status": "PASS",
+      "detail": {
+        "engineVersion": "27.2",
+        "posts": 4,
+        "title": "Đăng nhập — AloUTE",
+        "bodyBg": "rgb(248, 250, 252)",
+        "token": "#0f172a"
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:44:07.429Z"
+    },
+    {
+      "id": "PERF-01",
+      "suite": "cross-a11y",
+      "name": "Feed: DCL/load/LCP và transfer size qua 3 lần tải (Chrome)",
+      "status": "PASS",
+      "detail": {
+        "medianDcl": 125,
+        "runs": [
+          {
+            "dcl": 129,
+            "load": 143,
+            "domInteractive": 124,
+            "responseStart": 85,
+            "transferSize": 14906,
+            "resourceCount": 18,
+            "resourceTransfer": 377,
+            "externalRequests": 4,
+            "lcp": 168,
+            "wall": 864
+          },
+          {
+            "dcl": 125,
+            "load": 129,
+            "domInteractive": 121,
+            "responseStart": 78,
+            "transferSize": 14906,
+            "resourceCount": 18,
+            "resourceTransfer": 377,
+            "externalRequests": 4,
+            "lcp": 140,
+            "wall": 839
+          },
+          {
+            "dcl": 118,
+            "load": 133,
+            "domInteractive": 114,
+            "responseStart": 76,
+            "transferSize": 14906,
+            "resourceCount": 18,
+            "resourceTransfer": 377,
+            "externalRequests": 4,
+            "lcp": 156,
+            "wall": 850
+          }
+        ]
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:44:10.019Z"
+    },
+    {
+      "id": "PERF-02",
+      "suite": "cross-a11y",
+      "name": "API latency p95 < 800ms cho feed, thông báo và unread-count",
+      "status": "PASS",
+      "detail": {
+        "/api/feed?page=0&size=10": {
+          "p50": 28,
+          "p95": 29,
+          "samples": [
+            27,
+            27,
+            28,
+            28,
+            29
+          ]
+        },
+        "/api/notifications?filter=ALL&page=0&size=20": {
+          "p50": 8,
+          "p95": 9,
+          "samples": [
+            8,
+            8,
+            8,
+            9,
+            9
+          ]
+        },
+        "/api/notifications/unread-count": {
+          "p50": 7,
+          "p95": 8,
+          "samples": [
+            7,
+            7,
+            7,
+            7,
+            8
+          ]
+        }
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:44:10.287Z"
+    },
+    {
+      "id": "PERF-03",
+      "suite": "cross-a11y",
+      "name": "Tài nguyên CSS cục bộ trả 200 và đúng content-type",
+      "status": "PASS",
+      "detail": {
+        "contentLength": 60424,
+        "cacheControl": "max-age=43200",
+        "etag": null
+      },
+      "evidence": null,
+      "at": "2026-10-28T01:44:10.299Z"
+    }
+  ],
+  "accountsConfigured": true,
+  "finishedAt": "2026-10-28T01:44:10.713Z",
+  "counts": {
+    "PASS": 34,
+    "BLOCKED": 1
+  },
+  "overall": "PASS WITH LIMITATIONS"
+}

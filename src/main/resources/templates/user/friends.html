@@ -57,7 +57,7 @@
                 <div class="aloute-min-w-0">
                     <div class="d-flex align-items-center gap-1">
                         <strong class="fs-6 text-dark text-truncate" th:text="${u.displayName ?: u.username}">User</strong>
-                        <i th:if="${u.isVerified}" class="bi bi-patch-check-fill text-primary small" aria-label="Đã xác minh"></i>
+                        <i th:if="${u.isVerified}" class="bi bi-patch-check-fill text-primary small" role="img" aria-label="Đã xác minh"></i>
                     </div>
                     <small class="text-muted d-block text-truncate" th:text="'@' + ${u.username}">@user</small>
                 </div>
