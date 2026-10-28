@@ -1,0 +1,149 @@
+name: MySQL 8 Migration Proof
+
+# Verification-only workflow: proves the BL-03 / BL-08 migration scripts apply
+# cleanly to a real MySQL 8 with pre-existing (legacy) data. It does NOT deploy,
+# publish images, or touch any external environment. Triggered only on this
+# branch (and manually) — it is not part of master and is not a release gate.
+on:
+  push:
+    branches:
+      - 'ci/mysql8-migration-proof-20261028'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migration-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Launch disposable MySQL 8
+        id: mysql_init
+        run: |
+          set -euo pipefail
+          EPHEMERAL_PASS=$(openssl rand -hex 16)
+          echo "::add-mask::$EPHEMERAL_PASS"
+          export MYSQL_ROOT_PASSWORD="$EPHEMERAL_PASS"
+          export MYSQL_PWD="$EPHEMERAL_PASS"
+          export MYSQL_DATABASE="aloutedb_proof"
+
+          CONTAINER_ID=$(docker run -d \
+            --name mysql8-migration-proof \
+            -p 127.0.0.1:3306:3306 \
+            -e MYSQL_ROOT_PASSWORD \
+            -e MYSQL_DATABASE \
+            mysql:8.0)
+          echo "CONTAINER_ID=$CONTAINER_ID" >> "$GITHUB_ENV"
+
+          READY=false
+          for i in $(seq 1 60); do
+            if printf "SELECT 1;\n" | docker exec -i -e MYSQL_PWD "$CONTAINER_ID" mysql --protocol=TCP -h127.0.0.1 -u root "$MYSQL_DATABASE" >/dev/null 2>&1; then
+              READY=true; break
+            fi
+            sleep 2
+          done
+          [ "$READY" = "true" ] || { echo "ERROR: MySQL 8 not ready in 120s"; exit 1; }
+
+          printf "SELECT VERSION() AS version, @@default_storage_engine AS engine;\n" | \
+            docker exec -i -e MYSQL_PWD "$CONTAINER_ID" mysql --protocol=TCP -h127.0.0.1 -u root "$MYSQL_DATABASE"
+
+          echo "MYSQL_ROOT_PASSWORD=$EPHEMERAL_PASS" >> "$GITHUB_ENV"
+          echo "MYSQL_PWD=$EPHEMERAL_PASS" >> "$GITHUB_ENV"
+
+      - name: Seed a legacy users table with existing rows
+        id: legacy_schema
+        run: |
+          set -euo pipefail
+          # Simulates a production database that predates the BL-03/BL-08 columns:
+          # the migration must be additive and must not disturb existing rows.
+          docker exec -i -e MYSQL_PWD "$CONTAINER_ID" mysql --protocol=TCP -h127.0.0.1 -u root aloutedb_proof <<'SQL'
+          CREATE TABLE users (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(50) NOT NULL UNIQUE,
+            email VARCHAR(254) NOT NULL UNIQUE,
+            password_hash VARCHAR(255) NOT NULL,
+            is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+            is_private BOOLEAN NOT NULL DEFAULT FALSE,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            global_role VARCHAR(32) NOT NULL DEFAULT 'USER',
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+          INSERT INTO users (username, email, password_hash, is_verified, is_active)
+          VALUES ('legacy_alice','alice@example.com','h',TRUE,TRUE),
+                 ('legacy_bob','bob@example.com','h',FALSE,TRUE);
+          SQL
+
+      - name: Apply BL-03 / BL-08 migration scripts
+        id: apply_migrations
+        run: |
+          set -euo pipefail
+          for f in mysql8_login_lockout.sql mysql8_used_two_factor_tickets.sql; do
+            echo "--- applying $f ---"
+            docker exec -i -e MYSQL_PWD "$CONTAINER_ID" \
+              mysql --protocol=TCP -h127.0.0.1 -u root aloutedb_proof \
+              < "src/main/resources/db/migration/$f"
+          done
+
+      - name: Verify schema and legacy data safety
+        id: verify
+        run: |
+          set -euo pipefail
+          MYSQL() { docker exec -i -e MYSQL_PWD "$CONTAINER_ID" mysql --protocol=TCP -h127.0.0.1 -u root -N -s aloutedb_proof; }
+
+          echo "== users columns =="
+          MYSQL <<'SQL'
+          SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT
+          FROM information_schema.COLUMNS
+          WHERE TABLE_SCHEMA='aloutedb_proof' AND TABLE_NAME='users'
+            AND COLUMN_NAME IN ('failed_login_attempts','locked_until')
+          ORDER BY COLUMN_NAME;
+          SQL
+
+          FAIL_ATTEMPTS=$(MYSQL -e "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='aloutedb_proof' AND TABLE_NAME='users' AND COLUMN_NAME='failed_login_attempts';")
+          LOCKED_UNTIL=$(MYSQL -e "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='aloutedb_proof' AND TABLE_NAME='users' AND COLUMN_NAME='locked_until';")
+          TICKET_TABLE=$(MYSQL -e "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='aloutedb_proof' AND TABLE_NAME='used_two_factor_tickets';")
+          TICKET_UNIQUE=$(MYSQL -e "SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA='aloutedb_proof' AND TABLE_NAME='used_two_factor_tickets' AND INDEX_NAME='uk_2fa_used_tickets_hash';")
+
+          [ "$FAIL_ATTEMPTS" = "1" ] || { echo "ERROR: failed_login_attempts missing"; exit 1; }
+          [ "$LOCKED_UNTIL" = "1" ] || { echo "ERROR: locked_until missing"; exit 1; }
+          [ "$TICKET_TABLE" = "1" ] || { echo "ERROR: used_two_factor_tickets missing"; exit 1; }
+          [ "$TICKET_UNIQUE" -ge 1 ] || { echo "ERROR: unique ticket_hash constraint missing"; exit 1; }
+
+          echo "== legacy rows preserved with defaults =="
+          ROWS=$(MYSQL -e "SELECT COUNT(*) FROM users WHERE username IN ('legacy_alice','legacy_bob');")
+          DEFAULTS_OK=$(MYSQL -e "SELECT COUNT(*) FROM users WHERE username IN ('legacy_alice','legacy_bob') AND failed_login_attempts=0 AND locked_until IS NULL;")
+          [ "$ROWS" = "2" ] || { echo "ERROR: legacy rows lost"; exit 1; }
+          [ "$DEFAULTS_OK" = "2" ] || { echo "ERROR: legacy rows missing defaults"; exit 1; }
+
+          MYSQL -e "SELECT username, failed_login_attempts, locked_until FROM users ORDER BY username;"
+          echo "MIGRATION PROOF: PASS"
+
+      - name: Prove idempotence guard (second run must fail loudly, not silently corrupt)
+        id: idempotence
+        run: |
+          # The DBA runbook states these scripts run once. A second run should be
+          # rejected by MySQL (duplicate column / table), which is expected and
+          # documented — this step records that behaviour without failing the job.
+          set +e
+          docker exec -i -e MYSQL_PWD "$CONTAINER_ID" \
+            mysql --protocol=TCP -h127.0.0.1 -u root aloutedb_proof \
+            < "src/main/resources/db/migration/mysql8_login_lockout.sql" 2>/tmp/second_run.err
+          RC=$?
+          set -e
+          if [ $RC -eq 0 ]; then
+            echo "ERROR: second run unexpectedly succeeded — scripts are not guarded"
+            exit 1
+          fi
+          echo "Second run correctly rejected (exit $RC):"
+          cat /tmp/second_run.err | head -3
+          echo "IDEMPOTENCE BEHAVIOUR: EXPECTED-REJECT"
+
+      - name: Teardown
+        if: always()
+        run: docker rm -f "$CONTAINER_ID" >/dev/null 2>&1 || true
