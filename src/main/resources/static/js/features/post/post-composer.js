@@ -212,6 +212,7 @@
                 allowQuoteInput.checked = draft.allowQuote;
             }
             restorePollDraftState(draft.poll);
+            restoreTopicDraftState(draft.topics);
             updateCharCount();
             updateSubmitButtonState();
             showDraftNotice(draft.savedAt);
@@ -284,6 +285,9 @@
                     allowReply: allowReplyInput ? allowReplyInput.checked : true,
                     allowQuote: allowQuoteInput ? allowQuoteInput.checked : true,
                     poll: collectPollDraftState(),
+                    topics: Array.from(selectedTopics.values()).map(function (topic) {
+                        return { id: topic.id, name: topic.name, slug: topic.slug };
+                    }),
                     savedAt: Date.now()
                 };
                 try {
@@ -477,6 +481,245 @@
             pollDurationSelect.addEventListener('change', scheduleDraftSave);
         }
         refreshPollOptionUi();
+
+        // =====================================================================
+        // Topic tags (optional): sent as CreatePostRequest.topicIds. Topics are
+        // loaded from GET /api/topics (public) and selected locally; the backend
+        // remains the authority on which ids are valid.
+        // =====================================================================
+        const topicSearchInput = document.getElementById('topic-search');
+        const topicResultsEl = document.getElementById('topic-results');
+        const selectedTopicsEl = document.getElementById('selected-topics');
+        const topicStatusEl = document.getElementById('topic-picker-status');
+        const topicCountEl = document.getElementById('topic-selection-count');
+        const topicRetryBtn = document.getElementById('topic-retry');
+        const selectedTopics = new Map();
+        let topicRequestSeq = 0;
+        let topicDebounceTimer = null;
+
+        function normalizeTopic(topic) {
+            if (!topic || typeof topic !== 'object') return null;
+            const id = Number(topic.id);
+            const name = typeof topic.name === 'string' ? topic.name.trim() : '';
+            if (!Number.isSafeInteger(id) || id <= 0 || !name) return null;
+            return {
+                id: id,
+                name: name,
+                slug: typeof topic.slug === 'string' ? topic.slug : ''
+            };
+        }
+
+        function updateTopicStatus(message, isError, showRetry) {
+            if (topicStatusEl) {
+                topicStatusEl.textContent = message || '';
+                topicStatusEl.classList.toggle('text-danger', !!isError);
+            }
+            if (topicRetryBtn) {
+                topicRetryBtn.classList.toggle('d-none', !showRetry);
+            }
+        }
+
+        function renderSelectedTopics() {
+            if (selectedTopicsEl) {
+                selectedTopicsEl.innerHTML = '';
+                selectedTopics.forEach(function (topic) {
+                    const chip = document.createElement('span');
+                    chip.className = 'badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill d-inline-flex align-items-center gap-1 py-1 px-2 fw-medium';
+                    chip.setAttribute('data-topic-chip', String(topic.id));
+                    const label = document.createElement('span');
+                    label.textContent = '#' + topic.name;
+                    chip.appendChild(label);
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'btn btn-sm btn-link p-0 text-primary lh-1';
+                    removeBtn.setAttribute('data-topic-remove', String(topic.id));
+                    removeBtn.setAttribute('aria-label', 'Bỏ chọn chủ đề ' + topic.name);
+                    removeBtn.addEventListener('click', function () {
+                        removeTopic(topic.id);
+                    });
+                    const icon = document.createElement('i');
+                    icon.className = 'bi bi-x-lg';
+                    icon.setAttribute('aria-hidden', 'true');
+                    icon.style.fontSize = '0.65rem';
+                    removeBtn.appendChild(icon);
+                    chip.appendChild(removeBtn);
+                    selectedTopicsEl.appendChild(chip);
+                });
+            }
+            if (topicCountEl) {
+                topicCountEl.textContent = selectedTopics.size === 0
+                    ? 'Chưa chọn chủ đề'
+                    : 'Đã chọn ' + selectedTopics.size + ' chủ đề';
+            }
+        }
+
+        function renderTopicResults(topics) {
+            if (!topicResultsEl) return;
+            topicResultsEl.innerHTML = '';
+            const visible = topics.filter(function (topic) {
+                return !selectedTopics.has(topic.id);
+            });
+            if (visible.length === 0) {
+                topicResultsEl.classList.add('d-none');
+                updateTopicStatus('Không tìm thấy chủ đề phù hợp.', false, false);
+                return;
+            }
+            visible.forEach(function (topic) {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'list-group-item list-group-item-action d-flex align-items-center justify-content-between gap-2 py-2';
+                item.setAttribute('data-topic-result-id', String(topic.id));
+                const name = document.createElement('span');
+                name.className = 'small fw-medium';
+                name.textContent = '#' + topic.name;
+                const slug = document.createElement('span');
+                slug.className = 'small text-muted';
+                slug.textContent = topic.slug ? 'c/' + topic.slug : '';
+                item.appendChild(name);
+                item.appendChild(slug);
+                item.addEventListener('click', function () {
+                    selectTopic(topic);
+                });
+                topicResultsEl.appendChild(item);
+            });
+            topicResultsEl.classList.remove('d-none');
+            updateTopicStatus('Tìm thấy ' + visible.length + ' chủ đề. Chọn để gắn vào bài viết.', false, false);
+        }
+
+        function selectTopic(topic) {
+            const normalized = normalizeTopic(topic);
+            if (!normalized) return;
+            selectedTopics.set(normalized.id, normalized);
+            renderSelectedTopics();
+            if (topicResultsEl) {
+                topicResultsEl.innerHTML = '';
+                topicResultsEl.classList.add('d-none');
+            }
+            if (topicSearchInput) {
+                topicSearchInput.value = '';
+            }
+            updateTopicStatus('Đã gắn chủ đề #' + normalized.name + '.', false, false);
+            scheduleDraftSave();
+        }
+
+        function removeTopic(topicId) {
+            const id = Number(topicId);
+            if (!selectedTopics.has(id)) return;
+            selectedTopics.delete(id);
+            renderSelectedTopics();
+            updateTopicStatus('Đã bỏ chủ đề khỏi bài viết.', false, false);
+            scheduleDraftSave();
+        }
+
+        function fetchTopics(query) {
+            if (!topicSearchInput) return;
+            const seq = ++topicRequestSeq;
+            updateTopicStatus('Đang tải danh sách chủ đề...', false, false);
+            fetch('/api/topics?size=20&q=' + encodeURIComponent(query || ''), {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json' }
+            }).then(function (response) {
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status);
+                }
+                return readJson(response);
+            }).then(function (body) {
+                if (seq !== topicRequestSeq) return;
+                const topics = body && Array.isArray(body.data)
+                    ? body.data.map(normalizeTopic).filter(Boolean)
+                    : [];
+                renderTopicResults(topics);
+            }).catch(function () {
+                if (seq !== topicRequestSeq) return;
+                if (topicResultsEl) {
+                    topicResultsEl.innerHTML = '';
+                    topicResultsEl.classList.add('d-none');
+                }
+                updateTopicStatus('Không thể tải danh sách chủ đề. Vui lòng thử lại.', true, true);
+            });
+        }
+
+        function applyInitialTopic(topicId) {
+            if (!topicSearchInput || !selectedTopicsEl) return;
+            const id = Number(topicId);
+            if (!Number.isSafeInteger(id) || id <= 0) return;
+            fetch('/api/topics/' + encodeURIComponent(id), {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json' }
+            }).then(function (response) {
+                if (!response.ok) return null;
+                return readJson(response);
+            }).then(function (body) {
+                const topic = normalizeTopic(body && body.data);
+                if (!topic || selectedTopics.has(topic.id)) return;
+                selectedTopics.set(topic.id, topic);
+                renderSelectedTopics();
+            }).catch(function () {});
+        }
+
+        function restoreTopicDraftState(topics) {
+            if (!selectedTopicsEl) return;
+            if (!Array.isArray(topics)) return;
+            topics.forEach(function (topic) {
+                const normalized = normalizeTopic(topic);
+                if (normalized) selectedTopics.set(normalized.id, normalized);
+            });
+            renderSelectedTopics();
+        }
+
+        function readInitialTopicId() {
+            if (form.dataset && form.dataset.initialTopicId) {
+                return form.dataset.initialTopicId;
+            }
+            try {
+                if (typeof URLSearchParams === 'undefined' || !window.location || !window.location.search) {
+                    return '';
+                }
+                return new URLSearchParams(window.location.search).get('topicId') || '';
+            } catch (_) {
+                return '';
+            }
+        }
+
+        if (topicSearchInput) {
+            topicSearchInput.addEventListener('focus', function () {
+                if (topicResultsEl && !topicResultsEl.classList.contains('d-none')) return;
+                fetchTopics(topicSearchInput.value.trim());
+            });
+            topicSearchInput.addEventListener('input', function () {
+                if (topicDebounceTimer) {
+                    clearTimeout(topicDebounceTimer);
+                }
+                topicDebounceTimer = setTimeout(function () {
+                    topicDebounceTimer = null;
+                    fetchTopics(topicSearchInput.value.trim());
+                }, 250);
+            });
+            topicSearchInput.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    // The topic search lives inside the post form; Enter must not
+                    // submit an unfinished post.
+                    event.preventDefault();
+                    if (topicDebounceTimer) {
+                        clearTimeout(topicDebounceTimer);
+                        topicDebounceTimer = null;
+                    }
+                    fetchTopics(topicSearchInput.value.trim());
+                } else if (event.key === 'Escape' && topicResultsEl) {
+                    topicResultsEl.innerHTML = '';
+                    topicResultsEl.classList.add('d-none');
+                }
+            });
+        }
+        if (topicRetryBtn) {
+            topicRetryBtn.addEventListener('click', function () {
+                fetchTopics(topicSearchInput ? topicSearchInput.value.trim() : '');
+            });
+        }
+        renderSelectedTopics();
+        applyInitialTopic(readInitialTopicId());
 
         // Draft restore runs last so the poll builder elements above exist when a
         // drafted poll is written back into them.
@@ -843,6 +1086,10 @@
 
             if (attachedMedia.length > 0) {
                 payload.mediaIds = attachedMedia.map(function (m) { return m.id; });
+            }
+
+            if (selectedTopics.size > 0) {
+                payload.topicIds = Array.from(selectedTopics.keys());
             }
 
             if (pollResult.poll) {
