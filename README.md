@@ -1,18 +1,5 @@
 # AloUTE — Nền tảng Mạng Xã Hội Học Đường (HCMUTE)
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Java-17%20%7C%2021-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white" alt="Java Version" />
-  <img src="https://img.shields.io/badge/Spring%20Boot-3.2.5-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" alt="Spring Boot" />
-  <img src="https://img.shields.io/badge/Database-MySQL%208%20%7C%20H2-4479A1?style=for-the-badge&logo=mysql&logoColor=white" alt="Database" />
-  <img src="https://img.shields.io/badge/Frontend-Thymeleaf%20%7C%20Bootstrap%205-005F0F?style=for-the-badge&logo=thymeleaf&logoColor=white" alt="Frontend" />
-  <img src="https://img.shields.io/badge/Realtime-STOMP%20WebSocket-010101?style=for-the-badge&logo=socketdotio&logoColor=white" alt="WebSocket" />
-  <img src="https://img.shields.io/badge/Mobile-Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white" alt="Flutter" />
-</p>
-
----
-
-## 📖 1. Giới thiệu tổng quan
-
 **AloUTE** là nền tảng mạng xã hội học đường toàn diện được thiết kế và phát triển chuyên biệt cho cộng đồng sinh viên, giảng viên và các câu lạc bộ tại **Trường Đại học Sư phạm Kỹ thuật TP.HCM (HCMUTE)**.
 
 Dự án cung cấp một không gian số hiện đại, an toàn và trực quan giúp người dùng dễ dàng kết nối, chia sẻ thông tin học tập, tham gia thảo luận theo chủ đề, quản lý cộng đồng, nhắn tin thời gian thực và tương tác đa phương tiện.
@@ -24,20 +11,32 @@ Hệ thống được phát triển theo mô hình lai (Hybrid):
 
 ---
 
-## ✨ 2. Phân hệ chức năng chính
+## 1. Giới thiệu tổng quan
 
-| Phân hệ | Chi tiết tính năng |
-| :--- | :--- |
-| 🔐 **Xác thực & Bảo mật** | • Đăng ký tài khoản với mã xác thực OTP qua Email (SMTP).<br>• Đăng nhập an toàn lưu JWT trong `HttpOnly Cookie`.<br>• Đăng xuất vô hiệu hóa phiên, Quên & Đặt lại mật khẩu.<br>• Xác thực hai lớp (**2FA / TOTP**) qua Google Authenticator kèm mã khôi phục dự phòng.<br>• Phân quyền người dùng chặt chẽ theo vai trò (Role-Based Access Control - RBAC). |
-| 📰 **Bảng tin & Nội dung** | • Bảng tin cá nhân hóa (Personal Feed) & Bảng tin khám phá.<br>• Cuộn vô tận (Infinite Scroll) mượt mà tối ưu trải nghiệm.<br>• Soạn thảo bài viết đa phương tiện (Văn bản, tải ảnh/video tích hợp Firebase Storage).<br>• Phân loại theo chủ đề / Hashtag (`#topic`).<br>• Tạo cuộc bình chọn thời gian thực (**Polls**).<br>• Trích dẫn bài viết (**Quote**), Đăng lại (**Repost**), Ghim bài viết (**Pin**), Lưu trữ (**Bookmark**), Ẩn bài viết / Bỏ theo dõi tác giả (**Mute**). |
-| 💬 **Tương tác & Xã hội** | • Thả cảm xúc / Thích bài viết (Like).<br>• Bình luận & Phản hồi phân cấp (Nested Comments & Replies).<br>• Theo dõi / Bỏ theo dõi người dùng (Follow / Unfollow).<br>• Kết nối bạn bè, trang cá nhân tùy biến (Avatar, Ảnh bìa, Tiểu sử).<br>• Chặn người dùng vi phạm (Block). |
-| 🏛️ **Quản lý Cộng đồng** | • Tạo và quản trị cộng đồng / nhóm học tập theo khoa, lớp, CLB.<br>• Chế độ công khai (Public) hoặc riêng tư (Private).<br>• Quản trị viên cộng đồng duyệt thành viên và kiểm duyệt bài viết.<br>• Phân vai trò thành viên: Admin cộng đồng, Kiểm duyệt viên (Moderator), Thành viên. |
-| ⚡ **Thời gian thực & Thông báo** | • Nhắn tin trực tiếp 1-1 (Direct Messaging) tức thì qua giao thức **STOMP over WebSocket**.<br>• Thông báo trong ứng dụng (In-app notifications) khi có tương tác mới.<br>• Tích hợp Firebase Cloud Messaging (**FCM**) cho thông báo đẩy trên thiết bị di động. |
-| 🛡️ **Quản trị hệ thống (Admin)** | • Bảng điều khiển quản trị chuyên sâu (**Admin Dashboard**).<br>• Quản lý người dùng: Cảnh báo vi phạm, Tạm khóa / Đình chỉ tài khoản (Suspension), Cấp quyền vai trò.<br>• Kiểm duyệt nội dung: Tiếp nhận và xử lý báo cáo vi phạm (Reports / Moderation).<br>• Giám sát số liệu và thống kê hoạt động hệ thống. |
+AloUTE giải quyết nhu cầu trao đổi thông tin, tương tác học thuật và hoạt động phong trào trong môi trường đại học. Hệ thống hướng tới việc thay thế các nhóm phân tán trên mạng xã hội thương mại bằng một nền tảng chuyên biệt, bảo mật thông tin nội bộ và tích hợp sâu với quy trình quản lý học sinh - sinh viên.
+
+Các mục tiêu kỹ thuật chính:
+- Kiến trúc phân lớp chuẩn hóa, dễ mở rộng và bảo trì.
+- Phân quyền chặt chẽ dựa trên vai trò (Role-Based Access Control).
+- Bảo vệ dữ liệu người dùng với các tiêu chuẩn an ninh hiện đại (2FA, HttpOnly Cookie, bảo vệ tài nguyên tĩnh).
+- Hỗ trợ thời gian thực cho tin nhắn và thông báo.
 
 ---
 
-## 🛠️ 3. Công nghệ sử dụng (Technology Stack)
+## 2. Phân hệ chức năng chính
+
+| Phân hệ | Chi tiết tính năng |
+| :--- | :--- |
+| **Xác thực & Bảo mật** | • Đăng ký tài khoản với mã xác thực OTP qua Email (SMTP).<br>• Đăng nhập an toàn lưu JWT trong `HttpOnly Cookie`.<br>• Đăng xuất vô hiệu hóa phiên, Quên & Đặt lại mật khẩu.<br>• Xác thực hai lớp (**2FA / TOTP**) qua Google Authenticator kèm mã khôi phục dự phòng.<br>• Phân quyền người dùng chặt chẽ theo vai trò (Role-Based Access Control - RBAC). |
+| **Bảng tin & Nội dung** | • Bảng tin cá nhân hóa (Personal Feed) & Bảng tin khám phá.<br>• Cuộn vô tận (Infinite Scroll) mượt mà tối ưu trải nghiệm.<br>• Soạn thảo bài viết đa phương tiện (Văn bản, tải ảnh/video tích hợp Firebase Storage).<br>• Phân loại theo chủ đề / Hashtag (`#topic`).<br>• Tạo cuộc bình chọn thời gian thực (**Polls**).<br>• Trích dẫn bài viết (**Quote**), Đăng lại (**Repost**), Ghim bài viết (**Pin**), Lưu trữ (**Bookmark**), Ẩn bài viết / Bỏ theo dõi tác giả (**Mute**). |
+| **Tương tác & Xã hội** | • Thả cảm xúc / Thích bài viết (Like).<br>• Bình luận & Phản hồi phân cấp (Nested Comments & Replies).<br>• Theo dõi / Bỏ theo dõi người dùng (Follow / Unfollow).<br>• Kết nối bạn bè, trang cá nhân tùy biến (Avatar, Ảnh bìa, Tiểu sử).<br>• Chặn người dùng vi phạm (Block). |
+| **Quản lý Cộng đồng** | • Tạo và quản trị cộng đồng / nhóm học tập theo khoa, lớp, CLB.<br>• Chế độ công khai (Public) hoặc riêng tư (Private).<br>• Quản trị viên cộng đồng duyệt thành viên và kiểm duyệt bài viết.<br>• Phân vai trò thành viên: Admin cộng đồng, Kiểm duyệt viên (Moderator), Thành viên. |
+| **Thời gian thực & Thông báo** | • Nhắn tin trực tiếp 1-1 (Direct Messaging) tức thì qua giao thức **STOMP over WebSocket**.<br>• Thông báo trong ứng dụng (In-app notifications) khi có tương tác mới.<br>• Tích hợp Firebase Cloud Messaging (**FCM**) cho thông báo đẩy trên thiết bị di động. |
+| **Quản trị hệ thống (Admin)** | • Bảng điều khiển quản trị chuyên sâu (**Admin Dashboard**).<br>• Quản lý người dùng: Cảnh báo vi phạm, Tạm khóa / Đình chỉ tài khoản (Suspension), Cấp quyền vai trò.<br>• Kiểm duyệt nội dung: Tiếp nhận và xử lý báo cáo vi phạm (Reports / Moderation).<br>• Giám sát số liệu và thống kê hoạt động hệ thống. |
+
+---
+
+## 3. Công nghệ sử dụng (Technology Stack)
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -76,7 +75,7 @@ Hệ thống được phát triển theo mô hình lai (Hybrid):
 
 ---
 
-## 🏗️ 4. Kiến trúc hệ thống & Quy chuẩn mã nguồn
+## 4. Kiến trúc hệ thống & Quy chuẩn mã nguồn
 
 Dự án tuân thủ nghiêm ngặt mô hình **Kiến trúc phân lớp chuẩn Enterprise** (Layered Architecture):
 
@@ -115,7 +114,7 @@ Database (MySQL 8 / H2)
 
 ---
 
-## 📁 5. Cấu trúc thư mục dự án
+## 5. Cấu trúc thư mục dự án
 
 ```
 aloute/
@@ -152,7 +151,7 @@ aloute/
 
 ---
 
-## 🚀 6. Hướng dẫn cài đặt & Chạy cục bộ (Local Development)
+## 6. Hướng dẫn cài đặt & Chạy cục bộ (Local Development)
 
 ### 6.1. Yêu cầu môi trường
 - **Java Development Kit (JDK)**: Phiên bản 17 hoặc 21 trở lên.
@@ -178,14 +177,14 @@ ALOUTE_JWT_EXPIRATION_SECONDS=3600
 
 ### 6.3. Khởi chạy ứng dụng
 
-#### 👉 Cách 1: Chạy nhanh bằng PowerShell Script (Khuyến nghị trên Windows)
+#### Cách 1: Chạy nhanh bằng PowerShell Script (Khuyến nghị trên Windows)
 Script đi kèm đã được tối ưu: tự động nạp biến môi trường từ `.env`, tự động phát hiện JDK phù hợp và giải phóng cổng bị xung đột:
 
 ```powershell
 ./scripts/run-local.ps1
 ```
 
-#### 👉 Cách 2: Chạy trực tiếp qua lệnh Maven CLI
+#### Cách 2: Chạy trực tiếp qua lệnh Maven CLI
 ```bash
 # Nạp profile dev để kích hoạt H2 database và dữ liệu mẫu
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
@@ -209,7 +208,7 @@ Môi trường `dev` tự động nạp sẵn các tài khoản để kiểm th�
 
 ---
 
-## 🧪 7. Kiểm thử & Đảm bảo chất lượng (Testing & QA)
+## 7. Kiểm thử & Đảm bảo chất lượng (Testing & QA)
 
 Dự án sở hữu bộ kiểm thử tự động toàn diện từ tầng dữ liệu, nghiệp vụ cho đến giao diện:
 
@@ -231,7 +230,7 @@ git diff --check
 
 ---
 
-## 🐳 8. Đóng gói & Triển khai Docker
+## 8. Đóng gói & Triển khai Docker
 
 Hệ thống hỗ trợ đóng gói container hóa sẵn sàng cho việc đưa lên máy chủ hoặc VPS:
 
@@ -253,7 +252,7 @@ docker-compose down
 
 ---
 
-## 👥 9. Đội ngũ phát triển (Project Contributors)
+## 9. Đội ngũ phát triển (Project Contributors)
 
 Dự án được xây dựng và hoàn thiện bởi các thành viên:
 
@@ -265,7 +264,7 @@ Dự án được xây dựng và hoàn thiện bởi các thành viên:
 
 ---
 
-## 📚 10. Tài liệu tham khảo kỹ thuật
+## 10. Tài liệu tham khảo kỹ thuật
 
 - [`ARCHITECTURE_TEMPLATE.md`](ARCHITECTURE_TEMPLATE.md): Mẫu cấu trúc và nguyên tắc thiết kế mã nguồn.
 - [`UI_DESIGN_SYSTEM.md`](UI_DESIGN_SYSTEM.md): Hướng dẫn quy chuẩn màu sắc, typography và thành phần giao diện.
@@ -275,7 +274,7 @@ Dự án được xây dựng và hoàn thiện bởi các thành viên:
 
 ---
 
-## 📄 11. Giấy phép & Bản quyền
+## 11. Giấy phép & Bản quyền
 
 Dự án phục vụ mục đích học tập và nghiên cứu trong khuôn khổ học phần Đồ án Công nghệ Phần mềm — **Trường Đại học Sư phạm Kỹ thuật TP.HCM (HCMUTE)**.
 
