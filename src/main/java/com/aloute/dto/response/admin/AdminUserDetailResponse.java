@@ -14,7 +14,8 @@ public record AdminUserDetailResponse(
         boolean isPrivate,
         Instant createdAt,
         UserCounts counts,
-        UserCapabilities capabilities
+        UserCapabilities capabilities,
+        String role
 ) {
     public record UserCounts(
             long posts,

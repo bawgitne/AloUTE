@@ -1,6 +1,7 @@
 package com.aloute.integration;
 
 import com.aloute.dto.request.admin.AdminUserModerationRequest;
+import com.aloute.dto.request.admin.AdminUserRoleChangeRequest;
 import com.aloute.entity.ModerationTargetType;
 import com.aloute.entity.Profile;
 import com.aloute.entity.ReportReason;
@@ -264,6 +265,121 @@ class SystemAdminInvariantIntegrationTest {
         long successes = outcomes.stream().filter(o -> "OK".equals(o)).count();
         assertThat(successes).isEqualTo(1L);
         assertThat(activeAdminCount()).isEqualTo(1L);
+    }
+
+    // ------------------------------------------------- global role concurrency
+
+    private AdminUserRoleChangeRequest demoteReason() {
+        return new AdminUserRoleChangeRequest("USER", ReportReason.OTHER,
+                "Concurrency invariant regression: demote to USER.");
+    }
+
+    /**
+     * Role changes survive between race iterations, so unlike the suspension races
+     * this reset restores role AND active AND authVersion for both admins.
+     */
+    private void resetAdminPair() {
+        transactionTemplate.execute(status -> {
+            for (Long id : List.of(adminA.getId(), adminB.getId())) {
+                User u = userRepository.findById(id).orElseThrow();
+                u.setRole(Role.SYSTEM_ADMIN);
+                u.setActive(true);
+                u.setAuthVersion(0L);
+                userRepository.save(u);
+            }
+            return null;
+        });
+        clearAuditFor(adminA.getId());
+        clearAuditFor(adminB.getId());
+        assertThat(activeAdminCount()).isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("Concurrent demotion and suspension of the two admins can never empty the admin set")
+    void concurrentDemotionAndSuspensionPreservesInvariant() throws Exception {
+        for (int iteration = 0; iteration < 25; iteration++) {
+            resetAdminPair();
+
+            // A demotes B while B suspends A: if both succeeded the system would have
+            // zero active administrators, so the shared lock must refuse exactly one.
+            List<Object> outcomes = race(
+                    () -> adminUserService.changeGlobalRole(adminA.getId(), adminB.getId(), demoteReason()),
+                    () -> adminUserService.suspendUser(adminB.getId(), adminA.getId(), reason()));
+
+            long successes = outcomes.stream().filter(o -> "OK".equals(o)).count();
+            assertThat(successes)
+                    .as("iteration %d: exactly one of demote/suspend may succeed", iteration)
+                    .isEqualTo(1L);
+            assertThat(activeAdminCount())
+                    .as("iteration %d: at least one active SYSTEM_ADMIN must remain", iteration)
+                    .isEqualTo(1L);
+
+            Long failedTargetId = "OK".equals(outcomes.get(0)) ? adminA.getId() : adminB.getId();
+            String refusedType = "OK".equals(outcomes.get(0)) ? "USER_SUSPEND" : "USER_ROLE_CHANGE";
+            assertThat(actionsOfType(failedTargetId, refusedType))
+                    .as("iteration %d: the refused operation wrote no audit row", iteration)
+                    .isZero();
+        }
+    }
+
+    @Test
+    @DisplayName("Concurrent mutual demotion of the two admins leaves exactly one admin")
+    void concurrentMutualDemotionPreservesInvariant() throws Exception {
+        for (int iteration = 0; iteration < 25; iteration++) {
+            resetAdminPair();
+
+            List<Object> outcomes = race(
+                    () -> adminUserService.changeGlobalRole(adminA.getId(), adminB.getId(), demoteReason()),
+                    () -> adminUserService.changeGlobalRole(adminB.getId(), adminA.getId(), demoteReason()));
+
+            long successes = outcomes.stream().filter(o -> "OK".equals(o)).count();
+            assertThat(successes)
+                    .as("iteration %d: both mutual demotions cannot succeed", iteration)
+                    .isEqualTo(1L);
+            assertThat(activeAdminCount()).isEqualTo(1L);
+        }
+    }
+
+    @Test
+    @DisplayName("Concurrent demotion and self-deactivation of the same admin keep one active admin")
+    void concurrentDemotionAndSelfDeactivation() throws Exception {
+        List<Object> outcomes = race(
+                () -> adminUserService.changeGlobalRole(adminB.getId(), adminA.getId(), demoteReason()),
+                () -> userService.deactivateAccount(adminA.getId(), PASSWORD));
+
+        long successes = outcomes.stream().filter(o -> "OK".equals(o)).count();
+        assertThat(successes).isEqualTo(1L);
+        assertThat(activeAdminCount()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("Concurrent promotion and demotion serialize under the shared lock without deadlock")
+    void concurrentPromotionAndDemotionSerialize() throws Exception {
+        resetAdminPair();
+        User normal = createUser("prom", Role.USER);
+        clearAuditFor(adminA.getId());
+
+        List<Object> outcomes = race(
+                () -> adminUserService.changeGlobalRole(adminA.getId(), normal.getId(),
+                        new AdminUserRoleChangeRequest("SYSTEM_ADMIN", ReportReason.OTHER,
+                                "Concurrency invariant regression: promote.")),
+                () -> adminUserService.changeGlobalRole(adminB.getId(), adminA.getId(), demoteReason()));
+
+        // Both operations may legitimately succeed: promotion never lowers the
+        // active-admin count, and the demoted A is replaced by the promoted user.
+        assertThat(outcomes.get(0)).isEqualTo("OK");
+        assertThat(outcomes.get(1)).isEqualTo("OK");
+        assertThat(activeAdminCount()).isEqualTo(2L);
+        assertThat(userRepository.findById(normal.getId()).orElseThrow().getRole()).isEqualTo(Role.SYSTEM_ADMIN);
+        assertThat(userRepository.findById(adminA.getId()).orElseThrow().getRole()).isEqualTo(Role.USER);
+    }
+
+    private long actionsOfType(Long userId, String actionType) {
+        return moderationActionRepository
+                .findByTargetTypeAndTargetId(ModerationTargetType.USER, userId, PageRequest.of(0, 1000))
+                .getContent().stream()
+                .filter(a -> actionType.equals(a.getActionType()))
+                .count();
     }
 
     // ------------------------------------------------------------------ helpers

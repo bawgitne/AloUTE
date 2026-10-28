@@ -191,7 +191,8 @@ class AdminPageControllerTest {
                 10L, "student10", "student10@aloute.local", "Nguyễn Sinh Viên", "Bio note", null,
                 true, true, false, Instant.now(),
                 new AdminUserDetailResponse.UserCounts(12L, 1L),
-                new AdminUserDetailResponse.UserCapabilities(true, false, false, false)
+                new AdminUserDetailResponse.UserCapabilities(true, false, false, false),
+                "USER"
         );
         when(adminUserService.getUserDetail(10L)).thenReturn(userDetail);
         when(adminPostService.getPosts(isNull(), eq(10L), isNull(), isNull(), isNull(), any(Pageable.class)))

@@ -145,6 +145,70 @@ public class NotificationServiceImpl implements NotificationService {
             }
         }
 
+        persistAndPublish(recipientId, actorId, type, targetType, targetId, contentPreview);
+    }
+
+    @Override
+    @Transactional
+    public NotificationResponse createModerationNotice(
+            Long recipientId, Long actorId, String type, String targetType, Long targetId, String contentPreview) {
+        if (recipientId == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "NOTIFICATION_RECIPIENT_REQUIRED",
+                    "Notification recipient is required");
+        }
+        // A moderation notice is a mandatory account notice: it deliberately bypasses
+        // the mute and per-type preference filters so a warned account cannot mute
+        // its way out of an official warning. Persistence is the delivery of record;
+        // STOMP/FCM below are best-effort realtime transports.
+        User recipient = userRepository.findById(recipientId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found"));
+        User actor = actorId != null ? userRepository.findById(actorId).orElse(null) : null;
+
+        Notification notification = Notification.builder()
+                .recipient(recipient)
+                .actor(actor)
+                .type(type)
+                .targetType(targetType)
+                .targetId(targetId)
+                .contentPreview(contentPreview != null && contentPreview.length() > 200 ? contentPreview.substring(0, 197) + "..." : contentPreview)
+                .isRead(false)
+                .build();
+
+        Notification saved = notificationRepository.save(notification);
+        log.info("Created moderation notice: type={}, recipientId={}, actorId={}", type, recipientId, actorId);
+
+        // Realtime STOMP transport (Persist-Before-Publish)
+        if (messagingTemplate != null) {
+            try {
+                messagingTemplate.convertAndSendToUser(
+                        String.valueOf(recipientId),
+                        "/queue/notifications",
+                        mapToNotificationResponse(saved)
+                );
+            } catch (Exception ex) {
+                log.warn("Failed to publish realtime websocket moderation notice: {}", ex.getMessage());
+            }
+        }
+
+        // FCM Push Notification transport (Web Push / Background)
+        if (fcmNotificationService != null) {
+            try {
+                String body = contentPreview != null ? contentPreview : "Bạn có một thông báo mới";
+                fcmNotificationService.sendNotificationToUser(recipientId, "ALOUTE", body, "/notifications");
+            } catch (Exception ex) {
+                log.warn("Failed to dispatch FCM push moderation notice: {}", ex.getMessage());
+            }
+        }
+        return mapToNotificationResponse(saved);
+    }
+
+    /** Shared persist + realtime/push publish tail of the social-notification path. */
+    private void persistAndPublish(Long recipientId, Long actorId, String type,
+                                   String targetType, Long targetId, String contentPreview) {
+        User recipient = userRepository.findById(recipientId).orElse(null);
+        if (recipient == null) {
+            return;
+        }
         User actor = actorId != null ? userRepository.findById(actorId).orElse(null) : null;
 
         Notification notification = Notification.builder()

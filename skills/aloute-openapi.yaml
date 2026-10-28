@@ -2216,6 +2216,143 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
 
+  /api/admin/users/{userId}/warn:
+    post:
+      tags: [Admin]
+      summary: Issue an official account warning (SYSTEM_ADMIN only)
+      description: |
+        Advisory-only action: records a USER_WARN moderation action and delivers a
+        mandatory ADMIN_WARN notification (type ADMIN_WARN, targetType USER) to the
+        warned account. The notice is NOT subject to the recipient's mute of the
+        acting admin or to per-type notification preferences, and it never changes
+        the account's active state, role, sessions or permissions. Self-warning is
+        refused (409).
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserModerationRequest'
+      responses:
+        '200':
+          description: Warning recorded and notified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserModerationActionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The acting admin cannot warn their own account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/admin/users/{userId}/reset-profile:
+    post:
+      tags: [Admin]
+      summary: Reset a user's display profile (SYSTEM_ADMIN only)
+      description: |
+        Destructive-to-display admin action with a mandatory reason. Resets exactly:
+        displayName back to the username, and bio, website, avatarUrl, coverUrl to
+        null. Previous values are NOT recoverable. Deliberately preserved: email,
+        password, role, active state, sessions (no authVersion bump), follower /
+        following / post counters, posts, comments and prior moderation history. No
+        storage file is deleted. Records a USER_PROFILE_RESET moderation action whose
+        metadata lists the reset fields. Self-reset is refused (409). A legacy account
+        without a profile row is audited with metadata.profileRowMissing=true and
+        mutates nothing.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserModerationRequest'
+      responses:
+        '200':
+          description: Profile reset recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserModerationActionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The acting admin cannot reset their own profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/admin/users/{userId}/role:
+    post:
+      tags: [Admin]
+      summary: Change a user's global system role (SYSTEM_ADMIN only)
+      description: |
+        Changes the global role between USER and SYSTEM_ADMIN. Community-level roles
+        (owner/admin/moderator) are unaffected. Refusals use stable error codes:
+        ADMIN_ROLE_INVALID (400, unknown role value), ADMIN_ROLE_UNCHANGED (409, no-op,
+        no audit row is written), ADMIN_TARGET_INACTIVE (409, reactivate the account
+        first), USER_SELF_MODERATION_NOT_ALLOWED (409, an admin cannot change their own
+        global role) and USER_LAST_ADMIN_PROTECTED (409, demoting the last active
+        SYSTEM_ADMIN is evaluated under the shared SystemAdminGuard database lock, the
+        same lock that protects suspension and self-deactivation). On success the
+        account's authVersion is bumped so every outstanding token loses or gains the
+        role after re-authentication, and a USER_ROLE_CHANGE audit action records the
+        old and new role in its metadata.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserRoleChangeRequest'
+      responses:
+        '200':
+          description: Role changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserModerationActionEnvelope'
+        '400':
+          description: Unknown role value (ADMIN_ROLE_INVALID)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: No-op role (ADMIN_ROLE_UNCHANGED), inactive target (ADMIN_TARGET_INACTIVE), self role change (USER_SELF_MODERATION_NOT_ALLOWED) or last-active-admin protection (USER_LAST_ADMIN_PROTECTED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
   /api/admin/users/{userId}/reactivate:
     post:
       tags: [Admin]
@@ -4414,6 +4551,12 @@ components:
               type: integer
         capabilities:
           type: object
+          description: |
+            canWarn and canResetProfile are true for every account (self-action and
+            validation refusals happen at action time). canSuspend additionally
+            requires an active account that is not the last active SYSTEM_ADMIN.
+            canChangeGlobalRole requires an active account; the no-op, inactive and
+            last-admin refusals happen at action time.
           properties:
             canWarn:
               type: boolean
@@ -4423,6 +4566,10 @@ components:
               type: boolean
             canChangeGlobalRole:
               type: boolean
+        role:
+          type: string
+          enum: [USER, SYSTEM_ADMIN]
+          description: Global system role; community roles are separate and unaffected.
 
     AdminPostSummaryResponse:
       type: object
@@ -4788,12 +4935,37 @@ components:
           type: boolean
         actionType:
           type: string
-          enum: [USER_SUSPEND, USER_REACTIVATE]
+          enum: [USER_SUSPEND, USER_REACTIVATE, USER_WARN, USER_PROFILE_RESET, USER_ROLE_CHANGE]
         reasonCode:
           $ref: '#/components/schemas/ReportReason'
         occurredAt:
           type: string
           format: date-time
+        oldRole:
+          type: string
+          enum: [USER, SYSTEM_ADMIN]
+          nullable: true
+          description: Only populated for USER_ROLE_CHANGE
+        newRole:
+          type: string
+          enum: [USER, SYSTEM_ADMIN]
+          nullable: true
+          description: Only populated for USER_ROLE_CHANGE
+
+    AdminUserRoleChangeRequest:
+      type: object
+      required: [newRole, reasonCode, reasonDetail]
+      properties:
+        newRole:
+          type: string
+          enum: [USER, SYSTEM_ADMIN]
+          description: Target global role. Unknown values answer 400 ADMIN_ROLE_INVALID.
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        reasonDetail:
+          type: string
+          minLength: 10
+          maxLength: 1000
 
     AdminUserModerationActionEnvelope:
       type: object

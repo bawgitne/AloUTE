@@ -14,6 +14,7 @@ import com.aloute.repository.ProfileRepository;
 import com.aloute.repository.ReportRepository;
 import com.aloute.repository.UserRepository;
 import com.aloute.security.authorization.Role;
+import com.aloute.service.NotificationService;
 import com.aloute.service.admin.impl.AdminUserServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +46,7 @@ class AdminUserSuspensionServiceTest {
     private PostRepository postRepository;
     private ReportRepository reportRepository;
     private ModerationActionRepository moderationActionRepository;
+    private NotificationService notificationService;
     private AdminUserServiceImpl service;
 
     private AdminUserModerationRequest reason() {
@@ -69,8 +71,10 @@ class AdminUserSuspensionServiceTest {
         postRepository = mock(PostRepository.class);
         reportRepository = mock(ReportRepository.class);
         moderationActionRepository = mock(ModerationActionRepository.class);
+        notificationService = mock(NotificationService.class);
         service = new AdminUserServiceImpl(userRepository, profileRepository, postRepository,
-                reportRepository, moderationActionRepository, new SystemAdminGuard(userRepository));
+                reportRepository, moderationActionRepository, new SystemAdminGuard(userRepository),
+                notificationService, new com.fasterxml.jackson.databind.ObjectMapper());
         when(moderationActionRepository.save(any(ModerationAction.class))).thenAnswer(inv -> {
             ModerationAction a = inv.getArgument(0);
             a.setId(500L);
@@ -190,7 +194,7 @@ class AdminUserSuspensionServiceTest {
     }
 
     @Test
-    @DisplayName("capabilities: canSuspend mirrors reality and canChangeGlobalRole is false (no such API)")
+    @DisplayName("capabilities: canSuspend mirrors reality; warn/reset/role-change advertise their working endpoints")
     void capabilitiesReflectReality() {
         User normal = user(2L, Role.USER, true);
         Profile p = new Profile();
@@ -203,7 +207,10 @@ class AdminUserSuspensionServiceTest {
 
         AdminUserDetailResponse detail = service.getUserDetail(2L);
         assertThat(detail.capabilities().canSuspend()).isTrue();
-        assertThat(detail.capabilities().canChangeGlobalRole()).isFalse();
+        assertThat(detail.capabilities().canWarn()).isTrue();
+        assertThat(detail.capabilities().canResetProfile()).isTrue();
+        assertThat(detail.capabilities().canChangeGlobalRole()).isTrue();
+        assertThat(detail.role()).isEqualTo("USER");
     }
 
     @Test

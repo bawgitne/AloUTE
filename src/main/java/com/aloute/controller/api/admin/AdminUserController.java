@@ -3,6 +3,7 @@ package com.aloute.controller.api.admin;
 import com.aloute.common.api.ApiResponse;
 import com.aloute.common.api.PageMeta;
 import com.aloute.dto.request.admin.AdminUserModerationRequest;
+import com.aloute.dto.request.admin.AdminUserRoleChangeRequest;
 import com.aloute.dto.response.admin.AdminPostSummaryResponse;
 import com.aloute.dto.response.admin.AdminUserDetailResponse;
 import com.aloute.dto.response.admin.AdminUserModerationActionResponse;
@@ -76,6 +77,33 @@ public class AdminUserController {
     ) {
         Long adminId = currentUserProvider.requireUserId();
         return ApiResponse.success(adminUserService.reactivateUser(adminId, userId, request));
+    }
+
+    @PostMapping("/users/{userId}/warn")
+    public ApiResponse<AdminUserModerationActionResponse> warnUser(
+            @PathVariable @Positive Long userId,
+            @Valid @RequestBody AdminUserModerationRequest request
+    ) {
+        Long adminId = currentUserProvider.requireUserId();
+        return ApiResponse.success(adminUserService.warnUser(adminId, userId, request));
+    }
+
+    @PostMapping("/users/{userId}/reset-profile")
+    public ApiResponse<AdminUserModerationActionResponse> resetUserProfile(
+            @PathVariable @Positive Long userId,
+            @Valid @RequestBody AdminUserModerationRequest request
+    ) {
+        Long adminId = currentUserProvider.requireUserId();
+        return ApiResponse.success(adminUserService.resetUserProfile(adminId, userId, request));
+    }
+
+    @PostMapping("/users/{userId}/role")
+    public ApiResponse<AdminUserModerationActionResponse> changeGlobalRole(
+            @PathVariable @Positive Long userId,
+            @Valid @RequestBody AdminUserRoleChangeRequest request
+    ) {
+        Long adminId = currentUserProvider.requireUserId();
+        return ApiResponse.success(adminUserService.changeGlobalRole(adminId, userId, request));
     }
 
     @GetMapping("/users/{userId}/posts")
