@@ -2251,6 +2251,151 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
 
+  /api/admin/users/{userId}/warn:
+    post:
+      tags: [Admin]
+      summary: Send a formal warning to a user account (SYSTEM_ADMIN only)
+      description: |
+        Records a `USER_WARN` moderation action with the mandatory reason and creates a
+        persisted `USER_WARN` notification for the target account through the existing
+        notification pipeline (list, unread count, STOMP and FCM transports). A warning
+        is advisory only: it does not change active state, role, auth version or any
+        permission. Administrative warnings are not suppressed by the recipient's mute
+        or notification preferences. Self-warning is refused.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserWarnRequest'
+      responses:
+        '200':
+          description: Warning recorded and notification persisted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserWarnEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Self-warning (`USER_SELF_WARN_NOT_ALLOWED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Missing/blank reason or invalid reason detail length (`VALIDATION_FAILED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/admin/users/{userId}/reset-profile:
+    post:
+      tags: [Admin]
+      summary: Reset the visible profile fields of a user (SYSTEM_ADMIN only)
+      description: |
+        Resets exactly these Profile fields: `displayName` to the target username, and
+        `bio`, `website`, `avatarUrl`, `coverUrl` to null. Email, password, global role,
+        active flag, sessions/auth version, posts, comments, followers, media records and
+        moderation history are preserved. Firebase/object-storage files are NOT deleted;
+        only their URL references are cleared. The caller must confirm the exact target
+        username, so a mismatched/mistyped userId cannot reset another account. Records a
+        `USER_PROFILE_RESET` moderation action. Self-reset is allowed with confirmation.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserProfileResetRequest'
+      responses:
+        '200':
+          description: Profile fields reset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserProfileResetEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Confirmation username does not match the target (`USER_PROFILE_RESET_CONFIRMATION_MISMATCH`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Missing confirmation/reason (`VALIDATION_FAILED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/admin/users/{userId}/role:
+    post:
+      tags: [Admin]
+      summary: Change a user's global role (SYSTEM_ADMIN only)
+      description: |
+        Changes only the global role (`USER` or `SYSTEM_ADMIN`), never community roles.
+        The target must be active; self-role-change is refused; a no-op change is refused
+        without creating an audit row. Demoting the last active SYSTEM_ADMIN is refused
+        under the same database-locked invariant used by suspension and self-deactivation.
+        On success the target's auth version is incremented so every outstanding JWT
+        immediately loses the old authority; the target must sign in again.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserRoleChangeRequest'
+      responses:
+        '200':
+          description: Global role changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserRoleChangeEnvelope'
+        '400':
+          description: Malformed payload or unknown role enum (`BAD_REQUEST`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: |
+            Self change (`USER_SELF_ROLE_CHANGE_NOT_ALLOWED`), inactive target
+            (`USER_ROLE_CHANGE_REQUIRES_ACTIVE`), no-op (`USER_ROLE_UNCHANGED`), or
+            last active SYSTEM_ADMIN (`USER_LAST_ADMIN_PROTECTED`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Missing/invalid reason or role (`VALIDATION_FAILED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
   /api/admin/users/{userId}/posts:
     get:
       tags: [Admin]
@@ -3463,6 +3608,11 @@ components:
       type: string
       enum: [SPAM, HARASSMENT, HATE, MISINFORMATION, VIOLENCE, OTHER]
 
+    GlobalRole:
+      type: string
+      description: Global platform role. Community Owner/Admin/Moderator roles are separate.
+      enum: [USER, SYSTEM_ADMIN]
+
     ReportStatus:
       type: string
       enum: [PENDING, REVIEWED, REJECTED, RESOLVED]
@@ -4378,7 +4528,7 @@ components:
 
     AdminUserDetailResponse:
       type: object
-      required: [id, username, email, displayName, isActive, isVerified, isPrivate, createdAt]
+      required: [id, username, email, displayName, isActive, isVerified, isPrivate, role, createdAt]
       properties:
         id:
           type: integer
@@ -4402,6 +4552,8 @@ components:
           type: boolean
         isPrivate:
           type: boolean
+        role:
+          $ref: '#/components/schemas/GlobalRole'
         createdAt:
           type: string
           format: date-time
@@ -4414,15 +4566,23 @@ components:
               type: integer
         capabilities:
           type: object
+          description: |
+            Viewer-aware flags. The viewer is the authenticated SYSTEM_ADMIN calling the
+            API/page; self-targeting is already excluded where the corresponding action
+            is refused for self.
           properties:
             canWarn:
               type: boolean
+              description: Warn API is available for this target (false when viewer == target).
             canSuspend:
               type: boolean
+              description: Target is active, not the viewer, and is not the last active SYSTEM_ADMIN.
             canResetProfile:
               type: boolean
+              description: Profile-reset API is available for this target.
             canChangeGlobalRole:
               type: boolean
+              description: Target is active, not the viewer, and demotion would not remove the last active SYSTEM_ADMIN.
 
     AdminPostSummaryResponse:
       type: object
@@ -4804,6 +4964,153 @@ components:
           const: true
         data:
           $ref: '#/components/schemas/AdminUserModerationActionResponse'
+        meta:
+          type: 'null'
+
+    AdminUserWarnRequest:
+      type: object
+      required: [reasonCode, reasonDetail]
+      properties:
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        reasonDetail:
+          type: string
+          minLength: 10
+          maxLength: 1000
+
+    AdminUserWarnResponse:
+      type: object
+      required: [actionId, userId, notificationId, actionType, reasonCode, occurredAt]
+      properties:
+        actionId:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        notificationId:
+          type: integer
+          format: int64
+        actionType:
+          type: string
+          const: USER_WARN
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        occurredAt:
+          type: string
+          format: date-time
+
+    AdminUserWarnEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/AdminUserWarnResponse'
+        meta:
+          type: 'null'
+
+    AdminUserProfileResetRequest:
+      type: object
+      required: [reasonCode, reasonDetail, confirmUsername]
+      properties:
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        reasonDetail:
+          type: string
+          minLength: 10
+          maxLength: 1000
+        confirmUsername:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Must exactly match the target account username; protects against a wrong userId.
+
+    AdminUserProfileResetResponse:
+      type: object
+      required: [actionId, userId, displayName, resetFields, actionType, reasonCode, occurredAt]
+      properties:
+        actionId:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        displayName:
+          type: string
+        resetFields:
+          type: array
+          items:
+            type: string
+            enum: [displayName, bio, website, avatarUrl, coverUrl]
+        actionType:
+          type: string
+          const: USER_PROFILE_RESET
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        occurredAt:
+          type: string
+          format: date-time
+
+    AdminUserProfileResetEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/AdminUserProfileResetResponse'
+        meta:
+          type: 'null'
+
+    AdminUserRoleChangeRequest:
+      type: object
+      required: [newRole, reasonCode, reasonDetail]
+      properties:
+        newRole:
+          $ref: '#/components/schemas/GlobalRole'
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        reasonDetail:
+          type: string
+          minLength: 10
+          maxLength: 1000
+
+    AdminUserRoleChangeResponse:
+      type: object
+      required: [actionId, userId, previousRole, newRole, actionType, reasonCode, occurredAt]
+      properties:
+        actionId:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        previousRole:
+          $ref: '#/components/schemas/GlobalRole'
+        newRole:
+          $ref: '#/components/schemas/GlobalRole'
+        actionType:
+          type: string
+          const: USER_ROLE_CHANGE
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        occurredAt:
+          type: string
+          format: date-time
+
+    AdminUserRoleChangeEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/AdminUserRoleChangeResponse'
         meta:
           type: 'null'
 
