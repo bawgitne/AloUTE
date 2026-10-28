@@ -115,13 +115,13 @@ Kết quả sign-off trên integration `25e7595`: **159 PASS / 0 FAIL / 3 BLOCKE
 
 **SOC-P40/41/42/43 — fixture poll hardcode `postId=4`** — FAIL/BLOCKED giả trên H2 mới khi poll không còn ở ID 4 (xem `01_ACCEPTANCE_SUMMARY.md` mục 9). Đã thay bằng fixture tạo qua API, xác minh bằng `GET /api/posts/{id}`, cleanup trong `finally`; mỗi case độc lập, không dùng `globalThis`, không phụ thuộc thứ tự. A/B trên cùng DB lệch ID: 3 FAIL + 1 BLOCKED → 0 FAIL.
 
-## 8. Tái chạy tích hợp ZCode HEAD
+## 8. Tái chạy tích hợp integration HEAD
 
-Mục tiêu: xác nhận 23 thay đổi frontend QA chạy đúng trên mã ZCode mới nhất mà không sửa ZCode.
+Mục tiêu: xác nhận 23 thay đổi frontend QA chạy đúng trên mã integration mới nhất mà không sửa integration.
 
 | Bước | Thực hiện |
 |---|---|
-| Worktree tạm | `git worktree add --detach <temp> e12b21b` — không checkout/sửa worktree ZCode |
+| Worktree tạm | `git worktree add --detach <temp> e12b21b` — không checkout/sửa worktree integration |
 | Áp frontend QA | `git diff 74c8a6f 1cae6eb -- src/main/resources \| git -C <temp> apply -` — 23 tệp, 0 xung đột |
 | Build / chạy | `mvn -q -DskipTests -DskipITs package`; jar profile `dev`, cổng `8083`, H2 in-memory |
 | Seed | `node tools/demo-data.mjs http://127.0.0.1:8083` — 18 OK, 0 failed |
@@ -136,7 +136,7 @@ Lần chạy đầu (`...-0903`) không hợp lệ vì chưa seed demo-data (AUT
 
 | Bước | Thực hiện |
 |---|---|
-| Worktree | `git worktree add --detach D:\PROJECT\cnpm-project\AloUTE-e2e-signoff-20261028 25e7595` — cô lập, không sửa `AloUTE-integration-final`/ZCode |
+| Worktree | `git worktree add --detach <sign-off worktree> 25e7595` — cô lập, không sửa `<integration worktree>`/integration |
 | Patch test | Chỉ `test/e2e/quan-acceptance/suites/social.mjs` (+111 / −47): fixture poll tự tạo/xác minh/cleanup |
 | Build / chạy | `mvn -q -DskipTests -DskipITs package`; jar profile `dev`, cổng `8086`, H2 in-memory mới |
 | Seed | `node tools/demo-data.mjs http://127.0.0.1:8086` — 18 OK, 0 failed |

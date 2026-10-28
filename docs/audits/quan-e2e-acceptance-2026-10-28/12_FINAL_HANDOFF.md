@@ -8,12 +8,12 @@
 
 | Thành phần | Giá trị |
 |---|---|
-| Worktree QA | `D:\PROJECT\cnpm-project\AloUTE-qoder-acceptance` |
+| Worktree QA | `<QA worktree>` |
 | Branch QA | `test/quan-e2e-acceptance` |
 | Base commit | `74c8a6f71be9e08d5fec0177fec2e86eb6daa6e9` |
 | Commit bàn giao | `1cae6eb` — `test(qa): add independent E2E acceptance suite and UI hardening` |
 | Commit tài liệu cuối | commit kế tiếp trên cùng branch (xem `git log`) — handoff, sửa test/a11y, demo ngắn, BL-22 handoff, PR plan và bằng chứng verification |
-| ZCode tham chiếu | branch `fix/release-integration-20261028`, HEAD `e12b21be5b28822c9129436f15fc6604d93fa973`; worktree `AloUTE-zc-release` **không bị sửa** |
+| integration tham chiếu | branch `fix/release-integration-20261028`, HEAD `e12b21be5b28822c9129436f15fc6604d93fa973`; worktree `<integration worktree>` **không bị sửa** |
 | Upstream tham chiếu | `AloUTE` — branch `fix/quan-frontend-hardening-20261027`, cùng base `74c8a6f` |
 
 Không push, không merge, không deploy, không tạo tag.
@@ -59,18 +59,18 @@ Kết luận: **frontend PASS WITH LIMITATIONS**, demo **READY WITH LIMITATIONS*
 
 Hai run trung gian `final-handoff-20261028` có flake test SOC-P11/SOC-P13 (chờ response like/bookmark chưa đủ); đã sửa test chờ response và rerun social, sau đó chạy lại full. `final-verification` là bằng chứng cuối, không dùng run flake.
 
-## 4. Xác minh tích hợp với ZCode HEAD
+## 4. Xác minh tích hợp với integration HEAD
 
-### 4.1 Phương pháp (không đụng ZCode)
+### 4.1 Phương pháp (không đụng integration)
 
-1. Tạo worktree tạm **detached** tại `e12b21b` — không checkout, không sửa branch/worktree ZCode.
+1. Tạo worktree tạm **detached** tại `e12b21b` — không checkout, không sửa branch/worktree integration.
 2. Áp đúng patch frontend QA: `git diff 74c8a6f 1cae6eb -- src/main/resources` → **23 tệp, áp sạch, 0 xung đột**. Hai bên không có tệp nào trùng.
 3. Build `mvn -q -DskipTests -DskipITs package`; chạy jar profile `dev`, cổng `8083`, H2 in-memory.
 4. Seed bằng `node tools/demo-data.mjs http://127.0.0.1:8083` (18 OK, 0 failed).
 5. Chạy toàn bộ 6 suite với `BASE_URL=http://127.0.0.1:8083`; đối chiếu từng case với baseline hợp nhất.
 6. Dọn worktree tạm, dừng server, xóa biến môi trường tạm.
 
-Delta ZCode so với base: **63 tệp, +2.967 / −326**, gồm các commit `2a1331f`, `0ca3651`, `f0dd572`, merge `ee557f8` và `e12b21b`. Không tệp nào nằm trong 23 tệp QA sửa.
+Delta integration so với base: **63 tệp, +2.967 / −326**, gồm các commit `2a1331f`, `0ca3651`, `f0dd572`, merge `ee557f8` và `e12b21b`. Không tệp nào nằm trong 23 tệp QA sửa.
 
 ### 4.2 Kết quả
 
@@ -85,16 +85,16 @@ Delta ZCode so với base: **63 tệp, +2.967 / −326**, gồm các commit `2a1
 
 Theo suite trên `e12b21b`: auth 24/2/1 · social 33/1/2 · community 20/1/0 · messaging-admin 34/1/0 · cross-a11y 34/1/0 · resilience 10/1/0.
 
-Kết luận tích hợp: **QA frontend tương thích ZCode HEAD, không phát sinh regression trong 165 case**. BL-22 vẫn mở; ZCode chưa sửa 4 case này.
+Kết luận tích hợp: **QA frontend tương thích integration HEAD, không phát sinh regression trong 165 case**. Đây là run lịch sử trên `e12b21b` (trước #88), khi đó BL-22 còn mở. Trạng thái hiện tại: #88 đã merge vào `master` và 4 case BL-22 PASS trên integration `25e7595`.
 
 Bằng chứng: `evidence/integration-e12b21b-results.json`, `evidence/integration-e12b21b-environment.json` (67 ảnh trong `test-results`, không commit).
 
 ### 4.3 Phạm vi tích hợp đã kiểm / chưa kiểm
 
-**Đã kiểm:** toàn bộ 165 case E2E trên mã ZCode `e12b21b` + frontend QA, gồm auth/session/CSRF, feed/post/poll, profile/follow, community, messaging realtime, notification, admin moderation, 404/401/403, mất mạng, accessibility, responsive, 3 engine, hiệu năng local.
+**Đã kiểm:** toàn bộ 165 case E2E trên mã integration `e12b21b` + frontend QA, gồm auth/session/CSRF, feed/post/poll, profile/follow, community, messaging realtime, notification, admin moderation, 404/401/403, mất mạng, accessibility, responsive, 3 engine, hiệu năng local.
 
 **Chưa kiểm (không kết luận):**
-- 2FA enrollment/credential isolation của ZCode — AUTH-26b vẫn NOT RUN (ngoài OpenAPI canonical); mới smoke luồng login thường.
+- 2FA enrollment/credential isolation của integration — AUTH-26b vẫn NOT RUN (ngoài OpenAPI canonical); mới smoke luồng login thường.
 - FCM token ownership và push — thiếu Firebase.
 - Community media ownership (BL-09) — upload BLOCKED.
 - `CustomFeedController` — SOC-P52 NOT RUN (API stub).
@@ -143,9 +143,9 @@ Chạy từng suite: `node run.mjs --suite auth-guest` (xem `04_BROWSER_AUTOMATI
 
 Không có credential, token, OTP hay tin nhắn riêng tư trong tài liệu/ảnh. Tài khoản seed chỉ là local (`@aloute.local`, `@aloute.test`).
 
-## 7. Việc ZCode cần xử lý
+## 7. Việc integration cần xử lý
 
-1. **BL-22 (P1) — đã xử lý trên `25e7595`** (fix #88): 4 case AUTH-15/16, ADM-05, RES-02 PASS trong sign-off. Cần giữ #88 trong stack và rerun 4 case sau mỗi lần rebase; PR #90 (base #85) chưa chứa #88 nên CI E2E trên branch PR vẫn có thể thấy 4 FAIL này.
+1. **BL-22 (P1) — đã xử lý và merge**: #88 (`fix/web-page-error-handling`) đã vào `master`; 4 case AUTH-15/16, ADM-05, RES-02 PASS trong sign-off. PR #90 đã được retarget về `master` nên base chứa #88; vẫn nên rerun 4 case sau mỗi lần rebase tương lai.
 2. **Firebase Storage (P2)** — cấp service account cho môi trường demo để mở khóa upload.
 3. **Private community (P2)** — chốt đặc tả + endpoint join.
 4. **2FA/custom feed (P3)** — bổ sung contract và test nếu release cần.
@@ -161,7 +161,7 @@ Không có credential, token, OTP hay tin nhắn riêng tư trong tài liệu/�
 ## 9. Xác nhận tuân thủ
 
 - Không sửa backend, security, migration, DTO, repository, cấu hình production.
-- Không đụng worktree/branch ZCode; xác minh ZCode vẫn `e12b21b`, working tree sạch sau kiểm thử.
+- Không đụng worktree/branch integration; xác minh integration vẫn `e12b21b`, working tree sạch sau kiểm thử.
 - Không dùng tài khoản production, không seed lên website live.
 - Không commit credential/session/token/artifact; `test-results/` để ngoài git.
 - Thời điểm handoff ban đầu: chỉ local commit trên `test/quan-e2e-acceptance`, không push/merge/deploy.
