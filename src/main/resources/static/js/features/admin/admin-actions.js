@@ -123,6 +123,64 @@
         }
     }
 
+    // Stable role/account-management error codes from the canonical admin contract.
+    // Keep this explicit so 409 states are actionable instead of a generic conflict.
+    function extractAccountActionError(json, status) {
+        const code = json && json.error && json.error.code;
+        const messages = {
+            USER_SELF_WARN_NOT_ALLOWED: 'Bạn không thể tự gửi cảnh báo cho tài khoản của chính mình.',
+            USER_PROFILE_RESET_CONFIRMATION_MISMATCH: 'Tên đăng nhập xác nhận không khớp với tài khoản cần đặt lại.',
+            USER_SELF_ROLE_CHANGE_NOT_ALLOWED: 'Bạn không thể tự thay đổi vai trò hệ thống của chính mình.',
+            USER_ROLE_CHANGE_REQUIRES_ACTIVE: 'Tài khoản đang bị đình chỉ. Vui lòng kích hoạt lại trước khi đổi vai trò.',
+            USER_ROLE_UNCHANGED: 'Tài khoản đã có vai trò hệ thống này. Vui lòng chọn vai trò khác.',
+            USER_LAST_ADMIN_PROTECTED: 'Không thể hạ quyền quản trị viên hệ thống đang hoạt động cuối cùng.',
+            USER_ALREADY_SUSPENDED: 'Tài khoản đã bị đình chỉ trước đó.',
+            USER_ALREADY_ACTIVE: 'Tài khoản đang hoạt động bình thường.',
+            BAD_REQUEST: 'Yêu cầu không hợp lệ. Vui lòng kiểm tra lại vai trò và lý do.'
+        };
+        if (code && messages[code]) {
+            return messages[code];
+        }
+        if (status === 401) {
+            return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+        }
+        if (status === 403) {
+            return 'Bạn không có quyền thực hiện thao tác này (yêu cầu SYSTEM_ADMIN).';
+        }
+        if (status === 404) {
+            return 'Không tìm thấy tài khoản hoặc endpoint quản trị.';
+        }
+        if (status === 422) {
+            return 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại lý do và các trường bắt buộc.';
+        }
+        return extractErrorMessage(json, status);
+    }
+
+    function setFeedback(el, message) {
+        if (!el) return;
+        if (message) {
+            el.textContent = message;
+            el.classList.remove('d-none');
+        } else {
+            el.textContent = '';
+            el.classList.add('d-none');
+        }
+    }
+
+    function setButtonBusy(btn, busy, busyText) {
+        if (!btn) return;
+        btn.disabled = busy;
+        if (busy) {
+            if (!btn.getAttribute('data-label')) {
+                btn.setAttribute('data-label', btn.innerHTML);
+            }
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>' + busyText;
+        } else {
+            const label = btn.getAttribute('data-label');
+            if (label) btn.innerHTML = label;
+        }
+    }
+
     // Post Moderation: Remove
     function initPostRemoveModal() {
         const modal = document.getElementById('adminRemovePostModal');
@@ -855,6 +913,298 @@
         });
     }
 
+    // User Moderation: Advisory Warning
+    function initUserWarnModal() {
+        const modal = document.getElementById('adminUserWarnModal');
+        if (!modal) return;
+
+        const form = document.getElementById('adminUserWarnForm');
+        const submitBtn = document.getElementById('btnConfirmUserWarn');
+        const errorAlert = document.getElementById('userWarnErrorAlert');
+        const targetName = document.getElementById('userWarnTargetName');
+        const targetId = document.getElementById('userWarnTargetId');
+        const reasonCode = document.getElementById('userWarnReasonCode');
+        const reasonDetail = document.getElementById('userWarnReasonDetail');
+        const reasonCounter = document.getElementById('userWarnReasonCounter');
+        let target = null;
+        let inFlight = false;
+
+        function open(btn) {
+            target = {
+                id: btn.getAttribute('data-user-id'),
+                name: btn.getAttribute('data-user-name') || ''
+            };
+            if (form) form.reset();
+            setFeedback(errorAlert, '');
+            if (targetName) targetName.textContent = target.name;
+            if (targetId) targetId.textContent = target.id ? '# ' + target.id : '';
+            if (reasonCounter) reasonCounter.textContent = '0 / 1000 (Tối thiểu 10 ký tự)';
+            if (window.bootstrap && window.bootstrap.Modal) {
+                if (typeof modal.addEventListener === 'function') {
+                    modal.addEventListener('shown.bs.modal', function focusWarnReason() {
+                        if (reasonCode && typeof reasonCode.focus === 'function') reasonCode.focus();
+                    }, { once: true });
+                }
+                window.bootstrap.Modal.getOrCreateInstance(modal).show();
+            }
+            if (reasonCode && typeof reasonCode.focus === 'function') {
+                setTimeout(function () { reasonCode.focus(); }, 150);
+            }
+        }
+
+        document.querySelectorAll('[data-action="open-user-warn"]').forEach(function (btn) {
+            btn.addEventListener('click', function () { open(btn); });
+        });
+
+        if (!form) return;
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            if (inFlight || !target) return;
+
+            const code = reasonCode ? reasonCode.value : '';
+            const detail = reasonDetail ? reasonDetail.value.trim() : '';
+            if (!code) {
+                setFeedback(errorAlert, 'Vui lòng chọn danh mục lý do.');
+                return;
+            }
+            if (detail.length < 10 || detail.length > 1000) {
+                setFeedback(errorAlert, 'Chi tiết lý do bắt buộc từ 10 đến 1000 ký tự.');
+                return;
+            }
+
+            inFlight = true;
+            setFeedback(errorAlert, '');
+            setButtonBusy(submitBtn, true, ' Đang gửi...');
+            try {
+                const response = await window.alouteHttp.request('/api/admin/users/' + encodeURIComponent(target.id) + '/warn', {
+                    method: 'POST',
+                    body: { reasonCode: code, reasonDetail: detail }
+                });
+                const json = await window.alouteHttp.readJson(response);
+                if (response.ok && json && json.success) {
+                    showToast('Đã gửi cảnh báo và thông báo tới tài khoản ' + target.name + '.', 'success');
+                    setTimeout(function () { window.location.reload(); }, 600);
+                    return;
+                }
+                setFeedback(errorAlert, extractAccountActionError(json, response.status));
+                if (window.bootstrap && window.bootstrap.Modal) {
+                    window.bootstrap.Modal.getOrCreateInstance(modal).show();
+                }
+            } catch (err) {
+                setFeedback(errorAlert, 'Lỗi kết nối mạng: không thể gửi cảnh báo. Vui lòng thử lại.');
+            } finally {
+                inFlight = false;
+                setButtonBusy(submitBtn, false, '');
+            }
+        });
+    }
+
+    // User Moderation: Confirmed Profile Reset
+    function initUserResetProfileModal() {
+        const modal = document.getElementById('adminUserResetProfileModal');
+        if (!modal) return;
+
+        const form = document.getElementById('adminUserResetProfileForm');
+        const submitBtn = document.getElementById('btnConfirmUserReset');
+        const errorAlert = document.getElementById('userResetErrorAlert');
+        const targetName = document.getElementById('userResetTargetName');
+        const targetId = document.getElementById('userResetTargetId');
+        const expectedUsernameEl = document.getElementById('userResetExpectedUsername');
+        const confirmInput = document.getElementById('userResetConfirmUsername');
+        const confirmHint = document.getElementById('userResetConfirmHint');
+        const reasonCode = document.getElementById('userResetReasonCode');
+        const reasonDetail = document.getElementById('userResetReasonDetail');
+        const reasonCounter = document.getElementById('userResetReasonCounter');
+        let target = null;
+        let inFlight = false;
+
+        function matchesUsername() {
+            return !!target && !!confirmInput && confirmInput.value.trim() === target.username;
+        }
+
+        function syncConfirmState() {
+            const matches = matchesUsername();
+            if (submitBtn) submitBtn.disabled = !matches || inFlight;
+            if (confirmInput) confirmInput.classList.toggle('is-invalid', confirmInput.value.length > 0 && !matches);
+            if (confirmHint) {
+                confirmHint.classList.toggle('text-success', matches);
+                confirmHint.classList.toggle('text-danger', confirmInput.value.length > 0 && !matches);
+            }
+        }
+
+        function open(btn) {
+            target = {
+                id: btn.getAttribute('data-user-id'),
+                username: btn.getAttribute('data-user-username') || '',
+                name: btn.getAttribute('data-user-name') || ''
+            };
+            if (form) form.reset();
+            setFeedback(errorAlert, '');
+            if (targetName) targetName.textContent = target.name;
+            if (targetId) targetId.textContent = target.id ? '# ' + target.id : '';
+            if (expectedUsernameEl) expectedUsernameEl.textContent = target.username || '--';
+            if (reasonCounter) reasonCounter.textContent = '0 / 1000 (Tối thiểu 10 ký tự)';
+            syncConfirmState();
+            if (window.bootstrap && window.bootstrap.Modal) {
+                if (typeof modal.addEventListener === 'function') {
+                    modal.addEventListener('shown.bs.modal', function focusResetConfirm() {
+                        if (confirmInput && typeof confirmInput.focus === 'function') confirmInput.focus();
+                    }, { once: true });
+                }
+                window.bootstrap.Modal.getOrCreateInstance(modal).show();
+            }
+            if (confirmInput && typeof confirmInput.focus === 'function') setTimeout(function () { confirmInput.focus(); }, 150);
+        }
+
+        document.querySelectorAll('[data-action="open-user-reset"]').forEach(function (btn) {
+            btn.addEventListener('click', function () { open(btn); });
+        });
+
+        if (confirmInput) {
+            confirmInput.addEventListener('input', syncConfirmState);
+        }
+
+        if (!form) return;
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            if (inFlight || !target) return;
+            if (!matchesUsername()) {
+                setFeedback(errorAlert, 'Tên đăng nhập xác nhận không khớp với tài khoản cần đặt lại.');
+                if (confirmInput && typeof confirmInput.focus === 'function') confirmInput.focus();
+                return;
+            }
+            const code = reasonCode ? reasonCode.value : '';
+            const detail = reasonDetail ? reasonDetail.value.trim() : '';
+            if (!code) {
+                setFeedback(errorAlert, 'Vui lòng chọn danh mục lý do.');
+                return;
+            }
+            if (detail.length < 10 || detail.length > 1000) {
+                setFeedback(errorAlert, 'Chi tiết lý do bắt buộc từ 10 đến 1000 ký tự.');
+                return;
+            }
+
+            inFlight = true;
+            setFeedback(errorAlert, '');
+            setButtonBusy(submitBtn, true, ' Đang đặt lại...');
+            try {
+                const response = await window.alouteHttp.request('/api/admin/users/' + encodeURIComponent(target.id) + '/reset-profile', {
+                    method: 'POST',
+                    body: { reasonCode: code, reasonDetail: detail, confirmUsername: target.username }
+                });
+                const json = await window.alouteHttp.readJson(response);
+                if (response.ok && json && json.success) {
+                    showToast('Đã đặt lại hồ sơ của tài khoản ' + target.name + '.', 'success');
+                    setTimeout(function () { window.location.reload(); }, 600);
+                    return;
+                }
+                setFeedback(errorAlert, extractAccountActionError(json, response.status));
+            } catch (err) {
+                setFeedback(errorAlert, 'Lỗi kết nối mạng: không thể đặt lại hồ sơ. Vui lòng thử lại.');
+            } finally {
+                inFlight = false;
+                if (submitBtn) submitBtn.disabled = !matchesUsername();
+                setButtonBusy(submitBtn, false, '');
+                if (submitBtn) submitBtn.disabled = !matchesUsername();
+            }
+        });
+    }
+
+    // User Moderation: Global Role Change
+    function initUserRoleModal() {
+        const modal = document.getElementById('adminUserRoleModal');
+        if (!modal) return;
+
+        const form = document.getElementById('adminUserRoleForm');
+        const submitBtn = document.getElementById('btnConfirmUserRole');
+        const errorAlert = document.getElementById('userRoleErrorAlert');
+        const targetName = document.getElementById('userRoleTargetName');
+        const targetId = document.getElementById('userRoleTargetId');
+        const currentRoleEl = document.getElementById('userRoleCurrentRole');
+        const newRole = document.getElementById('userRoleNewRole');
+        const reasonCode = document.getElementById('userRoleReasonCode');
+        const reasonDetail = document.getElementById('userRoleReasonDetail');
+        const reasonCounter = document.getElementById('userRoleReasonCounter');
+        let target = null;
+        let inFlight = false;
+
+        function roleLabel(role) {
+            if (role === 'SYSTEM_ADMIN') return 'Quản trị viên hệ thống (SYSTEM_ADMIN)';
+            if (role === 'USER') return 'Người dùng (USER)';
+            return role || '--';
+        }
+
+        function open(btn) {
+            target = {
+                id: btn.getAttribute('data-user-id'),
+                name: btn.getAttribute('data-user-name') || '',
+                currentRole: btn.getAttribute('data-current-role') || ''
+            };
+            if (form) form.reset();
+            setFeedback(errorAlert, '');
+            if (targetName) targetName.textContent = target.name;
+            if (targetId) targetId.textContent = target.id ? '# ' + target.id : '';
+            if (currentRoleEl) currentRoleEl.textContent = roleLabel(target.currentRole);
+            if (reasonCounter) reasonCounter.textContent = '0 / 1000 (Tối thiểu 10 ký tự)';
+            if (window.bootstrap && window.bootstrap.Modal) {
+                if (typeof modal.addEventListener === 'function') {
+                    modal.addEventListener('shown.bs.modal', function focusNewRole() {
+                        if (newRole && typeof newRole.focus === 'function') newRole.focus();
+                    }, { once: true });
+                }
+                window.bootstrap.Modal.getOrCreateInstance(modal).show();
+            }
+            if (newRole && typeof newRole.focus === 'function') setTimeout(function () { newRole.focus(); }, 150);
+        }
+
+        document.querySelectorAll('[data-action="open-user-role"]').forEach(function (btn) {
+            btn.addEventListener('click', function () { open(btn); });
+        });
+
+        if (!form) return;
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            if (inFlight || !target) return;
+            const selectedRole = newRole ? newRole.value : '';
+            if (!selectedRole || (selectedRole !== 'USER' && selectedRole !== 'SYSTEM_ADMIN')) {
+                setFeedback(errorAlert, 'Vui lòng chọn vai trò USER hoặc SYSTEM_ADMIN.');
+                return;
+            }
+            const code = reasonCode ? reasonCode.value : '';
+            const detail = reasonDetail ? reasonDetail.value.trim() : '';
+            if (!code) {
+                setFeedback(errorAlert, 'Vui lòng chọn danh mục lý do.');
+                return;
+            }
+            if (detail.length < 10 || detail.length > 1000) {
+                setFeedback(errorAlert, 'Chi tiết lý do bắt buộc từ 10 đến 1000 ký tự.');
+                return;
+            }
+
+            inFlight = true;
+            setFeedback(errorAlert, '');
+            setButtonBusy(submitBtn, true, ' Đang cập nhật...');
+            try {
+                const response = await window.alouteHttp.request('/api/admin/users/' + encodeURIComponent(target.id) + '/role', {
+                    method: 'POST',
+                    body: { newRole: selectedRole, reasonCode: code, reasonDetail: detail }
+                });
+                const json = await window.alouteHttp.readJson(response);
+                if (response.ok && json && json.success) {
+                    showToast('Đã đổi vai trò hệ thống của ' + target.name + ' thành ' + roleLabel(selectedRole) + '.', 'success');
+                    setTimeout(function () { window.location.reload(); }, 600);
+                    return;
+                }
+                setFeedback(errorAlert, extractAccountActionError(json, response.status));
+            } catch (err) {
+                setFeedback(errorAlert, 'Lỗi kết nối mạng: không thể đổi vai trò hệ thống. Vui lòng thử lại.');
+            } finally {
+                inFlight = false;
+                setButtonBusy(submitBtn, false, '');
+            }
+        });
+    }
+
     // Initialize all modules on DOM ready
     function init() {
         formatUtcDates();
@@ -865,6 +1215,9 @@
         initReportDecisionModal();
         initModerationActionDetailModal();
         initUserModerationModal();
+        initUserWarnModal();
+        initUserResetProfileModal();
+        initUserRoleModal();
         initFilterFormReset();
         initLogout();
     }

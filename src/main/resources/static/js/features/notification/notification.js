@@ -170,6 +170,12 @@
 
     function getNotificationTypeMeta(type) {
         const t = (type || '').toUpperCase();
+        if (t.includes('USER_WARN')) {
+            return {
+                iconClass: 'bi-shield-exclamation text-warning',
+                actionText: 'đã gửi cảnh báo chính thức từ ban quản trị'
+            };
+        }
         if (t.includes('LIKE')) {
             return {
                 iconClass: 'bi-heart-fill text-danger',

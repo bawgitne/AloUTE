@@ -553,3 +553,25 @@
   --bs-btn-active-bg: #ffc107;
   --bs-btn-active-border-color: #ffc107;
 }
+
+/* Account-management toolbar: full-width touch targets on small screens */
+.admin-back-link {
+  width: auto;
+}
+
+@media (max-width: 575.98px) {
+  .admin-back-link {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .admin-user-actions > .btn {
+    flex: 1 1 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+}
+
+.admin-user-actions > .btn {
+  min-height: 38px;
+}

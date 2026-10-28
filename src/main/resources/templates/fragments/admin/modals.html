@@ -389,6 +389,231 @@
         </div>
     </div>
 
+    <!-- 6. User Moderation: Advisory Warning -->
+    <div class="modal fade" id="adminUserWarnModal" tabindex="-1" aria-labelledby="adminUserWarnModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <form id="adminUserWarnForm" novalidate>
+                    <div class="modal-header admin-modal-header">
+                        <h5 class="modal-title admin-modal-title d-flex align-items-center gap-2" id="adminUserWarnModalLabel">
+                            <i class="bi bi-exclamation-triangle text-warning" aria-hidden="true"></i>
+                            <span>Cảnh báo tài khoản</span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                    </div>
+                    <div class="modal-body admin-modal-body">
+                        <div class="p-2 mb-3 rounded bg-light border">
+                            <span class="text-muted small">Tài khoản:</span>
+                            <strong id="userWarnTargetName" class="ms-1">--</strong>
+                            <span id="userWarnTargetId" class="text-muted small ms-1"></span>
+                        </div>
+
+                        <div id="userWarnErrorAlert" class="alert alert-danger d-none py-2 px-3 small" role="alert" aria-live="assertive"></div>
+
+                        <p class="small text-secondary">
+                            Cảnh báo chỉ mang tính nhắc nhở. Tài khoản không bị khóa, không mất quyền và vẫn tiếp tục hoạt động bình thường.
+                            Hệ thống sẽ gửi một thông báo cảnh báo tới chính tài khoản này.
+                        </p>
+
+                        <div class="mb-3">
+                            <label for="userWarnReasonCode" class="form-label small fw-semibold">
+                                Danh mục lý do <span class="text-danger">*</span>
+                            </label>
+                            <select id="userWarnReasonCode" name="reasonCode" class="form-select form-select-sm" required>
+                                <option value="" disabled selected>-- Chọn danh mục lý do --</option>
+                                <option value="SPAM">SPAM — Spam, quảng cáo trái phép</option>
+                                <option value="HARASSMENT">HARASSMENT — Quấy rối, công kích cá nhân</option>
+                                <option value="HATE">HATE — Phát ngôn thù ghét, kỳ thị</option>
+                                <option value="MISINFORMATION">MISINFORMATION — Thông tin sai lệch, lừa đảo</option>
+                                <option value="VIOLENCE">VIOLENCE — Đe dọa, kích động bạo lực</option>
+                                <option value="OTHER">OTHER — Lý do khác</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-2">
+                            <label for="userWarnReasonDetail" class="form-label small fw-semibold">
+                                Chi tiết lý do <span class="text-danger">*</span>
+                            </label>
+                            <textarea id="userWarnReasonDetail" name="reasonDetail" class="form-control form-control-sm"
+                                      rows="3" minlength="10" maxlength="1000"
+                                      data-char-counter="userWarnReasonCounter" data-min-len="10"
+                                      placeholder="Mô tả cụ thể nội dung cần cảnh báo (từ 10 đến 1000 ký tự)..."
+                                      aria-describedby="userWarnReasonCounter" required></textarea>
+                            <div id="userWarnReasonCounter" class="char-counter">0 / 1000 (Tối thiểu 10 ký tự)</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer admin-modal-footer">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Hủy bỏ</button>
+                        <button type="submit" id="btnConfirmUserWarn" class="btn btn-sm btn-warning d-flex align-items-center gap-1">
+                            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                            <span>Gửi cảnh báo</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. User Moderation: Confirmed Profile Reset -->
+    <div class="modal fade" id="adminUserResetProfileModal" tabindex="-1" aria-labelledby="adminUserResetProfileModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <form id="adminUserResetProfileForm" novalidate>
+                    <div class="modal-header admin-modal-header">
+                        <h5 class="modal-title admin-modal-title d-flex align-items-center gap-2" id="adminUserResetProfileModalLabel">
+                            <i class="bi bi-person-lines-fill text-danger" aria-hidden="true"></i>
+                            <span>Đặt lại hồ sơ</span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                    </div>
+                    <div class="modal-body admin-modal-body">
+                        <div class="p-2 mb-3 rounded bg-light border">
+                            <span class="text-muted small">Tài khoản:</span>
+                            <strong id="userResetTargetName" class="ms-1">--</strong>
+                            <span id="userResetTargetId" class="text-muted small ms-1"></span>
+                        </div>
+
+                        <div class="alert alert-danger small" role="alert">
+                            <div class="fw-semibold mb-1">
+                                <i class="bi bi-exclamation-octagon-fill me-1" aria-hidden="true"></i>
+                                Thao tác này làm mất dữ liệu hiển thị và không thể hoàn tác.
+                            </div>
+                            <div>Các trường sẽ bị xóa: tên hiển thị, tiểu sử, website, ảnh đại diện và ảnh bìa.</div>
+                            <div>Email, mật khẩu, vai trò, trạng thái, phiên đăng nhập, bài viết và lịch sử kiểm duyệt được giữ nguyên.</div>
+                        </div>
+
+                        <div id="userResetErrorAlert" class="alert alert-danger d-none py-2 px-3 small" role="alert" aria-live="assertive"></div>
+
+                        <div class="mb-3">
+                            <label for="userResetConfirmUsername" class="form-label small fw-semibold">
+                                Nhập chính xác tên đăng nhập để xác nhận <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" id="userResetConfirmUsername" name="confirmUsername"
+                                   class="form-control form-control-sm font-monospace" autocomplete="off"
+                                   maxlength="50" aria-describedby="userResetConfirmHint"
+                                   placeholder="Nhập username của tài khoản cần đặt lại" required>
+                            <div id="userResetConfirmHint" class="form-text" aria-live="polite">
+                                Nhập đúng username <span id="userResetExpectedUsername" class="fw-semibold">--</span> để bật nút xác nhận.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="userResetReasonCode" class="form-label small fw-semibold">
+                                Danh mục lý do <span class="text-danger">*</span>
+                            </label>
+                            <select id="userResetReasonCode" name="reasonCode" class="form-select form-select-sm" required>
+                                <option value="" disabled selected>-- Chọn danh mục lý do --</option>
+                                <option value="SPAM">SPAM — Spam, quảng cáo trái phép</option>
+                                <option value="HARASSMENT">HARASSMENT — Quấy rối, công kích cá nhân</option>
+                                <option value="HATE">HATE — Phát ngôn thù ghét, kỳ thị</option>
+                                <option value="MISINFORMATION">MISINFORMATION — Thông tin sai lệch, lừa đảo</option>
+                                <option value="VIOLENCE">VIOLENCE — Đe dọa, kích động bạo lực</option>
+                                <option value="OTHER">OTHER — Lý do khác</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-2">
+                            <label for="userResetReasonDetail" class="form-label small fw-semibold">
+                                Chi tiết lý do <span class="text-danger">*</span>
+                            </label>
+                            <textarea id="userResetReasonDetail" name="reasonDetail" class="form-control form-control-sm"
+                                      rows="3" minlength="10" maxlength="1000"
+                                      data-char-counter="userResetReasonCounter" data-min-len="10"
+                                      placeholder="Mô tả căn cứ đặt lại hồ sơ (từ 10 đến 1000 ký tự)..."
+                                      aria-describedby="userResetReasonCounter" required></textarea>
+                            <div id="userResetReasonCounter" class="char-counter">0 / 1000 (Tối thiểu 10 ký tự)</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer admin-modal-footer">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Hủy bỏ</button>
+                        <button type="submit" id="btnConfirmUserReset" class="btn btn-sm btn-danger d-flex align-items-center gap-1" disabled>
+                            <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
+                            <span>Đặt lại hồ sơ</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 8. User Moderation: Global Role Change -->
+    <div class="modal fade" id="adminUserRoleModal" tabindex="-1" aria-labelledby="adminUserRoleModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <form id="adminUserRoleForm" novalidate>
+                    <div class="modal-header admin-modal-header">
+                        <h5 class="modal-title admin-modal-title d-flex align-items-center gap-2" id="adminUserRoleModalLabel">
+                            <i class="bi bi-shield-lock text-primary" aria-hidden="true"></i>
+                            <span>Đổi vai trò hệ thống</span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                    </div>
+                    <div class="modal-body admin-modal-body">
+                        <div class="p-2 mb-3 rounded bg-light border">
+                            <span class="text-muted small">Tài khoản:</span>
+                            <strong id="userRoleTargetName" class="ms-1">--</strong>
+                            <span id="userRoleTargetId" class="text-muted small ms-1"></span>
+                        </div>
+
+                        <div id="userRoleErrorAlert" class="alert alert-danger d-none py-2 px-3 small" role="alert" aria-live="assertive"></div>
+
+                        <p class="small text-secondary">
+                            Vai trò hiện tại:
+                            <span id="userRoleCurrentRole" class="badge bg-secondary-subtle text-secondary-emphasis border">--</span>.
+                            Chỉ đổi vai trò toàn hệ thống; vai trò trong cộng đồng không bị ảnh hưởng.
+                            Sau khi đổi, mọi phiên đăng nhập cũ của tài khoản này sẽ bị thu hồi và người dùng phải đăng nhập lại.
+                        </p>
+
+                        <div class="mb-3">
+                            <label for="userRoleNewRole" class="form-label small fw-semibold">
+                                Vai trò mới <span class="text-danger">*</span>
+                            </label>
+                            <select id="userRoleNewRole" name="newRole" class="form-select form-select-sm" required>
+                                <option value="" disabled selected>-- Chọn vai trò hệ thống --</option>
+                                <option value="USER">USER — Người dùng</option>
+                                <option value="SYSTEM_ADMIN">SYSTEM_ADMIN — Quản trị viên hệ thống</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="userRoleReasonCode" class="form-label small fw-semibold">
+                                Danh mục lý do <span class="text-danger">*</span>
+                            </label>
+                            <select id="userRoleReasonCode" name="reasonCode" class="form-select form-select-sm" required>
+                                <option value="" disabled selected>-- Chọn danh mục lý do --</option>
+                                <option value="SPAM">SPAM — Spam, quảng cáo trái phép</option>
+                                <option value="HARASSMENT">HARASSMENT — Quấy rối, công kích cá nhân</option>
+                                <option value="HATE">HATE — Phát ngôn thù ghét, kỳ thị</option>
+                                <option value="MISINFORMATION">MISINFORMATION — Thông tin sai lệch, lừa đảo</option>
+                                <option value="VIOLENCE">VIOLENCE — Đe dọa, kích động bạo lực</option>
+                                <option value="OTHER">OTHER — Lý do khác</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-2">
+                            <label for="userRoleReasonDetail" class="form-label small fw-semibold">
+                                Chi tiết lý do <span class="text-danger">*</span>
+                            </label>
+                            <textarea id="userRoleReasonDetail" name="reasonDetail" class="form-control form-control-sm"
+                                      rows="3" minlength="10" maxlength="1000"
+                                      data-char-counter="userRoleReasonCounter" data-min-len="10"
+                                      placeholder="Mô tả căn cứ thay đổi vai trò (từ 10 đến 1000 ký tự)..."
+                                      aria-describedby="userRoleReasonCounter" required></textarea>
+                            <div id="userRoleReasonCounter" class="char-counter">0 / 1000 (Tối thiểu 10 ký tự)</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer admin-modal-footer">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Hủy bỏ</button>
+                        <button type="submit" id="btnConfirmUserRole" class="btn btn-sm btn-primary d-flex align-items-center gap-1">
+                            <i class="bi bi-shield-check" aria-hidden="true"></i>
+                            <span>Xác nhận đổi vai trò</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
 </div>
 </body>
 </html>
