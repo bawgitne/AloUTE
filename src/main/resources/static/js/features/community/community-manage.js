@@ -33,6 +33,9 @@
         'POST_MODERATION_STATE_INVALID': 'Bài viết đã được quản trị viên khác xử lý.',
         'POST_ALREADY_DELETED': 'Bài viết đã bị xóa trước đó.',
         'VALIDATION_FAILED': 'Dữ liệu không hợp lệ, vui lòng kiểm tra lại.',
+        'AUTH_UNAUTHENTICATED': 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+        'AUTH_TOKEN_EXPIRED': 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+        'AUTH_FORBIDDEN': 'Bạn không có quyền thực hiện thao tác này.',
         'FORBIDDEN': 'Bạn không có quyền thực hiện thao tác này.'
     };
 

@@ -1020,8 +1020,9 @@
             const bs = (typeof window !== 'undefined' && window.bootstrap) || (typeof bootstrap !== 'undefined' ? bootstrap : null);
             if (modalEl && bs && bs.Modal) {
                 event.preventDefault();
-                const commId = target.getAttribute('data-community-id') ||
-                               (document.querySelector('[data-community-id]') ? document.querySelector('[data-community-id]').getAttribute('data-community-id') : null);
+                // Community context must come from the invoking control only. A page-wide
+                // lookup would leak a community id from unrelated post-card actions on feeds.
+                const commId = target.getAttribute('data-community-id');
                 const commInput = document.getElementById('post-community-id');
                 if (commInput) {
                     commInput.value = (commId && /^\d+$/.test(commId)) ? commId : '';

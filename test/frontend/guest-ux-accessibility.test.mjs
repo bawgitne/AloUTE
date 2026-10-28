@@ -160,11 +160,16 @@ describe('BL-21 guest interaction surfaces are gated in presentation', () => {
     it('write actions on public topic and community pages are authenticated-only', () => {
         // /topics/** is a public whitelist route and TopicPageController leaves
         // currentUser null for guests, so both entries must be presentation-gated.
-        const createLinks = topicDetail.match(/<a[^>]*data-action="navigate-create-post"[^>]*>/g) || [];
+        // Topic entries navigate to the server-rendered composer with ?topicId=
+        // so the modal cannot drop the context; they therefore must not carry
+        // the global navigate-create-post action.
+        const createLinks = topicDetail.match(/<a[^>]*th:href="@\{[^"]*topicId[^"]*"[^>]*>/g) || [];
         assert.equal(createLinks.length, 2, 'topic detail must keep exactly two create-post entries');
         for (const link of createLinks) {
             assert.match(link, /th:if="\$\{currentUser != null\}"/, 'create-post action must require currentUser');
             assert.match(link, /aloute-auth-cta/, 'create-post action must keep the 44px CTA class');
+            assert.doesNotMatch(link, /data-action="navigate-create-post"/,
+                'topic entries must navigate to the prefilled composer instead of opening the modal');
         }
         assert.match(topicDetail, /currentUser == null[^>]*href="\/login"[^>]*aloute-auth-cta/,
             'guests must get a 44px login CTA in the empty state');
