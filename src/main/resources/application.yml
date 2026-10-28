@@ -2,7 +2,7 @@ spring:
   application:
     name: aloute
   profiles:
-    active: dev
+    active: prod
   servlet:
     multipart:
       max-file-size: 35MB
