@@ -180,8 +180,7 @@ public class CommunityServiceImpl implements CommunityService {
         CommunityMember newMember = new CommunityMember(community, user, CommunityRole.MEMBER);
         CommunityMember savedMember = memberRepository.save(newMember);
 
-        community.setMemberCount(community.getMemberCount() + 1);
-        communityRepository.save(community);
+        communityRepository.incrementMemberCount(communityId);
 
         return membership(savedMember);
     }
@@ -219,8 +218,7 @@ public class CommunityServiceImpl implements CommunityService {
         }
 
         memberRepository.delete(member);
-        community.setMemberCount(Math.max(0, community.getMemberCount() - 1));
-        communityRepository.save(community);
+        communityRepository.decrementMemberCount(communityId);
     }
 
     @Override
@@ -279,8 +277,7 @@ public class CommunityServiceImpl implements CommunityService {
         }
 
         memberRepository.delete(targetMember);
-        community.setMemberCount(Math.max(0, community.getMemberCount() - 1));
-        communityRepository.save(community);
+        communityRepository.decrementMemberCount(communityId);
     }
 
     private Community requireCommunity(Long id) {

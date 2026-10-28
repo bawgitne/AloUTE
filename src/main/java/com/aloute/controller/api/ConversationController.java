@@ -10,6 +10,7 @@ import com.aloute.dto.response.MessageResponse;
 import com.aloute.security.currentuser.CurrentUserProvider;
 import com.aloute.service.ConversationService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -47,7 +48,7 @@ public class ConversationController {
 
     @GetMapping("/{conversationId}")
     public ApiResponse<ConversationResponse> getConversation(
-            @PathVariable Long conversationId
+            @PathVariable @Positive Long conversationId
     ) {
         Long currentUserId = currentUserProvider.requireUserId();
         ConversationResponse response = conversationService.getConversation(conversationId, currentUserId);
@@ -56,7 +57,7 @@ public class ConversationController {
 
     @GetMapping("/{conversationId}/messages")
     public ApiResponse<List<MessageResponse>> getMessages(
-            @PathVariable Long conversationId,
+            @PathVariable @Positive Long conversationId,
             @PageableDefault(size = 30) Pageable pageable
     ) {
         Long currentUserId = currentUserProvider.requireUserId();
@@ -66,7 +67,7 @@ public class ConversationController {
 
     @PostMapping("/{conversationId}/messages")
     public ResponseEntity<ApiResponse<MessageResponse>> sendMessage(
-            @PathVariable Long conversationId,
+            @PathVariable @Positive Long conversationId,
             @Valid @RequestBody SendMessageRequest request
     ) {
         Long currentUserId = currentUserProvider.requireUserId();
@@ -75,7 +76,7 @@ public class ConversationController {
     }
 
     @PostMapping("/{conversationId}/read")
-    public ApiResponse<Void> markAsRead(@PathVariable Long conversationId) {
+    public ApiResponse<Void> markAsRead(@PathVariable @Positive Long conversationId) {
         Long currentUserId = currentUserProvider.requireUserId();
         conversationService.markAsRead(conversationId, currentUserId);
         return ApiResponse.success(null);

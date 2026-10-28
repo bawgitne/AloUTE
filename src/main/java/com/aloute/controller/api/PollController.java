@@ -7,6 +7,7 @@ import com.aloute.dto.response.PollResponse;
 import com.aloute.security.currentuser.CurrentUserProvider;
 import com.aloute.service.PollService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -18,7 +19,7 @@ public class PollController {
     private final CurrentUserProvider currentUserProvider;
 
     @GetMapping("/{pollId}")
-    public ApiResponse<PollResponse> getPollById(@PathVariable Long pollId) {
+    public ApiResponse<PollResponse> getPollById(@PathVariable @Positive Long pollId) {
         Long currentUserId = currentUserProvider.getCurrentUserId().orElse(null);
         PollResponse response = pollService.getPollById(pollId, currentUserId);
         return ApiResponse.success(response);
@@ -26,7 +27,7 @@ public class PollController {
 
     @PostMapping({"/{pollId}/votes", "/{pollId}/vote"})
     public ApiResponse<PollResponse> votePoll(
-            @PathVariable Long pollId,
+            @PathVariable @Positive Long pollId,
             @Valid @RequestBody VotePollRequest request
     ) {
         Long currentUserId = currentUserProvider.requireUserId();

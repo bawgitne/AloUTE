@@ -14,7 +14,6 @@ public interface PostService {
     PostResponse update(Long userId, Long postId, UpdatePostRequest request);
     void delete(Long userId, Long postId);
     ApiResponse<List<PostResponse>> replies(Long postId, int page, int size, Long viewerId);
-    ApiResponse<List<PostResponse>> quotes(Long postId, int page, int size, Long viewerId);
     ApiResponse<List<PostResponse>> communityPosts(Long communityId, int page, int size, Long viewerId);
     ApiResponse<List<PostResponse>> topicPosts(Long topicId, int page, int size, Long viewerId);
     ApiResponse<List<PostResponse>> userPosts(Long userId, int page, int size, Long viewerId);

@@ -287,8 +287,7 @@ public class PostServiceImpl implements PostService {
         }
 
         if (community != null) {
-            community.setPostCount(community.getPostCount() + 1);
-            communityRepository.save(community);
+            communityRepository.incrementPostCount(community.getId());
         }
 
         return get(savedPost.getId(), userId);
@@ -367,20 +366,6 @@ public class PostServiceImpl implements PostService {
         );
         List<PostResponse> list = toResponses(repliesPage.getContent(), viewerId);
         return ApiResponse.page(list, PageMeta.from(repliesPage));
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public ApiResponse<List<PostResponse>> quotes(Long postId, int page, int size, Long viewerId) {
-        requireVisiblePost(postId, viewerId);
-        Specification<Post> spec = (root, query, cb) -> cb.equal(root.get("quotedPost").get("id"), postId);
-        spec = spec.and(buildVisibilitySpec(viewerId));
-        Page<Post> quotesPage = postRepository.findAll(
-                spec,
-                PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(Sort.Direction.DESC, "createdAt"))
-        );
-        List<PostResponse> list = toResponses(quotesPage.getContent(), viewerId);
-        return ApiResponse.page(list, PageMeta.from(quotesPage));
     }
 
     @Override

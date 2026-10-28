@@ -288,6 +288,30 @@ class PollEndToEndIntegrationTest {
     }
 
     @Test
+    @DisplayName("a vote payload with more than 10 option IDs is refused before any lookup")
+    void oversizedVotePayloadIsRefused() throws Exception {
+        long postId = createPostWithPoll(pollJson("Q?", List.of("a", "b"), true, null));
+        long pollId = pollIdOf(postId);
+
+        // 11 synthetic ids exceed the VotePollRequest cap (a poll holds at most 10 options),
+        // so the request is rejected by validation without touching option lookup.
+        StringBuilder ids = new StringBuilder();
+        for (long i = 1; i <= 11; i++) {
+            if (i > 1) ids.append(',');
+            ids.append(i);
+        }
+        mockMvc.perform(post("/api/polls/{pollId}/vote", pollId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"optionIds\":[" + ids + "]}")
+                        .with(SecurityMockMvcRequestPostProcessors.authentication(voterAuth))
+                        .with(SecurityMockMvcRequestPostProcessors.csrf()))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+
+        assertThat(pollVoteRepository.countByPollId(pollId)).isZero();
+    }
+
+    @Test
     @DisplayName("single-choice rejects multi-option payloads and options from another poll")
     void singleChoiceAndForeignOptionRules() throws Exception {
         long postId = createPostWithPoll(pollJson("Q?", List.of("a", "b"), false, null));
