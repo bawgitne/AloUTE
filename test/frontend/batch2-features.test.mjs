@@ -2069,9 +2069,9 @@ describe('AloUTE Batch 2 Frontend Features & Regressions', () => {
             assert.equal(navBadge.textContent, '7');
             assert.equal(desktopBadge.textContent, '7');
             assert.equal(mobileBadge.textContent, '7');
-            assert.equal(desktopLink.getAttribute('aria-label'), 'Thông báo (7 chưa đọc)');
-            assert.equal(mobileLink.getAttribute('aria-label'), 'Thông báo (7 chưa đọc)');
-            assert.equal(navLink.getAttribute('aria-label'), 'Thông báo (7 chưa đọc)');
+            assert.equal(desktopLink.getAttribute('aria-label'), 'Thông báo 7 chưa đọc');
+            assert.equal(mobileLink.getAttribute('aria-label'), 'Thông báo 7 chưa đọc');
+            assert.equal(navLink.getAttribute('aria-label'), 'Thông báo 7 chưa đọc');
         });
 
         it('Notification Badges: discards malformed unread counts and preserves last confirmed state', () => {
@@ -2088,7 +2088,7 @@ describe('AloUTE Batch 2 Frontend Features & Regressions', () => {
             env.window.dispatchEvent(new MockCustomEvent('aloute:unread-count-updated', { detail: { unreadCount: 7 } }));
             assert.equal(sideBadge.textContent, '7');
             assert.equal(sideBadge.classList.contains('d-none'), false);
-            assert.equal(sideLink.getAttribute('aria-label'), 'Thông báo (7 chưa đọc)');
+            assert.equal(sideLink.getAttribute('aria-label'), 'Thông báo 7 chưa đọc');
 
             // Pass invalid values: boolean, array, negative, non-numeric string
             for (const badVal of [true, [12], '1e3', -5, null, undefined, NaN]) {
@@ -2096,7 +2096,7 @@ describe('AloUTE Batch 2 Frontend Features & Regressions', () => {
                 // Must NEVER overwrite with fake 0! Retains last confirmed valid state (7)
                 assert.equal(sideBadge.textContent, '7');
                 assert.equal(sideBadge.classList.contains('d-none'), false);
-                assert.equal(sideLink.getAttribute('aria-label'), 'Thông báo (7 chưa đọc)');
+                assert.equal(sideLink.getAttribute('aria-label'), 'Thông báo 7 chưa đọc');
             }
         });
     });

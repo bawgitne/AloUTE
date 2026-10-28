@@ -223,7 +223,7 @@ Sửa BL-22 cần thay đổi backend security/exception handling (entry point t
 
 ### Hiện trạng baseline
 
-- [`right-sidebar.html`](../../src/main/resources/templates/fragments/right-sidebar.html#L53) dùng `--al-text-primary` không được định nghĩa (2 chỗ: dòng 53, 63).
+- `right-sidebar.html` dùng `--al-text-primary` không được định nghĩa (2 chỗ: dòng 53, 63). Fragment này đã được gỡ ngày 2026-10-29 vì không còn template nào include; lịch sử sửa token vẫn tra được trong git.
 - Bootstrap Icons tải từ CDN nhưng không có `integrity`/`crossorigin`.
 - Asset tĩnh cache 12 giờ trên production (audit live); content-hash chưa bật đầy đủ.
 
@@ -231,7 +231,7 @@ Sửa BL-22 cần thay đổi backend security/exception handling (entry point t
 
 | File | Thay đổi |
 | :--- | :--- |
-| [`right-sidebar.html`](../../src/main/resources/templates/fragments/right-sidebar.html#L53) | Đổi sang `var(--aloute-text-primary)` (dòng 53, 63) |
+| `right-sidebar.html` (đã gỡ 2026-10-29) | Đổi sang `var(--aloute-text-primary)` (dòng 53, 63) trước khi fragment được dọn |
 | [`head.html`](../../src/main/resources/templates/fragments/head.html#L22), [`admin.html`](../../src/main/resources/templates/layouts/admin.html#L21) | Pin Bootstrap Icons 1.11.3 với SRI SHA-384 + `crossorigin="anonymous"` ở cả layout public và admin |
 | [`app.css`](../../src/main/resources/static/css/app.css#L2269) | Section mới chỉ dùng token; test chặn hex thô trong section này |
 

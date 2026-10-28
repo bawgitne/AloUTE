@@ -2160,7 +2160,7 @@
             const text = num > 99 ? '99+' : String(num);
             const isHidden = num <= 0;
             const badgeLabel = num <= 0 ? 'Không có thông báo mới' : (num > 99 ? 'Hơn 99 thông báo chưa đọc' : (num + ' thông báo chưa đọc'));
-            const parentAriaLabel = num > 0 ? ('Thông báo (' + text + ' chưa đọc)') : 'Thông báo';
+            const parentAriaLabel = num > 0 ? ('Thông báo ' + text + ' chưa đọc') : 'Thông báo';
 
             const currentBadges = document.querySelectorAll('.sidebar-notification-badge, [data-badge="notification"], #sidebar-notification-badge, .navbar-notification-badge, #navbar-notification-badge');
             currentBadges.forEach(function (badge) {
@@ -2173,6 +2173,7 @@
                 }
                 const parentLink = badge.closest('a, button');
                 if (parentLink) {
+                    badge.setAttribute('aria-hidden', 'true');
                     parentLink.setAttribute('aria-label', parentAriaLabel);
                 }
             });

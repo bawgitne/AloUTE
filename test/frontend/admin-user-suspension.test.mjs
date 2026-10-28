@@ -25,6 +25,7 @@ const read = (rel) => fs.readFileSync(path.resolve(repoRoot, rel), 'utf-8');
 const detailTemplate = read('src/main/resources/templates/admin/users/detail.html');
 const modalsTemplate = read('src/main/resources/templates/fragments/admin/modals.html');
 const adminActionsSource = read('src/main/resources/static/js/features/admin/admin-actions.js');
+const adminCss = read('src/main/resources/static/css/admin/admin.css');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -208,5 +209,212 @@ describe('Admin suspension — action controller', () => {
 
         assert.equal(env.requests.length, 0, 'no request sent for invalid reason');
         assert.ok(!env.byId.get('userModerationErrorAlert').classList.contains('d-none'));
+    });
+});
+
+// ---------------------------------------------------------------- account actions
+const notificationSource = read('src/main/resources/static/js/features/notification/notification.js');
+
+function addAccountTrigger(env, action, userId, name, extra = {}) {
+    const btn = new MockElement('button');
+    btn.setAttribute('data-action', action);
+    btn.setAttribute('data-user-id', String(userId));
+    btn.setAttribute('data-user-name', name || 'User');
+    Object.entries(extra).forEach(([key, value]) => btn.setAttribute('data-' + key, String(value)));
+    env.document.body.appendChild(btn);
+    env.register(btn);
+    return btn;
+}
+
+function buildWarnDom(env) {
+    mk(env, 'div', 'adminUserWarnModal');
+    const form = mk(env, 'form', 'adminUserWarnForm');
+    mk(env, 'button', 'btnConfirmUserWarn');
+    mk(env, 'div', 'userWarnErrorAlert');
+    mk(env, 'span', 'userWarnTargetName');
+    mk(env, 'span', 'userWarnTargetId');
+    mk(env, 'select', 'userWarnReasonCode');
+    mk(env, 'textarea', 'userWarnReasonDetail');
+    mk(env, 'div', 'userWarnReasonCounter');
+    return form;
+}
+
+function buildResetDom(env) {
+    mk(env, 'div', 'adminUserResetProfileModal');
+    const form = mk(env, 'form', 'adminUserResetProfileForm');
+    mk(env, 'button', 'btnConfirmUserReset');
+    mk(env, 'div', 'userResetErrorAlert');
+    mk(env, 'span', 'userResetTargetName');
+    mk(env, 'span', 'userResetTargetId');
+    mk(env, 'span', 'userResetExpectedUsername');
+    mk(env, 'div', 'userResetConfirmHint');
+    mk(env, 'input', 'userResetConfirmUsername');
+    mk(env, 'select', 'userResetReasonCode');
+    mk(env, 'textarea', 'userResetReasonDetail');
+    mk(env, 'div', 'userResetReasonCounter');
+    return form;
+}
+
+function buildRoleDom(env) {
+    mk(env, 'div', 'adminUserRoleModal');
+    const form = mk(env, 'form', 'adminUserRoleForm');
+    mk(env, 'button', 'btnConfirmUserRole');
+    mk(env, 'div', 'userRoleErrorAlert');
+    mk(env, 'span', 'userRoleTargetName');
+    mk(env, 'span', 'userRoleTargetId');
+    mk(env, 'span', 'userRoleCurrentRole');
+    mk(env, 'select', 'userRoleNewRole');
+    mk(env, 'select', 'userRoleReasonCode');
+    mk(env, 'textarea', 'userRoleReasonDetail');
+    mk(env, 'div', 'userRoleReasonCounter');
+    return form;
+}
+
+describe('Admin account actions — templates', () => {
+    it('detail page has an accessible back-to-dashboard link and real warn/reset/role actions', () => {
+        assert.ok(detailTemplate.includes('id="btn-back-admin-dashboard"'), 'back link present');
+        assert.ok(detailTemplate.includes('href="/admin"'), 'back link targets dashboard');
+        assert.ok(detailTemplate.includes('aria-label="Về Admin Dashboard"'), 'back link is labelled');
+        assert.ok(detailTemplate.includes('data-action="open-user-warn"'), 'warn action present');
+        assert.ok(detailTemplate.includes('data-action="open-user-reset"'), 'reset action present');
+        assert.ok(detailTemplate.includes('data-action="open-user-role"'), 'role action present');
+        assert.ok(detailTemplate.includes('data-user-username='), 'reset action carries username');
+        assert.ok(!detailTemplate.includes('Tính năng nâng cao (P2/P3) chưa khả dụng'), 'old non-MVP label removed');
+        assert.ok(!detailTemplate.includes('Chức năng cảnh báo chưa khả dụng'), 'placeholder warn button removed');
+    });
+
+    it('modals expose warning, confirmed reset and role fields', () => {
+        assert.ok(modalsTemplate.includes('id="adminUserWarnModal"'));
+        assert.ok(modalsTemplate.includes('id="userWarnReasonCode"'));
+        assert.ok(modalsTemplate.includes('id="adminUserResetProfileModal"'));
+        assert.ok(modalsTemplate.includes('id="userResetConfirmUsername"'));
+        assert.ok(modalsTemplate.includes('Thao tác này làm mất dữ liệu hiển thị'), 'reset data-loss warning');
+        assert.ok(modalsTemplate.includes('id="adminUserRoleModal"'));
+        assert.ok(modalsTemplate.includes('value="USER"'));
+        assert.ok(modalsTemplate.includes('value="SYSTEM_ADMIN"'));
+    });
+
+    it('notification UI maps the canonical USER_WARN type', () => {
+        assert.ok(notificationSource.includes("t.includes('USER_WARN')"), 'USER_WARN branch present');
+        assert.ok(notificationSource.includes('cảnh báo chính thức'), 'warning phrasing present');
+    });
+});
+
+describe('Admin account actions — controller', () => {
+    it('warns a user via POST /api/admin/users/{id}/warn', async () => {
+        const env = createEnv();
+        const form = buildWarnDom(env);
+        addAccountTrigger(env, 'open-user-warn', 42, 'Target User');
+        vm.runInContext(adminActionsSource, vm.createContext(env.window));
+
+        env.document.querySelectorAll('[data-action="open-user-warn"]')[0].dispatchEvent({ type: 'click' });
+        env.byId.get('userWarnReasonCode').value = 'HARASSMENT';
+        env.byId.get('userWarnReasonDetail').value = 'Quấy rối nhiều thành viên trong cộng đồng.';
+        form.dispatchEvent({ type: 'submit', preventDefault() {} });
+        await sleep(20);
+
+        assert.equal(env.requests.length, 1);
+        assert.equal(env.requests[0].url, '/api/admin/users/42/warn');
+        assert.equal(env.requests[0].opts.method, 'POST');
+        assert.equal(env.requests[0].opts.body.reasonCode, 'HARASSMENT');
+    });
+
+    it('requires the exact username before resetting a profile', async () => {
+        const env = createEnv();
+        const form = buildResetDom(env);
+        addAccountTrigger(env, 'open-user-reset', 7, 'Target', { 'user-username': 'target_user' });
+        vm.runInContext(adminActionsSource, vm.createContext(env.window));
+
+        env.document.querySelectorAll('[data-action="open-user-reset"]')[0].dispatchEvent({ type: 'click' });
+        env.byId.get('userResetConfirmUsername').value = 'wrong_user';
+        env.byId.get('userResetConfirmUsername').dispatchEvent({ type: 'input' });
+        env.byId.get('userResetReasonCode').value = 'OTHER';
+        env.byId.get('userResetReasonDetail').value = 'Đặt lại hồ sơ theo yêu cầu kiểm duyệt.';
+        form.dispatchEvent({ type: 'submit', preventDefault() {} });
+        await sleep(10);
+        assert.equal(env.requests.length, 0, 'mismatched username must not call the API');
+        assert.ok(!env.byId.get('userResetErrorAlert').classList.contains('d-none'));
+
+        env.byId.get('userResetConfirmUsername').value = 'target_user';
+        env.byId.get('userResetConfirmUsername').dispatchEvent({ type: 'input' });
+        form.dispatchEvent({ type: 'submit', preventDefault() {} });
+        await sleep(20);
+        assert.equal(env.requests.length, 1);
+        assert.equal(env.requests[0].url, '/api/admin/users/7/reset-profile');
+        assert.equal(env.requests[0].opts.body.reasonCode, 'OTHER');
+        assert.equal(env.requests[0].opts.body.confirmUsername, 'target_user', 'canonical reset payload includes username confirmation');
+    });
+
+    it('changes only USER/SYSTEM_ADMIN and surfaces 409 role conflicts', async () => {
+        const env = createEnv();
+        const form = buildRoleDom(env);
+        addAccountTrigger(env, 'open-user-role', 9, 'Target', { 'current-role': 'USER' });
+        vm.runInContext(adminActionsSource, vm.createContext(env.window));
+
+        env.document.querySelectorAll('[data-action="open-user-role"]')[0].dispatchEvent({ type: 'click' });
+        const roleSelect = env.byId.get('userRoleNewRole');
+        roleSelect.value = 'SUPERUSER';
+        env.byId.get('userRoleReasonCode').value = 'OTHER';
+        env.byId.get('userRoleReasonDetail').value = 'Thay đổi vai trò theo quyết định quản trị.';
+        form.dispatchEvent({ type: 'submit', preventDefault() {} });
+        await sleep(10);
+        assert.equal(env.requests.length, 0, 'unknown role is blocked client-side');
+
+        env.window.alouteHttp.request = async (url, opts) => {
+            env.requests.push({ url, opts });
+            return { ok: false, status: 409 };
+        };
+        env.window.alouteHttp.readJson = async () => ({ success: false, error: { code: 'USER_ROLE_UNCHANGED' } });
+        roleSelect.value = 'USER';
+        form.dispatchEvent({ type: 'submit', preventDefault() {} });
+        await sleep(20);
+        assert.equal(env.requests.length, 1);
+        assert.equal(env.requests[0].url, '/api/admin/users/9/role');
+        assert.equal(env.requests[0].opts.body.newRole, 'USER');
+        assert.ok(env.byId.get('userRoleErrorAlert').textContent.includes('đã có vai trò'));
+    });
+
+    it('keeps warn/reset/role submits locked while the success refresh is pending', async () => {
+        async function submitTwice(buildDom, triggerAction, prepare) {
+            const env = createEnv();
+            const form = buildDom(env);
+            addAccountTrigger(env, triggerAction.action, 42, 'Target User', triggerAction.extra || {});
+            vm.runInContext(adminActionsSource, vm.createContext(env.window));
+            env.document.querySelectorAll(`[data-action="${triggerAction.action}"]`)[0].dispatchEvent({ type: 'click' });
+            prepare(env);
+            form.dispatchEvent({ type: 'submit', preventDefault() {} });
+            await sleep(20);
+            assert.equal(env.requests.length, 1, `${triggerAction.action} sends one request`);
+            const submitBtn = env.byId.get(triggerAction.button);
+            assert.equal(submitBtn.disabled, true, `${triggerAction.action} button stays disabled after success`);
+            form.dispatchEvent({ type: 'submit', preventDefault() {} });
+            await sleep(20);
+            assert.equal(env.requests.length, 1, `${triggerAction.action} cannot double-submit`);
+        }
+
+        await submitTwice(buildWarnDom, { action: 'open-user-warn', button: 'btnConfirmUserWarn' }, (env) => {
+            env.byId.get('userWarnReasonCode').value = 'HARASSMENT';
+            env.byId.get('userWarnReasonDetail').value = 'Quấy rối nhiều thành viên trong cộng đồng.';
+        });
+        await submitTwice(buildResetDom, { action: 'open-user-reset', button: 'btnConfirmUserReset', extra: { 'user-username': 'target_user' } }, (env) => {
+            env.byId.get('userResetConfirmUsername').value = 'target_user';
+            env.byId.get('userResetConfirmUsername').dispatchEvent({ type: 'input' });
+            env.byId.get('userResetReasonCode').value = 'OTHER';
+            env.byId.get('userResetReasonDetail').value = 'Đặt lại hồ sơ theo yêu cầu kiểm duyệt.';
+        });
+        await submitTwice(buildRoleDom, { action: 'open-user-role', button: 'btnConfirmUserRole', extra: { 'current-role': 'USER' } }, (env) => {
+            env.byId.get('userRoleNewRole').value = 'SYSTEM_ADMIN';
+            env.byId.get('userRoleReasonCode').value = 'OTHER';
+            env.byId.get('userRoleReasonDetail').value = 'Bổ nhiệm theo quyết định quản trị.';
+        });
+    });
+
+    it('keeps 44px admin action targets from being overridden by the base 38px rule', () => {
+        const baseRule = adminCss.indexOf('.admin-user-actions > .btn {');
+        const mobileRule = adminCss.indexOf('min-height: 44px;');
+        const baseMinHeight = adminCss.indexOf('min-height: 38px;');
+        assert.ok(baseRule >= 0 && baseMinHeight >= 0 && mobileRule >= 0, 'admin action sizing rules exist');
+        assert.ok(baseRule < mobileRule, 'base rule must precede the mobile override');
+        assert.ok(baseMinHeight < mobileRule, 'mobile 44px override must come after the base 38px rule');
     });
 });

@@ -21,7 +21,6 @@ const read = rel => fs.readFileSync(path.resolve(repoRoot, rel), 'utf-8');
 
 const navbar = read('src/main/resources/templates/fragments/navbar.html');
 const sidebar = read('src/main/resources/templates/fragments/sidebar.html');
-const rightSidebar = read('src/main/resources/templates/fragments/right-sidebar.html');
 const layout = read('src/main/resources/templates/layouts/default.html');
 const singleLayout = read('src/main/resources/templates/layouts/single.html');
 const feed = read('src/main/resources/templates/feed/index.html');
@@ -250,11 +249,6 @@ describe('BL-17 touch targets', () => {
 });
 
 describe('BL-25 design tokens and asset integrity', () => {
-    it('right sidebar no longer references the undefined --al-text-primary token', () => {
-        assert.ok(!rightSidebar.includes('--al-text-primary'));
-        assert.ok(rightSidebar.includes('var(--aloute-text-primary)'));
-    });
-
     it('Bootstrap Icons stylesheet is pinned with SRI everywhere', () => {
         const templatesDir = path.resolve(repoRoot, 'src/main/resources/templates');
         const files = [];
