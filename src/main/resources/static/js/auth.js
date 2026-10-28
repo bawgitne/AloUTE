@@ -102,6 +102,7 @@
         if (code === 'AUTH_FORBIDDEN') return 'Bạn không có quyền thực hiện thao tác này.';
         if (code === 'AUTH_ACCOUNT_DEACTIVATED') return 'Tài khoản của bạn đang bị vô hiệu hóa. Vui lòng liên hệ ban quản trị để kích hoạt lại.';
         if (code === 'AUTH_TOKEN_EXPIRED') return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+        if (code === 'AUTH_TOO_MANY_ATTEMPTS') return 'Bạn đã đăng nhập sai quá nhiều lần. Vui lòng thử lại sau hoặc đặt lại mật khẩu.';
         if (code === 'USER_NOT_FOUND') return 'Không tìm thấy thông tin người dùng.';
         if (code === 'USER_INACTIVE') return 'Tài khoản người dùng đã bị khóa hoặc chưa kích hoạt.';
         if (code === 'USER_USERNAME_ALREADY_EXISTS') return 'Tên người dùng đã tồn tại.';
@@ -269,6 +270,12 @@
             } else if (response.status === 403) {
                 const msg = translateError(body && body.error, 'Bạn không có quyền thực hiện thao tác này.');
                 statusBox(msg, 'danger');
+            } else if (response.status === 429) {
+                statusBox(translateError(body && body.error, 'Bạn đã đăng nhập sai quá nhiều lần. Vui lòng thử lại sau.'), 'warning');
+                if (passwordInput) {
+                    passwordInput.value = '';
+                    passwordInput.focus();
+                }
             } else if (response.status === 422) {
                 if (body && body.error && body.error.fieldErrors) {
                     for (const [field, msgs] of Object.entries(body.error.fieldErrors)) {
