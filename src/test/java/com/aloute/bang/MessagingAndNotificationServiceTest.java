@@ -37,6 +37,7 @@ class MessagingAndNotificationServiceTest {
     @Mock private MessageRepository messageRepository;
     @Mock private UserRepository userRepository;
     @Mock private ProfileRepository profileRepository;
+    @Mock private com.aloute.repository.BlockRepository blockRepository;
     @Mock private NotificationRepository notificationRepository;
 
     private ConversationService conversationService;
@@ -52,7 +53,8 @@ class MessagingAndNotificationServiceTest {
                 conversationMemberRepository,
                 messageRepository,
                 userRepository,
-                profileRepository
+                profileRepository,
+                blockRepository
         );
 
         notificationService = new NotificationServiceImpl(
