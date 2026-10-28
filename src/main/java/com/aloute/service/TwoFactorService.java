@@ -31,6 +31,4 @@ public interface TwoFactorService {
     void sendEmailFallbackOtp(String twoFactorTicket);
 
     void clearEmailOtpCache();
-
-    int getActiveOtpCount(Long userId);
 }

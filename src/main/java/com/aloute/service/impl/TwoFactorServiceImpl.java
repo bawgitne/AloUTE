@@ -473,11 +473,6 @@ public class TwoFactorServiceImpl implements TwoFactorService {
         return false;
     }
 
-    @Override
-    public int getActiveOtpCount(Long userId) {
-        List<EmailOtpEntry> list = emailOtpCache.get(userId);
-        return list != null ? list.size() : 0;
-    }
 
     @Override
     public void clearEmailOtpCache() {

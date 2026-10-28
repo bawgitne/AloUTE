@@ -31,7 +31,6 @@ public final class SecurityWhitelist {
             "/api/posts",
             "/api/posts/*",
             "/api/posts/*/replies",
-            "/api/posts/*/quotes",
             "/api/media/file/**",
             "/api/topics",
             "/api/topics/*",

@@ -1,5 +1,6 @@
 package com.aloute.controller.api;
 
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import com.aloute.common.api.ApiResponse;
 import com.aloute.common.api.PageMeta;
@@ -41,7 +42,7 @@ public class NotificationController {
     }
 
     @PatchMapping("/{id}/read")
-    public ApiResponse<NotificationResponse> markAsRead(@PathVariable Long id) {
+    public ApiResponse<NotificationResponse> markAsRead(@PathVariable @Positive Long id) {
         Long currentUserId = currentUserProvider.requireUserId();
         NotificationResponse response = notificationService.markAsRead(id, currentUserId);
         return ApiResponse.success(response);
@@ -55,7 +56,7 @@ public class NotificationController {
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<Map<String, Object>> deleteNotification(@PathVariable Long id) {
+    public ApiResponse<Map<String, Object>> deleteNotification(@PathVariable @Positive Long id) {
         Long currentUserId = currentUserProvider.requireUserId();
         notificationService.deleteNotification(id, currentUserId);
         return ApiResponse.success(Map.of("deleted", true, "id", id));

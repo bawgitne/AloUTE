@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -80,15 +81,24 @@ public class PollServiceImpl implements PollService {
 
         List<PollVote> newVotes = new java.util.ArrayList<>();
         List<Long> newlyVotedOptionIds = new java.util.ArrayList<>();
+        // One batch load instead of one findById per submitted option: a poll holds at
+        // most 10 options (PollCreateInput), so the batch stays small and missing ids
+        // are detected the same way as before.
+        Map<Long, PollOption> optionsById = pollOptionRepository.findAllById(optionIds).stream()
+                .collect(java.util.stream.Collectors.toMap(PollOption::getId, java.util.function.Function.identity()));
+        Set<Long> alreadyVotedOptionIds = new java.util.HashSet<>(
+                pollVoteRepository.findOptionIdsByPollIdAndUserId(pollId, currentUserId));
         for (Long optionId : optionIds) {
-            PollOption option = pollOptionRepository.findById(optionId)
-                    .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "POLL_OPTION_NOT_FOUND", "Poll option not found"));
+            PollOption option = optionsById.get(optionId);
+            if (option == null) {
+                throw new ApiException(HttpStatus.NOT_FOUND, "POLL_OPTION_NOT_FOUND", "Poll option not found");
+            }
 
             if (!option.getPoll().getId().equals(pollId)) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "Option does not belong to this poll");
             }
 
-            if (!pollVoteRepository.existsByPollIdAndOptionIdAndUserId(pollId, optionId, currentUserId)) {
+            if (!alreadyVotedOptionIds.contains(optionId)) {
                 newVotes.add(PollVote.builder()
                         .poll(poll)
                         .option(option)

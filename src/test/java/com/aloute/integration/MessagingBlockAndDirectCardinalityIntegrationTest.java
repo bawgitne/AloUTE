@@ -155,6 +155,25 @@ class MessagingBlockAndDirectCardinalityIntegrationTest {
     }
 
     @Test
+    @DisplayName("a conversation invitation list larger than 200 members is refused before any lookup")
+    void oversizedGroupInvitationListIsRefused() throws Exception {
+        StringBuilder ids = new StringBuilder();
+        for (long i = 1; i <= 201; i++) {
+            if (i > 1) ids.append(',');
+            ids.append(i);
+        }
+        String body = "{\"type\":\"GROUP\",\"name\":\"Too big\",\"memberIds\":[" + ids + "]}";
+
+        mockMvc.perform(post("/api/conversations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body)
+                        .with(authentication(aliceAuth))
+                        .with(csrf()))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+    }
+
+    @Test
     @DisplayName("Non-blocked pair can still create a DIRECT conversation and exchange messages")
     void nonBlockedPairStillWorks() throws Exception {
         String created = mockMvc.perform(post("/api/conversations")

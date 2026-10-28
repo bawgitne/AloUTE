@@ -66,6 +66,28 @@ public class GlobalExceptionHandler {
                 "Request validation failed", fieldErrors, request);
     }
 
+    /**
+     * Spring 6.1 raises HandlerMethodValidationException when built-in method validation
+     * (e.g. @Positive on a @PathVariable) or a request-body constraint on a controller
+     * method that also carries parameter constraints fails. Without this handler those
+     * requests fall through to the generic 500; they must be 422 like every other
+     * validation failure.
+     */
+    @ExceptionHandler(org.springframework.web.method.annotation.HandlerMethodValidationException.class)
+    public Object handleHandlerMethodValidation(
+            org.springframework.web.method.annotation.HandlerMethodValidationException ex, HttpServletRequest request) {
+        Map<String, List<String>> fieldErrors = new LinkedHashMap<>();
+        for (org.springframework.validation.method.ParameterValidationResult result : ex.getAllValidationResults()) {
+            for (var error : result.getResolvableErrors()) {
+                fieldErrors.computeIfAbsent(result.getMethodParameter().getParameterName(), key -> new ArrayList<>())
+                        .add(error.getDefaultMessage());
+            }
+        }
+        log.warn("Handler method validation failed: {}", fieldErrors);
+        return reply(HttpStatus.UNPROCESSABLE_ENTITY, ErrorCode.VALIDATION_FAILED.getCode(),
+                "Request validation failed", fieldErrors, request);
+    }
+
     @ExceptionHandler(ConstraintViolationException.class)
     public Object handleConstraintViolation(
             ConstraintViolationException ex, HttpServletRequest request) {
