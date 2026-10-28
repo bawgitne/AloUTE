@@ -125,6 +125,11 @@ public enum ErrorCode {
     POST_REMOVAL_NOT_FOUND("POST_REMOVAL_NOT_FOUND", HttpStatus.NOT_FOUND, "Active post moderation removal record not found"),
     USER_SUSPENSION_ALREADY_ACTIVE("USER_SUSPENSION_ALREADY_ACTIVE", HttpStatus.CONFLICT, "User already has an active suspension"),
     USER_LAST_ADMIN_PROTECTED("USER_LAST_ADMIN_PROTECTED", HttpStatus.CONFLICT, "Cannot suspend or demote the last remaining system administrator"),
+    USER_SELF_WARN_NOT_ALLOWED("USER_SELF_WARN_NOT_ALLOWED", HttpStatus.CONFLICT, "Cannot warn your own account"),
+    USER_PROFILE_RESET_CONFIRMATION_MISMATCH("USER_PROFILE_RESET_CONFIRMATION_MISMATCH", HttpStatus.CONFLICT, "Target username confirmation does not match"),
+    USER_SELF_ROLE_CHANGE_NOT_ALLOWED("USER_SELF_ROLE_CHANGE_NOT_ALLOWED", HttpStatus.CONFLICT, "Cannot change your own global role"),
+    USER_ROLE_CHANGE_REQUIRES_ACTIVE("USER_ROLE_CHANGE_REQUIRES_ACTIVE", HttpStatus.CONFLICT, "Global role can only be changed for an active account"),
+    USER_ROLE_UNCHANGED("USER_ROLE_UNCHANGED", HttpStatus.CONFLICT, "User already has the requested global role"),
     COMMUNITY_OWNER_TRANSFER_INVALID("COMMUNITY_OWNER_TRANSFER_INVALID", HttpStatus.CONFLICT, "Invalid community owner transfer"),
     BROADCAST_INVALID_STATE("BROADCAST_INVALID_STATE", HttpStatus.CONFLICT, "System broadcast is not in a deliverable state"),
 

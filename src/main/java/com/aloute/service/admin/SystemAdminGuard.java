@@ -38,27 +38,41 @@ public class SystemAdminGuard {
         return userRepository.lockByRoleOrdered(Role.SYSTEM_ADMIN);
     }
 
+    /** Locked account-state snapshot used by suspension, reactivation and role changes. */
+    public record LockedAccount(List<User> admins, User target) {
+    }
+
     /**
-     * Locks the SYSTEM_ADMIN set and refuses the operation when the given account is an
-     * active administrator and deactivating it would leave zero active administrators.
-     *
-     * @return the fresh, lock-managed instance of {@code target} (or {@code target}
-     *         unchanged when it is not a SYSTEM_ADMIN row)
+     * Locks all SYSTEM_ADMIN rows first (id-ordered), then the target row. Every
+     * administrative operation that can change active state or the global role uses this
+     * same order, so role change, suspension, reactivation and self-deactivation cannot
+     * interleave into a state with zero active administrators or an inactive new admin.
      */
-    public User lockAndRequireAdminRemains(User target) {
-        if (target == null || target.getRole() != Role.SYSTEM_ADMIN) {
-            return target;
-        }
+    public LockedAccount lockAdminsAndTarget(Long targetId) {
         List<User> admins = lockAdmins();
-        long activeAdmins = admins.stream().filter(User::isActive).count();
+        User target = admins.stream()
+                .filter(u -> Objects.equals(u.getId(), targetId))
+                .findFirst()
+                .orElseGet(() -> userRepository.findByIdForUpdate(targetId)
+                        .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND, "User not found")));
+        return new LockedAccount(List.copyOf(admins), target);
+    }
+
+    /**
+     * Refuses an operation that would deactivate or demote the last active administrator.
+     * {@code admins} is the locked, authoritative snapshot; {@code target} is expected to
+     * be the fresh instance returned by {@link #lockAdminsAndTarget(Long)}.
+     */
+    public void requireActiveAdminRemains(User target, List<User> admins) {
         User fresh = admins.stream()
                 .filter(u -> Objects.equals(u.getId(), target.getId()))
                 .findFirst()
                 .orElse(target);
-        if (fresh.isActive() && activeAdmins <= 1L) {
+        long activeAdmins = admins.stream().filter(User::isActive).count();
+        if (fresh.getRole() == Role.SYSTEM_ADMIN && fresh.isActive() && activeAdmins <= 1L) {
             throw new ApiException(ErrorCode.USER_LAST_ADMIN_PROTECTED,
-                    "Không thể vô hiệu hóa quản trị viên hệ thống đang hoạt động cuối cùng.");
+                    "Không thể vô hiệu hóa hoặc hạ quyền quản trị viên hệ thống đang hoạt động cuối cùng.");
         }
-        return fresh;
     }
+
 }
