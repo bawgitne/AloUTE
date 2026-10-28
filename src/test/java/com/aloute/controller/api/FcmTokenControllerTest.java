@@ -4,6 +4,7 @@ import com.aloute.dto.request.RegisterFcmTokenRequest;
 import com.aloute.entity.UserFcmToken;
 import com.aloute.repository.UserFcmTokenRepository;
 import com.aloute.security.currentuser.CurrentUserProvider;
+import com.aloute.service.FcmTokenService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,8 +31,11 @@ class FcmTokenControllerTest {
     void setUp() {
         currentUserProvider = mock(CurrentUserProvider.class);
         fcmTokenRepository = mock(UserFcmTokenRepository.class);
-        FcmTokenController controller = new FcmTokenController(currentUserProvider, fcmTokenRepository);
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        FcmTokenService fcmTokenService = new FcmTokenService(fcmTokenRepository);
+        FcmTokenController controller = new FcmTokenController(currentUserProvider, fcmTokenService);
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new com.aloute.common.exception.GlobalExceptionHandler())
+                .build();
     }
 
     @Test
@@ -50,14 +54,40 @@ class FcmTokenControllerTest {
     }
 
     @Test
-    @DisplayName("unregisterToken successfully removes token")
+    @DisplayName("unregisterToken removes a token owned by the current user")
     void unregisterTokenSuccess() throws Exception {
+        when(currentUserProvider.requireUserId()).thenReturn(100L);
+        UserFcmToken owned = UserFcmToken.builder().userId(100L).token("test-fcm-token").build();
+        when(fcmTokenRepository.findByToken("test-fcm-token")).thenReturn(Optional.of(owned));
+
         mockMvc.perform(delete("/api/notifications/fcm-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"token\":\"test-fcm-token\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        verify(fcmTokenRepository).deleteByToken("test-fcm-token");
+        verify(fcmTokenRepository).delete(owned);
+    }
+
+    @Test
+    @DisplayName("unregisterToken returns 404 when the token belongs to another user or does not exist")
+    void unregisterForeignOrUnknownTokenReturns404() throws Exception {
+        when(currentUserProvider.requireUserId()).thenReturn(100L);
+        UserFcmToken foreign = UserFcmToken.builder().userId(200L).token("test-fcm-token").build();
+        when(fcmTokenRepository.findByToken("test-fcm-token")).thenReturn(Optional.of(foreign));
+
+        mockMvc.perform(delete("/api/notifications/fcm-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"test-fcm-token\"}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false));
+
+        verify(fcmTokenRepository, never()).delete(any(UserFcmToken.class));
+
+        when(fcmTokenRepository.findByToken("unknown")).thenReturn(Optional.empty());
+        mockMvc.perform(delete("/api/notifications/fcm-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"unknown\"}"))
+                .andExpect(status().isNotFound());
     }
 }

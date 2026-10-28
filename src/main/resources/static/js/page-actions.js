@@ -1214,7 +1214,7 @@
 
                     if (isSuccess) {
                         target.removeAttribute('disabled');
-                        target.className = 'btn btn-sm btn-outline-danger rounded-pill px-3';
+                        target.className = 'btn btn-sm btn-outline-danger rounded-pill px-3 aloute-auth-cta';
                         target.setAttribute('data-action', 'leave-community');
                         target.setAttribute('id', 'btn-leave-community');
                         target.innerHTML = '<i class="bi bi-box-arrow-right me-1" aria-hidden="true"></i>Rời cộng đồng';
@@ -1361,7 +1361,7 @@
 
                         if (target) {
                             target.removeAttribute('disabled');
-                            target.className = 'btn btn-sm btn-primary rounded-pill px-3';
+                            target.className = 'btn btn-sm btn-primary rounded-pill px-3 aloute-auth-cta';
                             target.setAttribute('data-action', 'join-community');
                             target.setAttribute('id', 'btn-join-community');
                             target.innerHTML = '<i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Tham gia';

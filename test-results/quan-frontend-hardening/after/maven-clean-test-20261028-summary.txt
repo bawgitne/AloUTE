@@ -1,0 +1,10 @@
+Maven clean test — 2026-10-28 (local)
+Command : mvn -q clean test
+Result  : Tests run: 641, Failures: 0, Errors: 0, Skipped: 9
+Build   : SUCCESS (exit code 0)
+Time    : 02:20 min
+Finished: 2026-10-28T00:15:18+07:00
+
+Source: target/surefire-reports (clean run).
+Full log is local-only and intentionally not committed (ignored by *.log):
+after/maven-clean-test-20261028.log
