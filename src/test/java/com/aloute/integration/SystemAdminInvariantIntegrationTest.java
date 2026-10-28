@@ -1,6 +1,7 @@
 package com.aloute.integration;
 
 import com.aloute.dto.request.admin.AdminUserModerationRequest;
+import com.aloute.dto.request.admin.AdminUserRoleChangeRequest;
 import com.aloute.entity.ModerationTargetType;
 import com.aloute.entity.Profile;
 import com.aloute.entity.ReportReason;
@@ -106,6 +107,17 @@ class SystemAdminInvariantIntegrationTest {
         });
     }
 
+    private void setRoleActiveVersion(Long id, Role role, boolean active, long authVersion) {
+        transactionTemplate.execute(status -> {
+            User u = userRepository.findById(id).orElseThrow();
+            u.setRole(role);
+            u.setActive(active);
+            u.setAuthVersion(authVersion);
+            userRepository.save(u);
+            return null;
+        });
+    }
+
     private void clearAuditFor(Long userId) {
         transactionTemplate.execute(status -> {
             moderationActionRepository.deleteAll(
@@ -120,6 +132,18 @@ class SystemAdminInvariantIntegrationTest {
                         ModerationTargetType.USER, userId, PageRequest.of(0, 1000)).getContent().stream()
                 .filter(a -> "USER_SUSPEND".equals(a.getActionType()))
                 .count();
+    }
+
+    private long roleAuditCount(Long userId) {
+        return moderationActionRepository.findByTargetTypeAndTargetId(
+                        ModerationTargetType.USER, userId, PageRequest.of(0, 1000)).getContent().stream()
+                .filter(a -> "USER_ROLE_CHANGE".equals(a.getActionType()))
+                .count();
+    }
+
+    private AdminUserRoleChangeRequest roleChange(Role newRole) {
+        return new AdminUserRoleChangeRequest(newRole, ReportReason.OTHER,
+                "Đổi vai trò hệ thống trong regression test concurrency.");
     }
 
     @BeforeEach
@@ -260,6 +284,55 @@ class SystemAdminInvariantIntegrationTest {
         List<Object> outcomes = race(
                 () -> userService.deactivateAccount(adminA.getId(), PASSWORD),
                 () -> adminUserService.suspendUser(adminB.getId(), adminA.getId(), reason()));
+
+        long successes = outcomes.stream().filter(o -> "OK".equals(o)).count();
+        assertThat(successes).isEqualTo(1L);
+        assertThat(activeAdminCount()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("Concurrent mutual demotion can never remove every active SYSTEM_ADMIN")
+    void concurrentMutualDemotionPreservesInvariant() throws Exception {
+        for (int iteration = 0; iteration < 25; iteration++) {
+            Long aId = adminA.getId();
+            Long bId = adminB.getId();
+            setRoleActiveVersion(aId, Role.SYSTEM_ADMIN, true, 0L);
+            setRoleActiveVersion(bId, Role.SYSTEM_ADMIN, true, 0L);
+            clearAuditFor(aId);
+            clearAuditFor(bId);
+            assertThat(activeAdminCount()).isEqualTo(2L);
+
+            List<Object> outcomes = race(
+                    () -> adminUserService.changeUserRole(bId, aId, roleChange(Role.USER)),
+                    () -> adminUserService.changeUserRole(aId, bId, roleChange(Role.USER)));
+
+            long successes = outcomes.stream().filter(o -> "OK".equals(o)).count();
+            assertThat(successes).as("iteration %d: exactly one demotion may win", iteration).isEqualTo(1L);
+            assertThat(activeAdminCount()).as("iteration %d: one active admin remains", iteration).isEqualTo(1L);
+
+            Long failedTargetId = "OK".equals(outcomes.get(0)) ? bId : aId;
+            assertThat(roleAuditCount(failedTargetId))
+                    .as("iteration %d: refused demotion must not write an audit row", iteration)
+                    .isZero();
+            assertThat(userRepository.findById(failedTargetId).orElseThrow().getAuthVersion())
+                    .as("iteration %d: refused demotion must not revoke the target session", iteration)
+                    .isZero();
+        }
+    }
+
+    @Test
+    @DisplayName("Concurrent admin demotion and the other admin's self-deactivation keep one active admin")
+    void concurrentDemotionAndSelfDeactivationPreservesInvariant() throws Exception {
+        Long aId = adminA.getId();
+        Long bId = adminB.getId();
+        setRoleActiveVersion(aId, Role.SYSTEM_ADMIN, true, 0L);
+        setRoleActiveVersion(bId, Role.SYSTEM_ADMIN, true, 0L);
+        clearAuditFor(aId);
+        clearAuditFor(bId);
+
+        List<Object> outcomes = race(
+                () -> adminUserService.changeUserRole(bId, aId, roleChange(Role.USER)),
+                () -> userService.deactivateAccount(bId, PASSWORD));
 
         long successes = outcomes.stream().filter(o -> "OK".equals(o)).count();
         assertThat(successes).isEqualTo(1L);
