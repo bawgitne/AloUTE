@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -28,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "ALOUTE_JWT_EXPIRATION_SECONDS=3600"
 })
 @org.junit.jupiter.api.condition.EnabledIfSystemProperty(named = "aloute.it.mysql", matches = "true")
+@Transactional
 class MysqlDialectVerificationTest {
 
     @Autowired private DataSource dataSource;
