@@ -1,0 +1,66 @@
+name: MySQL 8 admin invariant
+
+# Durable guard for the "at least one active SYSTEM_ADMIN" invariant on a real MySQL 8
+# engine. The H2 suite covers logic; row-level pessimistic locking, deadlock and lock
+# timeout behaviour are engine-specific, so this job runs the same concurrency
+# regression against a disposable MySQL 8 service container (never production data).
+on:
+  workflow_dispatch:
+  push:
+    branches: [ master ]
+  pull_request:
+    paths:
+      - 'src/main/java/com/aloute/service/admin/**'
+      - 'src/main/java/com/aloute/repository/UserRepository.java'
+      - 'src/main/java/com/aloute/service/impl/UserServiceImpl.java'
+      - 'src/test/java/com/aloute/integration/SystemAdminInvariantIntegrationTest.java'
+      - 'src/test/java/com/aloute/integration/MysqlDialectVerificationTest.java'
+      - 'src/test/resources/application-mysqlit.properties'
+      - '.github/workflows/mysql-admin-invariant.yml'
+
+jobs:
+  mysql-invariant:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: aloute_it
+          MYSQL_USER: aloute
+          MYSQL_PASSWORD: aloute
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Wait for MySQL 8
+        run: |
+          for i in $(seq 1 30); do
+            if mysqladmin ping -h 127.0.0.1 -P 3306 -uroot -proot --silent; then
+              echo "MySQL is ready"; exit 0
+            fi
+            sleep 3
+          done
+          echo "MySQL did not become ready" >&2; exit 1
+      - name: Admin invariant on MySQL 8 (dialect check + concurrency regression)
+        env:
+          ALOUTE_JWT_SECRET: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          ALOUTE_JWT_EXPIRATION_SECONDS: '3600'
+          ALOUTE_IT_MYSQL_URL: jdbc:mysql://127.0.0.1:3306/aloute_it?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+          ALOUTE_IT_MYSQL_USER: aloute
+          ALOUTE_IT_MYSQL_PASSWORD: aloute
+        run: >-
+          mvn -B -Dtest=MysqlDialectVerificationTest,SystemAdminInvariantIntegrationTest
+          test -Dspring.profiles.active=dev,mysqlit -Daloute.it.mysql=true
