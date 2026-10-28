@@ -108,7 +108,24 @@ Kết quả hợp nhất cuối (best run mỗi suite, cùng code): **155 PASS /
 
 **MSG-07** ban đầu dùng `waitBubble(page, '__qaMsgXss')` và `.last()`. Marker này còn xuất hiện trong tin nhắn của lần chạy trước và trong case MSG-04 cùng suite, nên locator có thể trúng bubble cũ trước khi tin mới render → FAIL giả. Đã đổi sang chờ chính xác `payload` đầy đủ (chứa tag duy nhất của lần chạy), sau đó assert `textContent`. Rerun `full-run-4`: PASS.
 
-## 8. Giới hạn
+## 8. Tái chạy tích hợp ZCode HEAD
+
+Mục tiêu: xác nhận 23 thay đổi frontend QA chạy đúng trên mã ZCode mới nhất mà không sửa ZCode.
+
+| Bước | Thực hiện |
+|---|---|
+| Worktree tạm | `git worktree add --detach <temp> e12b21b` — không checkout/sửa worktree ZCode |
+| Áp frontend QA | `git diff 74c8a6f 1cae6eb -- src/main/resources \| git -C <temp> apply -` — 23 tệp, 0 xung đột |
+| Build / chạy | `mvn -q -DskipTests -DskipITs package`; jar profile `dev`, cổng `8083`, H2 in-memory |
+| Seed | `node tools/demo-data.mjs http://127.0.0.1:8083` — 18 OK, 0 failed |
+| Chạy suite | `BASE_URL=http://127.0.0.1:8083 OUT_DIR=<run> node run.mjs` |
+| Đối chiếu | So từng `id` với baseline hợp nhất (`full-run-1/3/4`) |
+
+Kết quả `integration-e12b21b-20261028-0907`: **165 case — 155 PASS / 4 FAIL / 3 BLOCKED / 3 NOT RUN**, đúng 4 ID BL-22, **0 khác biệt trạng thái** so với baseline. 67 ảnh, bằng chứng tại `evidence/integration-e12b21b-results.json`.
+
+Lần chạy đầu (`...-0903`) không hợp lệ vì chưa seed demo-data (AUTH-01 FAIL giả); đã hủy và không dùng làm bằng chứng.
+
+## 9. Giới hạn
 
 - Chỉ chạy local, chưa nối CI; kết quả phụ thuộc server/H2/seed.
 - Không kiểm tra tải đồng thời, không có network throttling, không có mobile browser thật (chỉ viewport giả lập).

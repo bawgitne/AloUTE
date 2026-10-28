@@ -6,7 +6,7 @@
 |---|---|---|
 | **Demo readiness** | **READY WITH LIMITATIONS** | Demo theo `10_DEMO_SCRIPT_VI.md`; tránh upload Firebase và route bảo vệ khi guest |
 | **Frontend acceptance** | **PASS WITH LIMITATIONS** | 155/165 case PASS; 12 lỗi UI đã sửa; axe 0 serious/critical |
-| **Release acceptance** | **CONDITIONAL** | Phụ thuộc ZCode sửa BL-22 và chạy lại 4 case |
+| **Release acceptance** | **CONDITIONAL** | Đã chạy lại trên ZCode `e12b21b`: BL-22 vẫn FAIL; cần ZCode sửa và QA rerun 4 case |
 | **Production readiness** | **NOT READY** | BL-22 + Firefox chưa xác nhận + chưa đo PostgreSQL/tải thật + CDN/cache chưa chốt |
 
 Không có tuyên bố “production ready” trong báo cáo này.
@@ -41,6 +41,7 @@ Không có tuyên bố “production ready” trong báo cáo này.
 | Dọn dữ liệu test | PASS | SOC-P90, COM-90, CLEAN-01 |
 | Backend error UX (BL-22) | **FAIL** | AUTH-15/16, ADM-05, RES-02 |
 | Performance production | NOT VERIFIED | chỉ local H2 |
+| Tích hợp ZCode `e12b21b` + frontend QA | PASS (không regression) | `12_FINAL_HANDOFF.md` mục 4; 0 khác biệt trạng thái |
 
 ## 4. Rủi ro và ưu tiên
 
@@ -56,7 +57,7 @@ Không có tuyên bố “production ready” trong báo cáo này.
 
 ## 5. Điều kiện để chuyển sang READY
 
-1. 4 case BL-22 chuyển PASS trên môi trường tích hợp.
+1. 4 case BL-22 chuyển PASS trên môi trường tích hợp. Đã xác minh trên `e12b21b` ngày 2026-10-28: cả 4 vẫn FAIL.
 2. Chạy lại smoke Firefox (hoặc chấp nhận danh sách trình duyệt hỗ trợ chính thức).
 3. Cấu hình Firebase Storage cho môi trường demo và PASS upload.
 4. Chốt đặc tả private community; bổ sung test nếu có.
