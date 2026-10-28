@@ -151,3 +151,12 @@ BL-22 trên `25e7595`: AUTH-15 PASS (302 → `/login`), AUTH-16 PASS (302 → `/
 | Lệnh | `mvn -q test` trên worktree `AloUTE-e2e-signoff-20261028` (25e7595 + patch test) |
 | Kết quả | **723 tests, 0 failures, 0 errors, 9 skipped**; exit code 0 |
 | Ghi chú | Khớp số liệu ZCode (723/9 skipped); không chạy IT/container/PostgreSQL |
+
+### 9.6 CI
+
+| Chỉ số | Giá trị |
+|---|---|
+| Workflow | `CI` / job `test-and-build` trên PR #90 |
+| Commit | `25a804e1f47f1f985a1b511bc3ab793f411074e0` |
+| Kết quả | **PASS** — run `40632713237`, 3m37s |
+| Base PR | `fix/quan-frontend-hardening-20261027` (PR #85) — giữ nguyên stack |

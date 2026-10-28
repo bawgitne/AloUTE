@@ -185,6 +185,7 @@ Không có credential, token, OTP hay tin nhắn riêng tư trong tài liệu/�
 | Node | 396/396 PASS |
 | Maven | **723 tests, 0 failures, 0 errors, 9 skipped** (`mvn -q test`, exit 0) |
 | Run-integrity | Không có `RUN-INTEGRITY` FAIL; đủ số case theo ma trận (27/36/21/35/35/11) |
+| CI | PASS — workflow `CI` / `test-and-build`, run `40632713237`, commit `25a804e` |
 
 ### 10.3 Kết luận
 
