@@ -2,7 +2,7 @@
 
 **Ngày bàn giao:** 2026-10-28 (Asia/Ho_Chi_Minh)
 **QA owner:** Quân — independent QA worktree
-**Trạng thái:** Hoàn tất phạm vi frontend acceptance; release còn điều kiện BL-22.
+**Trạng thái:** Hoàn tất phạm vi frontend acceptance; sign-off cuối trên integration `25e7595` đạt **159 PASS / 0 FAIL / 3 BLOCKED / 3 NOT RUN** (BL-22 PASS trên HEAD tích hợp).
 
 ## 1. Định danh bàn giao
 
@@ -137,13 +137,15 @@ Chạy từng suite: `node run.mjs --suite auth-guest` (xem `04_BROWSER_AUTOMATI
 | Kết quả baseline | `evidence/full-run-1/3/4-results.json`, `cross-run-2-results.json`, `axe-results.json` |
 | Kết quả cuối | `evidence/final-verification-results.json`, `evidence/final-verification-environment.json` |
 | Kết quả tích hợp | `evidence/integration-e12b21b-results.json`, `evidence/integration-e12b21b-environment.json` |
-| Ảnh | `evidence/screenshots/` (20 ảnh tuyển chọn) |
+| Kết quả sign-off `25e7595` | `evidence/final-signoff-integration-25e7595-results.json`, `evidence/final-signoff-integration-25e7595-environment.json` |
+| A/B fixture poll | `evidence/baseline-fixture-repro-old-suite-results.json`, `evidence/fixed-poll-fixture-social-results.json` |
+| Ảnh | `evidence/screenshots/` (tuyển chọn) |
 
 Không có credential, token, OTP hay tin nhắn riêng tư trong tài liệu/ảnh. Tài khoản seed chỉ là local (`@aloute.local`, `@aloute.test`).
 
 ## 7. Việc ZCode cần xử lý
 
-1. **BL-22 (P1)** — route page trả JSON thô cho guest/non-admin/404. Cần content negotiation/entry point trả redirect hoặc trang lỗi HTML. QA rerun 4 case AUTH-15/16, ADM-05, RES-02 sau khi sửa.
+1. **BL-22 (P1) — đã xử lý trên `25e7595`** (fix #88): 4 case AUTH-15/16, ADM-05, RES-02 PASS trong sign-off. Cần giữ #88 trong stack và rerun 4 case sau mỗi lần rebase; PR #90 (base #85) chưa chứa #88 nên CI E2E trên branch PR vẫn có thể thấy 4 FAIL này.
 2. **Firebase Storage (P2)** — cấp service account cho môi trường demo để mở khóa upload.
 3. **Private community (P2)** — chốt đặc tả + endpoint join.
 4. **2FA/custom feed (P3)** — bổ sung contract và test nếu release cần.
@@ -162,4 +164,28 @@ Không có credential, token, OTP hay tin nhắn riêng tư trong tài liệu/�
 - Không đụng worktree/branch ZCode; xác minh ZCode vẫn `e12b21b`, working tree sạch sau kiểm thử.
 - Không dùng tài khoản production, không seed lên website live.
 - Không commit credential/session/token/artifact; `test-results/` để ngoài git.
-- Chỉ tạo local commit trên `test/quan-e2e-acceptance`; không push/merge/deploy.
+- Thời điểm handoff ban đầu: chỉ local commit trên `test/quan-e2e-acceptance`, không push/merge/deploy.
+- Sign-off ngày 2026-10-28: commit test fixture + tài liệu được push thường (không force-push) lên `origin/test/quan-e2e-acceptance` theo yêu cầu cập nhật PR #90; không merge/deploy.
+
+## 10. Sign-off cuối — integration `25e7595`
+
+### 10.1 Thay đổi
+
+- `test/e2e/quan-acceptance/suites/social.mjs` (+111 / −47): fixture poll tự tạo qua API, xác minh bằng `GET /api/posts/{id}`, cleanup trong `finally`; bỏ `globalThis.__qaPoll`, `postId=4` và phụ thuộc thứ tự suite.
+- Không đổi mã sản phẩm, backend, security, DTO, migration, route hay cấu hình.
+- Tài liệu: `00`, `01`, `02`, `04`, `09`, `11`, `12`, `16` cập nhật số liệu sign-off; evidence lịch sử giữ nguyên.
+
+### 10.2 Kết quả
+
+| Hạng mục | Kết quả |
+|---|---|
+| E2E 165 case | **159 PASS / 0 FAIL / 3 BLOCKED / 3 NOT RUN**; 165 ID duy nhất |
+| SOC-P40..P43 | 4/4 PASS; fixture do test tạo, không dùng ID seed |
+| BL-22 | 4/4 PASS trên `25e7595` |
+| Node | 396/396 PASS |
+| Maven | **723 tests, 0 failures, 0 errors, 9 skipped** (`mvn -q test`, exit 0) |
+| Run-integrity | Không có `RUN-INTEGRITY` FAIL; đủ số case theo ma trận (27/36/21/35/35/11) |
+
+### 10.3 Kết luận
+
+QA sẵn sàng cho bước review tiếp theo trên HEAD tích hợp `25e7595`. PR #90 giữ base PR #85 theo yêu cầu stack; cần rebase/merge #85 + #88 theo thứ tự trước khi coi là merge-ready vào `master`. Không tuyên bố production-ready; 3 BLOCKED và 3 NOT RUN giữ nguyên.

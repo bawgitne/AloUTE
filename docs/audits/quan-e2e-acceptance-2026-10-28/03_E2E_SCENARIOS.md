@@ -2,6 +2,8 @@
 
 Mỗi kịch bản là một hành trình người dùng thật trên browser (Chrome 153 headless), có precondition, bước thực hiện, kỳ vọng và bằng chứng. Trạng thái kịch bản chỉ PASS khi tất cả case cốt lõi PASS; case BLOCKED/NOT RUN được ghi rõ.
 
+> **Cập nhật sign-off (integration `25e7595`):** A, E, G chuyển từ "có FAIL BL-22" sang **PASS** (AUTH-15/16, ADM-05, RES-02 đã PASS); B PASS sau khi sửa fixture poll (SOC-P40..P43). Còn F PASS-WL do Firefox BLOCKED và 3 NOT RUN toàn cục. Bảng dưới giữ trạng thái lịch sử baseline `4d00b6a`; số liệu mới ở `01_ACCEPTANCE_SUMMARY.md` mục 9.
+
 | Kịch bản | Phạm vi | Kết quả | Case chính |
 |---|---|---|---|
 | A | Guest → đăng nhập → phiên → đăng xuất | **PASS WITH LIMITATIONS** (2 FAIL BL-22) | AUTH-01..12, 14, 22, 23 |

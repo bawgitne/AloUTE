@@ -6,14 +6,31 @@ Phạm vi QA này **không sửa backend**, không đổi security, DTO, reposit
 
 | Ticket | Mức | Loại | Trạng thái QA | Case liên quan |
 |---|---|---|---|---|
-| QA-BE-01 | P1 | BL-22 — page route trả JSON 401 cho guest | FAIL (backend) | AUTH-15, AUTH-16 |
-| QA-BE-02 | P1 | BL-22 — 404 page route trả JSON cho user | FAIL (backend) | RES-02 |
-| QA-BE-03 | P1 | BL-22 — 403 page route trả JSON cho non-admin | FAIL (backend) | ADM-05 |
+| QA-BE-01 | P1 | BL-22 — page route trả JSON 401 cho guest | **PASS** trên `25e7595` (fix #88); FAIL trên baseline `4d00b6a` | AUTH-15, AUTH-16 |
+| QA-BE-02 | P1 | BL-22 — 404 page route trả JSON cho user | **PASS** trên `25e7595` (fix #88); FAIL trên baseline | RES-02 |
+| QA-BE-03 | P1 | BL-22 — 403 page route trả JSON cho non-admin | **PASS** trên `25e7595` (fix #88); FAIL trên baseline | ADM-05 |
+| QA-TEST-01 | P2 | Fixture poll hardcode `postId=4` (test-only, không phải sản phẩm) | **FIXED** — fixture tự tạo/xác minh/cleanup | SOC-P40/41/42/43 |
 | QA-BE-04 | P2 | Cộng đồng riêng tư: không có luồng join/invite | BLOCKED (product + backend) | COM-14b |
 | QA-BE-05 | P3 | 2FA setup không có trong OpenAPI canonical | NOT RUN | AUTH-26b |
 | QA-ENV-01 | P2 | Firebase Storage thiếu service account | BLOCKED (môi trường) | SOC-P06 |
 | QA-ENV-02 | P3 | Firefox crash trên máy QA | BLOCKED (môi trường) | XB-03 |
 | QA-FEAT-01 | P3 | Poll hết hạn / custom feed chưa kiểm thử được | NOT RUN | SOC-P47, SOC-P52 |
+
+---
+
+## Xác minh BL-22 trên HEAD tích hợp `25e7595` (2026-10-28)
+
+BL-22 đã được sửa trên `fix/web-page-error-handling` (#88) và có mặt trong HEAD tích hợp `25e7595`. QA chạy lại toàn bộ 165 case trên worktree cô lập:
+
+| Case | Kỳ vọng | Kết quả sign-off |
+|---|---|---|
+| AUTH-15 | Guest `/post/create` → redirect login, không JSON | **PASS** — 302 → `/login` |
+| AUTH-16 | Guest `/admin` → redirect login hoặc 403 HTML | **PASS** — 302 → `/login` |
+| ADM-05 | User thường `/admin` → 403 HTML/redirect | **PASS** — `403 text/html`, có khối lỗi HTML |
+| RES-02 | User mở route không tồn tại → 404 HTML | **PASS** — `404` HTML, heading "404 — Không tìm thấy trang" |
+| API regression | `/api/**` vẫn JSON 401/403/404 | **PASS** — AUTH-07, ADM-04, RES-03 |
+
+Bằng chứng: `evidence/final-signoff-integration-25e7595-results.json`, `evidence/screenshots/res-02-404-final-signoff.png`. Các mô tả FAIL bên dưới giữ nguyên giá trị lịch sử trên baseline `4d00b6a`/`e12b21b`; không còn là trạng thái hiện tại trên integration HEAD.
 
 ---
 

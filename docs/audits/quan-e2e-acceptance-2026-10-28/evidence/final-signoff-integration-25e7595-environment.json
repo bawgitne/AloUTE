@@ -1,0 +1,26 @@
+{
+  "baseUrl": "http://127.0.0.1:8086",
+  "channel": "chrome",
+  "headless": true,
+  "node": "v24.19.0",
+  "out": "D:\\PROJECT\\cnpm-project\\AloUTE-qoder-acceptance\\test-results\\quan-e2e-acceptance\\final-signoff-20261028-r2",
+  "suites": [
+    "auth-guest",
+    "social",
+    "community",
+    "messaging-admin",
+    "cross-a11y",
+    "resilience"
+  ],
+  "accountsConfigured": true,
+  "integrationCommit": "25e7595fa541ec8eb8bc1b204f9015323301803e",
+  "integrationBranch": "quality/integration-final-20261028",
+  "testPatch": {
+    "file": "test/e2e/quan-acceptance/suites/social.mjs",
+    "sha256": "b228cf383289247ce17cdb524e9ec7504a119885f0251800d4e608f6e0674028",
+    "insertions": 111,
+    "deletions": 47
+  },
+  "seed": "DevTestDataInitializer (dev) + tools/demo-data.mjs (18 OK)",
+  "note": "Isolated detached worktree at 25e7595 + poll-fixture test patch only; no production DB, no production credentials."
+}

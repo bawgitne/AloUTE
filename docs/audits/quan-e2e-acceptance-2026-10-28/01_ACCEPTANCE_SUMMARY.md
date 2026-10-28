@@ -2,13 +2,15 @@
 
 **Ngày:** 2026-10-28 · **Branch QA:** `test/quan-e2e-acceptance` · **Base:** `74c8a6f`
 
+> **Cập nhật sign-off cuối (sau baseline dưới đây):** chạy lại toàn bộ 165 case trên worktree tích hợp cô lập `25e7595` (16 PR HEAD mới nhất, gồm BL-22 #88) + patch fixture poll — **165/165 ID, 159 PASS / 0 FAIL / 3 BLOCKED / 3 NOT RUN**, `RUN-INTEGRITY` không lệch. BL-22 (AUTH-15/16, ADM-05, RES-02) PASS. Bằng chứng: `evidence/final-signoff-integration-25e7595-results.json`. Các mục 1–3 dưới đây giữ nguyên số liệu lịch sử baseline `4d00b6a` (155/4/3/3) để truy vết; chi tiết sign-off ở mục 6.
+
 ## 1. Kết luận ngắn
 
 Frontend AloUTE đã được kiểm thử end-to-end bằng browser thật trên 6 module chính. **155/165 case PASS (93,9%)**. Toàn bộ 4 case FAIL đều cùng một lỗi backend **BL-22** (page route trả JSON thay vì HTML/redirect), không phải lỗi UI. Sau khi sửa 13 lỗi frontend/accessibility, axe không còn vi phạm serious/critical trên 20 route; responsive và hiệu năng local đạt ngân sách; touch target 44px được kiểm tra cả mobile và desktop; 3 engine browser PASS, Firefox bị chặn bởi môi trường.
 
-**Trạng thái acceptance: PASS WITH LIMITATIONS cho phạm vi frontend; NOT READY cho production do BL-22 và các hạng mục chưa kiểm chứng.**
+**Trạng thái acceptance (baseline `4d00b6a`): PASS WITH LIMITATIONS cho phạm vi frontend.** Trên integration `25e7595`, BL-22 đã PASS và kết quả là **159/0/3/3**; production vẫn **NOT READY** do Firefox/PostgreSQL/tải thật/CDN chưa xác nhận và còn 3 BLOCKED + 3 NOT RUN.
 
-Đã chạy lại toàn bộ 165 case trên ZCode HEAD `e12b21b` với đúng 23 thay đổi frontend QA: kết quả **155/4/3/3, 0 khác biệt trạng thái** so với baseline; BL-22 vẫn mở. Chi tiết `12_FINAL_HANDOFF.md`.
+Đã chạy lại toàn bộ 165 case trên ZCode HEAD `e12b21b` với đúng 23 thay đổi frontend QA: kết quả **155/4/3/3, 0 khác biệt trạng thái** so với baseline; BL-22 khi đó vẫn mở (đã PASS trên `25e7595`). Chi tiết `12_FINAL_HANDOFF.md` và mục 9.
 
 Run cuối `final-verification-20261028` trên worktree handoff: **165/165 ID duy nhất, 155 PASS / 4 FAIL (đúng BL-22) / 3 BLOCKED / 3 NOT RUN**, guard `RUN-INTEGRITY` PASS; bằng chứng `evidence/final-verification-results.json`.
 
@@ -96,8 +98,56 @@ Ghi chú: `full-run-1` thô có 5 FAIL (4 BL-22 + MSG-07 flake locator); MSG-07 
 
 ## 8. Khuyến nghị
 
-- ZCode xử lý BL-22 trước khi release; QA chạy lại 4 case AUTH-15/16, ADM-05, RES-02. Đã xác minh lại trên `e12b21b`: cả 4 case vẫn FAIL.
+- BL-22 đã được xác minh PASS trên HEAD tích hợp `25e7595` (fix #88). Giữ gate rerun 4 case khi rebase/merge stack; không tuyên bố PASS trên branch PR #90 khi chưa chứa #88.
 - Cấp Firebase service account cho môi trường demo; chốt đặc tả private community.
 - Chạy lại cross-browser trên Firefox ESR/container Linux.
 - Đo lại hiệu năng với PostgreSQL + dữ liệu lớn trước khi cam kết SLO.
 - Dùng `10_DEMO_SCRIPT_VI.md` cho demo; tránh đường dẫn bảo vệ khi là guest và tránh upload nếu thiếu Firebase.
+
+## 9. Final sign-off run — integration `25e7595` (2026-10-28)
+
+### 9.1 Bối cảnh
+
+- Worktree cô lập **detached** `AloUTE-e2e-signoff-20261028` tại `25e7595` (merge 16 PR HEAD mới nhất, gồm #88 BL-22, #86 prod-seed guard, #84 auth follow-ups).
+- Chỉ áp thay đổi test `test/e2e/quan-acceptance/suites/social.mjs` (+111 / −47); **không** sửa mã sản phẩm.
+- Server `http://127.0.0.1:8086`, profile `dev`, H2 in-memory **mới**, seed `DevTestDataInitializer` + `tools/demo-data.mjs` (18 OK). Không dùng production DB/credential.
+
+### 9.2 Root cause 3 FAIL poll và cách sửa
+
+| Mục | Chi tiết |
+|---|---|
+| Triệu chứng | SOC-P40 FAIL "Bài seed 4 không có poll"; SOC-P42/P43 FAIL `Cannot read properties of null`; SOC-P41 BLOCKED do không có fixture |
+| Nguyên nhân | Test giả định post ID 4 luôn là poll của mock data Aiven. H2 dev chỉ seed tài khoản/chủ đề; poll do `demo-data.mjs` tạo có ID phụ thuộc số bài đã tồn tại trước đó. Khi thứ tự/ID lệch, post 4 không còn là poll |
+| Bản chất | **Lỗi fixture**, không phải lỗi sản phẩm: cùng DB lệch ID, SOC-P44/45/46 (tạo poll qua API) vẫn PASS |
+| Sửa | Mỗi case SOC-P40/41/42/43 tự tạo poll qua API, xác minh lại bằng `GET /api/posts/{id}`, kiểm tra chưa có vote, cleanup bài trong `finally`; bỏ `globalThis.__qaPoll` và mọi phụ thuộc thứ tự suite. Cleanup được kiểm tra (204) và ghi vào `detail.fixtureCleanup`; lỗi cleanup được báo là `FIXTURE CLEANUP`, không lẫn với lỗi chức năng |
+| Không thay đổi | Assertion nghiệp vụ giữ nguyên/được tăng cường (P41 xác minh thêm `totalVotes` không đổi; P42/P43 xác minh không ghi vote) |
+
+### 9.3 Kết quả
+
+| Run | Môi trường | Kết quả |
+|---|---|---|
+| `baseline-fixture-repro-20261028` | H2 mới + 1 bài tạo trước seed (poll id=5) | 29 PASS / **3 FAIL** (SOC-P40/42/43) / 2 BLOCKED (SOC-P06, SOC-P41) / 2 NOT RUN |
+| `fixed-social-shifted-db-20261028` | Cùng DB lệch ID + test đã sửa | 33 PASS / **0 FAIL** / 1 BLOCKED (SOC-P06) / 2 NOT RUN |
+| `final-signoff-20261028-r2` | H2 mới, seed chuẩn, full 6 suite | **159 PASS / 0 FAIL / 3 BLOCKED / 3 NOT RUN — 165/165 ID** |
+
+Theo suite ở run sign-off: auth 26/0/0/1 · social 33/0/1/2 · community 20/0/1/0 · messaging-admin 35/0/0/0 · cross-a11y 34/0/1/0 · resilience 11/0/0/0.
+
+BL-22 trên `25e7595`: AUTH-15 PASS (302 → `/login`), AUTH-16 PASS (302 → `/login`), ADM-05 PASS (`403 text/html`), RES-02 PASS (`404` HTML + heading). API `/api/**` vẫn trả JSON đúng contract (AUTH-07, ADM-04, RES-03 PASS).
+
+### 9.4 Bằng chứng
+
+- `evidence/final-signoff-integration-25e7595-results.json`
+- `evidence/final-signoff-integration-25e7595-environment.json`
+- `evidence/baseline-fixture-repro-old-suite-results.json`
+- `evidence/fixed-poll-fixture-social-results.json`
+- `evidence/screenshots/social-poll-result-final-signoff.png`, `evidence/screenshots/res-02-404-final-signoff.png`
+- Node `node --test test/frontend/*.test.mjs`: **396/396 PASS**.
+- Maven full suite: xem mục 9.5 (cập nhật sau khi chạy).
+
+### 9.5 Maven
+
+| Chỉ số | Giá trị |
+|---|---|
+| Lệnh | `mvn -q test` trên worktree `AloUTE-e2e-signoff-20261028` (25e7595 + patch test) |
+| Kết quả | **723 tests, 0 failures, 0 errors, 9 skipped**; exit code 0 |
+| Ghi chú | Khớp số liệu ZCode (723/9 skipped); không chạy IT/container/PostgreSQL |

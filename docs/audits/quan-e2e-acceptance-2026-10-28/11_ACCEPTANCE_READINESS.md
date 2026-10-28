@@ -1,13 +1,25 @@
 # 11 — Acceptance Readiness
 
+## 0. Cập nhật sign-off (integration `25e7595`, 2026-10-28)
+
+| Chỉ số | Giá trị |
+|---|---|
+| Run | `final-signoff-20261028-r2` trên worktree cô lập `25e7595` + patch fixture poll (test-only) |
+| Kết quả | **165/165 ID — 159 PASS / 0 FAIL / 3 BLOCKED / 3 NOT RUN** |
+| BL-22 | AUTH-15, AUTH-16, ADM-05, RES-02 **PASS** (fix #88 có trong HEAD tích hợp) |
+| Poll fixture | SOC-P40/41/42/43 PASS; đã sửa lỗi fixture hardcode ID, không phải lỗi sản phẩm |
+| Bằng chứng | `evidence/final-signoff-integration-25e7595-results.json` |
+
+Lưu ý stack: PR #90 vẫn dựa trên PR #85. Trạng thái PASS của BL-22 chỉ đúng trên HEAD tích hợp `25e7595` (đã có #88); trên branch PR #90 hiện tại 4 case này vẫn FAIL cho đến khi #88 merge và PR #90 được rebase.
+
 ## 1. Tuyên bố trạng thái
 
 | Mức | Kết luận | Điều kiện |
 |---|---|---|
-| **Demo readiness** | **READY WITH LIMITATIONS** | Demo theo `10_DEMO_SCRIPT_VI.md`; tránh upload Firebase và route bảo vệ khi guest |
-| **Frontend acceptance** | **PASS WITH LIMITATIONS** | 155/165 case PASS; 13 lỗi UI đã sửa; axe 0 serious/critical |
-| **Release acceptance** | **CONDITIONAL** | Đã chạy lại trên ZCode `e12b21b`: BL-22 vẫn FAIL; cần ZCode sửa và QA rerun 4 case |
-| **Production readiness** | **NOT READY** | BL-22 + Firefox chưa xác nhận + chưa đo PostgreSQL/tải thật + CDN/cache chưa chốt |
+| **Demo readiness** | **READY WITH LIMITATIONS** | Demo theo `10_DEMO_SCRIPT_VI.md`; tránh upload Firebase |
+| **Frontend acceptance** | **PASS WITH LIMITATIONS** | Sign-off 159/165 case PASS; 13 lỗi UI đã sửa; axe 0 serious/critical |
+| **Release acceptance** | **PASS WITH LIMITATIONS trên integration `25e7595`** | 0 FAIL; còn 3 BLOCKED + 3 NOT RUN; stack PR #90/#85 phải rebase #88 |
+| **Production readiness** | **NOT READY** | Firefox chưa xác nhận + chưa đo PostgreSQL/tải thật + CDN/cache chưa chốt + 3 BLOCKED/3 NOT RUN |
 
 Không có tuyên bố “production ready” trong báo cáo này.
 
@@ -39,7 +51,7 @@ Không có tuyên bố “production ready” trong báo cáo này.
 | Cross-browser | CONDITIONAL | Firefox BLOCKED |
 | Security cơ bản (XSS/CSRF/session/tenant) | PASS | AUTH-12/13/24, SOC-P21, MSG-07, MSG-12, RES-05 |
 | Dọn dữ liệu test | PASS | SOC-P90, COM-90, CLEAN-01 |
-| Backend error UX (BL-22) | **FAIL** | AUTH-15/16, ADM-05, RES-02 |
+| Backend error UX (BL-22) | **PASS trên `25e7595`** (FAIL trên baseline `4d00b6a`) | AUTH-15/16, ADM-05, RES-02 — `final-signoff-integration-25e7595-results.json` |
 | Performance production | NOT VERIFIED | chỉ local H2 |
 | Tích hợp ZCode `e12b21b` + frontend QA | PASS (không regression) | `12_FINAL_HANDOFF.md` mục 4; 0 khác biệt trạng thái |
 
@@ -57,7 +69,7 @@ Không có tuyên bố “production ready” trong báo cáo này.
 
 ## 5. Điều kiện để chuyển sang READY
 
-1. 4 case BL-22 chuyển PASS trên môi trường tích hợp. Đã xác minh trên `e12b21b` ngày 2026-10-28: cả 4 vẫn FAIL.
+1. 4 case BL-22 chuyển PASS trên môi trường tích hợp. **Đã đạt trên `25e7595`** (fix #88) — cả 4 PASS. Trước đó trên `e12b21b` cả 4 FAIL; giữ gate rerun sau mỗi lần rebase stack.
 2. Chạy lại smoke Firefox (hoặc chấp nhận danh sách trình duyệt hỗ trợ chính thức).
 3. Cấu hình Firebase Storage cho môi trường demo và PASS upload.
 4. Chốt đặc tả private community; bổ sung test nếu có.
