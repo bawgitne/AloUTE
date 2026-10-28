@@ -446,9 +446,18 @@
                     <div class="p-3 bg-danger-subtle bg-opacity-25 rounded-3 border border-danger-subtle d-flex align-items-center justify-content-between gap-3 flex-wrap">
                         <div>
                             <div class="fw-semibold small text-dark">Tạm dừng hoạt động tài khoản</div>
-                            <div class="text-muted small">Bạn có thể kích hoạt lại tài khoản bất kỳ lúc nào bằng cách đăng nhập lại với email và mật khẩu của bạn.</div>
+                            <div class="text-muted small" th:if="${accountUser != null}">Khi vô hiệu hóa, tài khoản chuyển sang trạng thái ngưng hoạt động (inactive). Đăng nhập không tự kích hoạt lại; vui lòng liên hệ quản trị viên để mở lại.</div>
+                            <div class="text-muted small" th:if="${accountUser == null}">Không thể tải thông tin tài khoản để xác minh trạng thái. Chức năng tạm thời bị khóa vì lý do an toàn.</div>
+                            <div class="text-warning-emphasis small mt-1"
+                                 th:if="${accountUser != null and accountUser.role != null and #strings.toString(accountUser.role) == 'SYSTEM_ADMIN'}">
+                                Nếu bạn là quản trị viên hệ thống cuối cùng, hệ thống sẽ từ chối thao tác này để luôn còn người quản trị.
+                            </div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" id="btn-open-deactivate-modal">
+                        <button type="button"
+                                class="btn btn-sm btn-outline-danger rounded-pill px-3"
+                                id="btn-open-deactivate-modal"
+                                th:disabled="${accountUser == null}"
+                                th:attr="title=${accountUser == null ? 'Không thể xác thực thông tin tài khoản' : 'Vô hiệu hóa tài khoản'}">
                             Vô hiệu hóa
                         </button>
                     </div>
@@ -1243,13 +1252,13 @@
                 </div>
                 <div class="modal-body p-4">
                     <p class="small text-muted mb-3">
-                        Khi bạn tạm dừng tài khoản:
+                        Lưu ý quan trọng trước khi vô hiệu hóa tài khoản:
                     </p>
                     <ul class="small text-muted ps-3 mb-3">
-                        <li>Trang cá nhân của bạn sẽ bị ẩn khỏi toàn bộ sinh viên AloUTE.</li>
-                        <li>Các bài viết và bình luận sẽ tạm thời không xuất hiện trên bảng tin.</li>
-                        <li>Toàn bộ phiên đăng nhập trên các thiết bị khác sẽ bị đăng xuất ngay lập tức.</li>
-                        <li>Bạn có thể kích hoạt lại tài khoản bất kỳ lúc nào bằng cách đăng nhập lại.</li>
+                        <li>Bạn bắt buộc phải nhập đúng mật khẩu hiện tại để xác nhận thao tác.</li>
+                        <li>Tài khoản của bạn sẽ chuyển sang trạng thái ngưng hoạt động (inactive).</li>
+                        <li>Đăng nhập thông thường sẽ không thể tự động kích hoạt lại tài khoản.</li>
+                        <li>Vui lòng liên hệ ban quản trị hệ thống nếu bạn muốn yêu cầu mở lại tài khoản trong tương lai.</li>
                     </ul>
 
                     <form id="form-confirm-deactivate" novalidate>
@@ -1261,14 +1270,16 @@
                                    class="form-control"
                                    id="deactivate-password-input"
                                    placeholder="Nhập mật khẩu của bạn..."
+                                   autocomplete="current-password"
+                                   aria-describedby="deactivate-feedback"
                                    required>
-                            <div id="deactivate-feedback" class="text-danger small mt-2 d-none"></div>
+                            <div id="deactivate-feedback" class="text-danger small mt-2 d-none" role="alert" aria-live="assertive"></div>
                         </div>
 
                         <div class="d-flex justify-content-end gap-2">
                             <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Hủy</button>
                             <button type="submit" class="btn btn-sm btn-danger rounded-pill px-4 d-inline-flex align-items-center gap-1" id="btn-confirm-deactivate-submit">
-                                <span class="spinner-border spinner-border-sm d-none" id="deactivate-spinner" role="status"></span>
+                                <span class="spinner-border spinner-border-sm d-none" id="deactivate-spinner" aria-hidden="true"></span>
                                 <span>Vô hiệu hóa ngay</span>
                             </button>
                         </div>
