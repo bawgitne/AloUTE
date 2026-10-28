@@ -261,7 +261,11 @@ class FeedQueryCountIntegrationTest {
         System.out.printf("[feed-query-count] getPollById(4 options): %d statements%n", queries);
 
         // poll findById + options select + one vote select (was 1 + 1 + one exists per option)
-        assertThat(queries).as("JDBC statements for poll detail with 4 options").isLessThanOrEqualTo(3);
+        // BL-04: the detail path now enforces the canonical parent-post visibility gate,
+        // a fixed cost independent of option count (1 post load + 1 author load +
+        // 2 block probes + 1 follow probe). A per-option N+1 regression would exceed
+        // this budget again (4 extra exists() probes).
+        assertThat(queries).as("JDBC statements for poll detail with 4 options").isLessThanOrEqualTo(8);
 
         assertThat(response.get().getOptions()).hasSize(POLL_OPTIONS);
         assertThat(response.get().getOptions()).allSatisfy(o -> assertThat(o.getSelectedByCurrentUser()).isFalse());
