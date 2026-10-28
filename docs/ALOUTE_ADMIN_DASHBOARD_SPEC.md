@@ -41,16 +41,16 @@
 
 ### 1.1. Nguồn tham chiếu đã đọc
 
-Tài liệu được đối chiếu trực tiếp từ `skills.zip` đã cung cấp:
+Tài liệu được đối chiếu trực tiếp từ `skills.zip` đã cung cấp (thư mục `skills/` đã bị loại khỏi repository ngày 28/10/2026; hợp đồng API hiện hành là [`api/openapi.yaml`](api/openapi.yaml)):
 
-- `skills/INDEX.md` — source of truth, giới hạn ownership và thứ tự cập nhật tài liệu.
-- `skills/domain_system.md` — domain, permission, soft-delete, reports, notifications, Community, media quota, trigger/procedure.
-- `skills/system_architecture.md` — API envelope, URL, pagination, HTTP status, error code, transaction.
-- `skills/author_rule.md` — role/authority, JWT, Security, CSRF, deny-by-default.
-- `skills/backend_rule.md` — Layered MVC, DTO, JPA, Service, Repository, testing.
-- `skills/frontend_rule.md` — Thymeleaf + Bootstrap 5 + Vanilla JS, fragment, HTTP client, UI state.
-- `skills/aloute-openapi.yaml` — API contract **hiện có**, version `0.1.0`.
-- `skills/docker_reverse_proxy_rule.md`, `skills/github_workflow.md` — deployment và quy trình làm việc khi triển khai.
+- `INDEX.md` — source of truth, giới hạn ownership và thứ tự cập nhật tài liệu.
+- `domain_system.md` — domain, permission, soft-delete, reports, notifications, Community, media quota, trigger/procedure.
+- `system_architecture.md` — API envelope, URL, pagination, HTTP status, error code, transaction.
+- `author_rule.md` — role/authority, JWT, Security, CSRF, deny-by-default.
+- `backend_rule.md` — Layered MVC, DTO, JPA, Service, Repository, testing.
+- `frontend_rule.md` — Thymeleaf + Bootstrap 5 + Vanilla JS, fragment, HTTP client, UI state.
+- `aloute-openapi.yaml` — API contract **hiện có**, version `0.1.0` (nay là `docs/api/openapi.yaml`).
+- `docker_reverse_proxy_rule.md`, `github_workflow.md` — deployment và quy trình làm việc khi triển khai.
 
 > **Chưa có trong ZIP:** những file được `INDEX.md` nhắc đến như `RULE.md`, `README.md`, tài liệu chuyên biệt Media Storage và Realtime WebSocket. Không giả định nội dung các file này. ZIP cũng không chứa toàn bộ Java source và DB migration thật; mọi quyết định phụ thuộc repository phải kiểm tra lại trước khi tạo code.
 

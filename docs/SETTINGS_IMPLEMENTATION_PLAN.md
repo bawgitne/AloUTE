@@ -3,7 +3,7 @@
 > **Tài liệu đặc tả & Kế hoạch triển khai kỹ thuật chi tiết**  
 > **Dự án:** Mạng xã hội sinh viên AloUTE (HCMUTE)  
 > **Phiên bản:** 1.0 (21/10/2026)  
-> **Quy chuẩn kiến trúc:** Tuân thủ `skills/INDEX.md`, `skills/domain_system.md`, `skills/system_architecture.md`, `skills/frontend_rule.md`, `skills/aloute-openapi.yaml`  
+> **Quy chuẩn kiến trúc:** các file quy tắc `skills/` gốc đã bị loại khỏi repository ngày 28/10/2026; hợp đồng API hiện hành là `docs/api/openapi.yaml`, quy ước phân lớp tại `README.md` §4  
 > **Nguyên tắc cốt lõi:** `ONE RULE → ONE OWNER → ONE SOURCE OF TRUTH`
 
 ---

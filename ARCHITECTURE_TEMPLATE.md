@@ -1,8 +1,8 @@
 # ALOUTE ARCHITECTURE & SCAFFOLD TEMPLATE
 
 > **Tài liệu hướng dẫn khung kiến trúc cho toàn team**
-> Đối soát 28/09/2026: sơ đồ bên dưới ghi nhận scaffold Package-by-Layer đang có, không phải quyết định thay thế quy tắc kỹ thuật. [skills/backend_rule.md](skills/backend_rule.md) §§1–4 và [skills/system_architecture.md](skills/system_architecture.md) §§4–6 quy định Package-by-Feature. Mâu thuẫn scaffold/source với quy tắc còn PENDING để nhóm backend xử lý; audit tài liệu không di chuyển code.
-> Tên lớp/file minh họa chưa tồn tại là PLANNED, không phải inventory implementation. Hiện chỉ có bootstrap và ModelMapperUtil; xem [PROJECT_AUDIT.md](PROJECT_AUDIT.md).
+> Đối soát 28/09/2026: sơ đồ bên dưới ghi nhận scaffold Package-by-Layer đang có, không phải quyết định thay thế quy tắc kỹ thuật. (Các file quy tắc `skills/` từng dẫn chiếu đã bị loại khỏi repository ngày 28/10/2026; nguyên tắc phân lớp hiện hành nằm tại [README.md](README.md) §4, hợp đồng API tại [docs/api/openapi.yaml](docs/api/openapi.yaml).) Mâu thuẫn scaffold/source với quy tắc còn PENDING để nhóm backend xử lý; audit tài liệu không di chuyển code.
+> Tên lớp/file minh họa chưa tồn tại là PLANNED, không phải inventory implementation. Hiện chỉ có bootstrap và ModelMapperUtil (theo kết quả audit nội bộ PROJECT_AUDIT, không commit trong repo).
 
 ---
 
@@ -67,7 +67,7 @@ Database
 ```
 
 - **Controller**: Chỉ nhận request, validate DTO, lấy User qua Principal và gọi Service. Tuyệt đối không gọi Repository trực tiếp.
-- **Service**: Nơi xử lý toàn bộ logic nghiệp vụ, tính toán quyền hạn, quản lý `@Transactional`, và thực hiện mapping theo [skills/backend_rule.md](skills/backend_rule.md) §§31–32. `ModelMapperUtil` là utility hiện có, không bắt buộc tạo Interface/Impl hoặc mapper mới chỉ từ sơ đồ minh họa.
+- **Service**: Nơi xử lý toàn bộ logic nghiệp vụ, tính toán quyền hạn, quản lý `@Transactional`, và thực hiện mapping (xem README.md §4 — nguyên tắc phân lớp). `ModelMapperUtil` là utility hiện có, không bắt buộc tạo Interface/Impl hoặc mapper mới chỉ từ sơ đồ minh họa.
 - **Repository**: Chỉ thực hiện các thao tác CRUD và query database.
 - **Entity**: Khai báo mapping JPA, không trả trực tiếp ra API Controller (luôn map qua DTO).
 

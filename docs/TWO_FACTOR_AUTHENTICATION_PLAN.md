@@ -4,7 +4,7 @@
 > **Dự án:** Mạng xã hội học thuật sinh viên AloUTE (HCMUTE)  
 > **Phạm vi:** Backend (Spring Boot), Web Frontend (Thymeleaf/JS), Mobile App (Flutter)  
 > **Phiên bản:** 1.0 (21/10/2026)  
-> **Nguyên tắc cốt lõi:** `ONE RULE → ONE OWNER → ONE SOURCE OF TRUTH` (Tuân thủ `skills/INDEX.md`, `skills/domain_system.md`, `skills/system_architecture.md`, `skills/author_rule.md`)  
+> **Nguyên tắc cốt lõi:** `ONE RULE → ONE OWNER → ONE SOURCE OF TRUTH` (các file quy tắc `skills/` gốc đã bị loại khỏi repository ngày 28/10/2026; hợp đồng API hiện hành là `docs/api/openapi.yaml`)  
 > **Trạng thái:** 📋 BẢN KẾ HOẠCH KIẾN TRÚC & THIẾT KẾ (CHƯA VIẾT CODE)
 
 ---
@@ -94,7 +94,7 @@ Hệ thống phải đảm bảo **Backward Compatibility (Tương thích ngư�
 
 ## 4. ĐẶC TẢ THIẾT KẾ CƠ SỞ DỮ LIỆU (DATABASE SCHEMA)
 
-Tuân thủ nguyên tắc thiết kế DDL trong `skills/domain_system.md` và `skills/backend_rule.md`:
+Nguyên tắc thiết kế DDL (từ bộ quy tắc `skills/` gốc, nay nằm trong entity/ và `src/main/resources/db/migration/`):
 
 ### 4.1. Bổ sung trường trong bảng `users`
 ```sql
@@ -133,7 +133,7 @@ CREATE TABLE user_backup_codes (
 
 ## 5. THIẾT KẾ HỆ THỐNG REST API (BACKEND CONTRACT)
 
-Theo chuẩn `skills/aloute-openapi.yaml` và `skills/system_architecture.md`:
+Theo chuẩn `docs/api/openapi.yaml` và quy ước envelope trong `README.md` §4:
 
 ### 5.1. Danh sách Endpoint
 | HTTP Method | Đường dẫn API | Xác thực | Mục đích |
