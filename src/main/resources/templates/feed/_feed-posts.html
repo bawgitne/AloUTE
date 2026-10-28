@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  Shared feed post list. Used both by the initial SSR page and by
+  GET /feed/posts?page=N for infinite scroll, so card markup has one owner.
+-->
+<div th:fragment="postList" class="feed-page-fragment" data-feed-page-fragment>
+    <div th:each="postItem : ${posts}" class="feed-post-item">
+        <div th:replace="~{post/_post-card :: postCard(post=${postItem})}"></div>
+    </div>
+</div>
+</body>
+</html>
