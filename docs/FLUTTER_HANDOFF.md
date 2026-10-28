@@ -2,7 +2,7 @@
 
 > Ngày tổng hợp: 2026-10-20 · Nguồn đối chiếu: master `6fd2496` (sau PR #37/#38)
 > Phạm vi: mọi thứ nhà phát triển Flutter cần biết để tiếp tục `aloute_mobile/` mà không phải
-> đọc lại backend. Contract gốc: `skills/aloute-openapi.yaml`.
+> đọc lại backend. Contract gốc: `docs/api/openapi.yaml` (repo).
 
 ---
 
@@ -11,13 +11,13 @@
 | Chủ đề | Thực tế đã verify |
 | :--- | :--- |
 | Base URL | REST mount tại `/api/*` (**không có** `/api/v1`) |
-| Auth transport | Login trả JWT **qua `Set-Cookie: aloute_access_token` (HttpOnly)**; body là `ApiResponse<UserResponse>` **không chứa token** |
+| Auth transport | Login/2FA verify trả JWT **qua `Set-Cookie: aloute_access_token` (HttpOnly)**; body `ApiResponse<LoginResponse>` **có kèm `token`** trong `data` (dùng được cho Bearer) |
 | Bearer fallback | `JwtAuthenticationFilter` đọc cookie trước, nếu không có thì đọc `Authorization: Bearer <token>` → mobile bắt buộc dùng Bearer |
 | CSRF | Request mang `Authorization: Bearer` được **miễn CSRF** (`SecurityConfig.bearerRequest`). Mobile không cần X-XSRF-TOKEN |
 | Logout | `POST /api/auth/logout` (cần Bearer) → xóa cookie, **không** tăng `authVersion` |
 | Đổi mật khẩu | `POST /api/auth/reset-password` tăng `authVersion` → mọi JWT cũ (Bearer gồm cả mobile) bị từ chối 401 ngay lập tức |
 | Registration | 2 bước: `POST /api/auth/register` (201) → email OTP 6 số → `POST /api/auth/verify-registration-otp`. Login khi chưa verify trả 401 `AUTH_ACCOUNT_NOT_VERIFIED` |
-| Response envelope | `{ success, data, meta? }`; lỗi: `{ success:false, error:{ code, message } }` + HTTP status đúng (`skills/system_architecture.md`) |
+| Response envelope | `{ success, data, meta? }`; lỗi: `{ success:false, error:{ code, message, fieldErrors? }, traceId }` + HTTP status đúng (xem `src/main/java/com/aloute/common/api/ApiResponse.java`, `GlobalExceptionHandler.java`) |
 | Pagination | `page` **0-indexed**, `size` (mặc định 20, max 100), trả `meta: { page, size, totalElements, totalPages, ... }` |
 | Dev server | `mvn spring-boot:run` → `http://localhost:8080`, H2 in-memory, seed `admin@aloute.local` / `user@aloute.local` mật khẩu `User@123` |
 | WebSocket | STOMP `/ws` (SockJS + raw), CONNECT cần token; mobile hiện **chưa** dùng, feed đang poll REST |

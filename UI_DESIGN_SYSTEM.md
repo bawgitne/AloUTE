@@ -3,9 +3,9 @@
 > **Tài liệu đặc tả hệ thống giao diện chính thức cho AloUTE**
 > **Phiên bản:** Week 2 Baseline (30/09/2026)
 > **Định hướng trực quan phê duyệt:** **Modern University Social Network — Light Campus Style**
-> **Thẩm quyền phân công:** [Nhom13_KeHoachCodeTest.docx](Nhom13_KeHoachCodeTest.docx) — **Phạm Minh Quân** (24110311), Frontend + UI Design
-> **Nguyên tắc kiến trúc:** Tuân thủ [skills/INDEX.md](skills/INDEX.md), [skills/frontend_rule.md](skills/frontend_rule.md), [skills/system_architecture.md](skills/system_architecture.md), [skills/aloute-openapi.yaml](skills/aloute-openapi.yaml), [skills/domain_system.md](skills/domain_system.md)
-> **Quyết định phong cách:** Chi tiết lý do và ma trận nhất quán tại [WEEK2_UI_STYLE_DECISION.md](WEEK2_UI_STYLE_DECISION.md)
+> **Thẩm quyền phân công:** Kế hoạch nhóm `Nhom13_KeHoachCodeTest.docx` (không commit trong repo) — **Phạm Minh Quân** (24110311), Frontend + UI Design
+> **Nguyên tắc kiến trúc:** Tuân thủ [README.md](README.md) §4 (phân lớp, Principal-driven security), hợp đồng API [docs/api/openapi.yaml](docs/api/openapi.yaml)
+> **Quyết định phong cách:** Chi tiết lý do và ma trận nhất quán tại tài liệu `WEEK2_UI_STYLE_DECISION.md` (không commit trong repo)
 
 ---
 
@@ -17,7 +17,7 @@ Giao diện đại diện cho cộng đồng học thuật số của sinh viên
 - **Không gian giảng đường ban ngày (Daylight Campus Ambiance):** Nền sáng nhẹ nhàng, thoáng đãng, kích thích trao đổi học thuật tích cực, giảm mỏi mắt khi đọc tài liệu, bài viết thảo luận dài, thông báo khoa và quy chế trường.
 - **Bản sắc học thuật tinh tế (Academic Identity):** Sắc xanh dương chủ đạo của trường (`#2563EB`) kết hợp bề mặt thẻ trắng thanh lịch (`#FFFFFF`), đường phân cách xám nhạt (`#E2E8F0`), loại bỏ hiệu ứng trang trí màu mè hoặc dải màu rực rỡ không cần thiết.
 - **Bố cục mạng xã hội thực thụ:** Áp dụng mô hình bố cục 3 cột tương tác chuẩn (tương tự Threads/Facebook nhưng tinh giản cho môi trường đại học), phân cấp thông tin rõ rệt và đặt người học làm trung tâm.
-- **Tiếp cận Server-Side Rendering (Thymeleaf + Bootstrap 5):** Thiết kế mô-đun hóa tối đa thành Layouts và Reusable Fragments, phù hợp với kiến trúc Spring MVC SSR và Bootstrap 5 primitives theo [skills/frontend_rule.md](skills/frontend_rule.md).
+- **Tiếp cận Server-Side Rendering (Thymeleaf + Bootstrap 5):** Thiết kế mô-đun hóa tối đa thành Layouts và Reusable Fragments, phù hợp với kiến trúc Spring MVC SSR và Bootstrap 5 primitives theo README.md §4.
 
 ---
 
@@ -216,7 +216,7 @@ Tránh bóng đen gắt của giao diện tối cũ; sử dụng bóng mờ tinh
 
 > **Lưu ý chuyển tiếp thẩm quyền kiến trúc (Style Authority Transition):**
 > Toàn bộ 10 file vector SVG tại thư mục `docs/ui/wireframes/` (`01-login.svg` đến `10-notification.svg`) được xây dựng với bảng màu tối (Dark Palette) là **bằng chứng thiết kế lịch sử Tuần 1 (Week 1 Historical Design Evidence)**.
-> Đối với quá trình hiện thực hóa giao diện Tuần 2, định hướng trực quan **Modern University Social Network — Light Campus Style** tại tài liệu này và [WEEK2_UI_STYLE_DECISION.md](WEEK2_UI_STYLE_DECISION.md) là **nguồn thẩm quyền duy nhất (Authoritative Baseline)**.
+> Đối với quá trình hiện thực hóa giao diện Tuần 2, định hướng trực quan **Modern University Social Network — Light Campus Style** tại tài liệu này và tài liệu WEEK2_UI_STYLE_DECISION (không commit trong repo) là **nguồn thẩm quyền duy nhất (Authoritative Baseline)**.
 
 | STT | Màn hình Word | Mã màn hình | Bằng chứng Wireframe Tuần 1 (Dark History) | Ứng dụng Light Campus Style (Tuần 2 & Tuần 3) | Trạng thái Thực thi Mã nguồn |
 |:---:|---|:---:|---|---|---|

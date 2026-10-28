@@ -12,6 +12,7 @@ Tất cả các tài liệu kỹ thuật, quy chuẩn kiến trúc và kế ho�
 | :--- | :--- |
 | Tổng quan dự án, chạy local, test | [`README.md`](../README.md) |
 | Đóng góp, quy ước branch/commit/PR | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
+| Hợp đồng API (OpenAPI) | [`api/openapi.yaml`](api/openapi.yaml) |
 | Kiến trúc tổng quan | [`ARCHITECTURE_TEMPLATE.md`](../ARCHITECTURE_TEMPLATE.md), [`SCREEN_FLOW.md`](../SCREEN_FLOW.md) |
 | Thiết kế giao diện | [`UI_DESIGN_SYSTEM.md`](../UI_DESIGN_SYSTEM.md), [`docs/ui/wireframes/`](ui/wireframes/README.md) |
 | Nghiệp vụ Authentication & Authorization | [`AUTHEN_AUTHOR_BUSINESS_PHASES.md`](AUTHEN_AUTHOR_BUSINESS_PHASES.md) |
@@ -56,4 +57,4 @@ Một số hồ sơ chỉ tồn tại trên máy cục bộ và **không** đư�
 
 - Tên file/tài liệu theo chức năng; không dùng tên công cụ soạn thảo làm tên người thực hiện hay loại báo cáo.
 - Snapshot lịch sử phải ghi rõ ngày đo, baseline và bản chất "lịch sử", không phản ánh `master` hiện tại.
-- Khi có khác biệt giữa tài liệu tóm tắt và file owner trong `skills/`, **owner file thắng**.
+- Hợp đồng API chính tắc là `docs/api/openapi.yaml`; khi có khác biệt giữa tài liệu tóm tắt và OpenAPI, **OpenAPI thắng**.

@@ -1,10 +1,8 @@
 # ALOUTE — TÀI LIỆU ĐẶC TẢ NGHIỆP VỤ AUTHENTICATION & AUTHORIZATION THEO CÁC PHASE
 
 > **Căn cứ tài liệu chuẩn (Source of Truth):**
-> - Quy tắc Spring Security: [`skills/author_rule.md`](../skills/author_rule.md)
-> - Quy tắc Nghiệp vụ Domain: [`skills/domain_system.md`](../skills/domain_system.md)
-> - Kiến trúc hệ thống & ErrorCode: [`skills/system_architecture.md`](../skills/system_architecture.md)
-> - Hợp đồng API: [`skills/aloute-openapi.yaml`](../skills/aloute-openapi.yaml)
+> - Hợp đồng API hiện hành: [`api/openapi.yaml`](api/openapi.yaml)
+> - Quy tắc Spring Security / Nghiệp vụ Domain / Kiến trúc & ErrorCode: các file `skills/` gốc đã bị loại khỏi repository ngày 28/10/2026; quy ước hiện hành nằm tại [README.md](../README.md) §4 và bộ test bảo mật trong `src/test/`.
 > - Thành viên phụ trách Module Auth/Security: **Nguyễn Đoàn Minh Khôi (24110259)**
 
 ---

@@ -32,7 +32,9 @@ Các mục tiêu kỹ thuật chính:
 | **Tương tác & Xã hội** | • Thả cảm xúc / Thích bài viết (Like).<br>• Bình luận & Phản hồi phân cấp (Nested Comments & Replies).<br>• Theo dõi / Bỏ theo dõi người dùng (Follow / Unfollow).<br>• Kết nối bạn bè, trang cá nhân tùy biến (Avatar, Ảnh bìa, Tiểu sử).<br>• Chặn người dùng vi phạm (Block). |
 | **Quản lý Cộng đồng** | • Tạo và quản trị cộng đồng / nhóm học tập theo khoa, lớp, CLB.<br>• Chế độ công khai (Public) hoặc riêng tư (Private).<br>• Quản trị viên cộng đồng duyệt thành viên và kiểm duyệt bài viết.<br>• Phân vai trò thành viên: Admin cộng đồng, Kiểm duyệt viên (Moderator), Thành viên. |
 | **Thời gian thực & Thông báo** | • Nhắn tin trực tiếp 1-1 (Direct Messaging) tức thì qua giao thức **STOMP over WebSocket**.<br>• Thông báo trong ứng dụng (In-app notifications) khi có tương tác mới.<br>• Tích hợp Firebase Cloud Messaging (**FCM**) cho thông báo đẩy trên thiết bị di động. |
-| **Quản trị hệ thống (Admin)** | • Bảng điều khiển quản trị chuyên sâu (**Admin Dashboard**).<br>• Quản lý người dùng: Cảnh báo vi phạm, Tạm khóa / Đình chỉ tài khoản (Suspension), Cấp quyền vai trò.<br>• Kiểm duyệt nội dung: Tiếp nhận và xử lý báo cáo vi phạm (Reports / Moderation).<br>• Giám sát số liệu và thống kê hoạt động hệ thống. |
+| **Quản trị hệ thống (Admin)** | • Bảng điều khiển quản trị chuyên sâu (**Admin Dashboard**).<br>• Quản lý người dùng: Cảnh báo vi phạm, Tạm khóa / Đình chỉ tài khoản (Suspension), Đặt lại hồ sơ, Cấp quyền vai trò.<br>• Kiểm duyệt nội dung: Tiếp nhận và xử lý báo cáo vi phạm (Reports / Moderation).<br>• Giám sát số liệu và thống kê hoạt động hệ thống. |
+
+> **Trạng thái tích hợp dịch vụ ngoài**: các tích hợp dưới đây đã được triển khai trong mã nguồn nhưng **phụ thuộc cấu hình bên ngoài** khi chạy thật — (1) *Firebase Storage* cho media: dev mặc định lưu đĩa cục bộ, bucket Firebase cần IAM/service account hợp lệ trên môi trường đích; (2) *FCM push*: cần service account Firebase; (3) *SMTP email*: cần host/credentials hợp lệ, mặc định fail-closed nếu thiếu cấu hình.
 
 ---
 
@@ -63,7 +65,7 @@ Các mục tiêu kỹ thuật chính:
 - **Bảo mật & Mã hóa**:
   - Spring Security Filter Chain
   - JSON Web Token (JJWT 0.12.5) với cơ chế HttpOnly Cookie
-  - TOTP 2FA (Brotatoolkit / Google Authenticator) & Mã hóa AES-GCM
+  - TOTP 2FA (chuẩn RFC 6238, tương thích Google Authenticator) & Mã hóa AES-GCM
 - **Giao diện Web**: Thymeleaf Engine, Bootstrap 5, Bootstrap Icons, Vanilla JavaScript (ES6+), CSS Tokens & Glassmorphism
 - **Real-time Engine**: Spring Messaging + STOMP over WebSocket
 - **Dịch vụ tích hợp**:
@@ -103,12 +105,12 @@ Database (MySQL 8 / H2)
    - Mọi endpoint REST API đều đóng gói theo envelope thống nhất:
      ```json
      {
-       "code": 200,
-       "message": "Thành công",
-       "data": { ... }
+       "success": true,
+       "data": { ... },
+       "meta": { "page": 0, "size": 20, "totalElements": 42, "totalPages": 3 }
      }
      ```
-   - Xử lý lỗi tập trung thông qua `GlobalExceptionHandler` kết hợp cùng danh mục `ErrorCode` và `ApiException`.
+   - Lỗi trả `{"success": false, "error": {"code", "message", "fieldErrors"}}` kèm HTTP status đúng, xử lý tập trung qua `GlobalExceptionHandler` kết hợp danh mục `ErrorCode` và `ApiException`. Hợp đồng đầy đủ: [`docs/api/openapi.yaml`](docs/api/openapi.yaml).
 4. **Phân trang chuẩn hóa (Pagination)**:
    - Toàn bộ endpoint phân trang đều sử dụng định dạng 0-indexed (`?page=0&size=10`), kiểm soát giới hạn tối đa `max-page-size: 100` để chống tấn công cạn kiệt tài nguyên (DoS).
 

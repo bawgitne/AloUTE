@@ -2968,6 +2968,32 @@ components:
 
   schemas:
 
+    ApiResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          description: |
+            LoginResponse payload: the authenticated user fields (id, username, email,
+            isVerified, isPrivate, isActive, isTwoFactorEnabled) plus `user`
+            (UserResponse) and the session JWT under `token`.
+        meta:
+          type: 'null'
+
+    ApiSuccess:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          const: true
+        meta:
+          nullable: true
+
     ApiResponseNull:
       type: object
       required: [success]

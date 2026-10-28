@@ -111,7 +111,7 @@ These are PLANNED screen interactions, not proof of functioning routes or succes
 
 ## Word reconciliation and screen flow evidence
 
-Owner: **Phạm Minh Quân**, one of four members in [MODULE_ASSIGNMENT.md](MODULE_ASSIGNMENT.md). Source: [Word hiện hành](Nhom13_KeHoachCodeTest.docx).
+Owner: **Phạm Minh Quân**, one of four members in phân công MODULE_ASSIGNMENT (không commit trong repo). Source: Word hiện hành `Nhom13_KeHoachCodeTest.docx` (không commit trong repo).
 
 - Week 1: **21/09/2026 – 26/09/2026** — Thiết kế giao diện cho toàn bộ 10 màn hình chính (bao gồm Search, Community, Messaging và Notification). Bộ wireframe vector SVG chuẩn dark theme đã hoàn thiện tại `docs/ui/wireframes/`.
 - Week 2: **27/09/2026 – 04/10/2026** — Hiện thực hóa 6 trang tĩnh chính / layout / fragments.

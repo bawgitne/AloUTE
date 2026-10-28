@@ -3,9 +3,9 @@
 **Phạm vi:** Thiết kế giao diện, thiết kế dữ liệu và thiết kế xử lý (10 lược đồ tuần tự).
 
 **Nhóm 13:** Bằng (use case, messaging), Khôi (auth, profile, social), Ngọc (DB, post, community), Quân (UI).
-**Căn cứ:** `skills/INDEX.md`, `skills/domain_system.md`, `skills/system_architecture.md`, `skills/aloute-openapi.yaml`, `skills/backend_rule.md`, `skills/author_rule.md`, `SCREEN_FLOW.md` và các nhánh `origin/master`, `origin/feat/bang-week3`, `origin/week2_3_khoi`, `origin/ngoc-dev`, các nhánh giao diện của Quân (đối chiếu ngày 08/10/2026).
+**Căn cứ:** bộ quy tắc `skills/` (đã bị loại khỏi repository ngày 28/10/2026 — hợp đồng API hiện hành là [`api/openapi.yaml`](api/openapi.yaml)), `SCREEN_FLOW.md` và các nhánh `origin/master`, `origin/feat/bang-week3`, `origin/week2_3_khoi`, `origin/ngoc-dev`, các nhánh giao diện của Quân (đối chiếu ngày 08/10/2026).
 
-> Đây là tài liệu thiết kế để nộp và thuyết trình, không phải biên bản nghiệm thu chức năng chạy được. Khi tài liệu này tóm tắt khác tài liệu canonical, quy tắc ở `skills/` là nguồn quyết định.
+> Đây là tài liệu thiết kế để nộp và thuyết trình, không phải biên bản nghiệm thu chức năng chạy được. Khi tài liệu này tóm tắt khác tài liệu canonical, hợp đồng API `docs/api/openapi.yaml` và source code là nguồn quyết định.
 
 ## 1. Thiết kế giao diện
 
@@ -23,7 +23,7 @@ Trên desktop, thiết kế Feed dùng ba vùng: điều hướng/hồ sơ, nộ
 
 ## 2. Thiết kế dữ liệu
 
-Hệ thống dùng CSDL quan hệ; môi trường triển khai chính là PostgreSQL. `users` là gốc cho danh tính, `profiles` lưu thông tin hiển thị; `posts` là gốc cho bài viết và reply; `communities` là gốc cho cộng đồng. Các quan hệ N-N được tách thành bảng trung gian, và bài trả lời dùng khóa ngoại tự tham chiếu. Sơ đồ dưới đây rút gọn các bảng liên quan trực tiếp đến 10 use case; mô hình đầy đủ nằm trong [domain_system.md](../skills/domain_system.md).
+Hệ thống dùng CSDL quan hệ; môi trường triển khai chính là MySQL 8 (dev/test dùng H2 in-memory; thiết kế ban đầu đề xuất PostgreSQL). `users` là gốc cho danh tính, `profiles` lưu thông tin hiển thị; `posts` là gốc cho bài viết và reply; `communities` là gốc cho cộng đồng. Các quan hệ N-N được tách thành bảng trung gian, và bài trả lời dùng khóa ngoại tự tham chiếu. Sơ đồ dưới đây rút gọn các bảng liên quan trực tiếp đến 10 use case; mô hình đầy đủ nằm trong schema JPA thực tế (`src/main/java/com/aloute/entity/`) và script DDL trong `src/main/resources/db/migration/`.
 
 ```mermaid
 erDiagram
@@ -68,7 +68,7 @@ Phần SQL thuộc Ngọc nằm ở [schema.sql](../src/main/resources/db/schema
 
 ### 3.1. Kiến trúc và quy ước đọc sơ đồ
 
-Luồng HTTP đi qua `UI -> Controller -> Service -> Repository -> PostgreSQL`. Spring Security/JWT xác thực; Controller lấy user ID từ Principal; Service kiểm tra quyền trên tài nguyên và quản lý transaction; Repository truy cập CSDL. API trả `ApiResponse<T>` theo [system_architecture.md](../skills/system_architecture.md). Media nhị phân đi qua backend tới Firebase Storage, còn metadata lưu SQL. Với chat, phải lưu tin nhắn vào SQL trước khi phát sự kiện WebSocket.
+Luồng HTTP đi qua `UI -> Controller -> Service -> Repository -> MySQL 8 / H2`. Spring Security/JWT xác thực; Controller lấy user ID từ Principal; Service kiểm tra quyền trên tài nguyên và quản lý transaction; Repository truy cập CSDL. API trả `ApiResponse<T>` theo quy ước envelope trong [README.md](../README.md) §4. Media nhị phân đi qua backend tới Firebase Storage, còn metadata lưu SQL. Với chat, phải lưu tin nhắn vào SQL trước khi phát sự kiện WebSocket.
 
 Mỗi sơ đồ có nhánh chính và ít nhất một tình huống lỗi/ngoại lệ. `DB` trong sơ đồ là CSDL quan hệ, không phải một service riêng. Các sơ đồ thể hiện thiết kế theo contract hiện hành; nơi code giữa các nhánh chưa hội tụ được ghi tại mục 3.3.
 
