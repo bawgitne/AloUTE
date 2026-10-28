@@ -19,14 +19,16 @@ public interface AuthService {
             UserResponse user,
             Long userId,
             String twoFactorType,
-            String maskedEmail
+            String maskedEmail,
+            long authVersion
     ) {
         public static LoginOutcome success(UserPrincipal principal, UserResponse user) {
-            return new LoginOutcome(false, principal, user, user.id(), null, null);
+            return new LoginOutcome(false, principal, user, user.id(), null, null, 0L);
         }
 
-        public static LoginOutcome twoFactorRequired(Long userId, String twoFactorType, String maskedEmail) {
-            return new LoginOutcome(true, null, null, userId, twoFactorType, maskedEmail);
+        public static LoginOutcome twoFactorRequired(Long userId, String twoFactorType, String maskedEmail,
+                                                     long authVersion) {
+            return new LoginOutcome(true, null, null, userId, twoFactorType, maskedEmail, authVersion);
         }
     }
 }

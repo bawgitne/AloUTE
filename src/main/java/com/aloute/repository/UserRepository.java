@@ -41,4 +41,25 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     @org.springframework.data.jpa.repository.Query("SELECT u.id FROM User u WHERE lower(u.email) = lower(:email)")
     Optional<Long> findIdByEmailIgnoreCase(@org.springframework.data.repository.query.Param("email") String email);
+
+    /**
+     * BL-03: atomic per-account failure accounting. The lockout threshold is
+     * evaluated inside the UPDATE so concurrent failed logins on different
+     * instances cannot lose increments (read-modify-write on the entity would).
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query(
+            "UPDATE User u SET u.failedLoginAttempts = u.failedLoginAttempts + 1, "
+                    + "u.lockedUntil = CASE WHEN u.failedLoginAttempts + 1 >= :threshold THEN :lockUntil ELSE u.lockedUntil END "
+                    + "WHERE lower(u.email) = lower(:email)")
+    int registerFailedLogin(@org.springframework.data.repository.query.Param("email") String email,
+                            @org.springframework.data.repository.query.Param("threshold") int threshold,
+                            @org.springframework.data.repository.query.Param("lockUntil") Instant lockUntil);
+
+    /** Clears the failure state only for users that actually carry one (avoids a write on every login). */
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query(
+            "UPDATE User u SET u.failedLoginAttempts = 0, u.lockedUntil = NULL "
+                    + "WHERE u.id = :userId AND (u.failedLoginAttempts > 0 OR u.lockedUntil IS NOT NULL)")
+    int resetLoginFailureState(@org.springframework.data.repository.query.Param("userId") Long userId);
 }

@@ -45,12 +45,18 @@ public class JwtTokenProvider {
                 .signWith(signingKey()).compact();
     }
 
-    public String generateTwoFactorTicket(Long userId, String type, long expirationSeconds) {
+    /**
+     * BL-08: tickets carry the user's authVersion so a ticket issued before a
+     * global revocation (logout-everywhere / credential change) can no longer
+     * mint a session.
+     */
+    public String generateTwoFactorTicket(Long userId, String type, long expirationSeconds, long authVersion) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .subject(userId.toString())
                 .claim("purpose", "2FA_CHALLENGE")
                 .claim("type", type != null ? type : "TOTP")
+                .claim("authVersion", authVersion)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(expirationSeconds)))
                 .signWith(signingKey())

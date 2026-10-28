@@ -442,7 +442,7 @@ class TwoFactorCredentialIsolationIntegrationTest {
     @Test
     @DisplayName("Negative Security: Real HTTP Bearer 2FA challenge ticket rejected with 401")
     void realHttp_bearerChallengeTicket_rejectedWith401() throws Exception {
-        String challengeTicket = jwtTokenProvider.generateTwoFactorTicket(testUser.getId(), "TOTP", 300);
+        String challengeTicket = jwtTokenProvider.generateTwoFactorTicket(testUser.getId(), "TOTP", 300, 0L);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:" + port + "/api/users/profile"))
@@ -457,7 +457,7 @@ class TwoFactorCredentialIsolationIntegrationTest {
     @Test
     @DisplayName("Negative Security: Real HTTP Cookie 2FA challenge ticket rejected with 401")
     void realHttp_cookieChallengeTicket_rejectedWith401() throws Exception {
-        String challengeTicket = jwtTokenProvider.generateTwoFactorTicket(testUser.getId(), "TOTP", 300);
+        String challengeTicket = jwtTokenProvider.generateTwoFactorTicket(testUser.getId(), "TOTP", 300, 0L);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:" + port + "/api/users/profile"))
@@ -511,7 +511,7 @@ class TwoFactorCredentialIsolationIntegrationTest {
     @Test
     @DisplayName("Negative Security: Real STOMP CONNECT with Bearer 2FA challenge ticket rejected")
     void realStomp_bearerChallengeTicket_rejected() throws Exception {
-        String challengeTicket = jwtTokenProvider.generateTwoFactorTicket(testUser.getId(), "TOTP", 300);
+        String challengeTicket = jwtTokenProvider.generateTwoFactorTicket(testUser.getId(), "TOTP", 300, 0L);
 
         WebSocketHttpHeaders wsHeaders = new WebSocketHttpHeaders();
         StompHeaders connectHeaders = new StompHeaders();
@@ -523,7 +523,7 @@ class TwoFactorCredentialIsolationIntegrationTest {
     @Test
     @DisplayName("Negative Security: Real STOMP CONNECT with Cookie 2FA challenge ticket rejected")
     void realStomp_cookieChallengeTicket_rejected() throws Exception {
-        String challengeTicket = jwtTokenProvider.generateTwoFactorTicket(testUser.getId(), "TOTP", 300);
+        String challengeTicket = jwtTokenProvider.generateTwoFactorTicket(testUser.getId(), "TOTP", 300, 0L);
 
         WebSocketHttpHeaders wsHeaders = new WebSocketHttpHeaders();
         wsHeaders.add("Cookie", JwtAuthenticationFilter.COOKIE_NAME + "=" + challengeTicket);
@@ -598,7 +598,7 @@ class TwoFactorCredentialIsolationIntegrationTest {
             assertThat(validResp.statusCode()).isEqualTo(200);
 
             // 2. Standard 2FA challenge ticket for this user is rejected with 401
-            String challengeTicket = jwtTokenProvider.generateTwoFactorTicket(posUserId, "TOTP", 300);
+            String challengeTicket = jwtTokenProvider.generateTwoFactorTicket(posUserId, "TOTP", 300, 0L);
             HttpRequest chalReq = HttpRequest.newBuilder()
                     .uri(URI.create("http://localhost:" + port + "/api/users/profile"))
                     .header("Authorization", "Bearer " + challengeTicket)
@@ -643,7 +643,7 @@ class TwoFactorCredentialIsolationIntegrationTest {
                 .isInstanceOf(ExpiredJwtException.class);
 
         // 2. Tampered signature throws JwtException
-        String validTicket = jwtTokenProvider.generateTwoFactorTicket(testUser.getId(), "TOTP", 300);
+        String validTicket = jwtTokenProvider.generateTwoFactorTicket(testUser.getId(), "TOTP", 300, 0L);
         String tamperedTicket = validTicket.substring(0, validTicket.length() - 5) + "XXXXX";
         assertThatThrownBy(() -> jwtTokenProvider.parseTwoFactorTicket(tamperedTicket))
                 .isInstanceOf(JwtException.class);
@@ -675,7 +675,7 @@ class TwoFactorCredentialIsolationIntegrationTest {
         assertThat(expResp.body()).contains("AUTH_INVALID_2FA_TICKET");
 
         // 2. Tampered signature ticket
-        String validTicket = jwtTokenProvider.generateTwoFactorTicket(testUser.getId(), "TOTP", 300);
+        String validTicket = jwtTokenProvider.generateTwoFactorTicket(testUser.getId(), "TOTP", 300, 0L);
         String tamperedTicket = validTicket.substring(0, validTicket.length() - 5) + "XXXXX";
         String tamperedBody = objectMapper.writeValueAsString(Map.of(
                 "twoFactorTicket", tamperedTicket,

@@ -175,4 +175,42 @@ class H2MigrationScriptVerificationTest {
             ScriptUtils.executeSqlScript(conn, scriptResource);
         }
     }
+
+    @Test
+    @DisplayName("H2 login-lockout script adds failure accounting columns idempotently")
+    void verifyH2LoginLockoutScript() throws Exception {
+        String dbUrl = "jdbc:h2:mem:login_lockout_test_" + System.currentTimeMillis() + ";DB_CLOSE_DELAY=-1";
+        try (Connection conn = DriverManager.getConnection(dbUrl, "sa", "")) {
+            Statement stmt = conn.createStatement();
+
+            stmt.execute("""
+                CREATE TABLE users (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    username VARCHAR(50) NOT NULL UNIQUE,
+                    email VARCHAR(254) NOT NULL UNIQUE,
+                    password_hash VARCHAR(255) NOT NULL,
+                    is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+                    is_private BOOLEAN NOT NULL DEFAULT FALSE,
+                    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                    global_role VARCHAR(32) NOT NULL DEFAULT 'USER',
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+                INSERT INTO users (username, email, password_hash, is_verified, is_active)
+                VALUES ('lockout_legacy', 'lockout@example.com', 'hashed_pwd', TRUE, TRUE);
+            """);
+
+            ClassPathResource scriptResource = new ClassPathResource("db/migration/h2_login_lockout.sql");
+            ScriptUtils.executeSqlScript(conn, scriptResource);
+
+            ResultSet rs = stmt.executeQuery(
+                    "SELECT failed_login_attempts, locked_until FROM users WHERE username = 'lockout_legacy'");
+            assertThat(rs.next()).isTrue();
+            assertThat(rs.getInt("failed_login_attempts")).isEqualTo(0);
+            assertThat(rs.getObject("locked_until")).isNull();
+
+            // Idempotency: running the script a second time must succeed
+            ScriptUtils.executeSqlScript(conn, scriptResource);
+        }
+    }
 }

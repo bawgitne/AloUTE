@@ -23,3 +23,15 @@ This directory contains standalone, manual SQL migration scripts for database sc
    - **EXECUTION STATUS: BLOCKED (ENGINE UNAVAILABLE)** on test host; real MySQL 8 engine not present on local machine.
    - Creates `revoked_tokens` InnoDB table with `token_hash` unique key and `expires_at` index.
    - Must be executed manually by a DBA with appropriate DDL permissions before deploying to production.
+
+9. **`h2_login_lockout.sql` / `mysql8_login_lockout.sql`** (BL-03 login throttle, 2026-10-28)
+   - Adds `users.failed_login_attempts` (NOT NULL DEFAULT 0) and `users.locked_until` (NULL).
+   - H2 variant verified via `H2MigrationScriptVerificationTest`; MySQL 8 variant must be run
+     manually by a DBA before deploying the login-lockout build (no ADD COLUMN IF NOT EXISTS).
+   - Non-destructive: additive columns only; existing rows keep working (0 attempts, unlocked).
+
+10. **`h2_used_two_factor_tickets.sql` / `mysql8_used_two_factor_tickets.sql`** (BL-08 2FA hardening, 2026-10-28)
+    - Creates `used_two_factor_tickets` (one-time store for consumed 2FA login tickets,
+      unique `ticket_hash`, housekept after 10 minutes).
+    - H2 variant verified via `H2MigrationScriptVerificationTest`; MySQL 8 variant must be
+      executed manually by a DBA before deploying the 2FA-hardening build.
