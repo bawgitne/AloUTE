@@ -27,6 +27,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import com.aloute.config.StompAuthChannelInterceptor;
 import com.aloute.security.jwt.JwtSessionService;
 
+import java.time.Duration;
+import java.time.Instant;
+
 @RequiredArgsConstructor
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -36,9 +39,18 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final RegistrationOtpService registrationOtpService;
     private final JwtSessionService jwtSessionService;
+    private final org.springframework.transaction.support.TransactionTemplate transactionTemplate;
 
     @Autowired(required = false)
     private StompAuthChannelInterceptor stompAuthChannelInterceptor;
+
+    /** BL-03: consecutive failed logins tolerated before the account locks. */
+    @org.springframework.beans.factory.annotation.Value("${aloute.auth.login-max-failed-attempts:5}")
+    private int loginMaxFailedAttempts;
+
+    /** BL-03: how long a locked account refuses login attempts. */
+    @org.springframework.beans.factory.annotation.Value("${aloute.auth.login-lockout-minutes:15}")
+    private int loginLockoutMinutes;
 
     @Override @Transactional
     public UserResponse register(RegisterRequest request) {
@@ -71,11 +83,24 @@ public class AuthServiceImpl implements AuthService {
         return toResponse(user);
     }
 
-    @Override @Transactional(readOnly = true)
+    @Override
     public LoginOutcome login(LoginRequest request) {
+        String email = request.email().trim();
+
+        // BL-03: per-account brute-force lockout, evaluated before credential
+        // verification. The response is uniform and carries no account detail.
+        // Writes go through TransactionTemplate: this method is intentionally not
+        // @Transactional, so failure-path updates survive the ApiException that
+        // follows instead of being rolled back with it.
+        User lookup = userRepository.findByEmailIgnoreCase(email).orElse(null);
+        if (lookup != null && lookup.getLockedUntil() != null && lookup.getLockedUntil().isAfter(Instant.now())) {
+            throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "AUTH_TOO_MANY_ATTEMPTS",
+                    "Too many failed login attempts. Please try again later.");
+        }
+
         try {
             Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.email().trim(), request.password()));
+                    new UsernamePasswordAuthenticationToken(email, request.password()));
             UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
             User user = userRepository.findById(principal.getId())
                     .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED,
@@ -91,14 +116,24 @@ public class AuthServiceImpl implements AuthService {
                         "Tài khoản của bạn đang bị vô hiệu hóa. Vui lòng liên hệ ban quản trị để kích hoạt lại.");
             }
 
+            // Success clears prior failure state; the conditional update touches
+            // the row only when the user actually carries failure accounting.
+            if (lookup != null && (lookup.getFailedLoginAttempts() > 0 || lookup.getLockedUntil() != null)) {
+                transactionTemplate.executeWithoutResult(status ->
+                        userRepository.resetLoginFailureState(user.getId()));
+            }
+
             if (user.isTwoFactorEnabled()) {
                 String masked = maskEmail(user.getEmail());
                 String type = user.getTwoFactorType() != null ? user.getTwoFactorType() : "TOTP";
-                return LoginOutcome.twoFactorRequired(user.getId(), type, masked);
+                return LoginOutcome.twoFactorRequired(user.getId(), type, masked, user.getAuthVersion() != null ? user.getAuthVersion() : 0L);
             }
 
             return LoginOutcome.success(principal, toResponse(user));
         } catch (AuthenticationException ex) {
+            Instant lockUntil = Instant.now().plus(Duration.ofMinutes(loginLockoutMinutes));
+            transactionTemplate.executeWithoutResult(status ->
+                    userRepository.registerFailedLogin(email, loginMaxFailedAttempts, lockUntil));
             throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_INVALID_CREDENTIALS", "Invalid email or password");
         }
     }

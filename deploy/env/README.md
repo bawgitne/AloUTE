@@ -87,3 +87,35 @@ SMTP acceptance does not guarantee inbox placement; check the spam folder as wel
 
 The password reset flow still uses a background executor and is outside this
 registration OTP fix.
+
+## 5. Two-Factor Master Key (`ALOUTE_TWO_FACTOR_MASTER_KEY`)
+
+`TwoFactorEncryptionService` encrypts stored TOTP secrets with AES-GCM keyed by
+this value (SHA-256 derived). Behavior enforced by code, not convention:
+
+- **prod profile refuses to start** when the key is missing, shorter than 16
+  characters, or still the public dev default (BL-07 startup guard, armed by
+  `aloute.production-mode`, which `application-prod.yml` sets to true by default).
+- **dev keeps the built-in default** so local H2 databases stay decryptable.
+
+### Rotation policy (no old-key re-encryption support)
+
+The service holds exactly one key; it cannot decrypt material made with a
+previous key. Therefore **rotating the key invalidates every stored TOTP
+secret**. There is intentionally no bulk migration endpoint and 2FA is never
+silently removed by the application. After a rotation:
+
+1. Totp login: the old secret no longer decrypts. The user gets the normal
+   `AUTH_2FA_INVALID_CODE` 401 and can use the **email OTP fallback** or a
+   **backup code** (neither depends on the master key) to finish signing in.
+2. Self-service recovery: from Settings, disable 2FA with password + backup
+   code or email OTP, then scan a fresh QR (setup/enable encrypt under the new
+   key). All surfaces answer 4xx, never 500.
+3. Account support: only if a user has neither backup codes nor a reachable
+   mailbox may an operator reset them through the normal forgot-password flow
+   (which proves email ownership) and then re-enable 2FA. Do not clear
+   `two_factor_secret` in the database directly; use the disable flow so
+   `authVersion` bumps and stale sessions die.
+
+The same rule applies to a half-finished setup: a temp secret QR-issued under
+the old key answers `AUTH_2FA_SETUP_STALE` (400) and the user re-scans the QR.

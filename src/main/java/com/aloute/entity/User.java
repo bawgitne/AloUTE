@@ -39,6 +39,10 @@ public class User {
     @Version
     @Column(name = "version")
     private Long version;
+    @Column(name = "failed_login_attempts", nullable = false)
+    private int failedLoginAttempts = 0;
+    @Column(name = "locked_until")
+    private Instant lockedUntil;
     @Column(name = "two_factor_enabled", nullable = false)
     private boolean twoFactorEnabled = false;
 

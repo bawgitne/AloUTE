@@ -135,7 +135,7 @@ class TwoFactorAuthenticationIntegrationTest {
     @Test
     @DisplayName("Endpoint /api/auth/2fa/send-email-fallback chặn gửi liên tiếp với 429 và thông báo rõ ràng")
     void testFallbackOtpEndpoint_CooldownEnforced() throws Exception {
-        String ticket = jwtTokenProvider.generateTwoFactorTicket(testUser.getId(), "EMAIL", 300);
+        String ticket = jwtTokenProvider.generateTwoFactorTicket(testUser.getId(), "EMAIL", 300, 0L);
 
         // First call: 200 OK
         mockMvc.perform(post("/api/auth/2fa/send-email-fallback")
@@ -202,7 +202,7 @@ class TwoFactorAuthenticationIntegrationTest {
                 .andExpect(jsonPath("$.data.token").isNotEmpty());
 
         // Step 4: Using the same OTP a second time fails (single-use burned)
-        String newTicket = jwtTokenProvider.generateTwoFactorTicket(testUser.getId(), "EMAIL", 300);
+        String newTicket = jwtTokenProvider.generateTwoFactorTicket(testUser.getId(), "EMAIL", 300, 0L);
         mockMvc.perform(post("/api/auth/2fa/verify-login")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)

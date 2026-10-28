@@ -1291,7 +1291,7 @@ class MySql8RevocationVerificationTest {
             mockEnv.setProperty("ALOUTE_JWT_EXPIRATION_SECONDS", String.valueOf(JWT_EXPIRATION_SECONDS));
             JwtProperties jwtProps = new JwtProperties(mockEnv);
             JwtTokenProvider jwtTokenProvider = new JwtTokenProvider(jwtProps);
-            String challengeTicket = jwtTokenProvider.generateTwoFactorTicket(testUserId, "TOTP", 300);
+            String challengeTicket = jwtTokenProvider.generateTwoFactorTicket(testUserId, "TOTP", 300, 0L);
 
             HttpRequest reqChallenge = HttpRequest.newBuilder()
                     .uri(URI.create("http://127.0.0.1:" + portB + "/api/users/profile"))
