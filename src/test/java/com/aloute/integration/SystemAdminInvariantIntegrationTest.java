@@ -339,6 +339,72 @@ class SystemAdminInvariantIntegrationTest {
         assertThat(activeAdminCount()).isEqualTo(1L);
     }
 
+    @Test
+    @DisplayName("Concurrent demotion and suspension of the two admins can never empty the admin set")
+    void concurrentDemotionAndSuspensionPreservesInvariant() throws Exception {
+        for (int iteration = 0; iteration < 25; iteration++) {
+            Long aId = adminA.getId();
+            Long bId = adminB.getId();
+            setRoleActiveVersion(aId, Role.SYSTEM_ADMIN, true, 0L);
+            setRoleActiveVersion(bId, Role.SYSTEM_ADMIN, true, 0L);
+            clearAuditFor(aId);
+            clearAuditFor(bId);
+            assertThat(activeAdminCount()).isEqualTo(2L);
+
+            // A demotes B while B suspends A: if both succeeded the system would be
+            // left with zero active administrators, so the shared admin lock must
+            // refuse exactly one of the two operations.
+            List<Object> outcomes = race(
+                    () -> adminUserService.changeUserRole(aId, bId, roleChange(Role.USER)),
+                    () -> adminUserService.suspendUser(bId, aId, reason()));
+
+            long successes = outcomes.stream().filter(o -> "OK".equals(o)).count();
+            assertThat(successes)
+                    .as("iteration %d: exactly one of demotion/suspension may win", iteration)
+                    .isEqualTo(1L);
+            assertThat(activeAdminCount())
+                    .as("iteration %d: at least one active SYSTEM_ADMIN must remain", iteration)
+                    .isEqualTo(1L);
+
+            // The refused operation must not have written its audit row.
+            if ("OK".equals(outcomes.get(0))) {
+                assertThat(suspendAuditCount(aId))
+                        .as("iteration %d: refused suspension wrote no audit row", iteration)
+                        .isZero();
+            } else {
+                assertThat(roleAuditCount(bId))
+                        .as("iteration %d: refused demotion wrote no audit row", iteration)
+                        .isZero();
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("Concurrent promotion and demotion serialize under the shared admin lock")
+    void concurrentPromotionAndDemotionSerialize() throws Exception {
+        Long aId = adminA.getId();
+        Long bId = adminB.getId();
+        setRoleActiveVersion(aId, Role.SYSTEM_ADMIN, true, 0L);
+        setRoleActiveVersion(bId, Role.SYSTEM_ADMIN, true, 0L);
+        User promoted = createUser("prom", Role.USER);
+        Long promotedId = promoted.getId();
+        clearAuditFor(aId);
+
+        List<Object> outcomes = race(
+                () -> adminUserService.changeUserRole(aId, promotedId, roleChange(Role.SYSTEM_ADMIN)),
+                () -> adminUserService.changeUserRole(bId, aId, roleChange(Role.USER)));
+
+        // Both operations may legitimately succeed: promotion never lowers the
+        // active-admin count, and the promoted user replaces the demoted admin.
+        // This proves the shared lock serializes both without deadlock and the
+        // invariant holds in the final state.
+        assertThat(outcomes.get(0)).isEqualTo("OK");
+        assertThat(outcomes.get(1)).isEqualTo("OK");
+        assertThat(activeAdminCount()).isEqualTo(2L);
+        assertThat(userRepository.findById(promotedId).orElseThrow().getRole()).isEqualTo(Role.SYSTEM_ADMIN);
+        assertThat(userRepository.findById(aId).orElseThrow().getRole()).isEqualTo(Role.USER);
+    }
+
     // ------------------------------------------------------------------ helpers
 
     /** Runs both runnables as close to simultaneously as possible and returns "OK" or the thrown error. */
