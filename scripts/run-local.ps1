@@ -113,7 +113,16 @@ if (Test-Path "$RepoRoot\mvnw.cmd") {
     $mvnResolved = Get-Command mvn -ErrorAction SilentlyContinue
     if ($mvnResolved) {
         $mvnCmd = "mvn"
+    } elseif ($env:LOCALAPPDATA -and (Test-Path "$env:LOCALAPPDATA\Temp\maven-bin\apache-maven-3.9.9\bin\mvn.cmd")) {
+        $mvnCmd = "$env:LOCALAPPDATA\Temp\maven-bin\apache-maven-3.9.9\bin\mvn.cmd"
     }
+}
+
+if (Test-Path "C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot") {
+    $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot"
+}
+if ($env:JAVA_HOME -and (Test-Path "$env:JAVA_HOME\bin")) {
+    $env:Path = "$env:JAVA_HOME\bin;$env:Path"
 }
 
 if (-not $mvnCmd) {

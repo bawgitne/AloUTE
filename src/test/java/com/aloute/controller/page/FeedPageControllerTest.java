@@ -547,22 +547,83 @@ class FeedPageControllerTest {
     }
 
     @Test
-    @DisplayName("Render: /feed with posts renders the post cards and the pagination component, and neither empty variant")
-    void renderFeedWithPosts_rendersCardsAndPaginationAndNoEmptyVariant() {
+    @DisplayName("Render: /feed with posts renders cards and infinite-scroll controls, and neither empty variant")
+    void renderFeedWithPosts_rendersCardsAndInfiniteScrollControls() {
         PostResponse post = createSamplePost(101L, "Bài viết kiểm thử hiển thị", Instant.now());
         PageMeta pageMeta = new PageMeta(0, 20, 33L, 2, true, false);
         String html = renderFeed(feedModel(List.of(post), pageMeta, false));
 
         assertThat(html).contains("Bài viết kiểm thử hiển thị");
-        assertThat(html).contains("aria-label=\"Điều hướng phân trang\"");
-        assertThat(html).contains("href=\"/feed?page=1\"");
+        assertThat(html).contains("id=\"feed-posts-container\"");
+        assertThat(html).contains("id=\"feed-infinite-scroll\"");
+        assertThat(html).contains("id=\"feed-scroll-sentinel\"");
+        assertThat(html).contains("id=\"feed-end-state\"");
+        assertThat(html).contains("data-has-next=\"true\"");
+        assertThat(html).contains("data-next-page=\"1\"");
+        assertThat(html).doesNotContain("aria-label=\"Điều hướng phân trang\"");
+        assertThat(html).doesNotContain("id=\"btn-feed-last-page\"");
         assertThat(html).doesNotContain("id=\"feed-empty-state\"");
         assertThat(html).doesNotContain("id=\"feed-page-out-of-range\"");
     }
 
     @Test
-    @DisplayName("Render: /feed beyond the last page explains the empty page and links back to the last available page")
-    void renderFeedOutOfRangePage_explainsAndLinksToLastAvailablePage() {
+    @DisplayName("GET /feed/posts returns the shared fragment with canonical page headers")
+    void feedPostsFragment_returnsFragmentAndPageHeaders() throws Exception {
+        Long userId = 60L;
+        when(currentUserProvider.getCurrentUserId()).thenReturn(Optional.of(userId));
+        PostResponse post = mock(PostResponse.class);
+        PageMeta meta = new PageMeta(1, 20, 45L, 3, true, true);
+        when(postService.getRecommendedFeed(eq(userId), eq(1), eq(20)))
+                .thenReturn(ApiResponse.page(List.of(post), meta));
+
+        mockMvcFeedOnly.perform(get("/feed/posts").param("page", "1"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("feed/_feed-posts :: postList"))
+                .andExpect(header().string("X-Feed-Page", "1"))
+                .andExpect(header().string("X-Feed-Next-Page", "2"))
+                .andExpect(header().string("X-Feed-Has-Next", "true"))
+                .andExpect(header().string("X-Feed-Total-Pages", "3"))
+                .andExpect(header().string("X-Feed-Total-Elements", "45"))
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(model().attribute("posts", hasSize(1)))
+                .andExpect(model().attribute("pageMeta", meta));
+
+        verify(postService).getRecommendedFeed(userId, 1, 20);
+    }
+
+    @Test
+    @DisplayName("GET /feed/posts failure returns 500 and tells the client there is no next page")
+    void feedPostsFragment_failureReturns500WithHasNextFalse() throws Exception {
+        when(currentUserProvider.getCurrentUserId()).thenReturn(Optional.of(61L));
+        when(postService.getRecommendedFeed(eq(61L), eq(0), eq(20)))
+                .thenThrow(new RuntimeException("database unavailable"));
+
+        mockMvcFeedOnly.perform(get("/feed/posts").param("page", "0"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(view().name("feed/_feed-posts :: postList"))
+                .andExpect(header().string("X-Feed-Has-Next", "false"))
+                .andExpect(model().attribute("posts", empty()));
+    }
+
+    @Test
+    @DisplayName("Render: feed/_feed-posts renders every post inside a stable feed-post-item wrapper")
+    void renderFeedFragment_rendersPostItems() {
+        PostResponse post = createSamplePost(102L, "Bài viết trong fragment", Instant.now());
+        SpringTemplateEngine engine = createTemplateEngine();
+        WebContext ctx = createWebContext();
+        ctx.setVariable("posts", List.of(post));
+
+        String html = engine.process("feed/_feed-posts", Collections.singleton("postList"), ctx);
+
+        assertThat(html).contains("data-feed-page-fragment");
+        assertThat(html).contains("feed-post-item");
+        assertThat(html).contains("Bài viết trong fragment");
+        assertThat(html).contains("data-post-id=\"102\"");
+    }
+
+    @Test
+    @DisplayName("Render: /feed beyond the last page explains the empty page and links back to the feed start")
+    void renderFeedOutOfRangePage_explainsAndLinksBackToFeedStart() {
         PageMeta pageMeta = new PageMeta(2, 20, 33L, 2, false, true);
         String html = renderFeed(feedModel(Collections.emptyList(), pageMeta, false));
 
@@ -570,12 +631,10 @@ class FeedPageControllerTest {
         assertThat(html).contains("Trang này không có bài viết");
         assertThat(html).doesNotContain("Chưa có bài viết nào");
         assertThat(html).doesNotContain("id=\"feed-empty-state\"");
-        // Last available page is totalPages - 1 (page index 1 for a 2-page feed).
-        assertThat(html).contains("href=\"/feed?page=1\"");
-        assertThat(html).contains("id=\"btn-feed-last-page\"");
         assertThat(html).contains("id=\"btn-feed-first-page\"");
-        // Scope the href assertions to the notice block: the sidebar also renders href="/feed".
-        assertThat(extractNotice(html)).contains("href=\"/feed?page=1\"");
+        assertThat(html).doesNotContain("id=\"btn-feed-last-page\"");
+        assertThat(html).doesNotContain("href=\"/feed?page=1\"");
+        // Scope the href assertion to the notice block: the sidebar also renders href="/feed".
         assertThat(extractNotice(html)).contains("href=\"/feed\"");
     }
 
@@ -592,13 +651,14 @@ class FeedPageControllerTest {
     }
 
     @Test
-    @DisplayName("Render: /feed with a large but valid page index is treated as out of range and links to the last page")
-    void renderFeedLargeValidPageIndex_isOutOfRangeAndLinksToLastPage() {
+    @DisplayName("Render: /feed with a large but valid page index is treated as out of range and links back to the feed start")
+    void renderFeedLargeValidPageIndex_isOutOfRangeAndLinksBackToFeedStart() {
         PageMeta pageMeta = new PageMeta(1000000, 20, 21L, 2, false, true);
         String html = renderFeed(feedModel(Collections.emptyList(), pageMeta, false));
 
         assertThat(html).contains("id=\"feed-page-out-of-range\"");
-        assertThat(html).contains("href=\"/feed?page=1\"");
+        assertThat(html).contains("id=\"btn-feed-first-page\"");
+        assertThat(html).doesNotContain("id=\"btn-feed-last-page\"");
         assertThat(html).doesNotContain("id=\"feed-empty-state\"");
     }
 
