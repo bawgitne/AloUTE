@@ -28,11 +28,11 @@ public class FirebaseConfig {
         try {
             if (configuredPath != null && !configuredPath.isBlank()) {
                 File file = new File(configuredPath);
-                if (file.exists()) {
+                if (file.exists() && file.length() > 10) {
                     serviceAccount = new FileInputStream(file);
                 } else {
                     ClassPathResource resource = new ClassPathResource(configuredPath);
-                    if (resource.exists()) {
+                    if (resource.exists() && resource.contentLength() > 10) {
                         serviceAccount = resource.getInputStream();
                     }
                 }
@@ -62,7 +62,17 @@ public class FirebaseConfig {
                 FirebaseApp.initializeApp(builder.build());
                 log.info("FirebaseApp initialized successfully with service account.");
             } else if (properties.isEnabled()) {
-                log.warn("Firebase is enabled but serviceAccountKey.json was not found.");
+                try {
+                    FirebaseOptions.Builder builder = FirebaseOptions.builder()
+                            .setCredentials(GoogleCredentials.getApplicationDefault());
+                    if (properties.getBucket() != null && !properties.getBucket().isBlank()) {
+                        builder.setStorageBucket(properties.getBucket());
+                    }
+                    FirebaseApp.initializeApp(builder.build());
+                    log.info("FirebaseApp initialized with application default credentials.");
+                } catch (Exception adcEx) {
+                    log.warn("Firebase is enabled but no credentials were available: {}", adcEx.getMessage());
+                }
             }
         } catch (Exception ex) {
             log.error("Failed to initialize FirebaseApp: {}", ex.getMessage(), ex);

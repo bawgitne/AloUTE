@@ -10,6 +10,7 @@ import com.aloute.security.authorization.Role;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -35,6 +36,7 @@ public class DevTestDataInitializer {
     };
 
     @Bean
+    @Order(1)
     CommandLineRunner initDevTestAccounts(UserRepository userRepository,
                                           ProfileRepository profileRepository,
                                           TopicRepository topicRepository,
