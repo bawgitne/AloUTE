@@ -32,6 +32,7 @@ public class UserServiceImpl implements UserService {
     private final ProfileRepository profileRepository;
     private final MediaAssetRepository mediaAssetRepository;
     private final PasswordEncoder passwordEncoder;
+    private final com.aloute.service.admin.SystemAdminGuard systemAdminGuard;
     private final com.aloute.repository.UserNotificationSettingRepository notificationSettingRepository;
 
     @Override @Transactional(readOnly = true)
@@ -118,6 +119,11 @@ public class UserServiceImpl implements UserService {
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_PASSWORD", "Mật khẩu xác nhận không chính xác.");
         }
+        // A SYSTEM_ADMIN must never self-deactivate if they are the last active admin.
+        // The guard locks the admin set first, so this holds even under a concurrent
+        // suspension of another admin. On rejection nothing is mutated (no state change,
+        // no authVersion bump); the surrounding transaction simply rolls back.
+        user = systemAdminGuard.lockAndRequireAdminRemains(user);
         user.setActive(false);
         user.setAuthVersion((user.getAuthVersion() == null ? 0L : user.getAuthVersion()) + 1L);
         userRepository.save(user);

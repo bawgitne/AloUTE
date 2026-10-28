@@ -459,6 +459,54 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
 
+  /api/users/me/deactivate:
+    post:
+      tags: [Users]
+      summary: Deactivate the current user's own account
+      description: |
+        Confirms the caller's password, sets the account inactive, increments authVersion
+        (revoking every outstanding access token) and clears the auth cookie. A user whose
+        account is later reactivated must sign in again.
+
+        Safety invariant: the last active SYSTEM_ADMIN cannot self-deactivate — the request
+        is refused with 409 `USER_LAST_ADMIN_PROTECTED` and no state is changed (no active
+        flag change, no authVersion bump). Ordinary users are unaffected by this guard.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password:
+                  type: string
+                  minLength: 1
+                  description: Current password, required to confirm the action
+      responses:
+        '200':
+          description: Account deactivated; auth cookie cleared
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseMessage'
+        '400':
+          description: Wrong confirmation password (`INVALID_PASSWORD`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '409':
+          description: Last active SYSTEM_ADMIN cannot be deactivated (`USER_LAST_ADMIN_PROTECTED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
   /api/users/{userId}/posts:
     get:
       tags: [Users, Posts]
@@ -2130,6 +2178,78 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+
+  /api/admin/users/{userId}/suspend:
+    post:
+      tags: [Admin]
+      summary: Suspend a user account (SYSTEM_ADMIN only)
+      description: |
+        Sets the account inactive, revokes every outstanding session (auth version bump)
+        and records a USER_SUSPEND moderation action. Refused for the acting admin's own
+        account, for the last remaining SYSTEM_ADMIN, and when the account is already
+        suspended (409).
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserModerationRequest'
+      responses:
+        '200':
+          description: Account suspended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserModerationActionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Self-suspension, last-admin protection, or already suspended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/admin/users/{userId}/reactivate:
+    post:
+      tags: [Admin]
+      summary: Reactivate a suspended user account (SYSTEM_ADMIN only)
+      description: |
+        Restores the active flag, forces a fresh sign-in (auth version bump) and records
+        a USER_REACTIVATE moderation action. Refused when the account is already active (409).
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserModerationRequest'
+      responses:
+        '200':
+          description: Account reactivated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserModerationActionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Account already active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
 
   /api/admin/users/{userId}/posts:
     get:
@@ -4640,6 +4760,50 @@ components:
           const: true
         data:
           $ref: '#/components/schemas/AdminUserDetailResponse'
+        meta:
+          type: 'null'
+
+    AdminUserModerationRequest:
+      type: object
+      required: [reasonCode, reasonDetail]
+      properties:
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        reasonDetail:
+          type: string
+          minLength: 10
+          maxLength: 1000
+
+    AdminUserModerationActionResponse:
+      type: object
+      required: [actionId, userId, active, actionType, reasonCode, occurredAt]
+      properties:
+        actionId:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        active:
+          type: boolean
+        actionType:
+          type: string
+          enum: [USER_SUSPEND, USER_REACTIVATE]
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        occurredAt:
+          type: string
+          format: date-time
+
+    AdminUserModerationActionEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/AdminUserModerationActionResponse'
         meta:
           type: 'null'
 
