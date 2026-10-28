@@ -50,6 +50,7 @@ public final class SecurityWhitelist {
     public static final String[] PUBLIC_WEB = {
             "/",
             "/feed",
+            "/feed/posts",
             "/login",
             "/register",
             "/verify-otp",
