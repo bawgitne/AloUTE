@@ -146,7 +146,22 @@ public class NotificationServiceImpl implements NotificationService {
         }
 
         User actor = actorId != null ? userRepository.findById(actorId).orElse(null) : null;
+        persistAndPublish(recipient, actor, type, targetType, targetId, contentPreview);
+    }
 
+    @Override
+    @Transactional
+    public Long createAdministrativeNotification(Long recipientId, Long actorId, String type, String targetType,
+                                                 Long targetId, String contentPreview) {
+        User recipient = userRepository.findById(recipientId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found"));
+        User actor = actorId != null ? userRepository.findById(actorId).orElse(null) : null;
+        Notification saved = persistAndPublish(recipient, actor, type, targetType, targetId, contentPreview);
+        return saved.getId();
+    }
+
+    private Notification persistAndPublish(User recipient, User actor, String type, String targetType,
+                                           Long targetId, String contentPreview) {
         Notification notification = Notification.builder()
                 .recipient(recipient)
                 .actor(actor)
@@ -158,14 +173,15 @@ public class NotificationServiceImpl implements NotificationService {
                 .build();
 
         Notification saved = notificationRepository.save(notification);
-        log.info("Created notification: type={}, recipientId={}, actorId={}", type, recipientId, actorId);
+        log.info("Created notification: type={}, recipientId={}, actorId={}",
+                type, recipient.getId(), actor != null ? actor.getId() : null);
 
         // Realtime STOMP transport (Persist-Before-Publish)
         if (messagingTemplate != null) {
             try {
                 NotificationResponse response = mapToNotificationResponse(saved);
                 messagingTemplate.convertAndSendToUser(
-                        String.valueOf(recipientId),
+                        String.valueOf(recipient.getId()),
                         "/queue/notifications",
                         response
                 );
@@ -179,11 +195,12 @@ public class NotificationServiceImpl implements NotificationService {
             try {
                 String title = "ALOUTE";
                 String body = contentPreview != null ? contentPreview : "Bạn có một thông báo mới";
-                fcmNotificationService.sendNotificationToUser(recipientId, title, body, "/feed");
+                fcmNotificationService.sendNotificationToUser(recipient.getId(), title, body, "/feed");
             } catch (Exception ex) {
                 log.warn("Failed to dispatch FCM push notification: {}", ex.getMessage());
             }
         }
+        return saved;
     }
 
     @Override

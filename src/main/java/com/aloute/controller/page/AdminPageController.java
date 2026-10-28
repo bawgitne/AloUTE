@@ -85,7 +85,8 @@ public class AdminPageController {
     public String userDetail(@PathVariable Long userId, Model model) {
         populateCommonAttributes(model, "users", "Chi tiết người dùng");
         try {
-            AdminUserDetailResponse user = adminUserService.getUserDetail(userId);
+            Long viewerId = currentUserProvider.getCurrentUserId().orElse(null);
+            AdminUserDetailResponse user = adminUserService.getUserDetail(userId, viewerId);
             model.addAttribute("user", user);
 
             try {

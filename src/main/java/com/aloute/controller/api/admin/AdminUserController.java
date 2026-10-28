@@ -3,10 +3,16 @@ package com.aloute.controller.api.admin;
 import com.aloute.common.api.ApiResponse;
 import com.aloute.common.api.PageMeta;
 import com.aloute.dto.request.admin.AdminUserModerationRequest;
+import com.aloute.dto.request.admin.AdminUserProfileResetRequest;
+import com.aloute.dto.request.admin.AdminUserRoleChangeRequest;
+import com.aloute.dto.request.admin.AdminUserWarnRequest;
 import com.aloute.dto.response.admin.AdminPostSummaryResponse;
 import com.aloute.dto.response.admin.AdminUserDetailResponse;
 import com.aloute.dto.response.admin.AdminUserModerationActionResponse;
+import com.aloute.dto.response.admin.AdminUserProfileResetResponse;
+import com.aloute.dto.response.admin.AdminUserRoleChangeResponse;
 import com.aloute.dto.response.admin.AdminUserSummaryResponse;
+import com.aloute.dto.response.admin.AdminUserWarnResponse;
 import com.aloute.security.currentuser.CurrentUserProvider;
 import com.aloute.service.admin.AdminPostService;
 import com.aloute.service.admin.AdminUserService;
@@ -57,7 +63,8 @@ public class AdminUserController {
     public ApiResponse<AdminUserDetailResponse> getUserDetail(
             @PathVariable @Positive Long userId
     ) {
-        return ApiResponse.success(adminUserService.getUserDetail(userId));
+        Long adminId = currentUserProvider.requireUserId();
+        return ApiResponse.success(adminUserService.getUserDetail(userId, adminId));
     }
 
     @PostMapping("/users/{userId}/suspend")
@@ -76,6 +83,33 @@ public class AdminUserController {
     ) {
         Long adminId = currentUserProvider.requireUserId();
         return ApiResponse.success(adminUserService.reactivateUser(adminId, userId, request));
+    }
+
+    @PostMapping("/users/{userId}/warn")
+    public ApiResponse<AdminUserWarnResponse> warnUser(
+            @PathVariable @Positive Long userId,
+            @Valid @RequestBody AdminUserWarnRequest request
+    ) {
+        Long adminId = currentUserProvider.requireUserId();
+        return ApiResponse.success(adminUserService.warnUser(adminId, userId, request));
+    }
+
+    @PostMapping("/users/{userId}/reset-profile")
+    public ApiResponse<AdminUserProfileResetResponse> resetUserProfile(
+            @PathVariable @Positive Long userId,
+            @Valid @RequestBody AdminUserProfileResetRequest request
+    ) {
+        Long adminId = currentUserProvider.requireUserId();
+        return ApiResponse.success(adminUserService.resetUserProfile(adminId, userId, request));
+    }
+
+    @PostMapping("/users/{userId}/role")
+    public ApiResponse<AdminUserRoleChangeResponse> changeUserRole(
+            @PathVariable @Positive Long userId,
+            @Valid @RequestBody AdminUserRoleChangeRequest request
+    ) {
+        Long adminId = currentUserProvider.requireUserId();
+        return ApiResponse.success(adminUserService.changeUserRole(adminId, userId, request));
     }
 
     @GetMapping("/users/{userId}/posts")

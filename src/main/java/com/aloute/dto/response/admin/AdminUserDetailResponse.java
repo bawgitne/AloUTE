@@ -1,5 +1,7 @@
 package com.aloute.dto.response.admin;
 
+import com.aloute.security.authorization.Role;
+
 import java.time.Instant;
 
 public record AdminUserDetailResponse(
@@ -12,6 +14,7 @@ public record AdminUserDetailResponse(
         boolean isActive,
         boolean isVerified,
         boolean isPrivate,
+        Role role,
         Instant createdAt,
         UserCounts counts,
         UserCapabilities capabilities

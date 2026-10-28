@@ -3,12 +3,19 @@ package com.aloute.service.admin.impl;
 import com.aloute.common.exception.ApiException;
 import com.aloute.common.exception.ErrorCode;
 import com.aloute.dto.request.admin.AdminUserModerationRequest;
+import com.aloute.dto.request.admin.AdminUserProfileResetRequest;
+import com.aloute.dto.request.admin.AdminUserRoleChangeRequest;
+import com.aloute.dto.request.admin.AdminUserWarnRequest;
 import com.aloute.dto.response.admin.AdminUserDetailResponse;
 import com.aloute.dto.response.admin.AdminUserModerationActionResponse;
+import com.aloute.dto.response.admin.AdminUserProfileResetResponse;
+import com.aloute.dto.response.admin.AdminUserRoleChangeResponse;
 import com.aloute.dto.response.admin.AdminUserSummaryResponse;
+import com.aloute.dto.response.admin.AdminUserWarnResponse;
 import com.aloute.entity.ModerationAction;
 import com.aloute.entity.ModerationTargetType;
 import com.aloute.entity.Profile;
+import com.aloute.entity.ReportReason;
 import com.aloute.entity.User;
 import com.aloute.repository.ModerationActionRepository;
 import com.aloute.repository.PostRepository;
@@ -16,6 +23,7 @@ import com.aloute.repository.ProfileRepository;
 import com.aloute.repository.ReportRepository;
 import com.aloute.repository.UserRepository;
 import com.aloute.security.authorization.Role;
+import com.aloute.service.NotificationService;
 import com.aloute.service.admin.AdminUserService;
 import com.aloute.service.admin.SystemAdminGuard;
 import jakarta.persistence.criteria.Predicate;
@@ -42,6 +50,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final ReportRepository reportRepository;
     private final ModerationActionRepository moderationActionRepository;
     private final SystemAdminGuard systemAdminGuard;
+    private final NotificationService notificationService;
 
     @Override
     public Page<AdminUserSummaryResponse> getUsers(String query, String roleStr, Boolean active, Pageable pageable) {
@@ -72,6 +81,11 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Override
     public AdminUserDetailResponse getUserDetail(Long userId) {
+        return getUserDetail(userId, null);
+    }
+
+    @Override
+    public AdminUserDetailResponse getUserDetail(Long userId, Long viewerId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND, "User not found"));
 
@@ -85,19 +99,20 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         long activeAdminCount = userRepository.countByRoleAndActive(Role.SYSTEM_ADMIN, true);
 
-        // canSuspend mirrors the backend rule exactly: an account can be suspended only
-        // while it is active and it is not the last active SYSTEM_ADMIN. Self-suspension
-        // is refused at action time (the actor id is not part of this read-only getter).
+        boolean isSelf = viewerId != null && Objects.equals(viewerId, userId);
         boolean isLastActiveAdmin = user.getRole() == Role.SYSTEM_ADMIN && activeAdminCount <= 1L;
-        boolean canSuspend = user.isActive() && !isLastActiveAdmin;
-        // No global-role change endpoint exists, so the capability must not advertise one.
-        boolean canChangeGlobalRole = false;
+        // Every flag mirrors the action service rules. "Last active admin" blocks both
+        // suspension and demotion; self blocks warn/suspend/role change.
+        boolean canWarn = !isSelf;
+        boolean canSuspend = !isSelf && user.isActive() && !isLastActiveAdmin;
+        boolean canResetProfile = true;
+        boolean canChangeGlobalRole = !isSelf && user.isActive() && !isLastActiveAdmin;
 
         AdminUserDetailResponse.UserCounts counts = new AdminUserDetailResponse.UserCounts(postCount, reportsCount);
         AdminUserDetailResponse.UserCapabilities capabilities = new AdminUserDetailResponse.UserCapabilities(
-                false,
+                canWarn,
                 canSuspend,
-                false,
+                canResetProfile,
                 canChangeGlobalRole
         );
 
@@ -111,6 +126,7 @@ public class AdminUserServiceImpl implements AdminUserService {
                 user.isActive(),
                 user.isVerified(),
                 user.isPrivateAccount(),
+                user.getRole(),
                 user.getCreatedAt(),
                 counts,
                 capabilities
@@ -137,34 +153,162 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     @Transactional
     public AdminUserModerationActionResponse suspendUser(Long adminId, Long userId, AdminUserModerationRequest request) {
-        User target = requireTarget(userId);
+        // Lock order is always: all SYSTEM_ADMIN rows first, then the target row.
+        // This serializes suspension with role changes and self-deactivation.
+        SystemAdminGuard.LockedAccount locked = systemAdminGuard.lockAdminsAndTarget(userId);
+        User target = locked.target();
         requireNotSelf(adminId, target);
-
-        // For a SYSTEM_ADMIN target the last-active-admin invariant is enforced under a
-        // database lock (see SystemAdminGuard): the lock is taken BEFORE the state is
-        // re-read, so two admins suspending each other concurrently cannot both proceed.
-        // The guard returns the lock-managed instance, whose active flag is authoritative.
-        target = systemAdminGuard.lockAndRequireAdminRemains(target);
 
         if (!target.isActive()) {
             throw new ApiException(HttpStatus.CONFLICT, "USER_ALREADY_SUSPENDED", "Tài khoản đã bị đình chỉ trước đó.");
         }
+        systemAdminGuard.requireActiveAdminRemains(target, locked.admins());
         return applyStateChange(adminId, target, false, "USER_SUSPEND", request);
     }
 
     @Override
     @Transactional
     public AdminUserModerationActionResponse reactivateUser(Long adminId, Long userId, AdminUserModerationRequest request) {
-        User target = requireTarget(userId);
+        User target = systemAdminGuard.lockAdminsAndTarget(userId).target();
         if (target.isActive()) {
             throw new ApiException(HttpStatus.CONFLICT, "USER_ALREADY_ACTIVE", "Tài khoản đang hoạt động bình thường.");
         }
         return applyStateChange(adminId, target, true, "USER_REACTIVATE", request);
     }
 
+    @Override
+    @Transactional
+    public AdminUserWarnResponse warnUser(Long adminId, Long userId, AdminUserWarnRequest request) {
+        User target = requireTarget(userId);
+        requireNotSelfWarn(adminId, target);
+        User actor = requireActor(adminId);
+
+        ModerationAction saved = saveAction(actor, target, "USER_WARN",
+                request.reasonCode(), request.reasonDetail(), null);
+
+        // Administrative warning is persisted through the regular notification pipeline
+        // but bypasses mute/preference filters: a formal warning must reach the account.
+        Long notificationId = notificationService.createAdministrativeNotification(
+                target.getId(),
+                adminId,
+                "USER_WARN",
+                "USER",
+                target.getId(),
+                "Cảnh báo từ quản trị viên: " + request.reasonDetail()
+        );
+        if (notificationId == null) {
+            throw new ApiException(ErrorCode.INTERNAL_ERROR,
+                    "Không thể xác nhận thông báo cảnh báo đã được lưu.");
+        }
+
+        return new AdminUserWarnResponse(
+                saved.getId(),
+                target.getId(),
+                notificationId,
+                "USER_WARN",
+                request.reasonCode(),
+                saved.getCreatedAt()
+        );
+    }
+
+    @Override
+    @Transactional
+    public AdminUserProfileResetResponse resetUserProfile(Long adminId, Long userId,
+                                                          AdminUserProfileResetRequest request) {
+        User target = requireTarget(userId);
+        if (!request.confirmUsername().trim().equals(target.getUsername())) {
+            throw new ApiException(ErrorCode.USER_PROFILE_RESET_CONFIRMATION_MISMATCH,
+                    "Tên đăng nhập xác nhận không khớp với tài khoản cần đặt lại hồ sơ.");
+        }
+        User actor = requireActor(adminId);
+
+        Profile profile = profileRepository.findById(target.getId()).orElseGet(() -> {
+            Profile created = new Profile();
+            created.setUser(target);
+            return created;
+        });
+        profile.setDisplayName(target.getUsername());
+        profile.setBio(null);
+        profile.setWebsite(null);
+        profile.setAvatarUrl(null);
+        profile.setCoverUrl(null);
+        Profile savedProfile = profileRepository.save(profile);
+
+        String metadata = "{\"resetFields\":[\"displayName\",\"bio\",\"website\",\"avatarUrl\",\"coverUrl\"]}";
+        ModerationAction saved = saveAction(actor, target, "USER_PROFILE_RESET",
+                request.reasonCode(), request.reasonDetail(), metadata);
+
+        return new AdminUserProfileResetResponse(
+                saved.getId(),
+                target.getId(),
+                savedProfile.getDisplayName(),
+                List.of("displayName", "bio", "website", "avatarUrl", "coverUrl"),
+                "USER_PROFILE_RESET",
+                request.reasonCode(),
+                saved.getCreatedAt()
+        );
+    }
+
+    @Override
+    @Transactional
+    public AdminUserRoleChangeResponse changeUserRole(Long adminId, Long userId,
+                                                      AdminUserRoleChangeRequest request) {
+        if (Objects.equals(adminId, userId)) {
+            throw new ApiException(ErrorCode.USER_SELF_ROLE_CHANGE_NOT_ALLOWED,
+                    "Bạn không thể tự thay đổi vai trò hệ thống của chính mình.");
+        }
+        if (request.newRole() == null) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED, "Vai trò hệ thống mới là bắt buộc.");
+        }
+
+        // Same lock order as suspension and self-deactivation: admins first, then target.
+        SystemAdminGuard.LockedAccount locked = systemAdminGuard.lockAdminsAndTarget(userId);
+        User target = locked.target();
+        if (!target.isActive()) {
+            throw new ApiException(ErrorCode.USER_ROLE_CHANGE_REQUIRES_ACTIVE,
+                    "Chỉ có thể đổi vai trò hệ thống của tài khoản đang hoạt động. Vui lòng kích hoạt lại trước.");
+        }
+
+        Role previousRole = target.getRole();
+        if (previousRole == request.newRole()) {
+            throw new ApiException(ErrorCode.USER_ROLE_UNCHANGED, "Tài khoản đã có vai trò hệ thống này.");
+        }
+        if (previousRole == Role.SYSTEM_ADMIN) {
+            // Demotion can remove the final active administrator; evaluate under the lock.
+            systemAdminGuard.requireActiveAdminRemains(target, locked.admins());
+        }
+
+        User actor = requireActor(adminId);
+        target.setRole(request.newRole());
+        // Old JWTs keep the previous role in their signed principal until expiry; bumping
+        // authVersion makes every outstanding token fail closed immediately.
+        target.setAuthVersion((target.getAuthVersion() == null ? 0L : target.getAuthVersion()) + 1L);
+        userRepository.save(target);
+
+        String metadata = "{\"previousRole\":\"" + previousRole.name()
+                + "\",\"newRole\":\"" + request.newRole().name() + "\"}";
+        ModerationAction saved = saveAction(actor, target, "USER_ROLE_CHANGE",
+                request.reasonCode(), request.reasonDetail(), metadata);
+
+        return new AdminUserRoleChangeResponse(
+                saved.getId(),
+                target.getId(),
+                previousRole,
+                request.newRole(),
+                "USER_ROLE_CHANGE",
+                request.reasonCode(),
+                saved.getCreatedAt()
+        );
+    }
+
     private User requireTarget(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND, "User not found"));
+    }
+
+    private User requireActor(Long adminId) {
+        return userRepository.findById(adminId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND, "Admin not found"));
     }
 
     /** An administrator must never lock themselves out through the admin panel. */
@@ -175,10 +319,16 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
     }
 
+    private void requireNotSelfWarn(Long adminId, User target) {
+        if (Objects.equals(adminId, target.getId())) {
+            throw new ApiException(ErrorCode.USER_SELF_WARN_NOT_ALLOWED,
+                    "Bạn không thể tự gửi cảnh báo cho tài khoản của chính mình.");
+        }
+    }
+
     private AdminUserModerationActionResponse applyStateChange(Long adminId, User target, boolean active,
                                                                String actionType, AdminUserModerationRequest request) {
-        User actor = userRepository.findById(adminId)
-                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND, "Admin not found"));
+        User actor = requireActor(adminId);
 
         target.setActive(active);
         // Bump the signed session version so every outstanding JWT for this account is
@@ -186,14 +336,8 @@ public class AdminUserServiceImpl implements AdminUserService {
         target.setAuthVersion((target.getAuthVersion() == null ? 0L : target.getAuthVersion()) + 1L);
         userRepository.save(target);
 
-        ModerationAction action = new ModerationAction();
-        action.setActor(actor);
-        action.setTargetType(ModerationTargetType.USER);
-        action.setTargetId(target.getId());
-        action.setActionType(actionType);
-        action.setReasonCode(request.reasonCode());
-        action.setReasonDetail(request.reasonDetail());
-        ModerationAction saved = moderationActionRepository.save(action);
+        ModerationAction saved = saveAction(actor, target, actionType,
+                request.reasonCode(), request.reasonDetail(), null);
 
         return new AdminUserModerationActionResponse(
                 saved.getId(),
@@ -203,5 +347,18 @@ public class AdminUserServiceImpl implements AdminUserService {
                 request.reasonCode(),
                 saved.getCreatedAt()
         );
+    }
+
+    private ModerationAction saveAction(User actor, User target, String actionType,
+                                        ReportReason reasonCode, String reasonDetail, String metadata) {
+        ModerationAction action = new ModerationAction();
+        action.setActor(actor);
+        action.setTargetType(ModerationTargetType.USER);
+        action.setTargetId(target.getId());
+        action.setActionType(actionType);
+        action.setReasonCode(reasonCode);
+        action.setReasonDetail(reasonDetail);
+        action.setMetadata(metadata);
+        return moderationActionRepository.save(action);
     }
 }

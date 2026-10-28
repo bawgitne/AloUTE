@@ -1,0 +1,5245 @@
+openapi: 3.1.0
+
+info:
+  title: ALOUTE API
+  version: 0.1.0
+  description: |
+    Canonical HTTP API contract for ALOUTE.
+
+    Ownership:
+    - Global response, pagination, HTTP and error conventions come from ALOUTE_SYSTEM_ARCHITECTURE.md.
+    - Business behavior and permissions come from ALOUTE_DOMAIN_SYSTEM.md.
+    - Authentication/authorization enforcement comes from SPRING_SECURITY_CONVENTION.md.
+    - Spring Boot implementation details come from ALOUTE_SPRING_BOOT_BACKEND_CONVENTION.md.
+    - WebSocket realtime events are intentionally not described by OpenAPI.
+
+    Current domain GAPs are intentionally not modeled as completed APIs:
+    - private follow-request approval lifecycle
+    - private community join-request approval lifecycle
+    - advanced community moderation
+    - group-conversation ownership/admin lifecycle
+    - refresh-session lifecycle (access token only; revocation via `authVersion`)
+    - notification preferences
+    - account suspension / feature restriction (`account_suspensions`, `account_feature_restrictions` are P2)
+
+    Implementation status legend (`x-implementation-status`):
+    - `implemented` — controller/service exist on master and are covered by the contract below.
+    - `stub` — route exists but returns placeholder data or ignores path semantics.
+    - `contract-only` — contract is authoritative, the route is not implemented yet; clients must expect 404.
+    Operations without the extension are `implemented`.
+
+    Registration email OTP and password recovery are implemented
+    (`verify-registration-otp`, `resend-registration-otp`, `forgot-password`, `reset-password`)
+    and are no longer listed as gaps.
+
+servers:
+  - url: /
+    description: Same-origin ALOUTE server
+
+tags:
+  - name: Auth
+  - name: Users
+  - name: Social
+  - name: Posts
+  - name: Media
+  - name: Topics
+  - name: Polls
+  - name: Communities
+  - name: Feeds
+  - name: Conversations
+  - name: Notifications
+  - name: Reports
+  - name: Admin
+
+paths:
+
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register account
+      description: |
+        Creates the account and registration OTP, commits the transaction, then attempts email delivery before returning.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/auth/verify-registration-otp:
+    post:
+      tags: [Auth]
+      summary: Verify registration 6-digit numeric OTP
+      description: |
+        Atomically verifies the keyed HMAC OTP and activates the user account (isVerified = true, verificationRequired = false),
+        consuming and deleting the registration OTP record.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyRegistrationOtpRequest'
+      responses:
+        '200':
+          description: Registration OTP verified and account activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseMessage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/auth/resend-registration-otp:
+    post:
+      tags: [Auth]
+      summary: Resend registration OTP
+      description: |
+        Generates a replacement 6-digit numeric registration OTP with rate limiting (60-second cooldown).
+        Email delivery is attempted after transaction commit and finishes before the response is returned.
+        Returns generic success silently for nonexistent, inactive, already verified, or legacy accounts to prevent user enumeration.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendRegistrationOtpRequest'
+      responses:
+        '200':
+          description: Registration OTP dispatched or generic success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseMessage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      description: |
+        On success the backend authenticates the user and sets the JWT access credential
+        in an HttpOnly cookie named `aloute_access_token`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            Set-Cookie:
+              description: HttpOnly authentication cookie.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/auth/2fa/verify-login:
+    post:
+      tags: [Auth]
+      summary: Verify Two-Factor Authentication Login
+      description: |
+        Validates the 2FA challenge code (6-digit TOTP from Google Authenticator,
+        Email fallback OTP, or 8-character single-use emergency backup code)
+        using the temporary twoFactorTicket issued in the first login step.
+        On success, issues the official authenticated JWT access credential.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [twoFactorTicket, code]
+              properties:
+                twoFactorTicket:
+                  type: string
+                code:
+                  type: string
+                isBackupCode:
+                  type: boolean
+                  default: false
+      responses:
+        '200':
+          description: Two-factor verification successful, JWT issued
+          headers:
+            Set-Cookie:
+              description: HttpOnly authentication cookie.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/auth/2fa/send-email-fallback:
+    post:
+      tags: [Auth]
+      summary: Send Two-Factor Fallback OTP via Email
+      description: |
+        Dispatches a 6-digit numeric OTP to the user's verified university email
+        as a fallback when they do not have access to their Authenticator app.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [twoFactorTicket]
+              properties:
+                twoFactorTicket:
+                  type: string
+      responses:
+        '200':
+          description: OTP dispatched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseMessage'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request password reset link
+      description: |
+        Generates a secure single-use expiring reset token and sends a recovery email
+        with a fragment-based link. Returns generic confirmation regardless of email existence.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: Generic instructions confirmation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseNull'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /api/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password using secure token
+      description: |
+        Atomically replaces password hash, increments account authVersion (invalidating all active JWTs),
+        and consumes the reset token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password reset successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseNull'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout current user
+      responses:
+        '204':
+          description: Logged out successfully. The current JWT session is durably revoked (stored token_hash is SHA-256 digest of verified decoded signature bytes in revoked_tokens table, cryptographically verified before lookup/writes), associated active STOMP WebSocket transports closed after transaction commit, and authentication cookie cleared.
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current authenticated user
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/users/{userId}:
+    get:
+      tags: [Users]
+      summary: Get user profile
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/users/by-username/{username}:
+    get:
+      tags: [Users]
+      summary: Get user profile by handle/username
+      security: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/users/me/profile:
+    get:
+      tags: [Users]
+      summary: Get current user profile
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    patch:
+      tags: [Users]
+      summary: Update current user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    put:
+      tags: [Users]
+      summary: Update current user profile (PUT alias)
+      description: Same handler as `PATCH`; registered for clients that can only issue PUT.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/users/profile:
+    get:
+      tags: [Users]
+      summary: Get current user profile (path alias)
+      description: |
+        Short alias of `/api/users/me/profile` served by the same controller methods
+        (`@GetMapping({"/me/profile", "/profile"})`). Both paths behave identically.
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/users/me/password:
+    post:
+      tags: [Users]
+      summary: Change password for current user
+      description: |
+        Verifies current password with BCrypt, updates password_hash, increments authVersion,
+        and sets a refreshed access token cookie on success.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseMessage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/users/me/deactivate:
+    post:
+      tags: [Users]
+      summary: Deactivate the current user's own account
+      description: |
+        Confirms the caller's password, sets the account inactive, increments authVersion
+        (revoking every outstanding access token) and clears the auth cookie. A user whose
+        account is later reactivated must sign in again.
+
+        Safety invariant: the last active SYSTEM_ADMIN cannot self-deactivate — the request
+        is refused with 409 `USER_LAST_ADMIN_PROTECTED` and no state is changed (no active
+        flag change, no authVersion bump). Ordinary users are unaffected by this guard.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password:
+                  type: string
+                  minLength: 1
+                  description: Current password, required to confirm the action
+      responses:
+        '200':
+          description: Account deactivated; auth cookie cleared
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseMessage'
+        '400':
+          description: Wrong confirmation password (`INVALID_PASSWORD`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '409':
+          description: Last active SYSTEM_ADMIN cannot be deactivated (`USER_LAST_ADMIN_PROTECTED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/users/{userId}/posts:
+    get:
+      tags: [Users, Posts]
+      summary: List posts by user
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Visible posts by user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/users/{userId}/followers:
+    get:
+      tags: [Users, Social]
+      summary: List followers
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Followers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPageEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/users/{userId}/following:
+    get:
+      tags: [Users, Social]
+      summary: List users followed by a user
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Following list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPageEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/social/follows/{userId}:
+    put:
+      tags: [Social]
+      summary: Follow a user
+      description: |
+        Creates the current user's follow relationship to the target user.
+        Private-account follow-request approval is not modeled yet.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Follow relationship active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialRelationEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Social]
+      summary: Unfollow a user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: Follow relationship removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/social/relations/{userId}:
+    get:
+      tags: [Social]
+      summary: Get social relationship status between current user and target user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Relationship status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRelationStatusEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/social/blocks/{userId}:
+    put:
+      tags: [Social]
+      summary: Block a user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Block relationship active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialRelationEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Social]
+      summary: Unblock a user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: Block removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/social/mutes/{userId}:
+    put:
+      tags: [Social]
+      summary: Mute a user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Mute active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialRelationEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Social]
+      summary: Unmute a user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: Mute removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/social/restrictions/{userId}:
+    put:
+      tags: [Social]
+      summary: Restrict a user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Restriction active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialRelationEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Social]
+      summary: Remove user restriction
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: Restriction removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/posts:
+    get:
+      tags: [Posts]
+      summary: List public posts
+      description: |
+        Public visibility-scoped listing. When `q` is present it delegates to
+        `PostService.searchPosts` with the same visibility specification, so private
+        community posts never leak. Replies and quotes are excluded from the top-level list.
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Visible posts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      tags: [Posts]
+      summary: Create post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostRequest'
+      responses:
+        '201':
+          description: Post created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/posts/bookmarks:
+    get:
+      tags: [Posts]
+      summary: List posts bookmarked by current user
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Bookmarked posts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/posts/{postId}:
+    get:
+      tags: [Posts]
+      summary: Get post
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          description: Visible post
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Posts]
+      summary: Edit own post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePostRequest'
+      responses:
+        '200':
+          description: Updated post
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [Posts]
+      summary: Delete own post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '204':
+          description: Post deleted
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/posts/{postId}/replies:
+    get:
+      tags: [Posts]
+      summary: List replies
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Visible replies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Posts]
+      summary: Reply to post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReplyRequest'
+      responses:
+        '201':
+          description: Reply created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/posts/{postId}/quotes:
+    post:
+      tags: [Posts]
+      summary: Quote a post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateQuoteRequest'
+      responses:
+        '201':
+          description: Quote post created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/posts/{postId}/likes/me:
+    put:
+      tags: [Posts]
+      summary: Like post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          description: Like active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostInteractionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Posts]
+      summary: Unlike post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '204':
+          description: Like removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/posts/{postId}/bookmarks/me:
+    put:
+      tags: [Posts]
+      summary: Bookmark post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          description: Bookmark active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostInteractionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Posts]
+      summary: Remove bookmark
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '204':
+          description: Bookmark removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/posts/{postId}/reposts/me:
+    put:
+      tags: [Posts]
+      summary: Repost
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          description: Repost active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostInteractionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Posts]
+      summary: Remove repost
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '204':
+          description: Repost removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/media:
+    post:
+      tags: [Media]
+      summary: Upload media
+      description: |
+        Uploads an image, video or GIF through the backend media-storage abstraction.
+        Binary storage is handled by the configured external media provider.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, purpose]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                purpose:
+                  $ref: '#/components/schemas/MediaPurpose'
+      responses:
+        '201':
+          description: Media uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '413':
+          description: Upload rejected by infrastructure size limit
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/media/{mediaId}:
+    delete:
+      tags: [Media]
+      summary: Delete owned unattached media
+      parameters:
+        - $ref: '#/components/parameters/MediaId'
+      responses:
+        '204':
+          description: Media deleted
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/media/quota:
+    get:
+      tags: [Media]
+      summary: Get user and system media storage quota
+      responses:
+        '200':
+          description: Quota details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/media/file/{path}:
+    get:
+      tags: [Media]
+      summary: Stream media file from storage edge
+      description: |
+        Mapping thật là `@GetMapping("/file/**")` — `{path}` bắt **toàn bộ remaining path,
+        vượt dấu `/`** (multi-segment storage key). OpenAPI chỉ mô hình được 1 biến path;
+        client hãy nối nguyên storage path sau `/api/media/file/`.
+      security: []
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Storage path nhiều cấp, ví dụ `posts/2026/10/abc.webp`.
+      responses:
+        '200':
+          description: Media file stream
+        '206':
+          description: Partial content range stream
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/topics:
+    get:
+      tags: [Topics]
+      summary: List topics
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        '200':
+          description: Topics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicPageEnvelope'
+
+  /api/topics/{topicId}:
+    get:
+      tags: [Topics]
+      summary: Get topic
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/TopicId'
+      responses:
+        '200':
+          description: Topic
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/topics/{topicId}/posts:
+    get:
+      tags: [Topics, Posts]
+      summary: List posts for topic
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/TopicId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Topic posts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/users/me/topics/{topicId}:
+    put:
+      tags: [Topics]
+      summary: Add topic to current user's interests
+      parameters:
+        - $ref: '#/components/parameters/TopicId'
+      responses:
+        '204':
+          description: Interest added
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Topics]
+      summary: Remove topic from current user's interests
+      parameters:
+        - $ref: '#/components/parameters/TopicId'
+      responses:
+        '204':
+          description: Interest removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/polls/{pollId}:
+    get:
+      tags: [Polls]
+      summary: Get poll
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PollId'
+      responses:
+        '200':
+          description: Poll
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PollEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/polls/{pollId}/votes:
+    post:
+      tags: [Polls]
+      summary: Vote in poll
+      description: |
+        Single-choice vote endpoint. The controller also registers the legacy alias
+        `/api/polls/{pollId}/vote` (`@PostMapping({"/{pollId}/votes", "/{pollId}/vote"})`);
+        both paths share one handler and one request body.
+      parameters:
+        - $ref: '#/components/parameters/PollId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VotePollRequest'
+      responses:
+        '200':
+          description: Vote accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PollEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/communities:
+    get:
+      tags: [Communities]
+      summary: Browse communities
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        '200':
+          description: Communities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityPageEnvelope'
+    post:
+      tags: [Communities]
+      summary: Create community
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCommunityRequest'
+      responses:
+        '201':
+          description: Community created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/communities/{communityId}:
+    get:
+      tags: [Communities]
+      summary: Get community
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+      responses:
+        '200':
+          description: Community
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Communities]
+      summary: Update community
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCommunityRequest'
+      responses:
+        '200':
+          description: Updated community
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [Communities]
+      summary: Delete community
+      description: Ownership rule comes from the domain system.
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+      responses:
+        '204':
+          description: Community deleted
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/communities/{communityId}/join:
+    post:
+      tags: [Communities]
+      summary: Join public community
+      description: Private-community join approval is not modeled yet.
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+      responses:
+        '200':
+          description: Membership created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityMembershipEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/communities/{communityId}/members:
+    get:
+      tags: [Communities]
+      summary: List community members (optional keyword search on username/display name)
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Keyword matched against username and display name
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Members
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityMemberPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/communities/{communityId}/members/me:
+    delete:
+      tags: [Communities]
+      summary: Leave community
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+      responses:
+        '204':
+          description: Membership removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/communities/{communityId}/members/{userId}:
+    delete:
+      tags: [Communities]
+      summary: Remove a community member (owner/admin moderation)
+      description: >
+        Owner may remove any member except themself (leaving is a separate flow);
+        ADMIN-role members may only remove ordinary MEMBER-role members. The
+        community owner can never be removed.
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: Membership removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/communities/{communityId}/members/{userId}/role:
+    patch:
+      tags: [Communities]
+      summary: Change scoped community role
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCommunityRoleRequest'
+      responses:
+        '200':
+          description: Membership role updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityMembershipEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/communities/{communityId}/posts:
+    get:
+      tags: [Communities, Posts]
+      summary: List community posts
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Community posts visible to current viewer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Communities, Posts]
+      summary: Create community post
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostRequest'
+      responses:
+        '201':
+          description: Community post created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/communities/{communityId}/posts/{postId}/approve:
+    post:
+      tags: [Communities, Posts]
+      summary: Approve a pending community post (owner/ADMIN only)
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Submission approved and published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/communities/{communityId}/posts/{postId}/reject:
+    post:
+      tags: [Communities, Posts]
+      summary: Reject a pending community post with optional reason (owner/ADMIN only)
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommunityPostDecisionRequest'
+      responses:
+        '200':
+          description: Submission rejected (hidden from all feeds, author keeps access)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/communities/{communityId}/posts/{postId}/remove:
+    post:
+      tags: [Communities, Posts]
+      summary: Soft-remove a published community post (owner/ADMIN only, audit preserved)
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommunityPostDecisionRequest'
+      responses:
+        '204':
+          description: Post soft-removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/feed/home:
+    get:
+      tags: [Feeds]
+      summary: Get home feed
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Home feed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/feed/following:
+    get:
+      tags: [Feeds]
+      summary: Get following feed
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Following feed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/feed/explore:
+    get:
+      tags: [Feeds]
+      summary: Get explore / trending feed
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Explore feed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+
+  /api/feed/recommended:
+    get:
+      tags: [Feeds]
+      summary: Get recommended feed
+      description: |
+        Public GET (`/api/feed/**` is whitelisted) like explore. The viewer id is optional and
+        only personalizes ordering; anonymous callers get the same public visibility scope.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Recommended feed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+
+  /api/feeds:
+    get:
+      tags: [Feeds]
+      summary: List current user's custom feeds
+      x-implementation-status: stub
+      description: |
+        Contract owns the feature; `CustomFeedController.listCustomFeeds` currently returns an
+        empty page without reading the database. Treat the shape as authoritative, the data as empty.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Custom feeds
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    post:
+      tags: [Feeds]
+      summary: Create custom feed
+      x-implementation-status: contract-only
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFeedRequest'
+      responses:
+        '201':
+          description: Feed created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/feeds/{feedId}:
+    get:
+      tags: [Feeds]
+      summary: Get custom feed
+      x-implementation-status: contract-only
+      parameters:
+        - $ref: '#/components/parameters/FeedId'
+      responses:
+        '200':
+          description: Feed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Feeds]
+      summary: Update owned custom feed
+      x-implementation-status: contract-only
+      parameters:
+        - $ref: '#/components/parameters/FeedId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFeedRequest'
+      responses:
+        '200':
+          description: Updated feed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Feeds]
+      summary: Delete owned custom feed
+      x-implementation-status: contract-only
+      parameters:
+        - $ref: '#/components/parameters/FeedId'
+      responses:
+        '204':
+          description: Feed deleted
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/feeds/{feedId}/posts:
+    get:
+      tags: [Feeds]
+      summary: Get posts generated by custom feed
+      x-implementation-status: contract-only
+      parameters:
+        - $ref: '#/components/parameters/FeedId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Feed posts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPageEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/feeds/{feedId}/saves/me:
+    put:
+      tags: [Feeds]
+      summary: Save public custom feed
+      x-implementation-status: contract-only
+      parameters:
+        - $ref: '#/components/parameters/FeedId'
+      responses:
+        '204':
+          description: Feed saved
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Feeds]
+      summary: Remove saved custom feed
+      x-implementation-status: contract-only
+      parameters:
+        - $ref: '#/components/parameters/FeedId'
+      responses:
+        '204':
+          description: Saved feed removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/conversations:
+    get:
+      tags: [Conversations]
+      summary: List current user's conversations
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Conversations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    post:
+      tags: [Conversations]
+      summary: Create direct or group conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConversationRequest'
+      responses:
+        '201':
+          description: Conversation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/conversations/{conversationId}:
+    get:
+      tags: [Conversations]
+      summary: Get conversation
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: Conversation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/conversations/{conversationId}/messages:
+    get:
+      tags: [Conversations]
+      summary: Load conversation message history
+      description: Sending realtime messages is handled by the WebSocket contract, not this OpenAPI file.
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            default: createdAt,desc
+      responses:
+        '200':
+          description: Messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagePageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Conversations]
+      summary: Send message over HTTP
+      description: |
+        Realtime delivery is WebSocket (`/app/chat.send/{conversationId}`); this HTTP route is the
+        fallback used when the socket is unavailable. Persist-before-publish is applied either way.
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '201':
+          description: Message created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/conversations/{conversationId}/read:
+    post:
+      tags: [Conversations]
+      summary: Mark conversation as read
+      description: Advances the caller's read marker for this conversation.
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: Read marker advanced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptySuccessEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/notifications:
+    get:
+      tags: [Notifications]
+      summary: List current user's notifications
+      parameters:
+        - name: filter
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ALL, LIKE, REPLY, MENTION, FOLLOW]
+            default: ALL
+          description: Tab filter server-side (`NotificationServiceImpl.getNotifications`).
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/notifications/unread-count:
+    get:
+      tags: [Notifications]
+      summary: Get unread notifications count
+      responses:
+        '200':
+          description: Unread notification count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      unreadCount:
+                        type: integer
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark a single notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Notification marked as read
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/notifications/read-all:
+    patch:
+      tags: [Notifications]
+      summary: Mark all notifications as read
+      responses:
+        '200':
+          description: All notifications marked as read
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/notifications/{id}:
+    delete:
+      tags: [Notifications]
+      summary: Delete a notification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Notification deleted
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/notifications/fcm-token:
+    post:
+      tags: [Notifications]
+      summary: Register FCM registration token for background web push
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterFcmTokenRequest'
+      responses:
+        '200':
+          description: FCM token registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptySuccessEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      tags: [Notifications]
+      summary: Unregister FCM registration token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterFcmTokenRequest'
+      responses:
+        '200':
+          description: FCM token unregistered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptySuccessEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/reports:
+    post:
+      tags: [Reports]
+      summary: Report a user or post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReportRequest'
+      responses:
+        '201':
+          description: Report created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/admin/overview:
+    get:
+      tags: [Admin]
+      summary: Get overview metrics and recent activity for Admin Dashboard
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [7d, 30d]
+            default: 7d
+      responses:
+        '200':
+          description: Overview metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminOverviewEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/users:
+    get:
+      tags: [Admin]
+      summary: List users with moderation metadata
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: isActive
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: isVerified
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: User list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserSummaryPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/users/{userId}:
+    get:
+      tags: [Admin]
+      summary: Get user moderation detail
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserDetailEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/users/{userId}/suspend:
+    post:
+      tags: [Admin]
+      summary: Suspend a user account (SYSTEM_ADMIN only)
+      description: |
+        Sets the account inactive, revokes every outstanding session (auth version bump)
+        and records a USER_SUSPEND moderation action. Refused for the acting admin's own
+        account, for the last remaining SYSTEM_ADMIN, and when the account is already
+        suspended (409).
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserModerationRequest'
+      responses:
+        '200':
+          description: Account suspended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserModerationActionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Self-suspension, last-admin protection, or already suspended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/admin/users/{userId}/reactivate:
+    post:
+      tags: [Admin]
+      summary: Reactivate a suspended user account (SYSTEM_ADMIN only)
+      description: |
+        Restores the active flag, forces a fresh sign-in (auth version bump) and records
+        a USER_REACTIVATE moderation action. Refused when the account is already active (409).
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserModerationRequest'
+      responses:
+        '200':
+          description: Account reactivated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserModerationActionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Account already active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/admin/users/{userId}/warn:
+    post:
+      tags: [Admin]
+      summary: Send a formal warning to a user account (SYSTEM_ADMIN only)
+      description: |
+        Records a `USER_WARN` moderation action with the mandatory reason and creates a
+        persisted `USER_WARN` notification for the target account through the existing
+        notification pipeline (list, unread count, STOMP and FCM transports). A warning
+        is advisory only: it does not change active state, role, auth version or any
+        permission. Administrative warnings are not suppressed by the recipient's mute
+        or notification preferences. Self-warning is refused.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserWarnRequest'
+      responses:
+        '200':
+          description: Warning recorded and notification persisted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserWarnEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Self-warning (`USER_SELF_WARN_NOT_ALLOWED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Missing/blank reason or invalid reason detail length (`VALIDATION_FAILED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/admin/users/{userId}/reset-profile:
+    post:
+      tags: [Admin]
+      summary: Reset the visible profile fields of a user (SYSTEM_ADMIN only)
+      description: |
+        Resets exactly these Profile fields: `displayName` to the target username, and
+        `bio`, `website`, `avatarUrl`, `coverUrl` to null. Email, password, global role,
+        active flag, sessions/auth version, posts, comments, followers, media records and
+        moderation history are preserved. Firebase/object-storage files are NOT deleted;
+        only their URL references are cleared. The caller must confirm the exact target
+        username, so a mismatched/mistyped userId cannot reset another account. Records a
+        `USER_PROFILE_RESET` moderation action. Self-reset is allowed with confirmation.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserProfileResetRequest'
+      responses:
+        '200':
+          description: Profile fields reset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserProfileResetEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Confirmation username does not match the target (`USER_PROFILE_RESET_CONFIRMATION_MISMATCH`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Missing confirmation/reason (`VALIDATION_FAILED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/admin/users/{userId}/role:
+    post:
+      tags: [Admin]
+      summary: Change a user's global role (SYSTEM_ADMIN only)
+      description: |
+        Changes only the global role (`USER` or `SYSTEM_ADMIN`), never community roles.
+        The target must be active; self-role-change is refused; a no-op change is refused
+        without creating an audit row. Demoting the last active SYSTEM_ADMIN is refused
+        under the same database-locked invariant used by suspension and self-deactivation.
+        On success the target's auth version is incremented so every outstanding JWT
+        immediately loses the old authority; the target must sign in again.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserRoleChangeRequest'
+      responses:
+        '200':
+          description: Global role changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserRoleChangeEnvelope'
+        '400':
+          description: Malformed payload or unknown role enum (`BAD_REQUEST`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: |
+            Self change (`USER_SELF_ROLE_CHANGE_NOT_ALLOWED`), inactive target
+            (`USER_ROLE_CHANGE_REQUIRES_ACTIVE`), no-op (`USER_ROLE_UNCHANGED`), or
+            last active SYSTEM_ADMIN (`USER_LAST_ADMIN_PROTECTED`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Missing/invalid reason or role (`VALIDATION_FAILED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/admin/users/{userId}/posts:
+    get:
+      tags: [Admin]
+      summary: List user posts in admin scope
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - name: contentState
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, AUTHOR_DELETED, ADMIN_REMOVED]
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: User posts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminPostSummaryPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/users/{userId}/moderation-actions:
+    get:
+      tags: [Admin]
+      summary: List moderation actions targeting user
+      x-implementation-status: contract-only
+      description: |
+        Not routed yet: `AdminUserController` only exposes `/users`, `/users/{userId}` and
+        `/users/{userId}/posts`. Use `/api/admin/moderation-actions?targetType=USER&targetId={userId}`
+        until this route lands.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: User moderation actions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationActionPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/posts:
+    get:
+      tags: [Admin]
+      summary: Search and list posts for moderation
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: authorId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: communityId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: contentState
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, AUTHOR_DELETED, ADMIN_REMOVED]
+        - name: reportedOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Moderation post list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminPostSummaryPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/posts/{postId}:
+    get:
+      tags: [Admin]
+      summary: Get post detail for moderation
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          description: Post detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminPostDetailEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/posts/{postId}/remove:
+    post:
+      tags: [Admin]
+      summary: Admin removes a violating post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminRemovePostRequest'
+      responses:
+        '200':
+          description: Post removed by admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostRemovalActionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/admin/posts/{postId}/restore:
+    post:
+      tags: [Admin]
+      summary: Admin restores an admin-removed post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminRestorePostRequest'
+      responses:
+        '200':
+          description: Post restored by admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostRestoreActionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/admin/posts/{postId}/moderation-actions:
+    get:
+      tags: [Admin]
+      summary: List moderation actions for a post
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Post moderation actions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationActionPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/reports:
+    get:
+      tags: [Admin]
+      summary: List reports in review queue
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, REVIEWED, RESOLVED, REJECTED]
+        - name: targetType
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [USER, POST]
+        - name: reason
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ReportReason'
+        - name: reviewedBy
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Reports list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminReportSummaryPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/reports/{reportId}:
+    get:
+      tags: [Admin]
+      summary: Get report detail with evidence and target
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Report detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminReportDetailEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/reports/{reportId}/start-review:
+    post:
+      tags: [Admin]
+      summary: Assign report to current admin and transition PENDING to REVIEWED
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminStartReportReviewRequest'
+      responses:
+        '200':
+          description: Report review started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportReviewEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/admin/reports/{reportId}/decisions:
+    post:
+      tags: [Admin]
+      summary: Decide on report (RESOLVE with optional post removal, or REJECT)
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReportDecisionRequest'
+      responses:
+        '200':
+          description: Decision applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportDecisionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/admin/moderation-actions:
+    get:
+      tags: [Admin]
+      summary: Query moderation audit log
+      parameters:
+        - name: actorId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: targetType
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [USER, POST, REPORT, COMMUNITY, TOPIC]
+        - name: targetId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: actionType
+          in: query
+          required: false
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Moderation audit actions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationActionPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/moderation-actions/{actionId}:
+    get:
+      tags: [Admin]
+      summary: Get moderation audit action detail
+      parameters:
+        - name: actionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Audit action detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationActionDetailEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: aloute_access_token
+      description: HttpOnly JWT access credential.
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+
+    Size:
+      name: size
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    Sort:
+      name: sort
+      in: query
+      required: false
+      schema:
+        type: string
+        default: createdAt,desc
+
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+    PostId:
+      name: postId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+    MediaId:
+      name: mediaId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+    TopicId:
+      name: topicId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+    PollId:
+      name: pollId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+    CommunityId:
+      name: communityId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+    FeedId:
+      name: feedId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+  responses:
+    RateLimitExceeded:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    BadRequest:
+      description: Malformed or invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    Unauthenticated:
+      description: Authentication required or credential invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    Forbidden:
+      description: Authenticated but operation is not permitted
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    Conflict:
+      description: Request conflicts with current resource state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    ValidationError:
+      description: Semantic or field validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+  schemas:
+
+    ApiResponseNull:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          nullable: true
+          example: null
+
+    ApiResponseMessage:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          required: [message]
+          properties:
+            message:
+              type: string
+              example: "Thao tác thành công."
+
+    ApiError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          examples: [POST_NOT_FOUND]
+        message:
+          type: string
+        fieldErrors:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+    ErrorEnvelope:
+      type: object
+      required: [success, error, traceId]
+      properties:
+        success:
+          type: boolean
+          const: false
+        error:
+          $ref: '#/components/schemas/ApiError'
+        traceId:
+          type: string
+
+    PageMeta:
+      type: object
+      required: [page, size, totalElements, totalPages, hasNext, hasPrevious]
+      properties:
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+        hasNext:
+          type: boolean
+        hasPrevious:
+          type: boolean
+
+    UserSummary:
+      type: object
+      required: [id, username, displayName, isVerified]
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        isVerified:
+          type: boolean
+
+    UserResponse:
+      type: object
+      required: [id, username, email, isVerified, isPrivate, isActive]
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        isVerified:
+          type: boolean
+        isPrivate:
+          type: boolean
+        isActive:
+          type: boolean
+        role:
+          type: string
+          enum: [USER, SYSTEM_ADMIN]
+
+    ProfileResponse:
+      type: object
+      required:
+        - id
+        - username
+        - displayName
+        - isVerified
+        - isPrivate
+        - followersCount
+        - followingCount
+        - postsCount
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        displayName:
+          type: string
+        bio:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        coverUrl:
+          type: string
+          format: uri
+          nullable: true
+        website:
+          type: string
+          format: uri
+          nullable: true
+        isVerified:
+          type: boolean
+        isPrivate:
+          type: boolean
+        followersCount:
+          type: integer
+          format: int64
+          minimum: 0
+        followingCount:
+          type: integer
+          format: int64
+          minimum: 0
+        postsCount:
+          type: integer
+          format: int64
+          minimum: 0
+        capabilities:
+          $ref: '#/components/schemas/ProfileCapabilities'
+
+    ProfileCapabilities:
+      type: object
+      properties:
+        canFollow:
+          type: boolean
+        canMessage:
+          type: boolean
+        canBlock:
+          type: boolean
+        canEdit:
+          type: boolean
+
+    PostVisibility:
+      type: string
+      enum: [PUBLIC, FOLLOWERS, MENTIONED]
+
+    MediaType:
+      type: string
+      enum: [IMAGE, VIDEO, GIF]
+
+    MediaPurpose:
+      type: string
+      enum:
+        - POST
+        - MESSAGE
+        - USER_AVATAR
+        - USER_COVER
+        - COMMUNITY_AVATAR
+        - COMMUNITY_COVER
+
+    MediaResponse:
+      type: object
+      required: [id, type, url]
+      properties:
+        id:
+          type: integer
+          format: int64
+        type:
+          $ref: '#/components/schemas/MediaType'
+        url:
+          type: string
+          format: uri
+        width:
+          type: integer
+          nullable: true
+        height:
+          type: integer
+          nullable: true
+        durationSeconds:
+          type: number
+          format: double
+          nullable: true
+        position:
+          type: integer
+          nullable: true
+
+    PostCapabilities:
+      type: object
+      required: [canEdit, canDelete, canReply, canQuote]
+      properties:
+        canEdit:
+          type: boolean
+        canDelete:
+          type: boolean
+        canReply:
+          type: boolean
+        canQuote:
+          type: boolean
+        canApprove:
+          type: boolean
+          description: Viewer may approve/reject this submission (community owner/ADMIN)
+        canRemove:
+          type: boolean
+          description: Viewer may soft-remove this published community post (community owner/ADMIN)
+
+    PostModerationStatus:
+      type: string
+      description: Null (or absent) reads as APPROVED everywhere
+      enum: [PENDING, APPROVED, REJECTED]
+
+    CommunitySummaryResponse:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        slug:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+
+    CommunityPostDecisionRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          nullable: true
+
+    PostViewerState:
+      type: object
+      properties:
+        liked:
+          type: boolean
+        bookmarked:
+          type: boolean
+        reposted:
+          type: boolean
+
+    PostResponse:
+      type: object
+      required:
+        - id
+        - author
+        - content
+        - visibility
+        - allowReply
+        - allowQuote
+        - likeCount
+        - replyCount
+        - repostCount
+        - quoteCount
+        - viewCount
+        - createdAt
+      properties:
+        id:
+          type: integer
+          format: int64
+        author:
+          $ref: '#/components/schemas/UserSummary'
+        content:
+          type: string
+        parentPostId:
+          type: integer
+          format: int64
+          nullable: true
+        quotedPostId:
+          type: integer
+          format: int64
+          nullable: true
+        communityId:
+          type: integer
+          format: int64
+          nullable: true
+        visibility:
+          $ref: '#/components/schemas/PostVisibility'
+        allowReply:
+          type: boolean
+        allowQuote:
+          type: boolean
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaResponse'
+        topics:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopicResponse'
+        poll:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/PollResponse'
+        likeCount:
+          type: integer
+          format: int64
+          minimum: 0
+        replyCount:
+          type: integer
+          format: int64
+          minimum: 0
+        repostCount:
+          type: integer
+          format: int64
+          minimum: 0
+        quoteCount:
+          type: integer
+          format: int64
+          minimum: 0
+        viewCount:
+          type: integer
+          format: int64
+          minimum: 0
+        viewerState:
+          $ref: '#/components/schemas/PostViewerState'
+        capabilities:
+          $ref: '#/components/schemas/PostCapabilities'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        community:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommunitySummaryResponse'
+        moderationStatus:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/PostModerationStatus'
+        moderationReason:
+          type: string
+          nullable: true
+          description: Rejection reason; only returned to the submission author and community moderators
+
+    TopicResponse:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        slug:
+          type: string
+          nullable: true
+
+    PollOptionResponse:
+      type: object
+      required: [id, text, voteCount]
+      properties:
+        id:
+          type: integer
+          format: int64
+        text:
+          type: string
+        voteCount:
+          type: integer
+          format: int64
+          minimum: 0
+        selectedByCurrentUser:
+          type: boolean
+          nullable: true
+
+    PollResponse:
+      type: object
+      required: [id, allowMultiple, options]
+      properties:
+        id:
+          type: integer
+          format: int64
+        question:
+          type: string
+          nullable: true
+        allowMultiple:
+          type: boolean
+        closesAt:
+          type: string
+          format: date-time
+          nullable: true
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/PollOptionResponse'
+
+    CommunityRole:
+      type: string
+      enum: [MEMBER, MODERATOR, ADMIN]
+
+    CommunityResponse:
+      type: object
+      required: [id, ownerId, name, slug, isPrivate, memberCount, postCount]
+      properties:
+        id:
+          type: integer
+          format: int64
+        ownerId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        coverUrl:
+          type: string
+          format: uri
+          nullable: true
+        isPrivate:
+          type: boolean
+        memberCount:
+          type: integer
+          format: int64
+          minimum: 0
+        postCount:
+          type: integer
+          format: int64
+          minimum: 0
+        currentUserRole:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CommunityRole'
+        isOwner:
+          type: boolean
+          nullable: true
+        requirePostApproval:
+          type: boolean
+          description: Owner-only setting; ordinary member submissions enter PENDING when true
+        canManage:
+          type: boolean
+          description: True when the viewer is the community owner or an ADMIN-role member
+        pendingPostCount:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Pending submissions; only non-zero for viewers with canManage
+
+    CommunityMembershipResponse:
+      type: object
+      required: [communityId, user, role, joinedAt]
+      properties:
+        communityId:
+          type: integer
+          format: int64
+        user:
+          $ref: '#/components/schemas/UserSummary'
+        role:
+          $ref: '#/components/schemas/CommunityRole'
+        joinedAt:
+          type: string
+          format: date-time
+
+    FeedResponse:
+      type: object
+      required: [id, name, isPublic]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        isPublic:
+          type: boolean
+        topicIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        userIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+
+    ConversationType:
+      type: string
+      enum: [DIRECT, GROUP]
+
+    ConversationResponse:
+      type: object
+      required: [id, type, members, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        type:
+          $ref: '#/components/schemas/ConversationType'
+        name:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSummary'
+        createdAt:
+          type: string
+          format: date-time
+
+    MessageResponse:
+      type: object
+      required: [id, conversationId, sender, content, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        conversationId:
+          type: integer
+          format: int64
+        sender:
+          $ref: '#/components/schemas/UserSummary'
+        replyToMessageId:
+          type: integer
+          format: int64
+          nullable: true
+        content:
+          type: string
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaResponse'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    NotificationType:
+      type: string
+      description: |
+        Giá trị emit thực tế bởi NotificationServiceImpl (string, không phải enum Java).
+        Kiểu lọc theo tab ở GET /api/notifications dùng giá trị rút gọn: ALL, LIKE, REPLY,
+        MENTION, FOLLOW.
+      enum: [POST_LIKE, REPLY_LIKE, POST_REPLY, REPLY_REPLY, POST_QUOTE, POST_REPOST,
+             POST_MENTION, REPLY_MENTION, FOLLOW, FRIEND_REQUEST, FRIEND_ACCEPT]
+
+    NotificationResponse:
+      type: object
+      description: |
+        Khớp `com.aloute.dto.response.NotificationResponse` (Lombok `isRead` getter → Jackson
+        serialize thành property `read`; asserted bởi ThymeleafViewRenderIntegrationTest).
+        Field `targetType`/`targetId` thay cho postId/messageId/communityId tách rời.
+      required: [id, recipientId, actorId, type, targetType, targetId, contentPreview, read, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        recipientId:
+          type: integer
+          format: int64
+        actorId:
+          type: integer
+          format: int64
+          nullable: true
+        actor:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/UserSummary'
+        type:
+          $ref: '#/components/schemas/NotificationType'
+        targetType:
+          type: string
+          nullable: true
+        targetId:
+          type: integer
+          format: int64
+          nullable: true
+        contentPreview:
+          type: string
+          nullable: true
+        read:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    ReportReason:
+      type: string
+      enum: [SPAM, HARASSMENT, HATE, MISINFORMATION, VIOLENCE, OTHER]
+
+    GlobalRole:
+      type: string
+      description: Global platform role. Community Owner/Admin/Moderator roles are separate.
+      enum: [USER, SYSTEM_ADMIN]
+
+    ReportStatus:
+      type: string
+      enum: [PENDING, REVIEWED, REJECTED, RESOLVED]
+
+    ReportResponse:
+      type: object
+      required: [id, reason, status, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        reportedUserId:
+          type: integer
+          format: int64
+          nullable: true
+        reportedPostId:
+          type: integer
+          format: int64
+          nullable: true
+        reason:
+          $ref: '#/components/schemas/ReportReason'
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        createdAt:
+          type: string
+          format: date-time
+
+    SocialRelationResponse:
+      type: object
+      required: [targetUserId, active]
+      properties:
+        targetUserId:
+          type: integer
+          format: int64
+        active:
+          type: boolean
+
+    UserRelationStatusResponse:
+      type: object
+      required: [targetUserId, following, blocked, muted, restricted]
+      properties:
+        targetUserId:
+          type: integer
+          format: int64
+        following:
+          type: boolean
+        blocked:
+          type: boolean
+        muted:
+          type: boolean
+        restricted:
+          type: boolean
+
+    UserRelationStatusEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiSuccess'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/UserRelationStatusResponse'
+
+    PostInteractionResponse:
+      type: object
+      required: [postId, active]
+      properties:
+        postId:
+          type: integer
+          format: int64
+        active:
+          type: boolean
+
+    RegisterRequest:
+      type: object
+      required: [username, email, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          description: User email address or username
+        password:
+          type: string
+
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword, confirmPassword]
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+          minLength: 8
+          maxLength: 100
+        confirmPassword:
+          type: string
+          minLength: 8
+          maxLength: 100
+
+    ResetPasswordRequest:
+      type: object
+      required: [token, password, confirmPassword]
+      properties:
+        token:
+          type: string
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+        confirmPassword:
+          type: string
+          minLength: 8
+          maxLength: 128
+
+    VerifyRegistrationOtpRequest:
+      type: object
+      required: [email, otp]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        otp:
+          type: string
+          pattern: '^[0-9]{6}$'
+          example: '123456'
+
+    ResendRegistrationOtpRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+          maxLength: 100
+        bio:
+          type: string
+          maxLength: 500
+          nullable: true
+        website:
+          type: string
+          format: uri
+          nullable: true
+        avatarMediaId:
+          type: integer
+          format: int64
+          nullable: true
+        isPrivate:
+          type: boolean
+
+    PollCreateInput:
+      type: object
+      required: [question, options, allowMultiple]
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 255
+        allowMultiple:
+          type: boolean
+        durationDays:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 365
+          nullable: true
+          description: |
+            Optional poll lifetime in days, counted from post creation. When present the
+            poll closes automatically after the given number of days; when omitted the
+            poll stays open indefinitely.
+        options:
+          type: array
+          minItems: 2
+          maxItems: 10
+          items:
+            type: string
+            minLength: 1
+            maxLength: 200
+
+    CreatePostRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          maxLength: 4000
+        visibility:
+          $ref: '#/components/schemas/PostVisibility'
+        allowReply:
+          type: boolean
+          default: true
+        allowQuote:
+          type: boolean
+          default: true
+        mediaIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+        mentionedUserIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+        topicIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+        poll:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/PollCreateInput'
+
+    UpdatePostRequest:
+      type: object
+      properties:
+        content:
+          type: string
+        visibility:
+          $ref: '#/components/schemas/PostVisibility'
+        allowReply:
+          type: boolean
+        allowQuote:
+          type: boolean
+
+    CreateReplyRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreatePostRequest'
+
+    CreateQuoteRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreatePostRequest'
+
+    VotePollRequest:
+      type: object
+      required: [optionIds]
+      properties:
+        optionIds:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+
+    CreateCommunityRequest:
+      type: object
+      required: [name, slug, isPrivate]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        slug:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+        isPrivate:
+          type: boolean
+        avatarMediaId:
+          type: integer
+          format: int64
+          nullable: true
+        coverMediaId:
+          type: integer
+          format: int64
+          nullable: true
+
+    UpdateCommunityRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+        isPrivate:
+          type: boolean
+        avatarMediaId:
+          type: integer
+          format: int64
+          nullable: true
+        coverMediaId:
+          type: integer
+          format: int64
+          nullable: true
+        requirePostApproval:
+          type: boolean
+          nullable: true
+          description: Toggling the approval policy is restricted to the community owner
+
+    UpdateCommunityRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role:
+          $ref: '#/components/schemas/CommunityRole'
+
+    CreateFeedRequest:
+      type: object
+      required: [name, isPublic]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+        isPublic:
+          type: boolean
+        topicIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+        userIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+
+    UpdateFeedRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+        isPublic:
+          type: boolean
+        topicIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+        userIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+
+    CreateConversationRequest:
+      type: object
+      required: [type, memberIds]
+      properties:
+        type:
+          $ref: '#/components/schemas/ConversationType'
+        memberIds:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+        name:
+          type: string
+          maxLength: 100
+          nullable: true
+        avatarMediaId:
+          type: integer
+          format: int64
+          nullable: true
+
+    CreateReportRequest:
+      type: object
+      required: [reason]
+      oneOf:
+        - required: [reportedUserId]
+        - required: [reportedPostId]
+      properties:
+        reportedUserId:
+          type: integer
+          format: int64
+          nullable: true
+        reportedPostId:
+          type: integer
+          format: int64
+          nullable: true
+        reason:
+          $ref: '#/components/schemas/ReportReason'
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+
+    RegisterFcmTokenRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: Firebase Cloud Messaging registration token
+          maxLength: 500
+
+    UserEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/UserResponse'
+        meta:
+          type: 'null'
+
+    ProfileEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/ProfileResponse'
+        meta:
+          type: 'null'
+
+    PostEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/PostResponse'
+        meta:
+          type: 'null'
+
+    MediaEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/MediaResponse'
+        meta:
+          type: 'null'
+
+    TopicEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/TopicResponse'
+        meta:
+          type: 'null'
+
+    PollEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/PollResponse'
+        meta:
+          type: 'null'
+
+    CommunityEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/CommunityResponse'
+        meta:
+          type: 'null'
+
+    CommunityMembershipEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/CommunityMembershipResponse'
+        meta:
+          type: 'null'
+
+    FeedEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/FeedResponse'
+        meta:
+          type: 'null'
+
+    ConversationEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/ConversationResponse'
+        meta:
+          type: 'null'
+
+    ReportEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/ReportResponse'
+        meta:
+          type: 'null'
+
+    SocialRelationEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/SocialRelationResponse'
+        meta:
+          type: 'null'
+
+    PostInteractionEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/PostInteractionResponse'
+        meta:
+          type: 'null'
+
+    UserPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSummary'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    PostPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PostResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    TopicPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopicResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    CommunityPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommunityResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    CommunityMemberPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommunityMembershipResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    FeedPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeedResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    ConversationPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConversationResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    MessagePageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    MessageEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/MessageResponse'
+        meta:
+          type: 'null'
+
+    SendMessageRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        replyToMessageId:
+          type: integer
+          format: int64
+          nullable: true
+
+    NotificationPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    EmptySuccessEnvelope:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: 'null'
+        meta:
+          type: 'null'
+
+    # ==================== ADMIN DTO SCHEMAS ====================
+
+    AdminRemovePostRequest:
+      type: object
+      required: [reasonCode, reasonDetail]
+      properties:
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        reasonDetail:
+          type: string
+          minLength: 10
+          maxLength: 1000
+        relatedReportId:
+          type: integer
+          format: int64
+          nullable: true
+        publicNotice:
+          type: string
+          maxLength: 500
+          nullable: true
+
+    AdminRestorePostRequest:
+      type: object
+      required: [expectedRemovalId, reasonDetail]
+      properties:
+        expectedRemovalId:
+          type: integer
+          format: int64
+        reasonDetail:
+          type: string
+          minLength: 10
+          maxLength: 1000
+
+    AdminStartReportReviewRequest:
+      type: object
+      required: [expectedVersion]
+      properties:
+        expectedVersion:
+          type: integer
+          format: int64
+
+    AdminReportDecisionRequest:
+      type: object
+      required: [expectedVersion, decision, resolutionNote]
+      properties:
+        expectedVersion:
+          type: integer
+          format: int64
+        decision:
+          type: string
+          enum: [RESOLVE, REJECT]
+        resolutionNote:
+          type: string
+          minLength: 10
+          maxLength: 1000
+        resolutionAction:
+          type: object
+          nullable: true
+          properties:
+            type:
+              type: string
+              enum: [POST_REMOVE]
+            reasonCode:
+              $ref: '#/components/schemas/ReportReason'
+            reasonDetail:
+              type: string
+              minLength: 10
+              maxLength: 1000
+            publicNotice:
+              type: string
+              nullable: true
+
+    AdminOverviewResponse:
+      type: object
+      required: [asOf, period, metrics, dailyActivity]
+      properties:
+        asOf:
+          type: string
+          format: date-time
+        period:
+          type: string
+          example: '7d'
+        metrics:
+          type: object
+          properties:
+            totalUsers:
+              type: integer
+            activeUsers:
+              type: integer
+            totalPosts:
+              type: integer
+            postsCreatedToday:
+              type: integer
+            pendingReports:
+              type: integer
+            reviewedReports:
+              type: integer
+            totalCommunities:
+              type: integer
+        dailyActivity:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              newUsers:
+                type: integer
+              newPosts:
+                type: integer
+        recentReportIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        recentModerationActionIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+
+    AdminUserSummaryResponse:
+      type: object
+      required: [id, username, displayName, isActive, isVerified, isPrivate, moderationStatus, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        displayName:
+          type: string
+        isActive:
+          type: boolean
+        isVerified:
+          type: boolean
+        isPrivate:
+          type: boolean
+        moderationStatus:
+          type: string
+          enum: [NORMAL, SUSPENDED, RESTRICTED]
+        createdAt:
+          type: string
+          format: date-time
+
+    AdminUserDetailResponse:
+      type: object
+      required: [id, username, email, displayName, isActive, isVerified, isPrivate, role, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        bio:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        isVerified:
+          type: boolean
+        isPrivate:
+          type: boolean
+        role:
+          $ref: '#/components/schemas/GlobalRole'
+        createdAt:
+          type: string
+          format: date-time
+        counts:
+          type: object
+          properties:
+            posts:
+              type: integer
+            reportsReceived:
+              type: integer
+        capabilities:
+          type: object
+          description: |
+            Viewer-aware flags. The viewer is the authenticated SYSTEM_ADMIN calling the
+            API/page; self-targeting is already excluded where the corresponding action
+            is refused for self.
+          properties:
+            canWarn:
+              type: boolean
+              description: Warn API is available for this target (false when viewer == target).
+            canSuspend:
+              type: boolean
+              description: Target is active, not the viewer, and is not the last active SYSTEM_ADMIN.
+            canResetProfile:
+              type: boolean
+              description: Profile-reset API is available for this target.
+            canChangeGlobalRole:
+              type: boolean
+              description: Target is active, not the viewer, and demotion would not remove the last active SYSTEM_ADMIN.
+
+    AdminPostSummaryResponse:
+      type: object
+      required: [id, author, contentExcerpt, visibility, contentState, reportedCount, createdAt, capabilities]
+      properties:
+        id:
+          type: integer
+          format: int64
+        author:
+          $ref: '#/components/schemas/UserSummary'
+        contentExcerpt:
+          type: string
+        parentPostId:
+          type: integer
+          format: int64
+          nullable: true
+        quotedPostId:
+          type: integer
+          format: int64
+          nullable: true
+        communityId:
+          type: integer
+          format: int64
+          nullable: true
+        visibility:
+          $ref: '#/components/schemas/PostVisibility'
+        contentState:
+          type: string
+          enum: [ACTIVE, AUTHOR_DELETED, ADMIN_REMOVED]
+        reportedCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        capabilities:
+          type: object
+          properties:
+            canRemove:
+              type: boolean
+            canRestore:
+              type: boolean
+
+    AdminPostDetailResponse:
+      type: object
+      required: [id, author, content, visibility, contentState, createdAt, capabilities]
+      properties:
+        id:
+          type: integer
+          format: int64
+        author:
+          $ref: '#/components/schemas/UserSummary'
+        content:
+          type: string
+        visibility:
+          $ref: '#/components/schemas/PostVisibility'
+        contentState:
+          type: string
+          enum: [ACTIVE, AUTHOR_DELETED, ADMIN_REMOVED]
+        parentPostId:
+          type: integer
+          format: int64
+          nullable: true
+        quotedPostId:
+          type: integer
+          format: int64
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+        relatedReportIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        activeRemovalId:
+          type: integer
+          format: int64
+          nullable: true
+        capabilities:
+          type: object
+          properties:
+            canRemove:
+              type: boolean
+            canRestore:
+              type: boolean
+
+    PostRemovalActionResponse:
+      type: object
+      required: [actionId, postId, actionType, contentState, removalId, occurredAt]
+      properties:
+        actionId:
+          type: integer
+          format: int64
+        postId:
+          type: integer
+          format: int64
+        actionType:
+          type: string
+          example: 'POST_REMOVE'
+        contentState:
+          type: string
+          example: 'ADMIN_REMOVED'
+        removalId:
+          type: integer
+          format: int64
+        occurredAt:
+          type: string
+          format: date-time
+
+    PostRestoreActionResponse:
+      type: object
+      required: [actionId, postId, actionType, contentState, restoredRemovalId, occurredAt]
+      properties:
+        actionId:
+          type: integer
+          format: int64
+        postId:
+          type: integer
+          format: int64
+        actionType:
+          type: string
+          example: 'POST_RESTORE'
+        contentState:
+          type: string
+          example: 'ACTIVE'
+        restoredRemovalId:
+          type: integer
+          format: int64
+        occurredAt:
+          type: string
+          format: date-time
+
+    AdminReportSummaryResponse:
+      type: object
+      required: [id, targetType, targetId, reporter, reason, descriptionExcerpt, status, createdAt, version]
+      properties:
+        id:
+          type: integer
+          format: int64
+        targetType:
+          type: string
+          enum: [USER, POST]
+        targetId:
+          type: integer
+          format: int64
+        reporter:
+          $ref: '#/components/schemas/UserSummary'
+        reason:
+          $ref: '#/components/schemas/ReportReason'
+        descriptionExcerpt:
+          type: string
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        reviewedBy:
+          type: integer
+          format: int64
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+
+    AdminReportDetailResponse:
+      type: object
+      required: [id, target, reporter, reason, description, status, createdAt, version, capabilities]
+      properties:
+        id:
+          type: integer
+          format: int64
+        target:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [USER, POST]
+            id:
+              type: integer
+              format: int64
+        reporter:
+          $ref: '#/components/schemas/UserSummary'
+        reason:
+          $ref: '#/components/schemas/ReportReason'
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        reviewedBy:
+          type: integer
+          format: int64
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+        resolutionNote:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+        capabilities:
+          type: object
+          properties:
+            canStartReview:
+              type: boolean
+            canDecide:
+              type: boolean
+
+    ReportReviewResponse:
+      type: object
+      required: [id, status, reviewedBy, reviewedAt, version]
+      properties:
+        id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          example: 'REVIEWED'
+        reviewedBy:
+          type: integer
+          format: int64
+        reviewedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+
+    ReportDecisionResponse:
+      type: object
+      required: [reportId, status, closedAt, version]
+      properties:
+        reportId:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [RESOLVED, REJECTED]
+        resolutionActionId:
+          type: integer
+          format: int64
+          nullable: true
+        closedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+
+    ModerationActionResponse:
+      type: object
+      required: [id, actor, targetType, targetId, actionType, reasonCode, reasonDetail, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        actor:
+          $ref: '#/components/schemas/UserSummary'
+        targetType:
+          type: string
+          enum: [USER, POST, REPORT, COMMUNITY, TOPIC]
+        targetId:
+          type: integer
+          format: int64
+        actionType:
+          type: string
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        reasonDetail:
+          type: string
+        relatedReportId:
+          type: integer
+          format: int64
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    ModerationActionDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/ModerationActionResponse'
+        - type: object
+          properties:
+            metadata:
+              type: object
+              nullable: true
+
+    # ==================== ADMIN ENVELOPES ====================
+
+    AdminOverviewEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/AdminOverviewResponse'
+        meta:
+          type: 'null'
+
+    AdminUserSummaryPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminUserSummaryResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    AdminUserDetailEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/AdminUserDetailResponse'
+        meta:
+          type: 'null'
+
+    AdminUserModerationRequest:
+      type: object
+      required: [reasonCode, reasonDetail]
+      properties:
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        reasonDetail:
+          type: string
+          minLength: 10
+          maxLength: 1000
+
+    AdminUserModerationActionResponse:
+      type: object
+      required: [actionId, userId, active, actionType, reasonCode, occurredAt]
+      properties:
+        actionId:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        active:
+          type: boolean
+        actionType:
+          type: string
+          enum: [USER_SUSPEND, USER_REACTIVATE]
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        occurredAt:
+          type: string
+          format: date-time
+
+    AdminUserModerationActionEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/AdminUserModerationActionResponse'
+        meta:
+          type: 'null'
+
+    AdminUserWarnRequest:
+      type: object
+      required: [reasonCode, reasonDetail]
+      properties:
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        reasonDetail:
+          type: string
+          minLength: 10
+          maxLength: 1000
+
+    AdminUserWarnResponse:
+      type: object
+      required: [actionId, userId, notificationId, actionType, reasonCode, occurredAt]
+      properties:
+        actionId:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        notificationId:
+          type: integer
+          format: int64
+        actionType:
+          type: string
+          const: USER_WARN
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        occurredAt:
+          type: string
+          format: date-time
+
+    AdminUserWarnEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/AdminUserWarnResponse'
+        meta:
+          type: 'null'
+
+    AdminUserProfileResetRequest:
+      type: object
+      required: [reasonCode, reasonDetail, confirmUsername]
+      properties:
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        reasonDetail:
+          type: string
+          minLength: 10
+          maxLength: 1000
+        confirmUsername:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Must exactly match the target account username; protects against a wrong userId.
+
+    AdminUserProfileResetResponse:
+      type: object
+      required: [actionId, userId, displayName, resetFields, actionType, reasonCode, occurredAt]
+      properties:
+        actionId:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        displayName:
+          type: string
+        resetFields:
+          type: array
+          items:
+            type: string
+            enum: [displayName, bio, website, avatarUrl, coverUrl]
+        actionType:
+          type: string
+          const: USER_PROFILE_RESET
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        occurredAt:
+          type: string
+          format: date-time
+
+    AdminUserProfileResetEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/AdminUserProfileResetResponse'
+        meta:
+          type: 'null'
+
+    AdminUserRoleChangeRequest:
+      type: object
+      required: [newRole, reasonCode, reasonDetail]
+      properties:
+        newRole:
+          $ref: '#/components/schemas/GlobalRole'
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        reasonDetail:
+          type: string
+          minLength: 10
+          maxLength: 1000
+
+    AdminUserRoleChangeResponse:
+      type: object
+      required: [actionId, userId, previousRole, newRole, actionType, reasonCode, occurredAt]
+      properties:
+        actionId:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        previousRole:
+          $ref: '#/components/schemas/GlobalRole'
+        newRole:
+          $ref: '#/components/schemas/GlobalRole'
+        actionType:
+          type: string
+          const: USER_ROLE_CHANGE
+        reasonCode:
+          $ref: '#/components/schemas/ReportReason'
+        occurredAt:
+          type: string
+          format: date-time
+
+    AdminUserRoleChangeEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/AdminUserRoleChangeResponse'
+        meta:
+          type: 'null'
+
+    AdminPostSummaryPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminPostSummaryResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    AdminPostDetailEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/AdminPostDetailResponse'
+        meta:
+          type: 'null'
+
+    PostRemovalActionEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/PostRemovalActionResponse'
+        meta:
+          type: 'null'
+
+    PostRestoreActionEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/PostRestoreActionResponse'
+        meta:
+          type: 'null'
+
+    AdminReportSummaryPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminReportSummaryResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    AdminReportDetailEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/AdminReportDetailResponse'
+        meta:
+          type: 'null'
+
+    ReportReviewEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/ReportReviewResponse'
+        meta:
+          type: 'null'
+
+    ReportDecisionEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/ReportDecisionResponse'
+        meta:
+          type: 'null'
+
+    ModerationActionPageEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModerationActionResponse'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    ModerationActionDetailEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/ModerationActionDetailResponse'
+        meta:
+          type: 'null'
+
+security:
+  - cookieAuth: []
+

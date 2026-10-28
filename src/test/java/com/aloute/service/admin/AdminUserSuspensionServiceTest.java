@@ -14,6 +14,7 @@ import com.aloute.repository.ProfileRepository;
 import com.aloute.repository.ReportRepository;
 import com.aloute.repository.UserRepository;
 import com.aloute.security.authorization.Role;
+import com.aloute.service.NotificationService;
 import com.aloute.service.admin.impl.AdminUserServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +46,7 @@ class AdminUserSuspensionServiceTest {
     private PostRepository postRepository;
     private ReportRepository reportRepository;
     private ModerationActionRepository moderationActionRepository;
+    private NotificationService notificationService;
     private AdminUserServiceImpl service;
 
     private AdminUserModerationRequest reason() {
@@ -69,13 +71,23 @@ class AdminUserSuspensionServiceTest {
         postRepository = mock(PostRepository.class);
         reportRepository = mock(ReportRepository.class);
         moderationActionRepository = mock(ModerationActionRepository.class);
+        notificationService = mock(NotificationService.class);
         service = new AdminUserServiceImpl(userRepository, profileRepository, postRepository,
-                reportRepository, moderationActionRepository, new SystemAdminGuard(userRepository));
+                reportRepository, moderationActionRepository, new SystemAdminGuard(userRepository),
+                notificationService);
         when(moderationActionRepository.save(any(ModerationAction.class))).thenAnswer(inv -> {
             ModerationAction a = inv.getArgument(0);
             a.setId(500L);
             return a;
         });
+    }
+
+    private void lockAdmins(User... admins) {
+        when(userRepository.lockByRoleOrdered(Role.SYSTEM_ADMIN)).thenReturn(List.of(admins));
+    }
+
+    private void lockTargetRow(User target) {
+        when(userRepository.findByIdForUpdate(target.getId())).thenReturn(Optional.of(target));
     }
 
     @Test
@@ -85,6 +97,8 @@ class AdminUserSuspensionServiceTest {
         User target = user(2L, Role.USER, true);
         when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
         when(userRepository.findById(2L)).thenReturn(Optional.of(target));
+        lockAdmins(admin);
+        lockTargetRow(target);
 
         AdminUserModerationActionResponse res = service.suspendUser(1L, 2L, reason());
 
@@ -101,6 +115,7 @@ class AdminUserSuspensionServiceTest {
     void selfSuspendIsRejected() {
         User admin = user(1L, Role.SYSTEM_ADMIN, true);
         when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
+        lockAdmins(admin);
 
         assertThatThrownBy(() -> service.suspendUser(1L, 1L, reason()))
                 .isInstanceOf(ApiException.class)
@@ -147,6 +162,8 @@ class AdminUserSuspensionServiceTest {
     void alreadySuspendedIsConflict() {
         User target = user(2L, Role.USER, false);
         when(userRepository.findById(2L)).thenReturn(Optional.of(target));
+        lockAdmins();
+        lockTargetRow(target);
 
         assertThatThrownBy(() -> service.suspendUser(1L, 2L, reason()))
                 .isInstanceOf(ApiException.class)
@@ -157,6 +174,8 @@ class AdminUserSuspensionServiceTest {
     @DisplayName("suspending a nonexistent account is a not-found error")
     void missingUserIsNotFound() {
         when(userRepository.findById(anyLong())).thenReturn(Optional.empty());
+        lockAdmins();
+        when(userRepository.findByIdForUpdate(999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.suspendUser(1L, 999L, reason()))
                 .isInstanceOf(ApiException.class);
@@ -169,6 +188,8 @@ class AdminUserSuspensionServiceTest {
         User target = user(2L, Role.USER, false);
         when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
         when(userRepository.findById(2L)).thenReturn(Optional.of(target));
+        lockAdmins(admin);
+        lockTargetRow(target);
 
         AdminUserModerationActionResponse res = service.reactivateUser(1L, 2L, reason());
 
@@ -183,6 +204,8 @@ class AdminUserSuspensionServiceTest {
     void alreadyActiveIsConflict() {
         User target = user(2L, Role.USER, true);
         when(userRepository.findById(2L)).thenReturn(Optional.of(target));
+        lockAdmins();
+        lockTargetRow(target);
 
         assertThatThrownBy(() -> service.reactivateUser(1L, 2L, reason()))
                 .isInstanceOf(ApiException.class)
@@ -203,7 +226,9 @@ class AdminUserSuspensionServiceTest {
 
         AdminUserDetailResponse detail = service.getUserDetail(2L);
         assertThat(detail.capabilities().canSuspend()).isTrue();
-        assertThat(detail.capabilities().canChangeGlobalRole()).isFalse();
+        assertThat(detail.capabilities().canWarn()).isTrue();
+        assertThat(detail.capabilities().canResetProfile()).isTrue();
+        assertThat(detail.capabilities().canChangeGlobalRole()).isTrue();
     }
 
     @Test
@@ -219,6 +244,7 @@ class AdminUserSuspensionServiceTest {
         when(userRepository.countByRoleAndActive(Role.SYSTEM_ADMIN, true)).thenReturn(1L);
 
         assertThat(service.getUserDetail(2L).capabilities().canSuspend()).isFalse();
+        assertThat(service.getUserDetail(2L).capabilities().canChangeGlobalRole()).isFalse();
 
         User inactive = user(4L, Role.USER, false);
         when(userRepository.findById(4L)).thenReturn(Optional.of(inactive));
