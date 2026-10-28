@@ -236,7 +236,27 @@ export async function run({ browser, results }) {
         tag: document.activeElement?.tagName || ''
       }));
       assert(focused.id === 'main-content' || focused.tag === 'MAIN', `Focus phải vào main, nhận ${focused.tag}#${focused.id}`);
-      return { first, focused };
+
+      const authPage = await guest(browser);
+      try {
+        await open(authPage, '/login', { wait: 300 });
+        await authPage.page.keyboard.press('Tab');
+        const authFirst = await authPage.page.evaluate(() => ({
+          tag: document.activeElement?.tagName,
+          cls: document.activeElement?.className || ''
+        }));
+        assert(String(authFirst.cls).includes('aloute-skip-link'), `Auth: focus đầu tiên phải là skip link, nhận ${authFirst.tag}.${authFirst.cls}`);
+        await authPage.page.keyboard.press('Enter');
+        await authPage.page.waitForTimeout(300);
+        const authFocused = await authPage.page.evaluate(() => ({
+          id: document.activeElement?.id || '',
+          tag: document.activeElement?.tagName || ''
+        }));
+        assert(authFocused.id === 'main-content' || authFocused.tag === 'MAIN', `Auth: focus phải vào main, nhận ${authFocused.tag}#${authFocused.id}`);
+        return { first, focused, authFirst, authFocused };
+      } finally {
+        await authPage.context.close();
+      }
     });
 
     // ---------------------------------------------------------------------
@@ -320,33 +340,49 @@ export async function run({ browser, results }) {
       }
     });
 
-    await test(results, S, 'RESP-06', 'Touch target ≥ 24×24 px cho nút navbar và thanh tương tác (mobile)', async () => {
-      const session = await login(browser, 'user', { viewport: { width: 360, height: 800 } });
+    await test(results, S, 'RESP-06', 'Touch target ≥ 44×44 px cho navbar, interaction bar, guest CTA và sidebar', async () => {
+      const measure = (page, selector) => page.evaluate(selector => Array.from(document.querySelectorAll(selector))
+        .filter(el => {
+          const style = getComputedStyle(el);
+          const rect = el.getBoundingClientRect();
+          return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0 && !el.closest('.d-none');
+        })
+        .map(el => {
+          const rect = el.getBoundingClientRect();
+          return {
+            label: (el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 40),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height)
+          };
+        })
+        .filter(item => item.width < 44 || item.height < 44), selector);
+
+      const mobile = await login(browser, 'user', { viewport: { width: 360, height: 800 } });
+      const guestSession = await guest(browser, { viewport: { width: 360, height: 800 } });
+      const desktop = await login(browser, 'user', { viewport: { width: 1440, height: 900 } });
       try {
-        await open(session, '/feed', { wait: 900 });
-        const small = await session.page.evaluate(() => {
-          const nodes = Array.from(document.querySelectorAll('.aloute-navbar button, .aloute-navbar .btn, .interaction-bar .interaction-btn'));
-          return nodes
-            .filter(el => {
-              const style = getComputedStyle(el);
-              const rect = el.getBoundingClientRect();
-              return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
-            })
-            .map(el => {
-              const rect = el.getBoundingClientRect();
-              return {
-                tag: el.tagName,
-                label: (el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 40),
-                width: Math.round(rect.width),
-                height: Math.round(rect.height)
-              };
-            })
-            .filter(item => item.width < 24 || item.height < 24);
-        });
-        assert(small.length === 0, `Touch target < 24px: ${small.map(s => `${s.label}(${s.width}x${s.height})`).join(', ')}`);
-        return { checked: true };
+        await open(mobile, '/feed', { wait: 900 });
+        const mobileSmall = [
+          ...await measure(mobile.page, '.aloute-navbar button, .aloute-navbar .btn'),
+          ...await measure(mobile.page, '.interaction-bar .interaction-btn')
+        ];
+        assert(mobileSmall.length === 0, `Touch target mobile <44px: ${mobileSmall.map(s => `${s.label}(${s.width}x${s.height})`).join(', ')}`);
+
+        await open(guestSession, '/feed', { wait: 700 });
+        const guestSmall = await measure(guestSession.page, 'section[aria-label="Đăng nhập để đăng bài"] a');
+        assert(guestSmall.length === 0, `Guest CTA <44px: ${guestSmall.map(s => `${s.label}(${s.width}x${s.height})`).join(', ')}`);
+
+        await open(desktop, '/feed', { wait: 700 });
+        const desktopSmall = [
+          ...await measure(desktop.page, '.aloute-navbar button, .aloute-navbar .btn'),
+          ...await measure(desktop.page, '.sidebar-nav-link')
+        ];
+        assert(desktopSmall.length === 0, `Touch target desktop <44px: ${desktopSmall.map(s => `${s.label}(${s.width}x${s.height})`).join(', ')}`);
+        return { mobileSmall: 0, guestSmall: 0, desktopSmall: 0 };
       } finally {
-        await session.context.close();
+        await mobile.context.close();
+        await guestSession.context.close();
+        await desktop.context.close();
       }
     });
 

@@ -2023,6 +2023,18 @@ p {
     transform: none !important;
   }
 }
+
+/* Navbar icon links keep a 44x44 hit area on tablet/desktop as well. */
+@media (min-width: 576px) {
+  .aloute-navbar .btn-link.p-1,
+  .aloute-navbar .navbar-notification-link {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
 /* ==========================================================================
    Small Tablet / Large Phone Navbar (< 640px)
    Between the mobile navbar (< 576px) and the desktop navbar (>= 768px) the row

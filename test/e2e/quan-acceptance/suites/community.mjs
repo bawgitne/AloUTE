@@ -341,8 +341,8 @@ export async function run({ browser, results }) {
   {
     const probe = await joinApi(binh, privateCommunity.id);
     if (probe.status === 200) {
-      const memberRes = await open(binh, `/communities/${privateCommunity.slug}`);
       await test(results, S, 'COM-14b', 'Thành viên mới tham gia cộng đồng riêng tư xem được nội dung', async () => {
+        const memberRes = await open(binh, `/communities/${privateCommunity.slug}`);
         assertEqual(memberRes.status(), 200, 'Trang cộng đồng riêng tư cho thành viên');
       });
     } else {

@@ -66,7 +66,7 @@ Biến tùy chọn: `BASE_URL`, `BROWSER_CHANNEL` (mặc định `chrome`), `HEA
 
 ## 4. Thiết kế harness
 
-- `login(browser, who)` — tạo context riêng, POST `/api/auth/login`, xác nhận `/api/auth/me`, trả `{ context, page, me }`. Mỗi case dùng phiên riêng, đóng trong `finally`.
+- `login(browser, who)` — tạo context riêng cho từng vai trò/suite, POST `/api/auth/login`, xác nhận `/api/auth/me`, trả `{ context, page, me }`. Các case trong cùng suite dùng chung phiên; case cần viewport/role khác tạo context mới và đóng trong `finally`.
 - `guest()` — context không đăng nhập, dùng cho kiểm tra chặn truy cập.
 - `api(session, method, route, data)` — gọi API bằng cookie của context, trả `{ status, body, headers, text }`; dùng để setup/verify/cleanup.
 - `diagnostics(page)` — bắt `console.error`, `pageerror`, request failed; `assertClean()` chặn case nếu có lỗi JS.
@@ -78,7 +78,7 @@ Quy ước:
 - Selector ưu tiên `id`, `data-action`, `aria-label`, lớp Bootstrap ổn định; tránh phụ thuộc text động.
 - Mọi mutation qua UI đều được xác nhận lại qua API hoặc reload.
 - Response API được kiểm tra envelope `{ success, data, error }`; không chấp nhận HTML thay JSON ở API.
-- Cleanup: social/community tạo dữ liệu qua API rồi xóa trong `finally`; messaging/admin dọn bài QA.
+- Cleanup: social/community tạo dữ liệu qua API rồi xóa trong `finally`; messaging/admin dọn bài QA. SOC-P02 lưu profile gốc và khôi phục sau test để không làm bẩn seed user.
 
 ## 5. Ma trận engine
 
@@ -101,6 +101,7 @@ Quy ước:
 | `run-social3` | social | 33 | 0 | 1 | 2 | Baseline |
 | `run-community3` | community | 20 | 0 | 1 | 0 | Baseline |
 | `run-resilience-2` | resilience | 10 | 1 | 0 | 0 | RES-02 BL-22 |
+| `final-verification-20261028` | cả 6 suite | 155 | 4 | 3 | 3 | Sau fix 44px/auth-23/race; 165 ID duy nhất; guard PASS |
 
 Kết quả hợp nhất cuối (best run mỗi suite, cùng code): **155 PASS / 4 FAIL / 3 BLOCKED / 3 NOT RUN**.
 

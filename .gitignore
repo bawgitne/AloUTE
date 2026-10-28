@@ -42,3 +42,6 @@ run.ps1
 # Local dev media storage
 uploads/
 data/media/
+
+# Local QA artifacts (raw screenshots, logs, JSON) — curated evidence is committed under docs/audits
+/test-results/

@@ -5,6 +5,9 @@
 - Trạng thái: `PASS`, `FAIL`, `BLOCKED`, `NOT RUN`, `PASS-WL` (PASS nhưng còn case con BLOCKED/NOT RUN), `GAP` (chưa có case chuyên biệt).
 - Bằng chứng gốc: thư mục `test-results/quan-e2e-acceptance/<run>/` (results.json + screenshots).
 - Run chuẩn theo module: auth `full-run-3`; social/community/resilience `full-run-1`; messaging/admin `full-run-4`; cross-a11y `cross-run-2`.
+- `full-run-1` có 5 FAIL: 4 BL-22 + MSG-07 flake locator (đã sửa test, `full-run-4` PASS). Con số hợp nhất cuối là **4 FAIL**.
+- JS tắt: form login dùng POST và không đưa mật khẩu vào URL, nhưng backend không có form-login fallback nên **không thể đăng nhập nếu tắt JS**; đây là giới hạn đã biết, không tính là PASS cho đăng nhập.
+- Run cuối `final-verification-20261028`: 165/165 ID, 155 PASS / 4 FAIL / 3 BLOCKED / 3 NOT RUN (`evidence/final-verification-results.json`).
 
 ## 1. Xác thực & tài khoản (auth)
 
@@ -28,7 +31,7 @@
 | 1.16 | Resend OTP có cooldown | nút gửi lại | `/verify-otp` | `POST /api/auth/resend-registration-otp` | AUTH-19 | PASS |
 | 1.17 | Quên mật khẩu trả thông báo generic | form | `/forgot-password` | `POST /api/auth/forgot-password` | AUTH-20 | PASS |
 | 1.18 | Reset password thiếu token bị chặn | form | `/reset-password` | `POST /api/auth/reset-password` | AUTH-21 | PASS |
-| 1.19 | JS tắt: login/register/feed vẫn dùng được | form + link thật | `/login`, `/register` | — | AUTH-22, AUTH-23 | PASS |
+| 1.19 | JS tắt: login/register/feed render; submit POST không lộ mật khẩu (đăng nhập cần JS) | form + link thật | `/login`, `/register` | — | AUTH-22, AUTH-23 | PASS (login cần JS) |
 | 1.20 | CSRF: POST thiếu `X-XSRF-TOKEN` bị từ chối | — | — | mọi POST cookie-auth | AUTH-24, RES-05 | PASS |
 | 1.21 | Không rò rỉ token/OTP trong HTML công khai | — | — | — | AUTH-25 | PASS |
 | 1.22 | 2FA: seed login trực tiếp, không lộ section | — | `/login` | — | AUTH-26 | PASS |
@@ -90,7 +93,7 @@
 | 5.3 | Vote lặp bị từ chối | — | — | vote API | SOC-P41 | PASS |
 | 5.4 | Guest vote bị chặn | — | — | vote API | SOC-P42 | PASS |
 | 5.5 | Option không tồn tại bị từ chối | — | — | vote API | SOC-P43 | PASS |
-| 5.6 | Tạo poll nhiều lựa chọn, vote 2 đáp án | composer poll | `/feed` | `POST /api/posts` | SOC-P44 | PASS |
+| 5.6 | Poll nhiều lựa chọn: API tạo, UI render checkbox, vote 2 đáp án | poll UI | `/feed` | `POST /api/posts` | SOC-P44 | PASS |
 | 5.7 | Poll thiếu phương án bị validation | composer poll | `/feed` | — | SOC-P45 | PASS |
 | 5.8 | Poll một lựa chọn không cho chọn 2 | poll UI | `/feed` | — | SOC-P46 | PASS |
 | 5.9 | Poll hết hạn | — | — | — | SOC-P47 | NOT RUN |
@@ -182,7 +185,7 @@
 | 10.8 | Mất mạng tải lịch sử → lỗi Việt + retry | chat | `/messages/{id}` | GET | RES-08 | PASS |
 | 10.9 | Gửi tin lỗi mạng giữ nháp, retry | composer | `/messages/{id}` | POST | RES-09 | PASS |
 | 10.10 | Validation server 422 không tạo dữ liệu | — | — | POST | RES-10 | PASS |
-| 10.11 | Logout qua UI chặn API sau đó | menu | — | logout | RES-11 | PASS |
+| 10.11 | Logout API thu hồi phiên, chặn API sau đó | — | — | logout | RES-11 | PASS |
 
 ## 11. Chất lượng phi chức năng
 
@@ -192,7 +195,7 @@
 | 11.2 | Cấu trúc tài liệu | lang/title/main/h1/skip link | A11Y-21 | PASS |
 | 11.3 | Bàn phím skip link | Tab/Enter | A11Y-22 | PASS |
 | 11.4 | Responsive 360/768/1440 | feed, messages, admin | RESP-01..05 | PASS |
-| 11.5 | Touch target ≥24 px | navbar + interaction bar | RESP-06 | PASS |
+| 11.5 | Touch target ≥44 px | navbar + interaction bar + guest CTA + sidebar (360/1440) | RESP-06 | PASS |
 | 11.6 | Cross-browser | Chrome/Edge/WebKit | XB-01, XB-02, XB-04 | PASS |
 | 11.7 | Cross-browser | Firefox | XB-03 | BLOCKED |
 | 11.8 | Feed performance | DCL/load/LCP/transfer | PERF-01 | PASS |

@@ -475,11 +475,14 @@ export async function run({ browser, results }) {
     const res = await open(user, '/admin');
     const status = res.status();
     const contentType = String(res.headers()['content-type'] || '');
-    if (status !== 200) {
-      throw new Error(`BL-22: /admin trả HTTP ${status} (${contentType.split(';')[0]}) thay vì trang lỗi HTML/redirect; người dùng thấy JSON thô.`);
+    const body = await user.page.content();
+    const isJson = contentType.includes('application/json') || /"error"\s*:\s*{/.test(body);
+    const redirected = new URL(user.page.url()).pathname !== '/admin';
+    const htmlBlock = contentType.includes('text/html') && (status === 200 || status === 403);
+    if (status >= 500 || isJson || !(redirected || htmlBlock)) {
+      throw new Error(`BL-22: /admin trả HTTP ${status} (${contentType.split(';')[0] || 'no content-type'}), URL ${user.page.url()} — kỳ vọng redirect hoặc trang lỗi HTML, không phải JSON thô.`);
     }
-    assert(!contentType.includes('application/json'), 'Trang admin không được trả JSON cho non-admin');
-    return { status, contentType };
+    return { status, contentType, redirected, htmlBlock };
   });
 
   const reportPost = await apiWrite(an, 'POST', '/api/posts', {

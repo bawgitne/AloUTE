@@ -4,7 +4,7 @@
 - Môi trường: `http://127.0.0.1:8082` (Spring Boot 3.2.5, H2 in-memory, seed local)
 - Công cụ: axe-core 4.10.2 nhúng qua Playwright 1.64.1, Chrome 153.0.8010.53, headless
 - Bộ tag: `wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa`
-- Bằng chứng: `test-results/quan-e2e-acceptance/cross-run-2/results.json`, `.../axe-results.json`, `.../screenshots/`
+- Bằng chứng: `evidence/cross-run-2-results.json`, `evidence/axe-results.json`, `evidence/final-verification-results.json`, `evidence/screenshots/`
 
 ## 1. Phương pháp
 
@@ -15,8 +15,8 @@ Bổ sung kiểm tra thủ công có kịch bản:
 | Kiểm tra | Cách làm | Kết quả |
 |---|---|---|
 | Cấu trúc tài liệu | `lang`, `title`, đúng 1 `<main>`, ≥1 `<h1>`, skip link, `main#main-content` | PASS (A11Y-21) |
-| Bàn phím — skip link | `Tab` lần đầu, `Enter`, kiểm tra `document.activeElement` | PASS (A11Y-22) |
-| Touch target mobile | đo bounding box navbar/action bar tại 360×800 | PASS, ≥24×24 px (RESP-06) |
+| Bàn phím — skip link | `Tab` lần đầu, `Enter`, kiểm tra `document.activeElement` trên `/feed` và `/login` | PASS (A11Y-22) |
+| Touch target | đo bounding box navbar/action bar/guest CTA/sidebar tại 360×800 và 1440×900 | PASS, ≥44×44 px (RESP-06) |
 
 ## 2. Kết quả tổng hợp
 
@@ -82,10 +82,10 @@ Tất cả tệp đã được đồng bộ sang `target/classes` trước khi c
 ## 5. Kiểm tra thủ công và giới hạn
 
 Đã kiểm tra:
-- Thứ tự tab: skip link là tab stop đầu tiên; `Enter` đưa focus vào `<main id="main-content">`.
+- Thứ tự tab: skip link là tab stop đầu tiên; `Enter` đưa focus vào `<main id="main-content">` trên cả `/feed` và `/login` (auth layout có `tabindex="-1"`).
 - Cấu trúc: `lang="vi"`, title khác rỗng, đúng 1 `<main>`, có `<h1>`, skip link hiện diện trên layout chính và layout auth.
 - Không còn console error/page error trong các phiên quét.
-- Touch target ≥24×24 px ở navbar và thanh tương tác tại 360×800.
+- Touch target ≥44×44 px ở navbar, thanh tương tác, guest CTA và sidebar tại 360×800/1440×900.
 
 **Chưa kiểm tra (không được tính PASS):**
 - Trình đọc màn hình thực tế (NVDA/JAWS/VoiceOver) và luồng screen-reader cho feed động.

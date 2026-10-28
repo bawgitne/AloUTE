@@ -77,6 +77,7 @@ export async function run({ browser, results }) {
 
   const created = [];
   let mainPost = null;
+  const originalProfile = (await api(user, 'GET', '/api/users/me/profile')).body?.data || null;
 
   /* ---------------- Profile ---------------- */
 
@@ -93,23 +94,32 @@ export async function run({ browser, results }) {
 
   await test(results, S, 'SOC-P02', 'Chỉnh sửa hồ sơ: tên hiển thị + bio, lưu và giữ sau reload', async () => {
     const bio = `QA bio ${tag} — kiểm thử nghiệm thu`;
-    await open(user, '/profile');
-    await user.page.click('#btn-edit-profile');
-    await user.page.locator('#editProfileModal').waitFor({ state: 'visible' });
-    await user.page.fill('#edit-display-name', `QA User ${tag}`);
-    await user.page.fill('#edit-bio', bio);
-    await user.page.click('#btn-save-profile');
-    await user.page.locator('#editProfileModal').waitFor({ state: 'hidden', timeout: 10000 });
-    await toastText(user.page, /hồ sơ/i).catch(() => null);
-    await user.page.reload({ waitUntil: 'domcontentloaded' });
-    const name = (await user.page.locator('#profile-display-name').textContent())?.trim();
-    const bioText = (await user.page.locator('#profile-bio-text').textContent())?.trim();
-    assert(name && name.includes(tag), `Tên hiển thị không cập nhật: ${name}`);
-    assertEqual(bioText, bio, 'Bio không cập nhật');
-    const me = await api(user, 'GET', '/api/users/me/profile');
-    assertEqual(me.body?.data?.displayName, `QA User ${tag}`, 'API profile displayName');
-    await screenshot(user.page, 'social-profile-edited');
-    return { bioLength: bio.length };
+    try {
+      await open(user, '/profile');
+      await user.page.click('#btn-edit-profile');
+      await user.page.locator('#editProfileModal').waitFor({ state: 'visible' });
+      await user.page.fill('#edit-display-name', `QA User ${tag}`);
+      await user.page.fill('#edit-bio', bio);
+      await user.page.click('#btn-save-profile');
+      await user.page.locator('#editProfileModal').waitFor({ state: 'hidden', timeout: 10000 });
+      await toastText(user.page, /hồ sơ/i).catch(() => null);
+      await user.page.reload({ waitUntil: 'domcontentloaded' });
+      const name = (await user.page.locator('#profile-display-name').textContent())?.trim();
+      const bioText = (await user.page.locator('#profile-bio-text').textContent())?.trim();
+      assert(name && name.includes(tag), `Tên hiển thị không cập nhật: ${name}`);
+      assertEqual(bioText, bio, 'Bio không cập nhật');
+      const me = await api(user, 'GET', '/api/users/me/profile');
+      assertEqual(me.body?.data?.displayName, `QA User ${tag}`, 'API profile displayName');
+      await screenshot(user.page, 'social-profile-edited');
+      return { bioLength: bio.length };
+    } finally {
+      if (originalProfile) {
+        await apiWrite(user, 'PATCH', '/api/users/me/profile', {
+          displayName: originalProfile.displayName,
+          bio: originalProfile.bio ?? ''
+        }).catch(() => null);
+      }
+    }
   });
 
   await test(results, S, 'SOC-P03', 'Xem hồ sơ người khác: không có nút sửa, có follow/nhắn tin', async () => {
@@ -140,7 +150,7 @@ export async function run({ browser, results }) {
   await test(results, S, 'SOC-P05', 'Tab hồ sơ: Bài viết / Phản hồi / Ảnh / Đã lưu chuyển đúng pane', async () => {
     await open(user, '/profile');
     for (const [tab, pane] of [['#tab-replies', '#pane-replies'], ['#tab-media', '#pane-media'], ['#tab-saved', '#pane-saved'], ['#tab-posts', '#pane-posts']]) {
-      if (!(await user.page.locator(tab).count())) continue;
+      assertEqual(await user.page.locator(tab).count(), 1, `Thiếu tab ${tab}`);
       await user.page.click(tab);
       await user.page.waitForTimeout(250);
       const visible = await user.page.locator(pane).isVisible();
@@ -173,7 +183,9 @@ export async function run({ browser, results }) {
   await test(results, S, 'SOC-P11', 'Like / unlike qua UI cập nhật bộ đếm, aria-pressed và API', async () => {
     const like = user.page.locator(`article[data-post-id="${mainPost}"] [data-action="like"]`).first();
     const before = Number((await like.locator('.interaction-count').textContent()) || 0);
+    const likeResponse = user.page.waitForResponse(r => r.url().includes(`/api/posts/${mainPost}/likes/me`) && r.request().method() === 'PUT', { timeout: 10000 });
     await like.click();
+    assert([200, 204].includes((await likeResponse).status()), 'PUT like');
     await user.page.waitForFunction(([id]) => {
       const b = document.querySelector(`article[data-post-id="${id}"] [data-action="like"]`);
       return b && b.getAttribute('aria-pressed') === 'true';
@@ -181,11 +193,14 @@ export async function run({ browser, results }) {
     let post = await getPost(user, mainPost);
     assertEqual(post.body.data.viewerState.liked, true, 'API liked');
     assertEqual(post.body.data.likeCount, before + 1, 'API likeCount');
+    const unlikeResponse = user.page.waitForResponse(r => r.url().includes(`/api/posts/${mainPost}/likes/me`) && r.request().method() === 'DELETE', { timeout: 10000 });
     await like.click();
+    assert([200, 204].includes((await unlikeResponse).status()), 'DELETE like');
     await user.page.waitForFunction(([id]) => {
       const b = document.querySelector(`article[data-post-id="${id}"] [data-action="like"]`);
       return b && b.getAttribute('aria-pressed') === 'false';
     }, [mainPost], { timeout: 8000 });
+    await user.page.waitForTimeout(250);
     post = await getPost(user, mainPost);
     assertEqual(post.body.data.viewerState.liked, false, 'API unliked');
     assertEqual(post.body.data.likeCount, before, 'API likeCount sau bỏ thích');
@@ -206,7 +221,9 @@ export async function run({ browser, results }) {
 
   await test(results, S, 'SOC-P13', 'Lưu / bỏ lưu bài viết; bài xuất hiện và biến mất khỏi /saved', async () => {
     const bookmark = user.page.locator(`article[data-post-id="${mainPost}"] [data-action="bookmark"]`).first();
+    const saveResponse = user.page.waitForResponse(r => r.url().includes(`/api/posts/${mainPost}/bookmarks/me`) && r.request().method() === 'PUT', { timeout: 10000 });
     await bookmark.click();
+    assert([200, 204].includes((await saveResponse).status()), 'PUT bookmark');
     await user.page.waitForFunction(([id]) => {
       const b = document.querySelector(`article[data-post-id="${id}"] [data-action="bookmark"]`);
       return b && b.getAttribute('aria-pressed') === 'true';
@@ -214,8 +231,10 @@ export async function run({ browser, results }) {
     await open(user, '/saved');
     assert(await user.page.locator(`article[data-post-id="${mainPost}"]`).count() >= 1, 'Bài đã lưu phải có trong /saved');
     await open(user, `/posts/${mainPost}`);
+    const unsaveResponse = user.page.waitForResponse(r => r.url().includes(`/api/posts/${mainPost}/bookmarks/me`) && r.request().method() === 'DELETE', { timeout: 10000 });
     await user.page.locator(`article[data-post-id="${mainPost}"] [data-action="bookmark"]`).first().click();
-    await user.page.waitForTimeout(700);
+    assert([200, 204].includes((await unsaveResponse).status()), 'DELETE bookmark');
+    await user.page.waitForTimeout(300);
     await open(user, '/saved');
     assert(await user.page.locator(`article[data-post-id="${mainPost}"]`).count() === 0, 'Bài đã bỏ lưu không được có trong /saved');
     return { savedVisible: true };
@@ -462,15 +481,16 @@ export async function run({ browser, results }) {
     return { pollId, optionId, totalVotes: after.body.data.poll.totalVotes };
   });
 
-  await test(results, S, 'SOC-P41', 'Vote lặp lại bị từ chối (409/400)', async () => {
-    const fixture = globalThis.__qaPoll;
-    if (!fixture) {
-      return blocked(results, S, 'SOC-P41', 'Vote lặp lại bị từ chối', 'Không có fixture poll từ SOC-P40');
-    }
-    const r = await apiWrite(an, 'POST', `/api/polls/${fixture.pollId}/votes`, { optionId: fixture.optionId });
-    assert([400, 409].includes(r.status), `Vote lặp phải bị từ chối, nhận ${r.status}`);
-    return { status: r.status, code: r.body?.error?.code ?? null };
-  });
+  const pollFixture = globalThis.__qaPoll;
+  if (!pollFixture) {
+    blocked(results, S, 'SOC-P41', 'Vote lặp lại bị từ chối', 'Không có fixture poll từ SOC-P40');
+  } else {
+    await test(results, S, 'SOC-P41', 'Vote lặp lại bị từ chối (409/400)', async () => {
+      const r = await apiWrite(an, 'POST', `/api/polls/${pollFixture.pollId}/votes`, { optionId: pollFixture.optionId });
+      assert([400, 409].includes(r.status), `Vote lặp phải bị từ chối, nhận ${r.status}`);
+      return { status: r.status, code: r.body?.error?.code ?? null };
+    });
+  }
 
   await test(results, S, 'SOC-P42', 'Guest vote bị chặn 401', async () => {
     const g = await guest(browser);
@@ -492,7 +512,7 @@ export async function run({ browser, results }) {
     return { status: r.status };
   });
 
-  await test(results, S, 'SOC-P44', 'Tạo poll nhiều lựa chọn qua UI, chọn 2 đáp án và vote', async () => {
+  await test(results, S, 'SOC-P44', 'Poll nhiều lựa chọn: API tạo, UI render checkbox, chọn 2 đáp án', async () => {
     const content = `Poll nhiều lựa chọn QA ${tag}`;
     const pollInput = {
       question: `Bạn chọn kỹ năng nào? ${tag}`,
