@@ -97,6 +97,9 @@ public class DefaultEmailService implements EmailService {
     @Override
     public void sendPasswordResetEmail(String toEmail, String resetUrl) {
         log.info("Password reset email dispatch requested for recipient {}", sanitizeForLog(toEmail));
+        if (!isProduction()) {
+            log.info("[AloUTE DEV] Password reset link for {}: {}", sanitizeForLog(toEmail), resetUrl);
+        }
 
         if (smtpHost != null && !smtpHost.isBlank()) {
             sendViaSmtp(toEmail, resetUrl);
@@ -111,6 +114,11 @@ public class DefaultEmailService implements EmailService {
     @Override
     public void sendRegistrationOtpEmail(String toEmail, String otpCode) {
         log.info("Registration OTP email dispatch requested for recipient {}", sanitizeForLog(toEmail));
+        if (!isProduction()) {
+            log.info("==================================================");
+            log.info("[AloUTE DEV] Registration OTP for {}: {}", sanitizeForLog(toEmail), otpCode);
+            log.info("==================================================");
+        }
 
         if (smtpHost != null && !smtpHost.isBlank()) {
             sendOtpViaSmtp(toEmail, otpCode);
@@ -125,6 +133,9 @@ public class DefaultEmailService implements EmailService {
     @Override
     public void sendTwoFactorFallbackOtpEmail(String toEmail, String otpCode) {
         log.info("2FA Fallback OTP email dispatch requested for recipient {}", sanitizeForLog(toEmail));
+        if (!isProduction()) {
+            log.info("[AloUTE DEV] 2FA Fallback OTP for {}: {}", sanitizeForLog(toEmail), otpCode);
+        }
 
         if (smtpHost != null && !smtpHost.isBlank()) {
             sendTwoFactorOtpViaSmtp(toEmail, otpCode);
@@ -223,12 +234,14 @@ public class DefaultEmailService implements EmailService {
             log.error("Missing SMTP credentials for configured host {}", smtpHost);
             throw new IllegalStateException("Missing SMTP credentials: username and password are required for authenticated transport");
         }
+        final String cleanUsername = smtpUsername != null ? smtpUsername.trim() : "";
+        final String cleanPassword = smtpPassword != null ? smtpPassword.replaceAll("\\s+", "") : "";
         try {
             Properties props = buildMailProperties();
             Session session = Session.getInstance(props, new Authenticator() {
                 @Override
                 protected PasswordAuthentication getPasswordAuthentication() {
-                    return new PasswordAuthentication(smtpUsername, smtpPassword);
+                    return new PasswordAuthentication(cleanUsername, cleanPassword);
                 }
             });
 
@@ -255,7 +268,7 @@ public class DefaultEmailService implements EmailService {
             Transport transport = null;
             try {
                 transport = session.getTransport(protocol);
-                transport.connect(smtpHost, smtpPort, smtpUsername, smtpPassword);
+                transport.connect(smtpHost, smtpPort, cleanUsername, cleanPassword);
                 transport.sendMessage(message, message.getAllRecipients());
             } catch (Exception ex) {
                 if (smtpPort == 465 && "smtps".equals(protocol)) {
@@ -264,7 +277,7 @@ public class DefaultEmailService implements EmailService {
                         try { transport.close(); } catch (Exception ignored) {}
                     }
                     transport = session.getTransport("smtp");
-                    transport.connect(smtpHost, smtpPort, smtpUsername, smtpPassword);
+                    transport.connect(smtpHost, smtpPort, cleanUsername, cleanPassword);
                     transport.sendMessage(message, message.getAllRecipients());
                 } else {
                     throw ex;
