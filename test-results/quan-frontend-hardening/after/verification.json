@@ -1,0 +1,264 @@
+{
+  "base": "http://127.0.0.1:8081",
+  "generatedAt": "2026-10-28T00:12:24.248Z",
+  "pass": true,
+  "results": [
+    {
+      "name": "skip link is the first tab stop",
+      "pass": true,
+      "detail": {
+        "cls": "aloute-skip-link",
+        "text": "Bỏ qua điều hướng đến nội dung chính",
+        "top": 8,
+        "height": 39.25
+      }
+    },
+    {
+      "name": "skip link becomes visible on focus",
+      "pass": true,
+      "detail": {
+        "cls": "aloute-skip-link",
+        "text": "Bỏ qua điều hướng đến nội dung chính",
+        "top": 8,
+        "height": 39.25
+      }
+    },
+    {
+      "name": "skip link moves focus to #main-content",
+      "pass": true,
+      "detail": {
+        "hash": "#main-content",
+        "activeId": "main-content"
+      }
+    },
+    {
+      "name": "guest sees no composer",
+      "pass": true,
+      "detail": {
+        "composer": false,
+        "guestCta": true,
+        "actionMenus": 0,
+        "quoteButtons": 0,
+        "h1": [
+          "Bảng tin AloUTE"
+        ]
+      }
+    },
+    {
+      "name": "guest sees the login CTA instead",
+      "pass": true,
+      "detail": {
+        "composer": false,
+        "guestCta": true,
+        "actionMenus": 0,
+        "quoteButtons": 0,
+        "h1": [
+          "Bảng tin AloUTE"
+        ]
+      }
+    },
+    {
+      "name": "guest sees no report/action menu",
+      "pass": true,
+      "detail": {
+        "composer": false,
+        "guestCta": true,
+        "actionMenus": 0,
+        "quoteButtons": 0,
+        "h1": [
+          "Bảng tin AloUTE"
+        ]
+      }
+    },
+    {
+      "name": "guest sees no quote trigger",
+      "pass": true,
+      "detail": {
+        "composer": false,
+        "guestCta": true,
+        "actionMenus": 0,
+        "quoteButtons": 0,
+        "h1": [
+          "Bảng tin AloUTE"
+        ]
+      }
+    },
+    {
+      "name": "feed has one h1",
+      "pass": true,
+      "detail": [
+        "Bảng tin AloUTE"
+      ]
+    },
+    {
+      "name": "guest auth CTAs reach 44px height",
+      "pass": true,
+      "detail": [
+        {
+          "text": "Đăng nhập",
+          "w": 86.9,
+          "h": 44
+        },
+        {
+          "text": "Tạo tài khoản",
+          "w": 102.3,
+          "h": 44
+        },
+        {
+          "text": "Đăng nhập",
+          "w": 293,
+          "h": 44
+        },
+        {
+          "text": "Đăng ký tài khoản",
+          "w": 293,
+          "h": 44
+        }
+      ]
+    },
+    {
+      "name": "no console errors on guest feed",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "guest sees no create-post action on post detail",
+      "pass": true,
+      "detail": {
+        "createActions": 0,
+        "modal": false,
+        "composerTextarea": 0
+      }
+    },
+    {
+      "name": "guest has no create-post modal/composer",
+      "pass": true,
+      "detail": {
+        "createActions": 0,
+        "modal": false,
+        "composerTextarea": 0
+      }
+    },
+    {
+      "name": "no console errors on guest post detail",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "guest sees no create-post action on a public topic page",
+      "pass": true,
+      "detail": {
+        "h1": "#Học tập",
+        "createActions": 0,
+        "modal": false
+      }
+    },
+    {
+      "name": "public topic page still renders for guests",
+      "pass": true,
+      "detail": "#Học tập"
+    },
+    {
+      "name": "guest login link works without JavaScript",
+      "pass": true,
+      "detail": "http://127.0.0.1:8081/login"
+    },
+    {
+      "name": "local dev login succeeds",
+      "pass": true,
+      "detail": "http://127.0.0.1:8081/feed"
+    },
+    {
+      "name": "authenticated user sees the composer",
+      "pass": true,
+      "detail": {
+        "composer": true,
+        "actionMenus": 4,
+        "quoteButtons": 4
+      }
+    },
+    {
+      "name": "authenticated user sees the post action menu",
+      "pass": true,
+      "detail": {
+        "composer": true,
+        "actionMenus": 4,
+        "quoteButtons": 4
+      }
+    },
+    {
+      "name": "authenticated user sees the reply form",
+      "pass": true,
+      "detail": {
+        "replyForm": true,
+        "guestPrompt": false
+      }
+    },
+    {
+      "name": "authenticated page shows no guest reply prompt",
+      "pass": true,
+      "detail": {
+        "replyForm": true,
+        "guestPrompt": false
+      }
+    },
+    {
+      "name": "authenticated user sees create-post action and modal",
+      "pass": true,
+      "detail": {
+        "actions": 1,
+        "modal": true
+      }
+    },
+    {
+      "name": "authenticated user still sees create-post on topic page",
+      "pass": true,
+      "detail": [
+        {
+          "text": "",
+          "h": 44
+        },
+        {
+          "text": "Đăng bài vào chủ đề",
+          "h": 44
+        }
+      ]
+    },
+    {
+      "name": "topic create-post action reaches 44px",
+      "pass": true,
+      "detail": [
+        {
+          "text": "",
+          "h": 44
+        },
+        {
+          "text": "Đăng bài vào chủ đề",
+          "h": 44
+        }
+      ]
+    },
+    {
+      "name": "single layout (settings) exposes the skip link",
+      "pass": true,
+      "detail": {
+        "skip": true,
+        "main": true
+      }
+    },
+    {
+      "name": "dense notification menu action keeps its compact height",
+      "pass": true,
+      "detail": {
+        "h": 19.5,
+        "w": 79.7,
+        "visible": true
+      }
+    },
+    {
+      "name": "no console errors on authenticated pages",
+      "pass": true,
+      "detail": []
+    }
+  ]
+}
