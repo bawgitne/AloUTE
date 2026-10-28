@@ -312,8 +312,16 @@ public class TwoFactorServiceImpl implements TwoFactorService {
         } else {
             // Try TOTP first
             if (user.getTwoFactorSecret() != null) {
-                String decryptedSecret = twoFactorEncryptionService.decrypt(user.getTwoFactorSecret());
-                verified = totpService.verifyCode(decryptedSecret, rawCode);
+                try {
+                    String decryptedSecret = twoFactorEncryptionService.decrypt(user.getTwoFactorSecret());
+                    verified = totpService.verifyCode(decryptedSecret, rawCode);
+                } catch (RuntimeException ex) {
+                    // Key rotation or a corrupted secret must not surface a 500 on the
+                    // login path: treat as unverified; the email-OTP fallback below
+                    // still offers the user a way in.
+                    log.warn("2FA secret decryption failed for user {}; treating as unverified", userId);
+                    verified = false;
+                }
             }
 
             // If TOTP failed, check fallback email OTP
