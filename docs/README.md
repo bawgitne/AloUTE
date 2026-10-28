@@ -2,21 +2,9 @@
 
 Trang này là bản đồ tài liệu của repository: mỗi chủ đề có một tài liệu chính, tách rõ tài liệu hiện hành và snapshot lịch sử.
 
-## 1. Bộ canonical (source of truth)
+## 1. Bản đồ tài liệu kỹ thuật hiện hành
 
-Mọi quy tắc nghiệp vụ, hợp đồng API và quy ước kỹ thuật nằm trong [`skills/`](../skills/INDEX.md):
-
-| Chủ đề | Tài liệu chính |
-| :--- | :--- |
-| Định tuyến/ownership | [`skills/INDEX.md`](../skills/INDEX.md) |
-| Kiến trúc hệ thống, envelope, phân trang, lỗi | [`skills/system_architecture.md`](../skills/system_architecture.md) |
-| Domain entities, invariant, phân quyền | [`skills/domain_system.md`](../skills/domain_system.md) |
-| API Contract (OpenAPI) | [`skills/aloute-openapi.yaml`](../skills/aloute-openapi.yaml) |
-| Backend (Spring Boot/JPA) | [`skills/backend_rule.md`](../skills/backend_rule.md) |
-| Bảo mật (Spring Security/JWT) | [`skills/author_rule.md`](../skills/author_rule.md) |
-| Frontend (Thymeleaf/Bootstrap/JS) | [`skills/frontend_rule.md`](../skills/frontend_rule.md) |
-| Docker/Nginx | [`skills/docker_reverse_proxy_rule.md`](../skills/docker_reverse_proxy_rule.md) |
-| Quy trình Git/GitHub | [`skills/github_workflow.md`](../skills/github_workflow.md) |
+Tất cả các tài liệu kỹ thuật, quy chuẩn kiến trúc và kế hoạch thực thi được tổ chức trong thư mục `docs/` và thư mục gốc:
 
 ## 2. Tài liệu hiện hành
 
