@@ -2,7 +2,7 @@
 
 - Ngày chạy: 2026-10-28
 - Base URL: `http://127.0.0.1:8082`
-- Bằng chứng: `test-results/quan-e2e-acceptance/cross-run-2/results.json`, `.../screenshots/`
+- Bằng chứng: `evidence/cross-run-2-results.json`, `evidence/final-verification-results.json`, `evidence/screenshots/`
 - Kết quả suite: RESP-01..06 PASS, XB-01/02/04 PASS, XB-03 BLOCKED (lỗi môi trường)
 
 ## 1. Ma trận viewport
@@ -16,14 +16,14 @@ Mỗi viewport mở trang bằng phiên thật, đo `document.documentElement.sc
 | RESP-03 | 1440×900 | `/feed` | Sidebar + ô tìm kiếm hiện, không tràn ngang | 1440 / 1440 | PASS |
 | RESP-04 | 360×800 | `/messages` | Không tràn ngang, pane hội thoại dùng được | 360 / 360; pane conversation hiện, pane chat ẩn | PASS |
 | RESP-05 | 360×800 | `/admin` | Không tràn ngang, bảng cuộn trong container | 360 / 360; 1 `.admin-table-container` | PASS |
-| RESP-06 | 360×800 | `/feed` | Touch target ≥ 24×24 px | Tất cả nút navbar + interaction bar đạt | PASS |
+| RESP-06 | 360×800 + 1440×900 | `/feed` | Touch target ≥44×44 px | Navbar, interaction bar, guest CTA và sidebar đều đạt | PASS |
 
 Ảnh:
-- `screenshots/resp-360-feed.png`
-- `screenshots/resp-768-feed.png`
-- `screenshots/resp-1440-feed.png`
-- `screenshots/resp-360-messages.png`
-- `screenshots/resp-360-admin.png`
+- `evidence/screenshots/resp-360-feed.png`
+- `evidence/screenshots/resp-768-feed.png`
+- `evidence/screenshots/resp-1440-feed.png`
+- `evidence/screenshots/resp-360-messages.png`
+- `evidence/screenshots/resp-360-admin.png`
 
 **Giới hạn:** chỉ đo trang tĩnh sau khi tải; chưa đo bàn phím ảo, xoay ngang, text zoom 200%, hoặc nội dung dài bất thường (tên 200 ký tự, code block rộng).
 
@@ -53,4 +53,4 @@ Không có thay đổi nào được thực hiện với CDN trong phạm vi QA 
 
 ## 4. Kết luận
 
-Layout công khai, feed, tin nhắn và admin không tràn ngang ở 3 breakpoint chính; touch target đạt ngưỡng tối thiểu WCAG 2.2 (24 px). Cross-browser đạt trên Chromium (Chrome/Edge) và WebKit; Firefox bị chặn bởi môi trường, cần chạy lại trước khi tuyên bố hỗ trợ đầy đủ.
+Layout công khai, feed, tin nhắn và admin không tràn ngang ở 3 breakpoint chính; touch target đạt baseline 44×44 px của dự án (navbar, interaction bar, guest CTA, sidebar), cao hơn ngưỡng tối thiểu WCAG 2.2 (24 px). Cross-browser đạt trên Chromium (Chrome/Edge) và WebKit; Firefox bị chặn bởi môi trường, cần chạy lại trước khi tuyên bố hỗ trợ đầy đủ.

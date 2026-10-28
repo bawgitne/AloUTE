@@ -5,7 +5,7 @@
 | Mức | Kết luận | Điều kiện |
 |---|---|---|
 | **Demo readiness** | **READY WITH LIMITATIONS** | Demo theo `10_DEMO_SCRIPT_VI.md`; tránh upload Firebase và route bảo vệ khi guest |
-| **Frontend acceptance** | **PASS WITH LIMITATIONS** | 155/165 case PASS; 12 lỗi UI đã sửa; axe 0 serious/critical |
+| **Frontend acceptance** | **PASS WITH LIMITATIONS** | 155/165 case PASS; 13 lỗi UI đã sửa; axe 0 serious/critical |
 | **Release acceptance** | **CONDITIONAL** | Đã chạy lại trên ZCode `e12b21b`: BL-22 vẫn FAIL; cần ZCode sửa và QA rerun 4 case |
 | **Production readiness** | **NOT READY** | BL-22 + Firefox chưa xác nhận + chưa đo PostgreSQL/tải thật + CDN/cache chưa chốt |
 

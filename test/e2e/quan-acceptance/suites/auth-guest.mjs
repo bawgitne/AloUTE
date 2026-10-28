@@ -22,7 +22,11 @@ async function statusText(page, options = {}) {
 async function gotoExpectLogin(page, route) {
   const response = await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded', timeout: 20000 });
   await page.waitForTimeout(400);
-  return { status: response?.status() ?? 0, url: page.url() };
+  return {
+    status: response?.status() ?? 0,
+    url: page.url(),
+    contentType: String(response?.headers()?.['content-type'] || '')
+  };
 }
 
 function decodeJwt(token) {
@@ -286,7 +290,8 @@ export async function run({ browser, results }) {
     if (r.status >= 500 || !r.url.includes('/login')) {
       await screenshot(g.page, 'auth-15-guest-post-create');
       await g.context.close();
-      throw new Error(`Guest /post/create trả HTTP ${r.status} tại ${r.url} — kỳ vọng 302 /login (BL-22 backend)`);    }
+      throw new Error(`Guest /post/create trả HTTP ${r.status} (${r.contentType.split(';')[0] || 'no content-type'}) tại ${r.url} — kỳ vọng 302 /login (BL-22 backend)`);
+    }
     await g.context.close();
   });
 
@@ -295,12 +300,15 @@ export async function run({ browser, results }) {
     const r = await gotoExpectLogin(g.page, '/admin');
     const body = await g.page.content();
     const isJson = /"error"\s*:\s*{/.test(body) || /AUTH_UNAUTHENTICATED/.test(body);
-    if (r.status >= 500 || isJson || !r.url.includes('/login')) {
+    const redirectedToLogin = r.url.includes('/login');
+    const html403 = r.status === 403 && r.contentType.includes('text/html');
+    if (r.status >= 500 || isJson || !(redirectedToLogin || html403)) {
       await screenshot(g.page, 'auth-16-guest-admin');
       await g.context.close();
-      throw new Error(`Guest /admin trả HTTP ${r.status}, URL ${r.url}, JSON=${isJson} — kỳ vọng redirect/403 HTML (BL-22 backend)`);
+      throw new Error(`Guest /admin trả HTTP ${r.status} (${r.contentType.split(';')[0] || 'no content-type'}), URL ${r.url}, JSON=${isJson} — kỳ vọng redirect /login hoặc 403 HTML (BL-22 backend)`);
     }
     await g.context.close();
+    return { status: r.status, redirectedToLogin, html403 };
   });
 
   await test(results, S, 'AUTH-17', 'Trang đăng ký + validation client + email trùng', async () => {
@@ -429,7 +437,7 @@ export async function run({ browser, results }) {
     return { jsOffNavigation: true, feedSsr: true };
   });
 
-  await test(results, S, 'AUTH-23', 'JS tắt: submit form login không đưa mật khẩu vào URL', async () => {
+  await test(results, S, 'AUTH-23', 'JS tắt: submit form login dùng POST, không đưa mật khẩu vào URL', async () => {
     const context = await browser.newContext({
       baseURL: BASE, javaScriptEnabled: false, viewport: { width: 1280, height: 800 }, locale: 'vi-VN'
     });
@@ -437,24 +445,26 @@ export async function run({ browser, results }) {
     await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded' });
     const method = await page.locator('#login-form').getAttribute('method');
     const action = await page.locator('#login-form').getAttribute('action');
-    const formHasGetFallback = method === null || method.toLowerCase() === 'get';
-    if (formHasGetFallback) {
-      await page.fill('#email', 'qa-nojs@aloute.test');
-      await page.fill('#password', 'NotARealPassword123');
-      await Promise.all([
-        page.waitForLoadState('domcontentloaded').catch(() => null),
-        page.click('#login-submit-btn').catch(() => null)
-      ]);
-      await page.waitForTimeout(500);
-      const urlHasPassword = page.url().toLowerCase().includes('password=');
-      await context.close();
-      if (urlHasPassword) {
-        throw new Error('Form login không có method/action: khi JS tắt, mật khẩu bị gửi qua query string');
+    assertEqual((method || '').toLowerCase(), 'post', 'Form login phải khai báo method="post" để JS tắt không gửi qua query string');
+
+    let submitted = null;
+    page.on('request', request => {
+      if (request.method() === 'POST' && new URL(request.url()).pathname === '/login') {
+        submitted = { method: request.method(), hasBody: Boolean(request.postData()) };
       }
-      return { method, action, urlHasPassword };
-    }
+    });
+    await page.fill('#email', 'qa-nojs@aloute.test');
+    await page.fill('#password', 'NotARealPassword123');
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 8000 }).catch(() => null),
+      page.click('#login-submit-btn').catch(() => null)
+    ]);
+    await page.waitForTimeout(300);
+    const urlHasPassword = page.url().toLowerCase().includes('password=');
     await context.close();
-    return { method, action };
+    assert(submitted?.hasBody, 'JS tắt: không quan sát thấy POST body tới /login');
+    assert(!urlHasPassword, 'JS tắt: mật khẩu bị gửi qua query string');
+    return { method, action, submitted: submitted.method, urlHasPassword };
   });
 
   await test(results, S, 'AUTH-24', 'CSRF: POST cookie-auth thiếu X-XSRF-TOKEN bị từ chối', async () => {

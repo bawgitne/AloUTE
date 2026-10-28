@@ -34,7 +34,7 @@ Không sử dụng tài khoản production, không seed lên website live, khôn
 - **165 case**, mapping tại `02_FULL_FUNCTIONAL_MATRIX.md`.
 - 7 kịch bản E2E A–G tại `03_E2E_SCENARIOS.md`.
 - 20 route quét axe; 3 viewport; 4 engine; 3 endpoint API đo p95; 3 lần đo feed.
-- 13 tài liệu acceptance trong thư mục này + demo script.
+- 17 tài liệu acceptance trong thư mục này (gồm demo 20 phút, demo 8–10 phút, BL-22 handoff, PR stack plan và PR body).
 
 ## 3. Dòng thời gian
 
@@ -51,6 +51,7 @@ Không sử dụng tài khoản production, không seed lên website live, khôn
 | 01:51 | Rerun messaging sau khi sửa locator (`full-run-4`) | 34 PASS / 1 FAIL (ADM-05) |
 | 09:03 | Integration run đầu trên ZCode `e12b21b` | Không hợp lệ: chưa seed demo-data → AUTH-01 FAIL; hủy, không dùng |
 | 09:04–09:07 | Seed demo-data + full rerun trên `e12b21b` | 155 PASS / 4 FAIL / 3 BLOCKED / 3 NOT RUN; 0 khác biệt baseline (`integration-e12b21b-results.json`) |
+| 09:47–09:52 | Final verification sau handoff (`final-verification-20261028`) | 165/165 ID, 155 PASS / 4 FAIL / 3 BLOCKED / 3 NOT RUN; guard PASS |
 
 `full-run-2` không hợp lệ: thiếu biến môi trường tài khoản seed, 12 case FAIL do không đăng nhập được. Không dùng làm bằng chứng sản phẩm.
 
@@ -77,12 +78,13 @@ Không sử dụng tài khoản production, không seed lên website live, khôn
 
 | Loại | Vị trí |
 |---|---|
-| Kết quả từng case | `test-results/quan-e2e-acceptance/<run>/results.json` |
+| Kết quả từng case (raw, local) | `test-results/quan-e2e-acceptance/<run>/results.json` — không commit |
+| Kết quả case đã curation | `evidence/*-results.json`, `evidence/integration-e12b21b-results.json` |
 | Ảnh chụp | `.../<run>/screenshots/*.png` (full-run-1: 66 ảnh) |
 | Axe | `cross-run-2/axe-results.json` |
 | Fixture tạo/dọn | `social-fixtures.json`, `community-fixtures.json`, `admin-report-fixture.json` |
-| Server log | `test-results/quan-e2e-acceptance/server-8082.log` |
-| Seed marker | `test-results/quan-e2e-acceptance/seed-20261028.txt` |
+| Server log (raw, local) | `test-results/quan-e2e-acceptance/server-8082.log` — không commit |
+| Seed marker (raw, local) | `test-results/quan-e2e-acceptance/seed-20261028.txt` — không commit |
 | Kết quả tích hợp ZCode | `evidence/integration-e12b21b-results.json`, `evidence/integration-e12b21b-environment.json` |
 
 Không có credential, token, OTP hay nội dung tin nhắn riêng tư trong tài liệu. Tên tài khoản seed chỉ là local (`@aloute.local`, `@aloute.test`).

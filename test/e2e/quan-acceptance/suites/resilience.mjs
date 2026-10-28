@@ -158,7 +158,7 @@ export async function run({ browser, results }) {
     return { status: 422, code: r.body?.error?.code };
   });
 
-  await test(results, S, 'RES-11', 'Đăng xuất qua UI trả về trang đăng nhập và chặn API sau đó', async () => {
+  await test(results, S, 'RES-11', 'API logout thu hồi phiên và chặn API sau đó', async () => {
     const session = await login(browser, 'demobinh');
     await open(session, '/feed');
     const logout = await apiWrite(session, 'POST', '/api/auth/logout');

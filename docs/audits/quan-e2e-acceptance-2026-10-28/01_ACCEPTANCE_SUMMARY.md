@@ -4,11 +4,13 @@
 
 ## 1. Kết luận ngắn
 
-Frontend AloUTE đã được kiểm thử end-to-end bằng browser thật trên 6 module chính. **155/165 case PASS (93,9%)**. Toàn bộ 4 case FAIL đều cùng một lỗi backend **BL-22** (page route trả JSON thay vì HTML/redirect), không phải lỗi UI. Sau khi sửa 12 lỗi frontend/accessibility, axe không còn vi phạm serious/critical trên 20 route; responsive và hiệu năng local đạt ngân sách; 3 engine browser PASS, Firefox bị chặn bởi môi trường.
+Frontend AloUTE đã được kiểm thử end-to-end bằng browser thật trên 6 module chính. **155/165 case PASS (93,9%)**. Toàn bộ 4 case FAIL đều cùng một lỗi backend **BL-22** (page route trả JSON thay vì HTML/redirect), không phải lỗi UI. Sau khi sửa 13 lỗi frontend/accessibility, axe không còn vi phạm serious/critical trên 20 route; responsive và hiệu năng local đạt ngân sách; touch target 44px được kiểm tra cả mobile và desktop; 3 engine browser PASS, Firefox bị chặn bởi môi trường.
 
 **Trạng thái acceptance: PASS WITH LIMITATIONS cho phạm vi frontend; NOT READY cho production do BL-22 và các hạng mục chưa kiểm chứng.**
 
 Đã chạy lại toàn bộ 165 case trên ZCode HEAD `e12b21b` với đúng 23 thay đổi frontend QA: kết quả **155/4/3/3, 0 khác biệt trạng thái** so với baseline; BL-22 vẫn mở. Chi tiết `12_FINAL_HANDOFF.md`.
+
+Run cuối `final-verification-20261028` trên worktree handoff: **165/165 ID duy nhất, 155 PASS / 4 FAIL (đúng BL-22) / 3 BLOCKED / 3 NOT RUN**, guard `RUN-INTEGRITY` PASS; bằng chứng `evidence/final-verification-results.json`.
 
 ## 2. Con số
 
@@ -19,11 +21,13 @@ Frontend AloUTE đã được kiểm thử end-to-end bằng browser thật trê
 | FAIL | **4** (AUTH-15, AUTH-16, ADM-05, RES-02 — BL-22) |
 | BLOCKED | **3** (SOC-P06 Firebase, COM-14b đặc tả, XB-03 Firefox) |
 | NOT RUN | **3** (AUTH-26b 2FA, SOC-P47 poll hết hạn, SOC-P52 custom feed) |
+
+Ghi chú: `full-run-1` thô có 5 FAIL (4 BL-22 + MSG-07 flake locator); MSG-07 đã được sửa test và rerun `full-run-4` PASS. Bảng trên là kết quả hợp nhất cuối, không phải nguyên trạng một lần chạy.
 | Kịch bản E2E | 7 (A–G), đã chạy thực tế |
 | Route quét axe | 20, 0 vi phạm serious/critical |
 | Viewport | 360×800, 768×1024, 1440×900 |
 | Engine | Chrome 153, Edge 156, WebKit 27.2 PASS; Firefox 157 BLOCKED |
-| Lỗi UI phát hiện | 14 (12 đã sửa, 1 backend ticket, 1 hạ tầng không sửa) |
+| Lỗi UI phát hiện | 15 (13 đã sửa, 1 backend ticket, 1 hạ tầng không sửa) |
 | Tệp thay đổi | 23 (3 CSS, 4 JS, 16 template) |
 
 ## 3. Kết quả theo module
@@ -59,7 +63,7 @@ Frontend AloUTE đã được kiểm thử end-to-end bằng browser thật trê
 |---|---|---|
 | Accessibility (axe WCAG 2.0/2.1/2.2 AA) | 0 vi phạm serious/critical; 20 route | `cross-run-2/axe-results.json` |
 | Keyboard skip link | PASS | A11Y-22 |
-| Responsive | Không tràn ngang 360/768/1440; touch target ≥24 px | RESP-01..06 |
+| Responsive | Không tràn ngang 360/768/1440; touch target ≥44 px (navbar, interaction, guest CTA, sidebar) | RESP-01..06 |
 | Cross-browser | Chrome/Edge/WebKit PASS; Firefox BLOCKED | XB-01/02/04/03 |
 | Feed performance | DCL median 125 ms; LCP 140–168 ms | PERF-01 |
 | API latency | p95 8–29 ms (local H2) | PERF-02 |

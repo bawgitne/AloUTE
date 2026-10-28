@@ -13,13 +13,14 @@ Chỉ các thay đổi frontend an toàn (Thymeleaf, CSS, JS) được thực hi
 | QA-UI-05 | Moderate | Accessibility | Nút menu tài khoản có `aria-label="Menu tài khoản"` không chứa tên người dùng hiển thị | Fixed | A11Y-04..14 |
 | QA-UI-06 | Moderate | Accessibility | Nút phân trang `aria-label="Trang tiếp"` nhưng chữ hiển thị là “Sau” — label/content mismatch | Fixed | A11Y-04..14 |
 | QA-UI-07 | Moderate | Accessibility | Tab settings chứa nút Đăng xuất trong `nav`/tablist; chữ tab active trắng mờ chỉ 3.94:1 | Fixed | A11Y-09 |
-| QA-UI-08 | Moderate | Accessibility | Trang auth không có skip link và `<main>` không có `id` để nhận focus | Fixed | A11Y-02,03 |
+| QA-UI-08 | Moderate | Accessibility | Trang auth không có skip link và `<main>` không có `id`/`tabindex` để nhận focus | Fixed | A11Y-02,03, A11Y-22 |
 | QA-UI-09 | High | Functional | Messaging hiển thị lỗi tiếng Anh/`TypeError` thô khi backend trả `FORBIDDEN` hoặc mất mạng | Fixed | MSG-09, RES-06..09 |
 | QA-UI-10 | Medium | Functional | Trùng slug/tên cộng đồng với mã lỗi `COMMUNITY_*_EXISTS` không được map sang thông báo tiếng Việt | Fixed | COM-03 |
 | QA-UI-11 | Medium | Hardening | Form auth không khai báo `method="post"`; nếu JS lỗi, submit có thể rơi về GET | Fixed | AUTH-22, AUTH-23 |
 | QA-UI-12 | Medium | Functional | `post-like.js` tự ghi đè `aria-label` sau mỗi lần like/repost, gây lệch với nội dung số đếm | Fixed | SOC-P11, SOC-P12, SOC-P16 |
 | QA-UI-13 | Low | Infra/UX | CSS không có ETag, cache 12h; 4 request CDN bên ngoài | Not fixed (ngoài phạm vi frontend an toàn) | PERF-03 |
 | QA-UI-14 | High | Backend | Trang bảo vệ trả JSON 401/403/404 thay vì HTML/redirect (BL-22) | Ticket cho ZCode | AUTH-15/16, ADM-05, RES-02 |
+| QA-UI-15 | Moderate | Accessibility | Hai link icon navbar (Tin nhắn/Thông báo) chỉ rộng 30px ở desktop, dưới baseline 44×44 của BL-17 | Fixed | RESP-06 |
 
 ## 2. Chi tiết fix
 
@@ -57,6 +58,7 @@ Thay đổi:
 Thêm `role="img"` cho:
 - `templates/post/_post-card.html`: verified badge, poll check “Lựa chọn của bạn”.
 - `templates/user/profile.html`, `templates/user/friends.html`, `templates/community/manage/members.html`: verified badge.
+- `static/js/page-actions.js`: icon check được tạo động sau khi vote.
 
 **Xác minh:** axe `aria-prohibited-attr` không còn trong danh sách vi phạm (vẫn nằm ở `incomplete` do axe không kết luận được với icon font, đã kiểm tra thủ công).
 
@@ -75,7 +77,7 @@ Thêm `role="img"` cho:
 ### QA-UI-07/08 — Settings và auth layout
 
 - Settings: tách logout khỏi tablist; tab active dùng chữ trắng đặc.
-- `layouts/auth.html`: thêm skip link và `id="main-content"` cho `<main>`; áp dụng cho login/register/forgot/reset/verify.
+- `layouts/auth.html`: thêm skip link, `id="main-content"` và `tabindex="-1"` cho `<main>`; áp dụng cho login/register/forgot/reset/verify. A11Y-22 xác minh Enter thực sự đưa focus vào main trên `/login`.
 
 ### QA-UI-09 — Thông báo lỗi messaging
 
@@ -93,9 +95,19 @@ Thêm `role="img"` cho:
 
 ### QA-UI-11 — Form auth
 
-Thêm `method="post"` cho 5 form auth. Không thay đổi action/endpoint; JS vẫn chặn submit và gọi API. Đây là lớp bảo vệ khi JS lỗi hoặc bị tắt.
+Thêm `method="post"` cho 5 form auth. Không thay đổi action/endpoint; JS vẫn chặn submit và gọi API. Khi JS tắt, form gửi POST body và **không** đưa mật khẩu vào URL.
 
-**Xác minh:** AUTH-22, AUTH-23 PASS (JS tắt: không đưa mật khẩu vào URL).
+**Giới hạn:** backend không có form-login fallback (`POST /login` trả 403 JSON), nên đăng nhập **vẫn cần JS**. Không tuyên bố JS-off login dùng được.
+
+**Xác minh:** AUTH-22 (render/navigation) và AUTH-23 (quan sát POST body, không có `password=` trong URL) PASS.
+
+### QA-UI-15 — Navbar icon links đạt 44px trên desktop
+
+**Trước:** rule 44px cho `.aloute-navbar .btn-link.p-1` và `.navbar-notification-link` chỉ nằm trong media query `<576px`; đo tại 1440×900 cho kết quả 30×44px cho “Tin nhắn” và “Thông báo”.
+
+**Fix:** thêm rule toàn cục `min-height/min-width: 44px` + `inline-flex` cho hai selector; mobile vẫn giữ `padding: 0` để không phình navbar.
+
+**Xác minh:** RESP-06 đo mobile 360 và desktop 1440; không còn target <44px ở navbar, interaction bar, guest CTA hoặc sidebar. Dropdown “Thao tác bài viết”/nút compact không bị ép 44px.
 
 ## 3. Không sửa (có lý do)
 

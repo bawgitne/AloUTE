@@ -2,7 +2,7 @@
 
 - Ngày chạy: 2026-10-28
 - Môi trường: local `http://127.0.0.1:8082`, Spring Boot 3.2.5, H2 in-memory, Java 21, Chrome 153 headless, không throttling mạng
-- Bằng chứng: `test-results/quan-e2e-acceptance/cross-run-2/results.json` (PERF-01..03)
+- Bằng chứng: `evidence/cross-run-2-results.json`, `evidence/final-verification-results.json` (PERF-01..03)
 
 ## 1. Tải trang Feed (PERF-01)
 

@@ -12,7 +12,7 @@
 | Branch QA | `test/quan-e2e-acceptance` |
 | Base commit | `74c8a6f71be9e08d5fec0177fec2e86eb6daa6e9` |
 | Commit bàn giao | `1cae6eb` — `test(qa): add independent E2E acceptance suite and UI hardening` |
-| Commit tài liệu cuối | commit kế tiếp trên cùng branch (xem `git log`) — thêm `12_FINAL_HANDOFF.md` và bằng chứng tích hợp |
+| Commit tài liệu cuối | commit kế tiếp trên cùng branch (xem `git log`) — handoff, sửa test/a11y, demo ngắn, BL-22 handoff, PR plan và bằng chứng verification |
 | ZCode tham chiếu | branch `fix/release-integration-20261028`, HEAD `e12b21be5b28822c9129436f15fc6604d93fa973`; worktree `AloUTE-zc-release` **không bị sửa** |
 | Upstream tham chiếu | `AloUTE` — branch `fix/quan-frontend-hardening-20261027`, cùng base `74c8a6f` |
 
@@ -42,9 +42,22 @@ Không thay đổi backend, security, DTO, repository, migration, route, API con
 | Axe | 20 route, 0 serious/critical |
 | Responsive | 360/768/1440 không tràn ngang |
 | Engine | Chrome, Edge, WebKit PASS; Firefox BLOCKED |
-| Lỗi UI | 14 phát hiện, 12 đã sửa, 1 ticket backend (BL-22), 1 hạ tầng |
+| Lỗi UI | 15 phát hiện, 13 đã sửa, 1 ticket backend (BL-22), 1 hạ tầng |
+| Touch target | 44×44 px, kiểm tra 360/1440 |
 
 Kết luận: **frontend PASS WITH LIMITATIONS**, demo **READY WITH LIMITATIONS**, release **CONDITIONAL**, production **NOT READY**. Không có tuyên bố production-ready.
+
+### 3.1 Final verification (sau handoff)
+
+| Chỉ số | Giá trị |
+|---|---|
+| Run | `final-verification-20261028` — chạy lại toàn bộ 6 suite trên worktree cuối |
+| Tổng / ID duy nhất | **165 / 165**; guard `RUN-INTEGRITY` PASS |
+| PASS / FAIL / BLOCKED / NOT RUN | **155 / 4 / 3 / 3** |
+| FAIL | đúng AUTH-15, AUTH-16, ADM-05, RES-02 (BL-22) |
+| Bằng chứng | `evidence/final-verification-results.json`, `evidence/final-verification-environment.json` |
+
+Hai run trung gian `final-handoff-20261028` có flake test SOC-P11/SOC-P13 (chờ response like/bookmark chưa đủ); đã sửa test chờ response và rerun social, sau đó chạy lại full. `final-verification` là bằng chứng cuối, không dùng run flake.
 
 ## 4. Xác minh tích hợp với ZCode HEAD
 
@@ -117,9 +130,12 @@ Chạy từng suite: `node run.mjs --suite auth-guest` (xem `04_BROWSER_AUTOMATI
 | Automation, a11y, responsive, performance | `04`, `05`, `06`, `07` |
 | Lỗi UI và fix | `08` |
 | Dependency backend | `09` |
-| Demo script | `10` |
+| Demo script | `10`, `13` (bản 8–10 phút) |
 | Readiness | `11` |
+| BL-22 backend handoff | `14` |
+| PR stack plan / PR body | `15`, `16` |
 | Kết quả baseline | `evidence/full-run-1/3/4-results.json`, `cross-run-2-results.json`, `axe-results.json` |
+| Kết quả cuối | `evidence/final-verification-results.json`, `evidence/final-verification-environment.json` |
 | Kết quả tích hợp | `evidence/integration-e12b21b-results.json`, `evidence/integration-e12b21b-environment.json` |
 | Ảnh | `evidence/screenshots/` (20 ảnh tuyển chọn) |
 

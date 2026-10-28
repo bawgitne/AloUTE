@@ -29,7 +29,7 @@ Mỗi kịch bản là một hành trình người dùng thật trên browser (C
 8. Guest vào `/admin`, `/post/create` → kỳ vọng chuyển login.
 
 **Kết quả:** bước 1–7 PASS. Bước 8 FAIL: server trả `401 application/json` thay vì redirect (BL-22).
-**Bằng chứng:** `full-run-3/results.json`, ảnh `auth-01-guest-feed.png`, `auth-03-feed-after-login.png`, `auth-15-guest-post-create.png`, `auth-16-guest-admin.png`.
+**Bằng chứng:** `evidence/full-run-3-results.json`; ảnh `evidence/screenshots/auth-03-feed-after-login.png`, `auth-15-guest-post-create.png`, `auth-16-guest-admin.png`.
 
 ---
 
@@ -50,7 +50,7 @@ Mỗi kịch bản là một hành trình người dùng thật trên browser (C
 10. Bài FOLLOWERS ẩn với guest/người không theo dõi; bài đã xóa không còn trong tìm kiếm.
 
 **Kết quả:** PASS. Upload avatar/cover BLOCKED (thiếu Firebase service account); poll hết hạn và custom feed NOT RUN (xem 09).
-**Bằng chứng:** `run-social3/results.json`, `social-fixtures.json`, ảnh `social-post-created.png`, `social-quote.png`, `social-poll-result.png`, `social-draft-recovery.png`, `social-profile-edited.png`.
+**Bằng chứng:** `evidence/full-run-1-results.json`; ảnh `evidence/screenshots/social-post-created.png`, `social-quote.png`, `social-poll-result.png`.
 
 ---
 
@@ -70,7 +70,7 @@ Mỗi kịch bản là một hành trình người dùng thật trên browser (C
 9. Owner xóa cộng đồng → trang chi tiết 404.
 
 **Kết quả:** PASS. Bước private join BLOCKED: chưa có API/đặc tả join-request.
-**Bằng chứng:** `run-community3/results.json`, `full-run-1/results.json`, ảnh `com-02-*` … `com-19-*`.
+**Bằng chứng:** `evidence/full-run-1-results.json`; ảnh `evidence/screenshots/com-02-created.png`, `com-11-approved.png`.
 
 ---
 
@@ -88,7 +88,7 @@ Mỗi kịch bản là một hành trình người dùng thật trên browser (C
 7. Thông báo LIKE/FOLLOW/REPLY sinh từ tương tác thật; lọc, đánh dấu đọc, xóa, empty state; preview REPLY escape HTML.
 
 **Kết quả:** PASS (sau khi sửa flake locator MSG-07 trong bộ test; sản phẩm không lỗi).
-**Bằng chứng:** `full-run-4/results.json`, ảnh `msg-04-*` … `msg-13-*`, `ntf-*`.
+**Bằng chứng:** `evidence/full-run-4-results.json`; ảnh `evidence/screenshots/msg-04-sent.png`, `msg-10-realtime.png`, `ntf-03-notifications.png`.
 
 ---
 
@@ -104,7 +104,7 @@ Mỗi kịch bản là một hành trình người dùng thật trên browser (C
 5. ID không tồn tại → trạng thái rỗng; lọc trạng thái bài hoạt động.
 
 **Kết quả:** PASS, trừ ADM-05: non-admin nhận `403 application/json` thay vì trang HTML (BL-22).
-**Bằng chứng:** `full-run-4/results.json`, ảnh `adm-01-*` … `adm-12-*`.
+**Bằng chứng:** `evidence/full-run-4-results.json`; ảnh `evidence/screenshots/adm-01-overview.png`, `adm-08-post-removed.png`.
 
 ---
 
@@ -113,12 +113,12 @@ Mỗi kịch bản là một hành trình người dùng thật trên browser (C
 **Các bước:**
 1. Axe quét 20 route (guest/user/admin) theo WCAG 2.0/2.1/2.2 AA.
 2. Kiểm tra cấu trúc (lang, title, một main, h1, skip link) và bàn phím (Tab/Enter).
-3. Đo 360×800, 768×1024, 1440×900: tràn ngang, sidebar, offcanvas, touch target.
+3. Đo 360×800, 768×1024, 1440×900: tràn ngang, sidebar, offcanvas, touch target 44×44.
 4. Smoke 4 engine: Chrome, Edge, Firefox, WebKit.
 5. Đo DCL/load/LCP 3 lần; p95 API; tài nguyên CSS.
 
 **Kết quả:** axe 0 vi phạm serious/critical; responsive PASS; Chrome/Edge/WebKit PASS; Firefox BLOCKED; performance đạt ngân sách local.
-**Bằng chứng:** `cross-run-2/axe-results.json`, `results.json`, `screenshots/resp-*`.
+**Bằng chứng:** `evidence/axe-results.json`, `evidence/cross-run-2-results.json`, `evidence/screenshots/resp-*`.
 
 ---
 
@@ -135,7 +135,7 @@ Mỗi kịch bản là một hành trình người dùng thật trên browser (C
 8. Đăng xuất → API sau đó bị chặn.
 
 **Kết quả:** PASS, trừ RES-02 (404 page trả JSON — BL-22).
-**Bằng chứng:** `full-run-1/results.json`, ảnh `res-01-*` … `res-11-*`.
+**Bằng chứng:** `evidence/full-run-1-results.json`; ảnh `evidence/screenshots/res-06-notifications-offline.png`.
 
 ---
 

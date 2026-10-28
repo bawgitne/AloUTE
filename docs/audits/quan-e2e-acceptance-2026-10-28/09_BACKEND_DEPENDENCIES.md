@@ -19,7 +19,7 @@ Phạm vi QA này **không sửa backend**, không đổi security, DTO, reposit
 
 ## QA-BE-01 — Guest vào trang bảo vệ nhận JSON 401 thay vì chuyển đăng nhập
 
-**Hành vi mong đợi:** điều hướng trình duyệt (Accept ưu tiên `text/html`) tới `/post/create` hoặc `/admin` khi chưa đăng nhập phải trả `302 Location: /login` (hoặc trang 403 HTML), không trả JSON.
+**Hành vi mong đợi:** điều hướng trình duyệt (Accept ưu tiên `text/html`) tới `/post/create` khi chưa đăng nhập phải trả `302 Location: /login`; `/admin` có thể trả `302 /login` hoặc trang `403 text/html`. Không trả JSON.
 
 **Hành vi thực tế:** HTTP `401`, `Content-Type: application/json`, body envelope lỗi `AUTH_UNAUTHENTICATED`. Trình duyệt hiển thị JSON thô, người dùng không có đường quay lại.
 
@@ -29,8 +29,8 @@ Phạm vi QA này **không sửa backend**, không đổi security, DTO, reposit
 GET http://127.0.0.1:8082/post/create   -> 401 application/json
 GET http://127.0.0.1:8082/admin         -> 401 application/json
 ```
-- Bằng chứng: `test-results/quan-e2e-acceptance/full-run-3/results.json` (AUTH-15, AUTH-16)
-- Ảnh: `full-run-3/screenshots/auth-15-guest-post-create.png`, `full-run-3/screenshots/auth-16-guest-admin.png`
+- Bằng chứng: `evidence/full-run-3-results.json`, `evidence/final-verification-results.json` (AUTH-15, AUTH-16)
+- Ảnh: `evidence/screenshots/auth-15-guest-post-create.png`, `evidence/screenshots/auth-16-guest-admin.png`
 - Test: `test/e2e/quan-acceptance/suites/auth-guest.mjs` (AUTH-15/16)
 
 **Gợi ý hướng xử lý (không thực hiện trong QA):** cấu hình `AuthenticationEntryPoint` theo loại request — API giữ JSON 401; page route (`Accept` có `text/html` hoặc path không thuộc `/api/**`) redirect `/login?next=...`. Kiểm tra lại whitelist và luồng `/post/create` trong `PostPageController.create()` (gọi `requireUserId()` trực tiếp).
@@ -44,7 +44,7 @@ GET http://127.0.0.1:8082/admin         -> 401 application/json
 **Thực tế:** HTTP 404 với `Content-Type: application/json`; trang HTML không render; test không tìm thấy `#error-content`.
 
 **Reproduce:** đăng nhập user → mở `/khong-ton-tai-qa` → 404 JSON.
-- Bằng chứng: `full-run-1/results.json` (RES-02); response 404 `application/json` ghi trong `detail.error`
+- Bằng chứng: `evidence/full-run-1-results.json`, `evidence/final-verification-results.json` (RES-02); response 404 `application/json` ghi trong `detail.error`
 - Test: `suites/resilience.mjs`
 
 **Gợi ý:** content negotiation cho error dispatch; API trả JSON, page trả `error/404` template.
@@ -56,7 +56,7 @@ GET http://127.0.0.1:8082/admin         -> 401 application/json
 **Mong đợi:** trang 403 HTML (hoặc redirect) với thông báo tiếng Việt và lối về feed.
 
 **Thực tế:** HTTP 403 `application/json`, body `AUTH_FORBIDDEN`; người dùng thường thấy JSON thô.
-- Bằng chứng: `full-run-4/results.json` (ADM-05); response 403 `application/json` ghi trong `detail.error`
+- Bằng chứng: `evidence/full-run-4-results.json`, `evidence/final-verification-results.json` (ADM-05); response 403 `application/json` ghi trong `detail.error`
 - Test: `suites/messaging-admin.mjs`
 
 Cùng gốc rễ với QA-BE-01/02 (entry point/exception handling toàn cục).
@@ -68,7 +68,7 @@ Cùng gốc rễ với QA-BE-01/02 (entry point/exception handling toàn cục).
 **Hiện trạng:** `POST /api/communities/{id}/join` trả 404 cho cộng đồng private; không có API lời mời/join-request trong canonical OpenAPI; UI không có luồng “yêu cầu tham gia”.
 
 **Trạng thái:** **NEEDS PRODUCT DECISION** — chưa thể đánh PASS/FAIL vì chưa có đặc tả. QA đánh BLOCKED (COM-14b).
-- Bằng chứng: `full-run-1/results.json` (COM-14b), `test-results/quan-e2e-acceptance/run-community3/results.json`
+- Bằng chứng: `evidence/full-run-1-results.json` (COM-14b)
 - Đề xuất: chốt mô hình (invite-only hay request/approve), bổ sung endpoint + trạng thái PENDING, sau đó QA bổ sung case.
 
 ---

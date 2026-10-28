@@ -1,10 +1,18 @@
 import process from 'node:process';
 import { chromium } from 'playwright';
 import {
-  BASE, CHANNEL, HEADLESS, OUT, createRun, writeResults, saveJson, accountsConfigured
+  BASE, CHANNEL, HEADLESS, OUT, createRun, writeResults, saveJson, accountsConfigured, record, STATUS
 } from './lib/harness.mjs';
 
 const ALL_SUITES = ['auth-guest', 'social', 'community', 'messaging-admin', 'cross-a11y', 'resilience'];
+const EXPECTED_COUNTS = {
+  'auth-guest': 27,
+  social: 36,
+  community: 21,
+  'messaging-admin': 35,
+  'cross-a11y': 35,
+  resilience: 11
+};
 
 const args = process.argv.slice(2);
 const suiteArgIndex = args.indexOf('--suite');
@@ -54,6 +62,18 @@ for (const name of selected) {
 }
 
 await browser.close();
+
+const expectedTotal = selected.reduce((total, name) => total + EXPECTED_COUNTS[name], 0);
+const ids = results.entries.map(entry => entry.id);
+const duplicates = [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
+if (results.entries.length !== expectedTotal || duplicates.length) {
+  record(results, 'runner', 'RUN-INTEGRITY', 'Số case và ID duy nhất khớp ma trận', STATUS.FAIL, {
+    expectedTotal,
+    actualTotal: results.entries.length,
+    duplicates
+  });
+}
+
 const summary = writeResults(results);
 console.log(`\nResults: ${summary.file}`);
 console.log(`Counts: ${JSON.stringify(summary.counts)} — overall ${summary.overall}`);

@@ -2767,6 +2767,7 @@
             if (opt.selectedByCurrentUser || opt.id === poll.userVotedOptionId) {
                 const checkIcon = document.createElement('i');
                 checkIcon.className = 'bi bi-check-circle-fill text-primary';
+                checkIcon.setAttribute('role', 'img');
                 checkIcon.setAttribute('aria-label', 'Lựa chọn của bạn');
                 leftCol.appendChild(checkIcon);
             }
