@@ -29,8 +29,8 @@
         <h2 class="fs-6 fw-bold mb-1">Chào mừng bạn!</h2>
         <p class="text-secondary small mb-3">Tham gia cộng đồng sinh viên Trường Đại học Sư phạm Kỹ thuật TP.HCM ngay hôm nay.</p>
         <div class="d-grid gap-2">
-            <a href="#" data-page="auth-login" data-action="navigate-login" class="btn btn-sm btn-secondary w-100">Đăng nhập</a>
-            <a href="#" data-page="auth-register" data-action="navigate-register" class="btn btn-sm btn-primary w-100">Đăng ký tài khoản</a>
+            <a th:href="@{/login}" href="/login" data-page="auth-login" data-action="navigate-login" class="btn btn-sm btn-secondary w-100 aloute-auth-cta">Đăng nhập</a>
+            <a th:href="@{/register}" href="/register" data-page="auth-register" data-action="navigate-register" class="btn btn-sm btn-primary w-100 aloute-auth-cta">Đăng ký tài khoản</a>
         </div>
     </div>
 
@@ -47,7 +47,7 @@
                 </li>
                 <li>
                     <!-- Canonical /users/{username} profile route if user authenticated, else fallback -->
-                    <a th:href="${currentUser != null and currentUser.username != null} ? @{/users/{u}(u=${currentUser.username})} : (${currentUser != null and currentUser.id != null} ? @{/users/{id}(id=${currentUser.id})} : '#')"
+                    <a th:href="${currentUser != null and currentUser.username != null} ? @{/users/{u}(u=${currentUser.username})} : (${currentUser != null and currentUser.id != null} ? @{/users/{id}(id=${currentUser.id})} : @{/login})"
                        data-page="user-profile"
                        data-action="navigate-profile"
                        class="sidebar-nav-link"

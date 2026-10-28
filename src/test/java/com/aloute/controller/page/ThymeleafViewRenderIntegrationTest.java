@@ -555,13 +555,23 @@ class ThymeleafViewRenderIntegrationTest {
     @Test
     @DisplayName("Batch 2: Interaction bar quote button is strictly fail-closed")
     void testQuoteButtonFailClosedGate() {
-        // Case A: allowQuote = true and canQuote = true -> quote button present
+        UserSummary viewer = new UserSummary(1L, "sinhvien1", "Sinh Viên 1", "/images/avatar-fallback.svg", true);
+
+        // Case A: allowQuote = true and canQuote = true -> quote button present for a signed-in viewer
         PostResponse postWithQuote = createSamplePost(101L, "Allowed quote post", Instant.now());
         WebContext ctxA = createWebContext();
         ctxA.setVariable("post", postWithQuote);
+        ctxA.setVariable("currentUser", viewer);
         String htmlA = templateEngine.process("post/_interaction-bar", Collections.singleton("interactionBar"), ctxA);
         assertThat(htmlA).contains("interaction-btn-quote");
         assertThat(htmlA).contains("data-action=\"open-quote-modal\"");
+
+        // Case A2: guests never get the quote action, even when the post allows quoting
+        WebContext ctxGuest = createWebContext();
+        ctxGuest.setVariable("post", postWithQuote);
+        String htmlGuest = templateEngine.process("post/_interaction-bar", Collections.singleton("interactionBar"), ctxGuest);
+        assertThat(htmlGuest).doesNotContain("interaction-btn-quote");
+        assertThat(htmlGuest).doesNotContain("open-quote-modal");
 
         // Case B: allowQuote = true but capabilities is null -> MUST FAIL CLOSED
         UserSummary author = new UserSummary(10L, "sinhvien_ute", "Nguyễn Văn Sinh Viên", "/images/avatar-fallback.svg", true);
@@ -573,6 +583,7 @@ class ThymeleafViewRenderIntegrationTest {
         );
         WebContext ctxB = createWebContext();
         ctxB.setVariable("post", postNullCaps);
+        ctxB.setVariable("currentUser", viewer);
         String htmlB = templateEngine.process("post/_interaction-bar", Collections.singleton("interactionBar"), ctxB);
         assertThat(htmlB).doesNotContain("interaction-btn-quote");
         assertThat(htmlB).doesNotContain("open-quote-modal");
@@ -586,6 +597,7 @@ class ThymeleafViewRenderIntegrationTest {
         );
         WebContext ctxC = createWebContext();
         ctxC.setVariable("post", postCannotQuote);
+        ctxC.setVariable("currentUser", viewer);
         String htmlC = templateEngine.process("post/_interaction-bar", Collections.singleton("interactionBar"), ctxC);
         assertThat(htmlC).doesNotContain("interaction-btn-quote");
         assertThat(htmlC).doesNotContain("open-quote-modal");
@@ -598,6 +610,7 @@ class ThymeleafViewRenderIntegrationTest {
         );
         WebContext ctxD = createWebContext();
         ctxD.setVariable("post", postQuoteDisabled);
+        ctxD.setVariable("currentUser", viewer);
         String htmlD = templateEngine.process("post/_interaction-bar", Collections.singleton("interactionBar"), ctxD);
         assertThat(htmlD).doesNotContain("interaction-btn-quote");
         assertThat(htmlD).doesNotContain("open-quote-modal");
@@ -863,16 +876,26 @@ class ThymeleafViewRenderIntegrationTest {
     @Test
     @DisplayName("Batch 1 Scope B: Modal contains createPostModal when activeNav != create-post and is suppressed when activeNav == create-post")
     void testCreatePostModalActiveNavGuard() {
+        UserSummary viewer = new UserSummary(1L, "sinhvien1", "Sinh Viên 1", "/images/avatar-fallback.svg", true);
+
         WebContext ctxFeed = createWebContext();
         ctxFeed.setVariable("activeNav", "feed");
+        ctxFeed.setVariable("currentUser", viewer);
         String htmlFeed = templateEngine.process("fragments/modal", Collections.singleton("postModals"), ctxFeed);
         assertThat(htmlFeed).contains("id=\"createPostModal\"");
         assertThat(htmlFeed).contains("id=\"create-post-form\"");
         assertThat(htmlFeed).contains("id=\"post-community-id\"");
         assertThat(htmlFeed).contains("id=\"btn-create-post\"");
 
+        WebContext ctxGuest = createWebContext();
+        ctxGuest.setVariable("activeNav", "feed");
+        String htmlGuest = templateEngine.process("fragments/modal", Collections.singleton("postModals"), ctxGuest);
+        assertThat(htmlGuest).doesNotContain("id=\"createPostModal\"");
+        assertThat(htmlGuest).doesNotContain("id=\"create-post-form\"");
+
         WebContext ctxCreate = createWebContext();
         ctxCreate.setVariable("activeNav", "create-post");
+        ctxCreate.setVariable("currentUser", viewer);
         String htmlCreate = templateEngine.process("fragments/modal", Collections.singleton("postModals"), ctxCreate);
         assertThat(htmlCreate).doesNotContain("id=\"createPostModal\"");
     }
@@ -1040,7 +1063,7 @@ class ThymeleafViewRenderIntegrationTest {
         assertThat(htmlNonMember).contains("id=\"btn-join-community\"");
         assertThat(htmlNonMember).contains("Tham gia");
         assertThat(htmlNonMember).contains("id=\"btn-community-post\"");
-        assertThat(htmlNonMember).contains("btn-primary rounded-pill d-none");
+        assertThat(htmlNonMember).contains("btn-primary rounded-pill aloute-auth-cta d-none");
         assertThat(htmlNonMember).doesNotContain("id=\"btn-leave-community\"");
         assertThat(htmlNonMember).doesNotContain("Trưởng nhóm");
         assertThat(htmlNonMember).doesNotContain("Đăng nhập để tham gia");
@@ -1097,7 +1120,7 @@ class ThymeleafViewRenderIntegrationTest {
         String htmlOwnerNoMember = templateEngine.process("community/detail", ctxOwnerNoMember);
         assertThat(htmlOwnerNoMember).contains("Trưởng nhóm");
         assertThat(htmlOwnerNoMember).contains("id=\"btn-community-post\"");
-        assertThat(htmlOwnerNoMember).contains("btn-primary rounded-pill d-none");
+        assertThat(htmlOwnerNoMember).contains("btn-primary rounded-pill aloute-auth-cta d-none");
         assertThat(htmlOwnerNoMember).doesNotContain("id=\"btn-leave-community\"");
         assertThat(htmlOwnerNoMember).doesNotContain("id=\"btn-join-community\"");
     }
