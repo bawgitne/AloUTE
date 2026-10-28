@@ -86,17 +86,9 @@
                 trong <span th:text="${pageMeta.totalPages}">1</span> trang.
             </p>
             <div class="d-flex flex-wrap justify-content-center gap-2 mt-3">
-                <a th:if="${pageMeta.totalPages > 1}"
-                   th:href="@{/feed(page=${pageMeta.totalPages - 1})}"
-                   href="/feed"
-                   class="btn btn-sm btn-primary"
-                   id="btn-feed-last-page">
-                    <i class="bi bi-arrow-left" aria-hidden="true"></i>
-                    <span>Về trang cuối (trang <span th:text="${pageMeta.totalPages}">1</span>)</span>
-                </a>
                 <a th:href="@{/feed}"
                    href="/feed"
-                   class="btn btn-sm btn-outline-secondary"
+                   class="btn btn-sm btn-primary"
                    id="btn-feed-first-page">
                     <i class="bi bi-house" aria-hidden="true"></i>
                     <span>Về trang đầu</span>
@@ -104,18 +96,58 @@
             </div>
         </div>
 
-        <!-- Render Post Cards -->
+        <!-- Render Post Cards (initial SSR page; further pages load as a fragment) -->
         <div th:if="${(feedError == null or !feedError) and posts != null and !#lists.isEmpty(posts)}">
-            <div th:each="postItem : ${posts}">
-                <div th:replace="~{post/_post-card :: postCard(post=${postItem})}"></div>
+            <div id="feed-posts-container" class="feed-posts-container">
+                <div th:replace="~{feed/_feed-posts :: postList}"></div>
             </div>
 
-            <!-- Feed Pagination Component (Canonical /feed route) -->
-            <div th:if="${pageMeta != null}">
-                <div th:replace="~{fragments/pagination :: pagination(pageMeta=${pageMeta}, baseUrl='/feed')}"></div>
+            <!-- Infinite scroll controls. The sentinel triggers the next fragment request. -->
+            <div id="feed-infinite-scroll"
+                 class="feed-infinite-scroll"
+                 aria-busy="false"
+                 th:attr="data-feed-endpoint=@{/feed/posts},data-next-page=${pageMeta != null and pageMeta.hasNext ? pageMeta.page + 1 : ''},data-has-next=${pageMeta != null and pageMeta.hasNext},data-total-elements=${pageMeta != null ? pageMeta.totalElements : 0},data-total-pages=${pageMeta != null ? pageMeta.totalPages : 0}">
+                <div id="feed-loading-indicator" class="feed-loading-indicator d-none" role="status" aria-live="polite">
+                    <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+                    <span>Đang tải thêm bài viết...</span>
+                </div>
+
+                <div id="feed-load-error" class="feed-load-error alert alert-warning d-none" role="alert">
+                    <span id="feed-load-error-message">Không thể tải thêm bài viết.</span>
+                    <button type="button" id="btn-feed-retry" class="btn btn-sm btn-outline-warning ms-2">
+                        <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Thử lại
+                    </button>
+                </div>
+
+                <!-- Fallback for browsers without IntersectionObserver. -->
+                <button type="button"
+                        id="btn-feed-load-more"
+                        class="btn btn-sm btn-outline-primary rounded-pill px-4 d-none">
+                    <i class="bi bi-arrow-down-circle me-1" aria-hidden="true"></i>Tải thêm bài viết
+                </button>
+
+                <div id="feed-end-state" class="feed-end-state d-none" role="status">
+                    <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Bạn đã xem hết bài viết.
+                </div>
+
+                <div id="feed-scroll-sentinel" class="feed-scroll-sentinel" aria-hidden="true"></div>
             </div>
+
+            <!-- No-JS fallback: page navigation stays possible without the scroll module. -->
+            <noscript>
+                <div class="feed-infinite-scroll">
+                    <a th:if="${pageMeta != null and pageMeta.hasNext}"
+                       th:href="@{/feed(page=${pageMeta.page + 1})}"
+                       href="/feed"
+                       class="btn btn-sm btn-outline-primary rounded-pill px-4">
+                        Tải trang tiếp theo
+                    </a>
+                </div>
+            </noscript>
         </div>
     </section>
+
+    <script th:src="@{/js/features/feed/feed-infinite-scroll.js}" src="/js/features/feed/feed-infinite-scroll.js" defer></script>
 </div>
 </body>
 </html>
