@@ -2,7 +2,7 @@
 
 > **Người thực hiện**: Ngô Anh Bằng (MSSV: 24110166 — Nhóm trưởng)  
 > **Giai đoạn**: Tuần 3 (05/10/2026 – 11/10/2026)  
-> **Căn cứ kế hoạch**: Mục 9, Kế hoạch 3 tuần `Nhom13_KeHoachCodeTest.docx` (Nộp GVHD Th.S Nguyễn Trần Thi Văn)
+> **Căn cứ kế hoạch**: Mục 9, kế hoạch 3 tuần của nhóm
 
 ---
 

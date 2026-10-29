@@ -9,7 +9,7 @@ Trước khi thực hiện sửa đổi mã nguồn hoặc thêm tính năng m�
 1. [`README.md`](README.md) — Tổng quan hệ thống, hướng dẫn chạy cục bộ và cấu hình môi trường.
 2. [`ARCHITECTURE_TEMPLATE.md`](ARCHITECTURE_TEMPLATE.md) — Khung kiến trúc phân lớp, nguyên tắc Controller - Service - Repository.
 3. [`UI_DESIGN_SYSTEM.md`](UI_DESIGN_SYSTEM.md) & [`SCREEN_FLOW.md`](SCREEN_FLOW.md) — Quy chuẩn thiết kế giao diện và luồng màn hình.
-4. [`docs/README.md`](docs/README.md) — Bản đồ tài liệu kỹ thuật, báo cáo phân tích và kịch bản demo.
+4. [`docs/api/openapi.yaml`](docs/api/openapi.yaml) — Hợp đồng REST API canonical; [`docs/quan/README.md`](docs/quan/README.md) — hồ sơ frontend, UI/UX và E2E.
 
 ## 2. Branch và commit
 

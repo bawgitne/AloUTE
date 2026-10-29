@@ -260,6 +260,11 @@ class AdminUserAccountManagementIntegrationTest {
         long postId = objectMapper.readTree(postResult.getResponse().getContentAsString())
                 .path("data").path("id").asLong();
 
+        // BL-15 lifetime semantics: creating the post above advanced the profile's
+        // postsCount by exactly one. Pin the value here so the reset assertions below
+        // prove the profile reset itself never touches any counter.
+        long postsCountAfterCreate = profileRepository.findById(target.getId()).orElseThrow().getPostsCount();
+
         MvcResult mismatch = reset(adminCookie, target.getId(), "not-" + target.getUsername(),
                 "Đặt lại hồ sơ theo yêu cầu kiểm duyệt.");
         assertThat(mismatch.getResponse().getStatus()).isEqualTo(409);
@@ -285,7 +290,7 @@ class AdminUserAccountManagementIntegrationTest {
         assertThat(reloaded.getCoverUrl()).isNull();
         assertThat(reloaded.getFollowersCount()).isEqualTo(11);
         assertThat(reloaded.getFollowingCount()).isEqualTo(12);
-        assertThat(reloaded.getPostsCount()).isEqualTo(13);
+        assertThat(reloaded.getPostsCount()).isEqualTo(postsCountAfterCreate);
         assertThat(reloadedUser.getEmail()).isEqualTo(target.getEmail());
         assertThat(reloadedUser.getPasswordHash()).isEqualTo(target.getPasswordHash());
         assertThat(reloadedUser.getRole()).isEqualTo(Role.USER);

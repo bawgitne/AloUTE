@@ -41,4 +41,12 @@ public interface ProfileRepository extends JpaRepository<Profile, Long> {
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Profile p SET p.followingCount = CASE WHEN p.followingCount > 0 THEN p.followingCount - 1 ELSE 0 END WHERE p.userId = :userId")
     int decrementFollowingCount(@Param("userId") Long userId);
+
+     * Semantic (issue #92 decision): counts ROOT posts ever created by the user —
+     * quotes and community posts included, replies excluded — and is never decremented
+     * on soft delete. Concurrent creations therefore cannot lose increments.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Profile p SET p.postsCount = p.postsCount + 1 WHERE p.userId = :userId")
+    int incrementPostsCount(@Param("userId") Long userId);
 }
