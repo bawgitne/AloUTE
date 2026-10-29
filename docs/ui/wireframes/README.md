@@ -1,31 +1,30 @@
-# AloUTE — Week 1 UI Wireframe & Mockup Specification
+# AloUTE — Wireframe & Mockup Specification
 
-> **Phạm vi & Phân công**: Bằng chứng thiết kế giao diện Tuần 1 (21/09/2026 – 26/09/2026) theo kế hoạch đồ án môn học.
-> **Owner**: **Phạm Minh Quân** (24110311) — Frontend + UI Design.
-> **Nguồn thẩm quyền**: `Nhom13_KeHoachCodeTest.docx` (Word hiện hành).
-> **Định dạng bàn giao**: Bộ 10 file vector SVG standalone (1440 × 900 Canvas), tuân thủ XML/SVG tiêu chuẩn.
+> **Phạm vi:** bộ 10 wireframe/mockup SVG cho các màn hình chính của AloUTE.
+> **Owner:** **Phạm Minh Quân** (24110311) — Frontend + UI Design.
+> **Định dạng:** vector SVG standalone, canvas 1440 × 900, không phụ thuộc ảnh ngoài.
 
 ---
 
 ## 1. Mục đích và Ranh giới Artifacts
 
-1. **Bằng chứng thiết kế Tuần 1 (Design Evidence)**:
+1. **Artifact thiết kế (Design Evidence)**:
    - Các file SVG đóng vai trò là wireframe/mockup cấu trúc, thông tin, phân bố không gian, input/output và luồng tương tác cơ bản.
    - **Không phải mã nguồn ứng dụng**: Không thay đổi hoặc thay thế template Thymeleaf, CSS, JS runtime.
    - **Không sửa đổi backend/database**: Không can thiệp Spring Boot, Controller, Service, Repository, Entity hay JWT/Security.
-   - **Bảo tồn bằng chứng lịch sử Tuần 1**: Bảng màu tối (Dark Palette) thể hiện trong 10 file SVG này là bằng chứng thiết kế đã hoàn thành và đóng băng trong Tuần 1. Đối với quá trình hiện thực hóa giao diện Tuần 2, định hướng trực quan chính thức được phê duyệt là **Modern University Social Network — Light Campus Style** (đặc tả tại `UI_DESIGN_SYSTEM.md` và `WEEK2_UI_STYLE_DECISION.md`). Toàn bộ file SVG được giữ nguyên vẹn để bảo toàn tính xác thực của artifact lịch sử; bảng màu sáng trong Design System là nguồn thẩm quyền duy nhất cho quá trình hiện thực hóa Tuần 2.
+   - Bảng màu tối (Dark Palette) trong 10 file SVG là lựa chọn của artifact thiết kế. Giao diện triển khai dùng Light Campus Style theo [`UI_DESIGN_SYSTEM.md`](../../../UI_DESIGN_SYSTEM.md); các file SVG được giữ nguyên để bảo toàn artifact.
 
-2. **Định hướng thiết kế**:
+2. **Định hướng thiết kế wireframe**:
    - **Phong cách**: *Modern University Social Network* — Mạng xã hội học thuật chuyên nghiệp cho sinh viên và giảng viên Trường Đại học Sư phạm Kỹ thuật TP.HCM (HCMUTE).
    - **Bố cục toàn cục (3 cột Desktop)**:
      - **Navbar**: Nhận diện AloUTE, tìm kiếm toàn cục, thanh điều hướng chính, profile chip.
      - **Cột Trái (260px)**: Tóm tắt hồ sơ sinh viên, menu điều hướng nhanh, phím tắt tạo bài viết.
-     - **Cột Giữa (760px)**: Vùng nội dung / luồng hoạt động chính (Feed, Composer, Detail, Search, Community, Notification).
-     - **Cột Phải (300px)**: Câu lạc bộ / nhóm học thuật đề xuất, chủ đề thịnh hành (#Trending), thông tin đào tạo & thư viện.
+     - **Cột Giữa (660px)**: Vùng nội dung / luồng hoạt động chính (Feed, Composer, Detail, Search, Community, Notification).
+     - **Cột Phải (320px, từ breakpoint xl)**: Câu lạc bộ / nhóm học thuật đề xuất, chủ đề thịnh hành (#Trending), thông tin đào tạo & thư viện.
    - **Quy tắc Responsive**:
      - *Desktop*: 3 cột (Trái | Giữa | Phải).
-     - *Tablet*: 2 cột (Trái + Giữa) hoặc cột trái dạng icon bar thu nhỏ.
-     - *Mobile*: 1 cột duy nhất (Giữa), menu chuyển thành Bottom App Bar / Compact Drawer.
+     - *Tablet*: 2 cột (Trái + Giữa), ẩn cột phải.
+     - *Mobile*: 1 cột duy nhất; sidebar chuyển vào offcanvas qua nút hamburger.
 
 ---
 
@@ -46,12 +45,12 @@
 
 ---
 
-## 3. Hệ thống trực quan của Wireframe (Week 1 Historical Dark Evidence)
+## 3. Hệ thống trực quan của wireframe
 
-> **Lưu ý chuyển tiếp thẩm quyền (Week 2 Style Authority)**: Các thông số màu tối bên dưới mô tả hiện trạng các artifact SVG Tuần 1 đóng vai trò bằng chứng lịch sử (Historical Design Evidence). Bảng màu sáng chính thức (Modern University Social Network — Light Campus Style: nền sáng `#F8FAFC`, thẻ trắng `#FFFFFF`, viền `#E2E8F0`, accent `#2563EB`) được quy định trong `UI_DESIGN_SYSTEM.md` và `WEEK2_UI_STYLE_DECISION.md` là nguồn thẩm quyền duy nhất (authoritative baseline) cho việc triển khai mã nguồn giao diện Tuần 2.
+> Các thông số màu tối bên dưới mô tả artifact SVG. Bảng màu sáng chính thức cho giao diện triển khai nằm trong [`UI_DESIGN_SYSTEM.md`](../../../UI_DESIGN_SYSTEM.md) và [`tokens.css`](../../../src/main/resources/static/css/tokens.css).
 
 - **Canvas Dimension**: `1440 × 900` px.
-- **Màu sắc wireframe tối chuẩn (Bằng chứng lịch sử Tuần 1)**:
+- **Màu sắc wireframe tối**:
   - Nền canvas tối chuyên nghiệp: `#0B0F19` (Dark body background).
   - Khối thẻ / Card surface: `#131B2A` viền `#233148` (Slate dark borders), bo góc `rx="8px"`.
   - Thanh trạng thái / Metadata: `#030712`, chữ sáng `#F8FAFC`, phụ `#64748B`.

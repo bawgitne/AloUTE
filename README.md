@@ -28,7 +28,7 @@ Các mục tiêu kỹ thuật chính:
 | Phân hệ | Chi tiết tính năng |
 | :--- | :--- |
 | **Xác thực & Bảo mật** | • Đăng ký tài khoản với mã xác thực OTP qua Email (SMTP).<br>• Đăng nhập an toàn lưu JWT trong `HttpOnly Cookie`.<br>• Đăng xuất vô hiệu hóa phiên, Quên & Đặt lại mật khẩu.<br>• Xác thực hai lớp (**2FA / TOTP**) qua Google Authenticator kèm mã khôi phục dự phòng.<br>• Phân quyền người dùng chặt chẽ theo vai trò (Role-Based Access Control - RBAC). |
-| **Bảng tin & Nội dung** | • Bảng tin cá nhân hóa (Personal Feed) & Bảng tin khám phá.<br>• Cuộn vô tận (Infinite Scroll) mượt mà tối ưu trải nghiệm.<br>• Soạn thảo bài viết đa phương tiện (Văn bản, tải ảnh/video tích hợp Firebase Storage).<br>• Phân loại theo chủ đề / Hashtag (`#topic`).<br>• Tạo cuộc bình chọn thời gian thực (**Polls**).<br>• Trích dẫn bài viết (**Quote**), Đăng lại (**Repost**), Ghim bài viết (**Pin**), Lưu trữ (**Bookmark**), Ẩn bài viết / Bỏ theo dõi tác giả (**Mute**). |
+| **Bảng tin & Nội dung** | • Bảng tin cá nhân hóa (Personal Feed) & Bảng tin khám phá.<br>• Cuộn vô tận (Infinite Scroll) mượt mà tối ưu trải nghiệm.<br>• Soạn thảo bài viết đa phương tiện (Văn bản, tải ảnh/video tích hợp Firebase Storage).<br>• Phân loại theo chủ đề / Hashtag (`#topic`).<br>• Tạo cuộc bình chọn thời gian thực (**Polls**).<br>• Trích dẫn bài viết (**Quote**), Đăng lại (**Repost**), Lưu trữ (**Bookmark**), Ẩn bài viết / Bỏ theo dõi tác giả (**Mute**). |
 | **Tương tác & Xã hội** | • Thả cảm xúc / Thích bài viết (Like).<br>• Bình luận & Phản hồi phân cấp (Nested Comments & Replies).<br>• Theo dõi / Bỏ theo dõi người dùng (Follow / Unfollow).<br>• Kết nối bạn bè, trang cá nhân tùy biến (Avatar, Ảnh bìa, Tiểu sử).<br>• Chặn người dùng vi phạm (Block). |
 | **Quản lý Cộng đồng** | • Tạo và quản trị cộng đồng / nhóm học tập theo khoa, lớp, CLB.<br>• Chế độ công khai (Public) hoặc riêng tư (Private).<br>• Quản trị viên cộng đồng duyệt thành viên và kiểm duyệt bài viết.<br>• Phân vai trò thành viên: Admin cộng đồng, Kiểm duyệt viên (Moderator), Thành viên. |
 | **Thời gian thực & Thông báo** | • Nhắn tin trực tiếp 1-1 (Direct Messaging) tức thì qua giao thức **STOMP over WebSocket**.<br>• Thông báo trong ứng dụng (In-app notifications) khi có tương tác mới.<br>• Tích hợp Firebase Cloud Messaging (**FCM**) cho thông báo đẩy trên thiết bị di động. |
@@ -256,7 +256,7 @@ docker-compose down
 
 ## 9. Đội ngũ phát triển (Project Contributors)
 
-Dự án được xây dựng và hoàn thiện bởi các thành viên:
+Dự án được xây dựng và hoàn thiện bởi 3 thành viên:
 
 | Thành viên | Tài khoản GitHub | Vai trò & Phạm vi đảm nhiệm chính |
 | :--- | :--- | :--- |
@@ -272,7 +272,9 @@ Dự án được xây dựng và hoàn thiện bởi các thành viên:
 - [`UI_DESIGN_SYSTEM.md`](UI_DESIGN_SYSTEM.md): Hướng dẫn quy chuẩn màu sắc, typography và thành phần giao diện.
 - [`SCREEN_FLOW.md`](SCREEN_FLOW.md): Sơ đồ luồng di chuyển và trạng thái giữa các màn hình ứng dụng.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md): Quy ước đặt tên nhánh (branch), commit message và tạo Pull Request.
-- [`docs/README.md`](docs/README.md): Bản đồ tài liệu kỹ thuật, use case matrix và báo cáo kiểm định hệ thống.
+- [`docs/api/openapi.yaml`](docs/api/openapi.yaml): Hợp đồng OpenAPI canonical của REST API.
+- [`docs/quan/README.md`](docs/quan/README.md): Hồ sơ frontend, UI/UX và kiểm thử E2E.
+- [`docs/ui/wireframes/README.md`](docs/ui/wireframes/README.md): Đặc tả wireframe giao diện.
 
 ---
 

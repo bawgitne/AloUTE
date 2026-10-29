@@ -4,7 +4,7 @@
 > **Người thực hiện**: Ngô Anh Bằng (MSSV: 24110166 — Nhóm trưởng)  
 > **Vai trò**: Realtime, Communication & Project Lead  
 > **Thời gian thực hiện**: Tuần 2 (27/09/2026 – 04/10/2026)  
-> **Căn cứ kế hoạch**: `Nhom13_KeHoachCodeTest.docx` (Nộp GVHD Th.S Nguyễn Trần Thi Văn)
+> **Căn cứ kế hoạch**: kế hoạch 3 tuần của nhóm
 
 ---
 
@@ -12,7 +12,7 @@
 
 Theo đúng bảng kế hoạch 3 tuần chính thức nộp GVHD, nhóm trưởng Ngô Anh Bằng đã hoàn thành 100% các hạng mục Tuần 2:
 
-| STT | Nhiệm vụ theo Kế hoạch (`Nhom13_KeHoachCodeTest.docx`) | Sản phẩm bàn giao cụ thể | Trạng thái |
+| STT | Nhiệm vụ theo Kế hoạch (kế hoạch 3 tuần của nhóm) | Sản phẩm bàn giao cụ thể | Trạng thái |
 | :---: | :--- | :--- | :---: |
 | 1 | **Vẽ các Sequence Diagram chính còn lại** | • [`docs/bang/sequence/send-message-sequence.puml`](sequence/send-message-sequence.puml) & [`send-message-sequence.svg`](sequence/send-message-sequence.svg)<br>• [`docs/bang/sequence/notification-flow-sequence.puml`](sequence/notification-flow-sequence.puml) & [`notification-flow-sequence.svg`](sequence/notification-flow-sequence.svg) | **ĐÃ HOÀN THÀNH** |
 | 2 | **Xây dựng module Messaging (Direct/Group)** | • Entities: `Conversation`, `ConversationMember`, `ConversationType`, `Message`<br>• Repositories: `ConversationRepository`, `ConversationMemberRepository`, `MessageRepository`<br>• DTOs: `CreateConversationRequest`, `SendMessageRequest`, `ConversationResponse`, `MessageResponse`<br>• Service: `ConversationService`<br>• REST API: `ConversationController` (`/api/conversations`) | **ĐÃ HOÀN THÀNH** |

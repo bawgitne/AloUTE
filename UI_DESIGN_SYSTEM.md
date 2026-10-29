@@ -1,11 +1,9 @@
 # AloUTE UI Design System
 
-> **Tài liệu đặc tả hệ thống giao diện chính thức cho AloUTE**
-> **Phiên bản:** Week 2 Baseline (30/09/2026)
-> **Định hướng trực quan phê duyệt:** **Modern University Social Network — Light Campus Style**
-> **Thẩm quyền phân công:** Kế hoạch nhóm `Nhom13_KeHoachCodeTest.docx` (không commit trong repo) — **Phạm Minh Quân** (24110311), Frontend + UI Design
-> **Nguyên tắc kiến trúc:** Tuân thủ [README.md](README.md) §4 (phân lớp, Principal-driven security), hợp đồng API [docs/api/openapi.yaml](docs/api/openapi.yaml)
-> **Quyết định phong cách:** Chi tiết lý do và ma trận nhất quán tại tài liệu `WEEK2_UI_STYLE_DECISION.md` (không commit trong repo)
+> **Tài liệu đặc tả hệ thống giao diện hiện hành của AloUTE**<br>
+> **Định hướng trực quan:** **Modern University Social Network — Light Campus Style**
+> **Phạm vi:** design tokens, layout, fragment và component trong `src/main/resources/{templates,static/css}`
+> **Nguyên tắc kiến trúc:** [README.md](README.md) §4 (phân lớp, Principal-driven security); hợp đồng API [docs/api/openapi.yaml](docs/api/openapi.yaml)
 
 ---
 
@@ -51,7 +49,7 @@ Mọi quy chuẩn màu sắc của AloUTE tuân thủ bảng mã màu sáng (Lig
 |---|---|---|
 | `--aloute-text-primary` | `#0F172A` | Tiêu đề chính, nội dung bài viết, tên tác giả (Slate-900, độ tương phản 15.8:1) |
 | `--aloute-text-secondary` | `#475569` | Phụ đề, mô tả khoa/lớp, nhãn phụ (Slate-600, độ tương phản 7.2:1) |
-| `--aloute-text-muted` | `#64748B` | Dấu thời gian, số ký tự đếm, hướng dẫn placeholder (Slate-500) |
+| `--aloute-text-muted` | `#5B6779` | Dấu thời gian, số ký tự đếm, hướng dẫn placeholder |
 | `--aloute-text-inverse` | `#FFFFFF` | Chữ trắng trên nền nút xanh, badge trạng thái đậm |
 
 ### 2.4. Màu sắc Điểm nhấn Học thuật (University Blue Accent)
@@ -69,7 +67,7 @@ Mọi quy chuẩn màu sắc của AloUTE tuân thủ bảng mã màu sáng (Lig
 | Trạng thái | Mã màu chính | Màu nền (`bg`) | Màu viền (`border`) | Ngữ cảnh ứng dụng |
 |---|---|---|---|---|
 | **Success** | `#16A34A` | `#F0FDF4` | `#BBF7D0` | Đăng ký thành công, cập nhật thông tin thành công |
-| **Danger / Error** | `#DC2626` | `#FEF2F2` | `#FECACA` | Báo lỗi đăng nhập, lỗi form, cảnh báo vi phạm bài viết |
+| **Danger / Error** | `#DC2626` (nhấn mạnh: `#B91C1C`) | `#FEF2F2` | `#FECACA` | Báo lỗi đăng nhập, lỗi form, cảnh báo vi phạm bài viết |
 | **Warning** | `#D97706` | `#FFFBEB` | `#FDE68A` | Cảnh báo nội dung nhạy cảm, nhắc nhở quy tắc ứng xử |
 | **Info** | `#0284C7` | `#F0F9FF` | `#BAE6FD` | Thông tin hướng dẫn học vụ, quy chế sinh viên |
 
@@ -79,7 +77,7 @@ Mọi quy chuẩn màu sắc của AloUTE tuân thủ bảng mã màu sáng (Lig
 
 Hệ thống phông chữ sử dụng font stack sans-serif hiện đại của hệ điều hành để đảm bảo tốc độ tải trang nhanh và độ sắc nét tối đa:
 ```css
-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 ```
 
 ### Thang đo phân cấp (Type Scale)
@@ -120,9 +118,9 @@ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica N
 
 ### 4.4. Đổ bóng Bề mặt Sáng (Light Elevation & Shadows)
 Tránh bóng đen gắt của giao diện tối cũ; sử dụng bóng mờ tinh tế phân lớp ánh sáng tự nhiên:
-- **Shadow Nhẹ (`--aloute-shadow-sm`):** `0 1px 2px 0 rgba(0, 0, 0, 0.05)` (Dùng cho thẻ bài viết tĩnh).
-- **Shadow Vừa (`--aloute-shadow-md`):** `0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05)` (Dùng khi hover bài viết hoặc thanh Navbar).
-- **Shadow Nổi (`--aloute-shadow-lg`):** `0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04)` (Dùng cho Modal Dialog và Popover).
+- **Shadow Nhẹ (`--aloute-shadow-sm`):** `0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04)` (Dùng cho thẻ bài viết tĩnh).
+- **Shadow Vừa (`--aloute-shadow-md`):** `0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.05)` (Dùng khi hover bài viết hoặc thanh Navbar).
+- **Shadow Nổi (`--aloute-shadow-lg`):** `0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04)` (Dùng cho Modal Dialog và Popover).
 
 ---
 
@@ -138,19 +136,20 @@ Tránh bóng đen gắt của giao diện tối cũ; sử dụng bóng mờ tinh
 
 ### 5.2. Thanh Bên (Sidebar Rules)
 - **Cột Trái (260px) — Điều hướng và Tóm tắt Hồ sơ:**
-  - Thẻ tóm tắt sinh viên: Avatar nhỏ, Tên đầy đủ, Mã sinh viên / Lớp chuyên ngành.
-  - Danh mục liên kết dọc: Trang chủ, Khám phá, Thông báo, Tin nhắn, Đã lưu, Câu lạc bộ. Trạng thái active có nền xanh nhạt (`#EFF6FF`) và chữ xanh đậm (`#2563EB`).
-  - Nút bấm lớn "Tạo bài viết" nổi bật với style `btn-primary` bo tròn `rounded-pill`.
-- **Cột Phải (320px) — Ngữ cảnh Học thuật & Hoạt động:**
-  - Khối Thông tin Đào tạo / Tin tức Khoa CNTT ngắn gọn.
-  - Khối Chủ đề thịnh hành (#Trending): Hiển thị các hashtag học tập phổ biến (#CongNghePhanMem, #DoAnChuyenNganh).
-  - Khối Gợi ý Câu lạc bộ: Logo CLB, tên CLB, số thành viên và nút `[Tham gia]` nhanh.
+  - Thẻ tóm tắt: avatar, tên hiển thị, `@username` và badge `UTE Member`; guest thấy CTA Đăng nhập/Đăng ký.
+  - Liên kết dọc: Bảng tin chính, Hồ sơ cá nhân, Cộng đồng, Bạn bè & Kết nối, Bài viết đã lưu. Trạng thái active dùng nền accent-subtle và chữ accent.
+  - Nút tạo bài viết nằm trên navbar và menu mobile; sidebar không lặp lại CTA này.
+- **Cột Phải (320px, hiển thị từ breakpoint `xl`) — Ngữ cảnh Học thuật:**
+  - Khối “Văn hóa AloUTE”: quy tắc giao tiếp học thuật.
+  - Khối “Chủ đề nổi bật”: các topic động từ `sidebarTopics`, liên kết tới `/topics/{slug}`.
+  - Khối “Liên kết nhanh”: cổng thông tin, đào tạo và thư viện HCMUTE.
+  - Footer bản quyền. Component tương ứng: `templates/fragments/info-card.html`.
 
 ### 5.3. Thẻ Bề Mặt & Thẻ Bài Viết (Card & Post Rules)
 - Thẻ bài viết sử dụng nền trắng tinh khiết (`#FFFFFF`), viền `#E2E8F0`, bo góc `14px`, bóng nhẹ `shadow-sm`.
 - **Phần Đầu bài viết (Header):** Avatar tròn 44px, Tên sinh viên (đậm), username mờ (`@nguyenvanan`), nhãn Khoa/K-class, thời gian đăng bài (tính tương đối), nút dropdown ba chấm tùy chọn bài viết (Sửa/Xóa cho tác giả, Báo cáo vi phạm cho người khác).
 - **Phần Thân (Body):** Văn bản hiển thị tự nhiên với khoảng cách dòng thoáng; đính kèm ảnh có bo góc `10px` viền xám nhạt; ô bình chọn (Poll) hiển thị các thanh tỷ lệ phần trăm trực quan kèm số lượng vote.
-- **Thanh Tương Tác (Interaction Bar):** 4 nút hành động đối xứng (Thích, Bình luận, Chia sẻ lại/Repost, Lưu/Bookmark). Trạng thái đã Thích hiển thị màu xanh `#2563EB` kèm hiệu ứng phản hồi nhẹ.
+- **Thanh Tương Tác (Interaction Bar):** Like, Bình luận, Repost, Quote (theo quyền), Bookmark và Copy link. Trạng thái đã Like dùng màu đỏ đậm `--aloute-danger-emphasis` trên nền `--aloute-danger-bg`; các trạng thái khác dùng accent/subtle token.
 
 ### 5.4. Hộp Soạn Thảo Bài Viết (Post Composer Rules)
 - Nằm ở đầu Bảng tin (Home Feed), thiết kế dạng thẻ mở rộng.
@@ -195,8 +194,8 @@ Tránh bóng đen gắt của giao diện tối cũ; sử dụng bóng mờ tinh
 | Thiết bị / Độ rộng | Cấu trúc Cột | Hành vi Chi tiết |
 |---|---|---|
 | **Desktop ($\ge 1200px$)** | **3 cột chuẩn** | Trái (260px) + Giữa (660px) + Phải (320px). Hiển thị đầy đủ mọi widget và shortcut. |
-| **Tablet ($768px - 1199px$)** | **2 cột** | Ẩn Cột Phải hoặc đưa nội dung gợi ý xuống dưới; Cột Trái thu gọn thành thanh icon gọn gàng hoặc giữ nguyên menu tối giản. |
-| **Mobile ($< 768px$)** | **1 cột duy nhất** | Cột Giữa chiếm 100% chiều rộng (`col-12`). Navbar thu gọn với menu hamburger hoặc chuyển các thao tác chính xuống Bottom Navigation Bar (Bảng tin, Tìm kiếm, Thông báo, Tin nhắn, Cá nhân). |
+| **Tablet ($768px - 1199px$)** | **2 cột** | Ẩn cột phải; cột trái `col-md-4`/`col-lg-3`, nội dung `col-md-8`/`col-lg-9`. |
+| **Mobile ($< 768px$)** | **1 cột duy nhất** | Nội dung chiếm 100% (`col-12`); sidebar trái chuyển vào offcanvas qua nút hamburger; touch target tối thiểu 44px. |
 
 ---
 
@@ -212,29 +211,28 @@ Tránh bóng đen gắt của giao diện tối cũ; sử dụng bóng mờ tinh
 
 ---
 
-## 8. Đối Chiếu Bằng Chứng Word & Quy Hoạch 10 Màn Hình
+## 8. Đối chiếu wireframe với template hiện hành
 
-> **Lưu ý chuyển tiếp thẩm quyền kiến trúc (Style Authority Transition):**
-> Toàn bộ 10 file vector SVG tại thư mục `docs/ui/wireframes/` (`01-login.svg` đến `10-notification.svg`) được xây dựng với bảng màu tối (Dark Palette) là **bằng chứng thiết kế lịch sử Tuần 1 (Week 1 Historical Design Evidence)**.
-> Đối với quá trình hiện thực hóa giao diện Tuần 2, định hướng trực quan **Modern University Social Network — Light Campus Style** tại tài liệu này và tài liệu WEEK2_UI_STYLE_DECISION (không commit trong repo) là **nguồn thẩm quyền duy nhất (Authoritative Baseline)**.
+10 file SVG tại `docs/ui/wireframes/` là design evidence; giao diện triển khai theo Light Campus Style. Bảng dưới đối chiếu từng màn hình với template Thymeleaf hiện hành:
 
-| STT | Màn hình Word | Mã màn hình | Bằng chứng Wireframe Tuần 1 (Dark History) | Ứng dụng Light Campus Style (Tuần 2 & Tuần 3) | Trạng thái Thực thi Mã nguồn |
-|:---:|---|:---:|---|---|---|
-| 01 | Đăng nhập (Login) | `WF-01` | [`01-login.svg`](docs/ui/wireframes/01-login.svg) | Nền sáng `#F8FAFC`, Thẻ form trắng `#FFFFFF`, Viền xám `#E2E8F0`, Banner lỗi inline đỏ nhạt `#FEF2F2` | Static `auth/login.html` có sẵn; chờ JWT runtime |
-| 02 | Đăng ký (Register) | `WF-02` | [`02-register.svg`](docs/ui/wireframes/02-register.svg) | Form thẻ trắng gọn gàng, input chuẩn focus xanh, xác thực email `@hcmute.edu.vn` | Static `auth/register.html` có sẵn; chờ API đăng ký |
-| 03 | Bảng tin (Home Feed) | `WF-03` | [`03-home-feed.svg`](docs/ui/wireframes/03-home-feed.svg) | Bố cục 3 cột sáng, Composer tạo bài viết, Thẻ bài viết trắng có bóng nhẹ, thanh tương tác 4 nút | Static `feed/index.html` có sẵn; chờ backend ranking |
-| 04 | Hồ sơ cá nhân (Profile) | `WF-04` | [`04-profile.svg`](docs/ui/wireframes/04-profile.svg) | Cover tươi sáng, Avatar viền trắng 4px, Tabs gạch chân xanh, điều khiển Follow/Message | Static `user/profile.html` có sẵn; chờ quan hệ xã hội |
-| 05 | Hộp thoại tạo bài (Create Post) | `WF-05` | [`05-create-post.svg`](docs/ui/wireframes/05-create-post.svg) | Modal nền trắng nổi `shadow-lg`, chọn phạm vi, đính kèm media, thanh vote Poll trực quan | Static `post/create.html` có sẵn; chờ post service |
-| 06 | Chi tiết bài viết (Post Detail) | `WF-06` | [`06-post-detail.svg`](docs/ui/wireframes/06-post-detail.svg) | Bài viết chi tiết nền trắng, cây bình luận phân cấp viền nhạt `#F1F5F9`, nút sửa/xóa/báo cáo | Static `post/detail.html` có sẵn; chờ comment API |
-| 07 | Tìm kiếm (Search) | `WF-07` | [`07-search.svg`](docs/ui/wireframes/07-search.svg) | Thanh tìm kiếm pill, 4 tab People/Posts/Communities/Topics gạch chân, empty state card sáng | Template đầy đủ thuộc phạm vi Tuần 3 (Q3-02) |
-| 08 | Cộng đồng CLB (Community) | `WF-08` | [`08-community.svg`](docs/ui/wireframes/08-community.svg) | Cover CLB, nhãn vai trò Member/Mod/Admin dạng badge sáng, feed bài viết nhóm | Template đầy đủ thuộc phạm vi Tuần 3 (Q3-02) |
-| 09 | Nhắn tin 1-1 (Messaging) | `WF-09` | [`09-messaging.svg`](docs/ui/wireframes/09-messaging.svg) | Khung chat 2 cột, bong bóng tin nhắn xanh/xám nhạt tương phản cao, ô nhập tin nhắn chân trang | Template đầy đủ thuộc phạm vi Tuần 3 (Q3-03) |
-| 10 | Thông báo (Notification) | `WF-10` | [`10-notification.svg`](docs/ui/wireframes/10-notification.svg) | Danh sách thông báo 4 loại, phân biệt nền xanh nhạt `#F0F7FF` cho mục chưa đọc | Template đầy đủ thuộc phạm vi Tuần 3 (Q3-03) |
+| STT | Màn hình | Wireframe | Template |
+|:---:|---|---|---|
+| 01 | Đăng nhập | [`01-login.svg`](docs/ui/wireframes/01-login.svg) | [`auth/login.html`](src/main/resources/templates/auth/login.html) |
+| 02 | Đăng ký | [`02-register.svg`](docs/ui/wireframes/02-register.svg) | [`auth/register.html`](src/main/resources/templates/auth/register.html) |
+| 03 | Bảng tin | [`03-home-feed.svg`](docs/ui/wireframes/03-home-feed.svg) | [`feed/index.html`](src/main/resources/templates/feed/index.html) |
+| 04 | Hồ sơ cá nhân | [`04-profile.svg`](docs/ui/wireframes/04-profile.svg) | [`user/profile.html`](src/main/resources/templates/user/profile.html) |
+| 05 | Tạo bài viết | [`05-create-post.svg`](docs/ui/wireframes/05-create-post.svg) | [`post/create.html`](src/main/resources/templates/post/create.html), [`post/_composer-form.html`](src/main/resources/templates/post/_composer-form.html) |
+| 06 | Chi tiết bài viết | [`06-post-detail.svg`](docs/ui/wireframes/06-post-detail.svg) | [`post/detail.html`](src/main/resources/templates/post/detail.html), [`post/_post-card.html`](src/main/resources/templates/post/_post-card.html) |
+| 07 | Tìm kiếm | [`07-search.svg`](docs/ui/wireframes/07-search.svg) | [`search/index.html`](src/main/resources/templates/search/index.html) |
+| 08 | Cộng đồng | [`08-community.svg`](docs/ui/wireframes/08-community.svg) | [`community/index.html`](src/main/resources/templates/community/index.html), [`community/detail.html`](src/main/resources/templates/community/detail.html) |
+| 09 | Nhắn tin | [`09-messaging.svg`](docs/ui/wireframes/09-messaging.svg) | [`messaging/index.html`](src/main/resources/templates/messaging/index.html) |
+| 10 | Thông báo | [`10-notification.svg`](docs/ui/wireframes/10-notification.svg) | [`notification/index.html`](src/main/resources/templates/notification/index.html) |
 
 ---
 
-## 9. Ranh Giới Bằng Chứng & Phạm Vi (Evidence Separation)
+## 9. Phạm vi tài liệu
 
-1. **Bằng chứng Thiết kế (Design Evidence):** Đã hoàn tất 10/10 wireframe SVG Tuần 1 và cập nhật toàn diện Hệ thống Thiết kế Giao diện Sáng Tuần 2.
-2. **Hiện thực hóa Frontend Tĩnh (Static Frontend Templates):** 6 màn hình trọng tâm (MUST HAVE: Login, Register, Feed, Profile, Create Post, Post Detail) cùng layout và fragments dùng chung đã được tổ chức cấu trúc theo Thymeleaf + Bootstrap SSR.
-3. **Hiện thực hóa Tích hợp Runtime (Runtime Integration):** Thuộc kế hoạch Tuần 2 và Tuần 3, phụ thuộc vào backend ViewModel, JWT cookie và API endpoints từ các thành viên Khôi, Ngọc, Bằng theo [MODULE_ASSIGNMENT.md](MODULE_ASSIGNMENT.md).
+- **Design tokens & component:** [`tokens.css`](src/main/resources/static/css/tokens.css), [`app.css`](src/main/resources/static/css/app.css).
+- **Layout & fragment:** [`templates/layouts/`](src/main/resources/templates/layouts/), [`templates/fragments/`](src/main/resources/templates/fragments/).
+- **Kiểm thử giao diện:** [`test/frontend/`](test/frontend/), [`test/e2e/quan-acceptance/`](test/e2e/quan-acceptance/).
+- **Accessibility:** WCAG 2.1 AA, keyboard focus, skip link, touch target tối thiểu 44px và axe audit trong browser E2E.

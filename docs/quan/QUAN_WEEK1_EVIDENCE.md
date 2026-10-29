@@ -2,7 +2,7 @@
 
 > **Kế hoạch tuần:** 21/09/2026 – 26/09/2026
 > **Nhiệm vụ theo phân công:** Thiết kế giao diện, wireframe/mockup; viết phần Thiết kế giao diện trong báo cáo.
-> **Nguồn phân công:** [`skills/INDEX.md` §1.1](../../skills/INDEX.md), [`PROJECT_EXECUTION_PLAN.md`](../../PROJECT_EXECUTION_PLAN.md) (local, chưa track), bản Word gốc `Nhom13_KeHoachCodeTest.docx` (local, chưa track).
+> **Nguồn phân công:** kế hoạch 3 tuần của nhóm; vai trò thành viên theo [README.md §9](../../README.md#9-đội-ngũ-phát-triển-project-contributors).
 
 ## 1. Đối chiếu kế hoạch và thực tế
 
@@ -62,11 +62,11 @@ Kết quả thực tế: **10/10 file parse XML thành công**, tất cả có `
 
 1. **Thời điểm commit lệch kế hoạch tuần.** Không có commit nào của tác giả trong khoảng 21/09–26/09/2026. Commit thiết kế duy nhất `83e5729` có ngày tác giả **2026-09-28 11:40 +07**, tức đầu Tuần 2 theo lịch kế hoạch. Hồ sơ này không tuyên bố Tuần 1 hoàn thành đúng hạn; chỉ xác nhận artifact tồn tại và nội dung của nó.
 2. **Bảng màu SVG Tuần 1 là lịch sử.** README wireframe ghi rõ các SVG dùng dark palette của Tuần 1; bảng màu triển khai là Light Campus trong [`UI_DESIGN_SYSTEM.md`](../../UI_DESIGN_SYSTEM.md). Hai nguồn không mâu thuẫn nếu đọc đúng vai trò: SVG là design evidence lịch sử, `UI_DESIGN_SYSTEM.md` là baseline triển khai.
-3. **Quyết định chuyển sang Light Campus không có nguồn tracked.** `WEEK2_UI_STYLE_DECISION.md` tồn tại local nhưng không nằm trong git, nên không thể xác minh người phê duyệt/thời điểm. Không suy đoán nội dung; xem mục 5 của [`README.md`](README.md).
+3. **Định hướng Light Campus** được ghi nhận trong [`UI_DESIGN_SYSTEM.md`](../../UI_DESIGN_SYSTEM.md); hồ sơ này chỉ đối chiếu artifact và commit, không suy đoán quyết định ngoài dữ liệu Git.
 4. **Không có ảnh chụp runtime trong Tuần 1.** Ảnh runtime đầu tiên được tạo ngày 2026-10-20/21 và thuộc bằng chứng Tuần 3 (xem [`QUAN_WEEK3_EVIDENCE.md`](QUAN_WEEK3_EVIDENCE.md)).
 
-## 5. Việc Quân cần cung cấp để hồ sơ đầy đủ
+## 5. Giới hạn hồ sơ
 
-- Bản Word `Nhom13_KeHoachCodeTest.docx` có thể xác minh (hoặc commit bản PDF/Word vào repo) để đối chiếu phân công.
-- Quyết định `WEEK2_UI_STYLE_DECISION.md`: commit file vào repo, hoặc thay liên kết trong `UI_DESIGN_SYSTEM.md` / wireframe README bằng ghi chú “local-only”. Đây là quyết định của chủ tài liệu, không tự sửa canonical doc.
-- Xác nhận tác giả: commit `83e5729` dùng tên `Quan`, email `qm33165@gmail.com`; lịch sử còn có tên `pminhquan` cùng email. Nếu cần, thống nhất danh tính trong báo cáo nhóm.
+- Bản kế hoạch Word của nhóm không được lưu trong repository; hồ sơ đối chiếu theo artifact và commit.
+- Định hướng Light Campus được ghi nhận trong [`UI_DESIGN_SYSTEM.md`](../../UI_DESIGN_SYSTEM.md).
+- Commit `83e5729` dùng tên `Quan`; lịch sử còn có tên `pminhquan` cùng email. Hồ sơ chỉ dùng dữ liệu Git, không suy đoán danh tính.

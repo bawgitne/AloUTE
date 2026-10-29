@@ -1,6 +1,6 @@
-# Khôi — Week 2 & Week 3 implementation scope
+# Khởi Nguyên — Week 2 & Week 3 implementation scope
 
-Căn cứ `Nhom13_KeHoachCodeTest.docx` và bộ rules trong `skills/`.
+Căn cứ kế hoạch 3 tuần của nhóm, [README.md](../../README.md) và [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 ## Week 2
 
@@ -30,6 +30,6 @@ Căn cứ `Nhom13_KeHoachCodeTest.docx` và bộ rules trong `skills/`.
 Các phần sau chưa có đủ dữ liệu/contract để hardcode production:
 
 1. OpenAPI hiện chỉ định nghĩa `POST /api/reports`; chưa có endpoint review/update moderation, nên không tự tạo API admin mới.
-2. `reportedPostId` được giữ đúng contract, nhưng Post entity/repository thuộc phần Ngọc và chưa có trong master, vì vậy phần Khôi không tự tạo Post module.
+2. `reportedPostId` được giữ đúng contract, nhưng Post entity/repository thuộc phần thiết kế CSDL và chưa có trong master, vì vậy phần Khởi Nguyên không tự tạo Post module.
 3. Domain thật, VPS IP/host, SSH user/key, TLS certificate và GitHub Secrets chưa được cung cấp nên không ghi giá trị production vào repo.
-4. Docker/Compose thuộc phần Ngọc theo ownership matrix; reverse proxy template giả định service nội bộ tên `app:8080` đúng architecture convention, nhưng deploy production chỉ hoàn tất sau khi Docker/Compose chính thức được merge.
+4. Docker/Compose thuộc phần thiết kế CSDL theo ownership matrix; reverse proxy template giả định service nội bộ tên `app:8080` đúng architecture convention, nhưng deploy production chỉ hoàn tất sau khi Docker/Compose chính thức được merge.

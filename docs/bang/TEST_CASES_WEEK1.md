@@ -4,10 +4,9 @@
 > **Người thực hiện**: Ngô Anh Bằng (MSSV: 24110166 — Nhóm trưởng)  
 > **Giai đoạn**: Tuần 1 (21/09/2026 – 26/09/2026)  
 > **Căn cứ tài liệu chuẩn**:
-> - Kế hoạch 3 tuần: `Nhom13_KeHoachCodeTest.docx`
-> - Domain Business Rules: `skills/domain_system.md`
-> - API Contract: `skills/aloute-openapi.yaml`
-> - System Architecture: `skills/system_architecture.md`
+> - Kế hoạch 3 tuần: kế hoạch 3 tuần của nhóm
+> - Kiến trúc & quy ước: [README.md](../../README.md) §4, [ARCHITECTURE_TEMPLATE.md](../../ARCHITECTURE_TEMPLATE.md)
+> - API contract: [docs/api/openapi.yaml](../api/openapi.yaml)
 > - Traceability Matrix: `docs/bang/USE_CASE_MATRIX.md`
 
 ---

@@ -4,7 +4,7 @@
 > **Người thực hiện**: Ngô Anh Bằng (MSSV: 24110166 — Nhóm trưởng)  
 > **Vai trò**: Realtime, Communication & Project Lead  
 > **Thời gian thực hiện**: Tuần 1 (21/09/2026 – 26/09/2026)  
-> **Căn cứ kế hoạch**: `Nhom13_KeHoachCodeTest.docx` (Nộp GVHD Th.S Nguyễn Trần Thi Văn)
+> **Căn cứ kế hoạch**: kế hoạch 3 tuần của nhóm
 
 ---
 
@@ -12,7 +12,7 @@
 
 Theo đúng phân công nhiệm vụ tại bảng kế hoạch 3 tuần, nhóm trưởng Ngô Anh Bằng đã hoàn thành 100% các mục tiêu đặt ra cho Tuần 1:
 
-| STT | Nhiệm vụ theo Kế hoạch (`Nhom13_KeHoachCodeTest.docx`) | Sản phẩm bàn giao cụ thể | Trạng thái |
+| STT | Nhiệm vụ theo Kế hoạch (kế hoạch 3 tuần của nhóm) | Sản phẩm bàn giao cụ thể | Trạng thái |
 | :---: | :--- | :--- | :---: |
 | 1 | **Chọn Use Case chính & lập Ma trận Use Case – API – DB – UI** | [`docs/bang/USE_CASE_MATRIX.md`](USE_CASE_MATRIX.md): Bao phủ 22 Use Cases toàn diện từ Auth, Post, Reaction, Community đến Messaging và Notification. | **ĐÃ HOÀN THÀNH** |
 | 2 | **Vẽ Sequence Diagram Tạo bài viết** | [`docs/bang/sequence/create-post-sequence.puml`](sequence/create-post-sequence.puml)<br>Ảnh vector: [`docs/bang/sequence/create-post-sequence.svg`](sequence/create-post-sequence.svg) | **ĐÃ HOÀN THÀNH** |
@@ -27,7 +27,7 @@ Theo đúng phân công nhiệm vụ tại bảng kế hoạch 3 tuần, nhóm t
 
 ### 2.1. Ma trận truy xuất Use Case – API – Database – UI
 - Thiết lập bảng Traceability Matrix liên kết chặt chẽ giữa Use Case nghiệp vụ $\rightarrow$ REST API Endpoint $\rightarrow$ Bảng CSDL $\rightarrow$ Giao diện người dùng.
-- Giúp các thành viên trong nhóm (Khôi - Backend, Ngọc - CSDL, Quân - UI) nắm rõ ranh giới trách nhiệm, không bị dẫm chân lên nhau.
+- Giúp các thành viên trong nhóm (Khởi Nguyên - Backend, Bằng - CSDL, Quân - UI) nắm rõ ranh giới trách nhiệm, không bị dẫm chân lên nhau.
 
 ### 2.2. Bộ lược đồ tuần tự cốt lõi (Sequence Diagrams)
 1. **Tạo bài viết (`create-post-sequence.svg`)**:

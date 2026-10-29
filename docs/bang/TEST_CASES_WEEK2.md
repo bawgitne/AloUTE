@@ -1,10 +1,10 @@
 # ALOUTE — TÀI LIỆU ĐẶC TẢ TEST CASE TUẦN 2
 ## (Messaging, Notification & Realtime STOMP Test Specification)
 
-> **Người thực hiện**: Ngô Anh Bằng (MSSV: 24110166 — Nhóm trưởng)  
-> **Giai đoạn**: Tuần 2 (27/09/2026 – 04/10/2026)  
-> **Căn cứ kế hoạch**: `Nhom13_KeHoachCodeTest.docx` (Nộp GVHD Th.S Nguyễn Trần Thi Văn)  
-> **Source of Truth**: `skills/domain_system.md`, `skills/aloute-openapi.yaml`, `skills/system_architecture.md`
+> **Người thực hiện**: Ngô Anh Bằng (MSSV: 24110166 — Nhóm trưởng)
+> **Giai đoạn**: Tuần 2 (27/09/2026 – 04/10/2026)
+> **Căn cứ kế hoạch**: kế hoạch 3 tuần của nhóm
+> **Source of Truth**: [README.md](../../README.md) §4, [docs/api/openapi.yaml](../api/openapi.yaml), [ARCHITECTURE_TEMPLATE.md](../../ARCHITECTURE_TEMPLATE.md)
 
 ---
 

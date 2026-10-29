@@ -2,7 +2,7 @@
 
 > **Kế hoạch tuần:** 27/09/2026 – 04/10/2026
 > **Nhiệm vụ theo phân công:** Code Thymeleaf + Bootstrap cho trang chính; layout/fragment; hình giao diện vào báo cáo.
-> **Nguồn phân công:** [`skills/INDEX.md` §1.1](../../skills/INDEX.md); kế hoạch tuần tại [`PROJECT_EXECUTION_PLAN.md`](../../PROJECT_EXECUTION_PLAN.md) (local, chưa track).
+> **Nguồn phân công:** kế hoạch 3 tuần của nhóm; vai trò thành viên theo [README.md §9](../../README.md#9-đội-ngũ-phát-triển-project-contributors).
 
 ## 1. Commit thực tế trong và quanh Tuần 2
 
@@ -50,7 +50,7 @@ Các màn hình sau **không** xuất hiện trong commit Tuần 2 của Quân v
 | :--- | :--- | :--- |
 | Messaging, Notification | [`932376a`](https://github.com/bawgitne/AloUTE/commit/932376a) — 2026-10-08, `pminhquan <qm33165@gmail.com>` | Cùng email tác giả; nằm trong khung Tuần 3 |
 | Community list/detail | [`82e3a23`](https://github.com/bawgitne/AloUTE/commit/82e3a23) — 2026-10-08, `bawgitne` | Không phải commit của Quân; Quân chỉ polish UI sau đó (PR #50, #73) |
-| Search, Settings | [`06255ab`](https://github.com/bawgitne/AloUTE/commit/06255ab) — 2026-10-12, `bawgitne` | Không phải commit của Quân; Quân sửa accessibility search trong working tree hiện tại |
+| Search, Settings | [`06255ab`](https://github.com/bawgitne/AloUTE/commit/06255ab) — 2026-10-12, `bawgitne` | Không phải commit của Quân; Quân sửa accessibility search trong phạm vi hardening |
 
 Vì vậy không gán quyền tác giả toàn bộ 10 màn hình cho Quân. Ma trận truy xuất ghi rõ nguồn từng màn hình tại [`UI_TRACEABILITY_MATRIX.md`](UI_TRACEABILITY_MATRIX.md).
 

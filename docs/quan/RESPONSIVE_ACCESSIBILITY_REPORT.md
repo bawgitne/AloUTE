@@ -1,7 +1,7 @@
 # Báo cáo responsive & accessibility — Frontend hardening
 
 > **Ngày đo:** 2026-10-27
-> **Nhánh:** `fix/quan-frontend-hardening-20261027` (đo tại working tree chưa commit, 2026-10-27; nay đã merge qua PR #85, merge commit `cd0d85c`), baseline `99ab72e`
+> **Baseline:** `99ab72e`; số liệu đo ngày 2026-10-27, giữ nguyên tại thời điểm đo
 > **Môi trường:** local `http://127.0.0.1:8081`, profile `dev`, H2 in-memory
 > **Công cụ:** Playwright 1.64.1 + Chrome thật (`channel: 'chrome'`), headless; viewport height 900
 > **Dữ liệu thô:** [`baseline/measurements.json`](../../test-results/quan-frontend-hardening/baseline/measurements.json), [`after/measurements.json`](../../test-results/quan-frontend-hardening/after/measurements.json)
@@ -51,7 +51,7 @@ Ghi chú: “target <44px” dùng đúng tiêu chí của harness (`width < 44 
 
 ### 3.1. Sự khác biệt giữa audit live và baseline local
 
-- Audit production ngày 2026-10-27 ghi nhận nút Đăng ký `right = 356.8px` trên visual viewport `360.8px`, nhãn bị cắt, và 10 target `<40px` — xem [`03_LIVE_WEBSITE_AUDIT.md` §2.2](../audits/independent-full-audit-2026-10-27/03_LIVE_WEBSITE_AUDIT.md).
+- Đo production ngày 2026-10-27 (chỉ guest) ghi nhận nút Đăng ký `right = 356.8px` trên visual viewport `360.8px`, nhãn bị cắt và 10 target `<40px`.
 - Baseline local tại `99ab72e` **không tái hiện cắt**: không có overflow ngang; nút Đăng ký right = 356/371/386 ở 360/375/390, tức còn **4px** mép phải, không âm.
 - Nguyên nhân khác biệt có bằng chứng: baseline local đã chứa PR [#59](https://github.com/bawgitne/AloUTE/pull/59) (commit [`c1d674b`](https://github.com/bawgitne/AloUTE/commit/c1d674b), 2026-10-22) “keep the mobile navbar inside the viewport” cùng regression test [`navbar-responsive-overflow.test.mjs`](../../test/frontend/navbar-responsive-overflow.test.mjs). Production không xác minh được commit, nên có khả năng live đang chạy bản trước PR #59.
 - Vì vậy báo cáo **không tuyên bố đã tái hiện lỗi cắt local**; chỉ tuyên bố: (a) lỗi target nhỏ tái hiện được, (b) mép phải chỉ 4px nên rủi ro cắt khi scrollbar/zoom, (c) sau hardening mép tăng lên 8px.
