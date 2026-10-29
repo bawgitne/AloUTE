@@ -105,6 +105,49 @@ class H2MigrationScriptVerificationTest {
     }
 
     @Test
+    @DisplayName("H2 migration script for follow requests executes safely and is idempotent")
+    void verifyH2FollowRequestsMigrationScript() throws Exception {
+        String dbUrl = "jdbc:h2:mem:follow_requests_migration_test_" + System.currentTimeMillis() + ";DB_CLOSE_DELAY=-1";
+        try (Connection conn = DriverManager.getConnection(dbUrl, "sa", "")) {
+            Statement stmt = conn.createStatement();
+
+            // Minimal legacy users table the follow-request foreign keys point at.
+            stmt.execute("""
+                CREATE TABLE users (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    username VARCHAR(50) NOT NULL UNIQUE,
+                    email VARCHAR(254) NOT NULL UNIQUE,
+                    password_hash VARCHAR(255) NOT NULL
+                );
+                INSERT INTO users (username, email, password_hash) VALUES
+                    ('legacy_requester', 'req@example.com', 'h'),
+                    ('legacy_target', 'tgt@example.com', 'h');
+            """);
+
+            ClassPathResource scriptResource = new ClassPathResource("db/migration/h2_follow_requests.sql");
+            ScriptUtils.executeSqlScript(conn, scriptResource);
+
+            ResultSet rs = stmt.executeQuery(
+                    "SELECT COUNT(*) FROM follow_requests");
+            assertThat(rs.next()).isTrue();
+            assertThat(rs.getInt(1)).isZero();
+
+            // A pending pair row round-trips through the new table.
+            stmt.execute("INSERT INTO follow_requests (requester_id, target_id, status, created_at, updated_at) "
+                    + "SELECT MIN(id), MAX(id), 'PENDING', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM users");
+            ResultSet pairRs = stmt.executeQuery("SELECT status FROM follow_requests");
+            assertThat(pairRs.next()).isTrue();
+            assertThat(pairRs.getString("status")).isEqualTo("PENDING");
+
+            // Idempotency: a second run must not corrupt or duplicate anything.
+            ScriptUtils.executeSqlScript(conn, scriptResource);
+            ResultSet countRs = stmt.executeQuery("SELECT COUNT(*) FROM follow_requests");
+            assertThat(countRs.next()).isTrue();
+            assertThat(countRs.getInt(1)).isEqualTo(1);
+        }
+    }
+
+    @Test
     @DisplayName("H2 migration script for community post moderation executes safely, backfills and is idempotent")
     void verifyH2CommunityPostModerationMigrationScript() throws Exception {
         String dbUrl = "jdbc:h2:mem:community_moderation_migration_test_" + System.currentTimeMillis() + ";DB_CLOSE_DELAY=-1";

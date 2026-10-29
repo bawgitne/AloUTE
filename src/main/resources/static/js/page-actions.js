@@ -519,11 +519,14 @@
     }
 
     // =========================================================================
-    // 3. FOLLOW / UNFOLLOW FLOW (Single relation lookup for initial state)
+    // 3. FOLLOW / UNFOLLOW / FOLLOW-REQUEST FLOW (BL-05, issue #92)
+    //    Public account  : PUT follows = direct follow, DELETE = unfollow.
+    //    Private account : PUT follows = pending request, DELETE = withdraw it.
     // =========================================================================
     async function resolveFollowStatus(currentUserId, targetUserId) {
-        // GET /api/social/relations/{userId} answers following/blocked/muted in one call;
-        // paging through /following lists would cost one request per 100 followees.
+        // GET /api/social/relations/{userId} answers following/blocked/muted/pending
+        // in one call; paging through /following lists would cost one request per 100
+        // followees.
         const resp = await fetch('/api/social/relations/' + encodeURIComponent(targetUserId), {
             method: 'GET',
             credentials: 'include',
@@ -536,20 +539,28 @@
 
         const body = await resp.json();
         const relation = (body && body.data) || {};
-        return relation.following === true;
+        return {
+            following: relation.following === true,
+            pending: relation.followRequestPending === true
+        };
     }
 
-    function renderFollowState(btn, isFollowing) {
-        btn.setAttribute('aria-pressed', isFollowing ? 'true' : 'false');
+    function renderFollowState(btn, state) {
         btn.disabled = false;
         btn.dataset.state = 'ready';
 
-        if (isFollowing) {
+        if (state === 'following') {
+            btn.setAttribute('aria-pressed', 'true');
             btn.className = 'btn profile-action-btn-main profile-btn-following aloute-follow-btn';
-            btn.innerHTML = '<i class="bi bi-person-check-fill me-1" aria-hidden="true"></i><span>Đang theo dõi</span>';
+            btn.innerHTML = '<i class="bi bi-person-check-fill me-1" aria-hidden="true"></i><span>\u0110ang theo d\u00f5i</span>';
+        } else if (state === 'pending') {
+            btn.setAttribute('aria-pressed', 'false');
+            btn.className = 'btn profile-action-btn-main btn-outline-secondary aloute-follow-btn';
+            btn.innerHTML = '<i class="bi bi-person-clock me-1" aria-hidden="true"></i><span>\u0110\u00e3 g\u1eedi y\u00eau c\u1ea7u</span>';
         } else {
+            btn.setAttribute('aria-pressed', 'false');
             btn.className = 'btn profile-action-btn-main profile-btn-follow aloute-follow-btn';
-            btn.innerHTML = '<i class="bi bi-person-plus-fill me-1" aria-hidden="true"></i><span>Theo dõi</span>';
+            btn.innerHTML = '<i class="bi bi-person-plus-fill me-1" aria-hidden="true"></i><span>Theo d\u00f5i</span>';
         }
     }
 
@@ -557,7 +568,12 @@
         btn.disabled = false;
         btn.dataset.state = 'error';
         btn.className = 'btn profile-action-btn-main btn-outline-warning aloute-follow-btn';
-        btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i><span>Lỗi tải. Thử lại</span>';
+        btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i><span>L\u1ed7i t\u1ea3i. Th\u1eed l\u1ea1i</span>';
+    }
+
+    async function paintResolvedState(btn) {
+        const status = await resolveFollowStatus(btn.dataset.currentUserId, btn.dataset.userId);
+        renderFollowState(btn, status.following ? 'following' : (status.pending ? 'pending' : 'not-following'));
     }
 
     async function initFollowButton() {
@@ -575,13 +591,20 @@
         btn.disabled = true;
         btn.dataset.state = 'resolving';
         btn.className = 'btn btn-sm btn-primary aloute-follow-btn disabled';
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span><span>Đang tải...</span>';
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span><span>\u0110ang t\u1ea3i...</span>';
 
         try {
-            const isFollowing = await resolveFollowStatus(currentUserId, targetUserId);
-            renderFollowState(btn, isFollowing);
+            await paintResolvedState(btn);
         } catch (error) {
             renderFollowError(btn);
+        }
+    }
+
+    function bumpFollowersCount(delta) {
+        const followersCountEl = document.getElementById('profile-followers-count');
+        if (followersCountEl) {
+            const current = parseInt(followersCountEl.textContent, 10) || 0;
+            followersCountEl.textContent = String(Math.max(0, current + delta));
         }
     }
 
@@ -594,46 +617,38 @@
         }
 
         const targetUserId = btn.dataset.userId;
-        const isCurrentlyFollowing = btn.getAttribute('aria-pressed') === 'true';
+        const wasFollowing = btn.className.includes('profile-btn-following');
+        const wasPending = btn.className.includes('btn-outline-secondary');
 
         btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span><span>\u0110ang x\u1eed l\u00fd...</span>';
 
-        if (isCurrentlyFollowing) {
-            // Unfollow flow (DELETE)
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span><span>Đang hủy...</span>';
-
-            try {
+        try {
+            if (wasFollowing || wasPending) {
+                // Unfollow, or withdraw the pending request through the same endpoint.
                 const response = await fetch('/api/social/follows/' + encodeURIComponent(targetUserId), {
                     method: 'DELETE',
                     credentials: 'include',
                     headers: csrfHeaders({ 'Accept': 'application/json' })
                 });
 
-                // 204 No Content expected on successful deletion; do not parse body
                 if (response.status === 204 || response.ok) {
-                    renderFollowState(btn, false);
-                    const followersCountEl = document.getElementById('profile-followers-count');
-                    if (followersCountEl) {
-                        const current = parseInt(followersCountEl.textContent, 10) || 0;
-                        followersCountEl.textContent = String(Math.max(0, current - 1));
+                    await paintResolvedState(btn);
+                    if (wasFollowing) {
+                        bumpFollowersCount(-1);
+                        notice('\u0110\u00e3 h\u1ee7y theo d\u00f5i ng\u01b0\u1eddi d\u00f9ng.', 'info');
+                    } else {
+                        notice('\u0110\u00e3 h\u1ee7y y\u00eau c\u1ea7u theo d\u00f5i.', 'info');
                     }
-                    notice('Đã hủy theo dõi người dùng.', 'info');
                     return;
                 }
 
                 const body = await readJson(response);
-                renderFollowState(btn, true);
-                const msg = translateError(body && body.error, 'Hủy theo dõi thất bại (HTTP ' + response.status + ').');
+                await paintResolvedState(btn);
+                const msg = translateError(body && body.error, 'H\u1ee7y theo d\u00f5i th\u1ea5t b\u1ea1i (HTTP ' + response.status + ').');
                 notice(msg, 'danger');
-            } catch (error) {
-                renderFollowState(btn, true);
-                notice('Lỗi kết nối khi hủy theo dõi.', 'danger');
-            }
-        } else {
-            // Follow flow (PUT)
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span><span>Đang theo dõi...</span>';
-
-            try {
+            } else {
+                // Follow (public) or send a follow request (private).
                 const response = await fetch('/api/social/follows/' + encodeURIComponent(targetUserId), {
                     method: 'PUT',
                     credentials: 'include',
@@ -643,42 +658,102 @@
                 const body = await readJson(response);
 
                 if (response.ok && (response.status === 200 || response.status === 201)) {
-                    renderFollowState(btn, true);
-                    const followersCountEl = document.getElementById('profile-followers-count');
-                    if (followersCountEl) {
-                        const current = parseInt(followersCountEl.textContent, 10) || 0;
-                        followersCountEl.textContent = String(current + 1);
+                    const data = (body && body.data) || {};
+                    await paintResolvedState(btn);
+                    if (data.followRequestPending) {
+                        notice('\u0110\u00e3 g\u1eedi y\u00eau c\u1ea7u theo d\u00f5i. Ch\u1ee7 t\u00e0i kho\u1ea3n s\u1ebd x\u00e9t duy\u1ec7t.', 'info');
+                    } else {
+                        bumpFollowersCount(1);
+                        notice('\u0110\u00e3 theo d\u00f5i ng\u01b0\u1eddi d\u00f9ng th\u00e0nh c\u00f4ng!', 'success');
                     }
-                    notice('Đã theo dõi người dùng thành công!', 'success');
                     return;
                 }
 
                 if (response.status === 409) {
                     const code = body && body.error && body.error.code;
-                    if (code === 'PRIVATE_FOLLOW_REQUEST_NOT_IMPLEMENTED') {
-                        renderFollowState(btn, false);
-                        notice('Tài khoản này là riêng tư. Chức năng gửi yêu cầu theo dõi tài khoản riêng tư chưa được hỗ trợ.', 'warning');
+                    if (code === 'FOLLOW_REQUEST_ALREADY_PENDING') {
+                        await paintResolvedState(btn);
+                        notice('B\u1ea1n \u0111\u00e3 g\u1eedi y\u00eau c\u1ea7u theo d\u00f5i r\u1ed3i.', 'info');
                     } else if (code === 'FOLLOW_ALREADY_EXISTS' || code === 'SOCIAL_FOLLOW_ALREADY_EXISTS') {
-                        renderFollowState(btn, true);
-                        notice('Bạn đã theo dõi người dùng này rồi.', 'info');
+                        await paintResolvedState(btn);
+                        notice('B\u1ea1n \u0111\u00e3 theo d\u00f5i ng\u01b0\u1eddi d\u00f9ng n\u00e0y r\u1ed3i.', 'info');
                     } else if (code === 'FOLLOW_SELF_NOT_ALLOWED' || code === 'SOCIAL_FOLLOW_SELF_NOT_ALLOWED') {
                         btn.style.display = 'none';
-                        notice('Bạn không thể tự theo dõi chính mình.', 'warning');
+                        notice('B\u1ea1n kh\u00f4ng th\u1ec3 t\u1ef1 theo d\u00f5i ch\u00ednh m\u00ecnh.', 'warning');
                     } else {
-                        renderFollowState(btn, false);
-                        const msg = translateError(body && body.error, 'Không thể theo dõi người dùng này.');
+                        await paintResolvedState(btn);
+                        const msg = translateError(body && body.error, 'Kh\u00f4ng th\u1ec3 theo d\u00f5i ng\u01b0\u1eddi d\u00f9ng n\u00e0y.');
                         notice(msg, 'danger');
                     }
                 } else {
-                    renderFollowState(btn, false);
-                    const msg = translateError(body && body.error, 'Theo dõi thất bại (HTTP ' + response.status + ').');
+                    await paintResolvedState(btn);
+                    const msg = translateError(body && body.error, 'Theo d\u00f5i th\u1ea5t b\u1ea1i (HTTP ' + response.status + ').');
+                    notice(msg, 'danger');
+                }
+            }
+        } catch (error) {
+            await paintResolvedState(btn);
+            notice('L\u1ed7i k\u1ebft n\u1ed1i khi th\u1ef1c hi\u1ec7n theo d\u00f5i.', 'danger');
+        }
+    }
+
+    // =========================================================================
+    // 3b. FOLLOW-REQUEST INBOX (BL-05, issue #92): approve / reject rows
+    // =========================================================================
+    function initFollowRequestInbox() {
+        const inbox = document.getElementById('follow-request-inbox');
+        if (!inbox) return;
+
+        inbox.addEventListener('click', async (event) => {
+            const actionBtn = event.target.closest('[data-request-action]');
+            if (!actionBtn || actionBtn.disabled) return;
+
+            const row = actionBtn.closest('[data-request-id]');
+            if (!row) return;
+            const requestId = row.getAttribute('data-request-id');
+            const action = actionBtn.getAttribute('data-request-action');
+
+            row.querySelectorAll('[data-request-action]').forEach((el) => { el.disabled = true; });
+            const original = actionBtn.innerHTML;
+            actionBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>';
+
+            try {
+                const response = await fetch('/api/social/follow-requests/' + encodeURIComponent(requestId) + '/' + action, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: csrfHeaders({ 'Accept': 'application/json' })
+                });
+                const body = await readJson(response).catch(() => null);
+
+                if (response.ok) {
+                    if (action === 'approve') {
+                        bumpFollowersCount(1);
+                        notice('\u0110\u00e3 ch\u1ea5p nh\u1eadn y\u00eau c\u1ea7u theo d\u00f5i.', 'success');
+                    } else {
+                        notice('\u0110\u00e3 t\u1eeb ch\u1ed1i y\u00eau c\u1ea7u theo d\u00f5i.', 'info');
+                    }
+                    row.remove();
+                    const remaining = inbox.querySelectorAll('[data-request-id]').length;
+                    const emptyEl = inbox.querySelector('.follow-request-empty');
+                    if (remaining === 0) {
+                        if (emptyEl) emptyEl.classList.remove('d-none');
+                        const listEl = inbox.querySelector('.follow-request-list');
+                        if (listEl) listEl.classList.add('d-none');
+                    }
+                } else {
+                    actionBtn.disabled = false;
+                    actionBtn.innerHTML = original;
+                    row.querySelectorAll('[data-request-action]').forEach((el) => { el.disabled = false; });
+                    const msg = translateError(body && body.error, 'Kh\u00f4ng th\u1ec3 x\u1eed l\u00fd y\u00eau c\u1ea7u (HTTP ' + response.status + ').');
                     notice(msg, 'danger');
                 }
             } catch (error) {
-                renderFollowState(btn, false);
-                notice('Lỗi kết nối khi thực hiện theo dõi.', 'danger');
+                actionBtn.disabled = false;
+                actionBtn.innerHTML = original;
+                row.querySelectorAll('[data-request-action]').forEach((el) => { el.disabled = false; });
+                notice('L\u1ed7i k\u1ebft n\u1ed1i khi x\u1eed l\u00fd y\u00eau c\u1ea7u theo d\u00f5i.', 'danger');
             }
-        }
+        });
     }
 
     // =========================================================================
@@ -2876,6 +2951,7 @@
         document.addEventListener('DOMContentLoaded', function () {
             initProfileEditModal();
             initFollowButton();
+            initFollowRequestInbox();
             initProfileMoreActions();
             initCreateCommunityModal();
             initReportModal();
@@ -2889,6 +2965,7 @@
     } else {
         initProfileEditModal();
         initFollowButton();
+        initFollowRequestInbox();
         initProfileMoreActions();
         initCreateCommunityModal();
         initReportModal();

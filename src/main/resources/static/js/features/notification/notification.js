@@ -206,6 +206,18 @@
                 actionText: 'đã nhắc đến bạn trong một thảo luận'
             };
         }
+        if (t === 'FOLLOW_REQUEST') {
+            return {
+                iconClass: 'bi-person-clock text-primary',
+                actionText: 'đã gửi yêu cầu theo dõi bạn'
+            };
+        }
+        if (t === 'FOLLOW_ACCEPTED') {
+            return {
+                iconClass: 'bi-person-check-fill text-success',
+                actionText: 'đã chấp nhận yêu cầu theo dõi của bạn'
+            };
+        }
         if (t.includes('FOLLOW')) {
             return {
                 iconClass: 'bi-person-plus-fill text-success',

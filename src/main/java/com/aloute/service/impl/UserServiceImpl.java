@@ -34,6 +34,7 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final com.aloute.service.admin.SystemAdminGuard systemAdminGuard;
     private final com.aloute.repository.UserNotificationSettingRepository notificationSettingRepository;
+    private final com.aloute.repository.FollowRequestRepository followRequestRepository;
 
     @Override @Transactional(readOnly = true)
     public ProfileResponse getProfile(Long userId) {
@@ -65,7 +66,18 @@ public class UserServiceImpl implements UserService {
             if (website != null) validateUri(website);
             profile.setWebsite(website);
         }
-        if (request.hasPrivateAccount()) user.setPrivateAccount(Boolean.TRUE.equals(request.getPrivateAccount()));
+        if (request.hasPrivateAccount()) {
+            boolean wasPrivate = user.isPrivateAccount();
+            boolean goingPrivate = Boolean.TRUE.equals(request.getPrivateAccount());
+            user.setPrivateAccount(goingPrivate);
+            // BL-05 policy (issue #92): switching private -> public must NOT silently
+            // auto-approve the backlog of pending requests; they are invalidated
+            // instead. Switching public -> private keeps existing followers and leaves
+            // requests that are already pending in the approval queue.
+            if (wasPrivate && !goingPrivate) {
+                followRequestRepository.cancelAllPendingForTarget(currentUserId, Instant.now());
+            }
+        }
         if (request.hasAvatarMediaId()) {
             if (request.getAvatarMediaId() == null) {
                 profile.setAvatarUrl(null);
