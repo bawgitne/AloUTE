@@ -261,8 +261,8 @@ Dự án được xây dựng và hoàn thiện bởi 3 thành viên:
 | Thành viên | Tài khoản GitHub | Vai trò & Phạm vi đảm nhiệm chính |
 | :--- | :--- | :--- |
 | **Bằng Ngô** | [@bawgitne](https://github.com/bawgitne) | **Team Leader / System Architect / Security & DevOps**<br>• Thiết kế kiến trúc tổng thể, cơ sở dữ liệu & Spring Security.<br>• Xử lý xác thực 2FA, OTP Email, tích hợp Docker & Nginx.<br>• Quản lý quy trình Git, CI/CD và triển khai hệ thống. |
-| **Phan Minh Quân** | [@pminhquan](https://github.com/pminhquan) | **Frontend Lead / UI-UX Designer / Fullstack E2E**<br>• Xây dựng hệ thống giao diện Thymeleaf SSR & Design System.<br>• Tối ưu trải nghiệm Responsive (Mobile / Tablet / Desktop) & Accessibility.<br>• Tích hợp tương tác JavaScript, infinite scroll & kiểm thử giao diện. |
-| **Khởi Nguyên** | [@khoinguyenvlm123-bit](https://github.com/khoinguyenvlm123-bit) | **Fullstack Developer / Real-time & Mobile Integration**<br>• Triển khai các tính năng cốt lõi (Bảng tin, Bài viết, Bình luận, Cộng đồng).<br>• Phát triển hệ thống nhắn tin & thông báo thời gian thực (WebSocket STOMP).<br>• Tích hợp ứng dụng di động Flutter Client và bộ dữ liệu kiểm thử. |
+| **Phạm Quân** | [@pminhquan](https://github.com/pminhquan) | **Frontend Lead / UI-UX Designer / Fullstack E2E**<br>• Xây dựng hệ thống giao diện Thymeleaf SSR & Design System.<br>• Tối ưu trải nghiệm Responsive (Mobile / Tablet / Desktop) & Accessibility.<br>• Tích hợp tương tác JavaScript, infinite scroll & kiểm thử giao diện. |
+| **Khôi Nguyễn** | [@khoinguyenvlm123-bit](https://github.com/khoinguyenvlm123-bit) | **Fullstack Developer / Real-time & Mobile Integration**<br>• Triển khai các tính năng cốt lõi (Bảng tin, Bài viết, Bình luận, Cộng đồng).<br>• Phát triển hệ thống nhắn tin & thông báo thời gian thực (WebSocket STOMP).<br>• Tích hợp ứng dụng di động Flutter Client và bộ dữ liệu kiểm thử. |
 
 ---
 
