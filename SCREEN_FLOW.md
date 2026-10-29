@@ -1,139 +1,79 @@
-# AloUTE Screen Flow
+# AloUTE — Luồng màn hình
 
-## Guest Flow
+Tài liệu mô tả luồng điều hướng hiện hành giữa các trang Thymeleaf và REST API tương ứng. Route lấy từ các Page Controller trong `src/main/java/com/aloute/controller/page/`.
 
-### Login
+## 1. Khách (guest)
 
-```
-Guest
-  ↓
-Login Screen
-  ↓
-Enter account information
-  ↓
-Validate
-  ↓
-Success → Home Feed
-Failure → Show error
+```text
+/feed (công khai)
+  ├── xem bài viết, chủ đề, tìm kiếm, cộng đồng công khai
+  ├── chọn Đăng nhập  → /login
+  └── chọn Đăng ký    → /register
 ```
 
-### Register
+- Guest xem được feed công khai, chi tiết bài công khai, topic, search, community công khai.
+- Hành động ghi (đăng bài, like, bình luận, theo dõi, nhắn tin) hiển thị CTA đăng nhập thay vì form.
+- Route bảo vệ chuyển hướng về `/login`; API riêng tư trả `401` JSON.
 
-```
-Guest
-  ↓
-Register Screen
-  ↓
-Enter user information
-  ↓
-Validate data
-  ↓
-Create account
-  ↓
-Login
-```
+## 2. Xác thực tài khoản
 
-## User Flow
-
-### Home Feed
-
-```
-User
- ↓
-Home Feed
- ↓
-View posts
- ↓
-Interact or create post
+```text
+/register → gửi OTP → /verify-otp → kích hoạt tài khoản → /login
+/login
+  ├── thành công → /feed
+  ├── sai thông tin → hiển thị lỗi tại chỗ
+  ├── quá số lần → 429 + thông báo khóa tạm thời
+  └── tài khoản bật 2FA → nhập TOTP/backup code → /feed
+/forgot-password → gửi OTP/link → /reset-password → /login
 ```
 
-Main elements:
+- Đăng nhập dùng JWT trong cookie `HttpOnly`.
+- Thiết lập/ tắt 2FA và tạo backup code nằm trong `/settings/security`.
 
-- Navigation.
-- User summary.
-- Activity feed.
-- Community information.
+## 3. Người dùng đã đăng nhập
 
-### Profile
+| Luồng | Route | Hành vi chính |
+| :--- | :--- | :--- |
+| Bảng tin | `/feed`, `/feed/posts` | Feed cá nhân, infinite scroll, lọc theo topic, tương tác bài viết |
+| Soạn bài | `/post/create` | Nội dung, media, poll, topic, phạm vi, community |
+| Chi tiết bài | `/posts/{id}` | Nội dung, poll, reply, quote, report, edit/delete theo quyền |
+| Bài đã lưu | `/saved` | Danh sách bookmark của người dùng |
+| Hồ sơ | `/users/{username}` | Bài viết, reply, media, follow/unfollow, block, nhắn tin |
+| Bạn bè | `/friends` | Danh sách following/followers |
+| Tìm kiếm | `/search` | People, posts, topics, communities |
+| Cộng đồng | `/communities`, `/c/{slug}` | Danh sách, chi tiết, join/leave, feed của cộng đồng |
+| Quản trị cộng đồng | `/communities/{id}/manage/*` | Tổng quan, thành viên, bài chờ duyệt, bài viết, cài đặt |
+| Tin nhắn | `/messages`, `/messages/{id}` | Hội thoại, lịch sử, gửi tin qua REST + STOMP |
+| Thông báo | `/notifications` | Danh sách, lọc chưa đọc, đánh dấu đã đọc/xóa |
+| Cài đặt | `/settings/{section}` | Hồ sơ, bảo mật, quyền riêng tư, thông báo, giao diện, chặn/mute |
+| Chủ đề | `/topics/{slug}` | Bài viết theo topic, theo dõi topic |
 
-```
-User
- ↓
-Profile Screen
- ↓
-View information
- ↓
-Update profile information
-```
+### Tương tác bài viết
 
-### Create Post
-
-```
-Home Feed
- ↓
-Create Post
- ↓
-Enter content
- ↓
-Submit
- ↓
-Post appears in Feed
+```text
+Xem bài → Like / Reply / Repost / Quote / Bookmark / Report
+        → cập nhật UI và số đếm qua API
+        → hành động không hợp lệ trả 401/403/404/409/422 và hiển thị lỗi
 ```
 
-### Post Detail
+## 4. Quản trị hệ thống
 
-```
-Feed
- ↓
-Select Post
- ↓
-Post Detail
- ↓
-View content and interactions
-```
+Chỉ tài khoản `SYSTEM_ADMIN` truy cập được `/admin/**`:
 
-### Interaction Flow
+| Trang | Route | Chức năng |
+| :--- | :--- | :--- |
+| Tổng quan | `/admin` | KPI, hoạt động gần đây |
+| Người dùng | `/admin/users`, `/admin/users/{id}` | Tìm kiếm, chi tiết, đình chỉ/kích hoạt, cảnh báo, đặt lại hồ sơ, đổi global role |
+| Bài viết | `/admin/posts`, `/admin/posts/{id}` | Tra cứu, gỡ/khôi phục bài, audit |
+| Báo cáo | `/admin/reports`, `/admin/reports/{id}` | Nhận xử lý, quyết định, gỡ bài liên quan |
+| Nhật ký | `/admin/moderation-actions` | Lịch sử kiểm duyệt |
 
-```
-View Post
- ↓
-Choose action
- ↓
-Like / Comment / Other supported interaction
- ↓
-Update displayed state
-```
+Hành động quản trị yêu cầu lý do, được ghi audit và tuân theo capabilities/back-end policy; UI không thay thế kiểm tra quyền phía server.
 
-## Scope Boundary
+## 5. Điều hướng chung
 
-These are PLANNED screen interactions, not proof of functioning routes or successful tests. The original six screens are only part of the Word Week 1 design assignment. Profile editing and post interactions remain hooks; outcomes below depend on confirmed backend contracts.
-
-
-## Word reconciliation and screen flow evidence
-
-Owner: **Phạm Minh Quân**, one of four members in phân công MODULE_ASSIGNMENT (không commit trong repo). Source: Word hiện hành `Nhom13_KeHoachCodeTest.docx` (không commit trong repo).
-
-- Week 1: **21/09/2026 – 26/09/2026** — Thiết kế giao diện cho toàn bộ 10 màn hình chính (bao gồm Search, Community, Messaging và Notification). Bộ wireframe vector SVG chuẩn dark theme đã hoàn thiện tại `docs/ui/wireframes/`.
-- Week 2: **27/09/2026 – 04/10/2026** — Hiện thực hóa 6 trang tĩnh chính / layout / fragments.
-- Week 3: **05/10/2026 – 11/10/2026** — Tích hợp frontend với backend, hoàn thiện UI Messaging, Notification, Report/Moderation, validation/E2E/demo.
-
-Bằng chứng thiết kế giao diện (Wireframe Artifacts) đã được đối chiếu cho tất cả 10 màn hình, trong khi trạng thái runtime / backend controller tiếp tục chờ hoàn tất theo kế hoạch:
-
-| Màn hình / Luồng tương tác | Bằng chứng thiết kế (Week 1 Wireframe) | Trạng thái triển khai / Phụ thuộc backend |
-|---|---|---|
-| Login / Authentication: Nhập thông tin → validate → Home feed hoặc hiển thị lỗi | [`01-login.svg`](docs/ui/wireframes/01-login.svg) | Template `auth/login.html` đã có; chờ tích hợp xác thực JWT từ Khôi |
-| Register: Nhập thông tin SV → kiểm tra định dạng → tạo tài khoản → Login | [`02-register.svg`](docs/ui/wireframes/02-register.svg) | Template `auth/register.html` đã có; chờ API đăng ký từ Khôi |
-| Home Feed: Xem danh sách bài viết → tương tác Like/Reply/Repost → tạo bài viết | [`03-home-feed.svg`](docs/ui/wireframes/03-home-feed.svg) | Template `feed/index.html` đã có; dynamic feed & ranking pending backend |
-| Profile: Xem thông tin cá nhân → Follow/Message hoặc chỉnh sửa hồ sơ | [`04-profile.svg`](docs/ui/wireframes/04-profile.svg) | Template `user/profile.html` đã có; API quan hệ Follow/Unfollow từ Khôi |
-| Create Post: Soạn thảo nội dung → đính kèm media/poll → chọn phạm vi → đăng | [`05-create-post.svg`](docs/ui/wireframes/05-create-post.svg) | Template `post/create.html` đã có; xử lý tạo bài viết & media từ Ngọc |
-| Post Detail: Xem chi tiết bài viết → tương tác, sửa/xóa (tác giả) hoặc report → bình luận | [`06-post-detail.svg`](docs/ui/wireframes/06-post-detail.svg) | Template `post/detail.html` đã có; luồng bình luận & report pending |
-| Search: Nhập từ khóa → chuyển tab (People/Posts/Communities/Topics) → xem kết quả / empty state | [`07-search.svg`](docs/ui/wireframes/07-search.svg) | Đã có wireframe thiết kế đầy đủ; Search backend contract & template kết quả thuộc Week 3 Q3-02 |
-| Community: Xem trang CLB → tham gia/rời nhóm → xem vai trò Admin/Mod/Member → đăng bài CLB | [`08-community.svg`](docs/ui/wireframes/08-community.svg) | Đã có wireframe thiết kế đầy đủ; Community backend contract & template chi tiết thuộc Week 3 Q3-02 |
-| Messaging: Danh sách hội thoại → xem lịch sử chat 1-1 → soạn/gửi tin nhắn | [`09-messaging.svg`](docs/ui/wireframes/09-messaging.svg) | Đã có wireframe thiết kế đầy đủ; Messaging HTTP/STOMP realtime contract từ Bằng; UI thuộc Week 3 Q3-03 |
-| Notification: Xem danh sách thông báo (Like/Reply/Follow/Community) → đánh dấu đã đọc | [`10-notification.svg`](docs/ui/wireframes/10-notification.svg) | Đã có wireframe thiết kế đầy đủ; Notification backend contract từ Bằng; UI thuộc Week 3 Q3-03 |
-| Report / Moderation: Chọn nội dung → nhập lý do → gửi báo cáo xem xét | Thể hiện trên [`06-post-detail.svg`](docs/ui/wireframes/06-post-detail.svg) | POST report endpoint do Khôi phụ trách; UI review/moderation thuộc Week 3 Q3-04 |
-
-**Nguyên tắc phân định ranh giới (Status Distinction)**:
-- *Wireframe tồn tại (Artifact exists)*: Chứng minh cấu trúc giao diện, phân cấp thông tin và luồng thao tác đã được thiết kế đúng trách nhiệm Tuần 1 của Quân.
-- *Tính năng hiện thực (Feature implemented)*: Cần mã nguồn template hoàn chỉnh, controller xử lý, service logic, JPA và database đã kiểm thử. Wireframe thiết kế **không** thay thế việc triển khai chức năng.
-- Toàn bộ kịch bản kiểm thử runtime/browser E2E tiếp tục tuân thủ theo [FE_INTEGRATION_PLAN.md](FE_INTEGRATION_PLAN.md).
+- Navbar: tìm kiếm, thông báo, tin nhắn, menu tài khoản.
+- Sidebar trái: feed, profile, community, friends, saved, tạo bài.
+- Sidebar phải (desktop): thông tin bổ sung.
+- Mobile: offcanvas navigation, layout một cột, touch target tối thiểu 44px.
+- Skip link `#main-content` là phần tử focus đầu tiên ở các layout công khai.

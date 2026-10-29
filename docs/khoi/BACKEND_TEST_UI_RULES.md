@@ -1,13 +1,13 @@
-# Khôi Backend Test UI — Boundary & Business Rules
+# Khởi Nguyên Backend Test UI — Boundary & Business Rules
 
 ## Mục đích
-`/khoi-test` là test harness dành riêng cho môi trường `dev` để kiểm tra backend Khôi: Auth, User/Profile, Follow/Unfollow, JWT/phân quyền và Report liên quan quyền người dùng.
+`/khoi-test` là test harness dành riêng cho môi trường `dev` để kiểm tra backend Khởi Nguyên: Auth, User/Profile, Follow/Unfollow, JWT/phân quyền và Report liên quan quyền người dùng.
 
 ## Ranh giới ownership
 - Không sửa hoặc phụ thuộc vào `controller/page/*` của Quân.
 - Không sửa giao diện chính trong `resources/templates/{auth,feed,user,post,...}` của Quân.
 - Không sửa CSS/JS dùng chung trong `resources/static/css` và `resources/static/js` của Quân.
-- Test UI của Khôi chỉ được đặt trong:
+- Test UI của Khởi Nguyên chỉ được đặt trong:
   - `controller/dev/KhoiBackendTestController.java`
   - `templates/khoi-test/**`
   - `static/khoi-test/**`

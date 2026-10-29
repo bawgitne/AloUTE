@@ -6,7 +6,7 @@
 - **Baseline (origin/master)**: `dd293e9` — `fix(db): remove redundant SET NAMES to prevent multi-statement 1064 syntax error`
 - **Nhánh kiểm thử/sửa lỗi**: `zcode/full-system-audit-20261023` (tên nhánh lịch sử; tạo từ `origin/master` trong worktree riêng, không merge/deploy)
 - **Nhóm thực hiện**: Nhóm 13 — kiểm thử tích hợp, tự động hóa và review bảo mật
-- **Tài liệu canonical đã đọc trước khi code**: `AGENTS.md`, `skills/INDEX.md`, `skills/domain_system.md`, `skills/system_architecture.md`, `skills/aloute-openapi.yaml`, `skills/backend_rule.md`, `skills/author_rule.md` (phần liên quan)
+- **Tài liệu canonical đã đọc trước khi code**: [`README.md`](../../README.md), [`ARCHITECTURE_TEMPLATE.md`](../../ARCHITECTURE_TEMPLATE.md), [`CONTRIBUTING.md`](../../CONTRIBUTING.md), [`docs/api/openapi.yaml`](../api/openapi.yaml)
 
 ---
 
@@ -173,13 +173,13 @@ Ký hiệu: **PASS** = tự động hóa; **B-E2E** = browser thật; **RT** = r
 
 - **Thiết kế hiện tại**: login trả `{data:{...,token}}` **đồng thời** set cookie HttpOnly `aloute_access_token`. Flutter mobile (`aloute_mobile`) dùng token body làm Bearer; web chỉ dùng cookie.
 - **Đánh giá rủi ro**: token trong body **đọc được bằng JS** (khác cookie HttpOnly). Trong kịch bản có XSS, attacker có thể đọc response của chính request nó kích hoạt và exfiltrate token (cookie HttpOnly chặn đường này). Tuy vậy: (1) chưa tìm thấy XSS mới trong đợt audit này (stored XSS website đã bị hạ xuống P2 từ audit 2026-10-21 vì `target=_blank` chặn `javascript:` trên Chrome); (2) XSS cùng-origin có thể gọi thẳng API với `credentials:'include'` — token body chỉ **kéo dài thời gian** sử dụng sau khi tab đóng.
-- **Kết luận**: rủi ro **có thật nhưng mức trung bình-thấp** trong thiết kế hiện tại; là **hợp đồng bắt buộc cho mobile**. Đề xuất (không thực hiện trong PR này để không đổi contract tùy tiện): thêm header `X-Client-Type` (hoặc query `?client=mobile`) — chỉ trả `token` trong body cho client mobile; web không nhận. Cần owner (Khôi) phê duyệt trước khi đổi.
+- **Kết luận**: rủi ro **có thật nhưng mức trung bình-thấp** trong thiết kế hiện tại; là **hợp đồng bắt buộc cho mobile**. Đề xuất (không thực hiện trong PR này để không đổi contract tùy tiện): thêm header `X-Client-Type` (hoặc query `?client=mobile`) — chỉ trả `token` trong body cho client mobile; web không nhận. Cần owner (Khởi Nguyên) phê duyệt trước khi đổi.
 
 ### Kiểm tra giới hạn nội dung 2.000 (web) vs 4.000 (backend/DB) (yêu cầu Nhiệm vụ 1)
 
 - **Source of truth**: OpenAPI trước audit **không khai báo maxLength** cho `content`; DB `posts.content varchar(4000)`; backend `@Size(max=4000)`; composer web giới hạn 2.000 ký tự (maxlength + validate JS).
 - **Kết luận**: web **nghiêm ngặt hơn** contract — hợp lệ (FE có thể hẹp hơn BE), không phải bug. Mobile/API client được phép đăng tới 4.000.
-- **Xử lý**: bổ sung `maxLength: 4000` vào `CreatePostRequest.content` trong `skills/aloute-openapi.yaml` (đồng bộ source of truth với backend/DB đã có). Regression: `contentAboveComposerLimitButWithinContractIsAccepted` (2.500 ký tự → 201) và `contentBeyondContractLimitIsRejected` (4.001 → 422).
+- **Xử lý**: bổ sung `maxLength: 4000` vào `CreatePostRequest.content` trong [`docs/api/openapi.yaml`](../api/openapi.yaml) (đồng bộ source of truth với backend/DB đã có). Regression: `contentAboveComposerLimitButWithinContractIsAccepted` (2.500 ký tự → 201) và `contentBeyondContractLimitIsRejected` (4.001 → 422).
 
 ### STOMP/WebSocket 2 phiên runtime (yêu cầu Nhiệm vụ 3) — PASS
 

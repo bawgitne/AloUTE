@@ -3,7 +3,7 @@
 > **Ngày chạy:** 2026-10-27 (Asia/Ho_Chi_Minh)
 > **Nhánh:** `fix/quan-frontend-hardening-20261027`
 > **Baseline:** `origin/master` @ `99ab72ee450fd7cfb7bfae91af4f8e40d23d5ab6`
-> **Trạng thái mã nguồn tại thời điểm đo (2026-10-27):** working tree có thay đổi chưa commit; không có SHA riêng cho bản hardening. **Hiện tại (2026-10-28):** đã merge vào `master` qua PR #85 (merge commit `cd0d85c`).
+> **Loại tài liệu:** snapshot kết quả kiểm thử tại thời điểm đo; số liệu được giữ nguyên, không đại diện trạng thái `master` hiện tại.
 > **Nguyên tắc:** test tĩnh Node **không** được tính là bằng chứng browser E2E; mỗi loại được ghi riêng.
 
 ## 1. Môi trường
@@ -53,7 +53,7 @@ Các test này đọc template/CSS/JS và assert contract tĩnh. Chúng **không
 mvn clean test
 ```
 
-**Kết quả:** 641 test / 73 suite — **FAIL 0, ERROR 0, SKIPPED 9**, exit code 0. Tóm tắt: [`maven-clean-test-20261028-summary.txt`](../../test-results/quan-frontend-hardening/after/maven-clean-test-20261028-summary.txt); log đầy đủ 3.2MB chỉ lưu local (bị `*.log` ignore, không commit). Chạy `clean` để loại report Surefire cũ không còn source class (trước đó `target/` còn một XML của `ThrowawayPerfBaselineTest` từ 2026-10-24 làm tổng thành 642/74).
+**Kết quả:** 641 test / 73 suite — **FAIL 0, ERROR 0, SKIPPED 9**, exit code 0. Tóm tắt: [`maven-clean-test-20261028-summary.txt`](../../test-results/quan-frontend-hardening/after/maven-clean-test-20261028-summary.txt). Chạy `clean` để loại report Surefire cũ không còn source class (trước đó `target/` còn một XML của `ThrowawayPerfBaselineTest` từ 2026-10-24 làm tổng thành 642/74).
 
 **Lệnh targeted cho phần render bị ảnh hưởng bởi guest gating:**
 
@@ -89,7 +89,7 @@ ALOUTE_SEED_EMAIL="<seed-email-local>" ALOUTE_SEED_PASSWORD="<seed-password-loca
 node tools/verify.cjs
 ```
 
-Hai biến `ALOUTE_SEED_*` là tài khoản seed local (xem [`DEMO_CHECKLIST_VI.md`](../DEMO_CHECKLIST_VI.md)); harness **không lưu credential trong repo**. Nếu bỏ trống, 16 check guest vẫn chạy và phần authenticated được skip có log.
+Tài khoản seed local lấy từ `DevTestDataInitializer` (profile `dev`); harness **không lưu credential trong repo**. Nếu bỏ trống, 16 check guest vẫn chạy và phần authenticated được skip có log.
 
 **Kết quả:** 27/27 check PASS — [`verification.json`](../../test-results/quan-frontend-hardening/after/verification.json).
 
@@ -165,7 +165,7 @@ Một số test kiểm tra cấu trúc file, không kiểm tra hành vi runtime;
 - Viewport: 360, 375, 390, 768, 1440 (height 900).
 - Phạm vi target đo gồm navbar, composer, interaction bar, `.aloute-auth-cta`, post card, dropdown, reply form.
 - Trước: [`baseline/measurements.json`](../../test-results/quan-frontend-hardening/baseline/measurements.json); sau: [`after/measurements.json`](../../test-results/quan-frontend-hardening/after/measurements.json).
-- Server local được restart trước lần đo cuối; dữ liệu demo seed lại bằng `node tools/demo-data.mjs http://127.0.0.1:8081` (local-only, fail-closed với host không loopback).
+- Server local được restart trước lần đo cuối; dữ liệu demo seed lại bằng `node tools/demo-data.mjs http://127.0.0.1:8081` (loopback-only, fail-closed với host không loopback).
 - Chi tiết số đo và ảnh: [`RESPONSIVE_ACCESSIBILITY_REPORT.md`](RESPONSIVE_ACCESSIBILITY_REPORT.md).
 
 ## 7. Ma trận trạng thái chức năng
@@ -186,11 +186,11 @@ Một số test kiểm tra cấu trúc file, không kiểm tra hành vi runtime;
 
 ## 8. Giới hạn kiểm thử
 
-- Chưa chạy axe-core, Lighthouse accessibility hoặc kiểm tra contrast tự động.
+- Tại thời điểm đo, chưa chạy axe-core, Lighthouse accessibility hoặc kiểm tra contrast tự động.
 - Chưa test 320px trong harness (bắt đầu từ 360px); CSS media query có nhánh dưới 420px nhưng chưa đo 320px.
-- Chưa test Firefox/Safari, thiết bị di động thật, screen reader thật.
+- Tại thời điểm đo, chưa test Firefox/Safari, thiết bị di động thật, screen reader thật.
 - Community detail chưa có seed local nên CTA join/login/create mới chỉ được giữ bằng test tĩnh + class CSS, chưa đo browser.
-- Chưa có E2E đầy đủ cho create/edit/delete/poll/messaging/notification trong một kịch bản browser duy nhất; hiện có test tĩnh + render + kiểm tra browser có mục tiêu.
+- Tại thời điểm đo, chưa có E2E đầy đủ cho create/edit/delete/poll/messaging/notification trong một kịch bản browser duy nhất; khi đó có test tĩnh + render + kiểm tra browser có mục tiêu.
 - Không có production deployment evidence; mọi kết quả “PASS” là local.
 - Test tĩnh Node không thay thế browser E2E; bảng mục 4 mới là bằng chứng browser.
 - `currentUser` ở `/feed` và `/communities/{id}/manage/**` là best-effort; khi lookup profile lỗi, user đăng nhập có thể thấy UI guest. Chưa có test cho nhánh lỗi này vì cần thay đổi backend.

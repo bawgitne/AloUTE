@@ -2,7 +2,7 @@
 
 > **Kế hoạch tuần:** 05/10/2026 – 11/10/2026
 > **Nhiệm vụ theo phân công:** Hoàn thiện/tích hợp UI với backend cho chức năng chính; UI Messaging, Notification, Report/Moderation; responsive, validation, luồng thao tác; E2E theo checklist, sửa lỗi frontend; hình kết quả cài đặt trong báo cáo, UI demo.
-> **Nguồn phân công:** [`skills/INDEX.md` §1.1](../../skills/INDEX.md); kế hoạch tuần tại [`PROJECT_EXECUTION_PLAN.md`](../../PROJECT_EXECUTION_PLAN.md) (local, chưa track).
+> **Nguồn phân công:** kế hoạch 3 tuần của nhóm; vai trò thành viên theo [README.md §9](../../README.md#9-đội-ngũ-phát-triển-project-contributors).
 
 ## 1. Tổng quan lịch sử tác giả
 
@@ -93,12 +93,12 @@ Không phải mọi PR trên đều thuần frontend; một số PR sửa backen
 | Responsive measurement | 3 route × 5 viewport, trước/sau | [`RESPONSIVE_ACCESSIBILITY_REPORT.md`](RESPONSIVE_ACCESSIBILITY_REPORT.md) |
 | Regression mới | 26 test tĩnh cho BL-17/20/21/23/25 | [`guest-ux-accessibility.test.mjs`](../../test/frontend/guest-ux-accessibility.test.mjs) |
 
-Các thay đổi hardening ngày 2026-10-27 được đo trên nhánh `fix/quan-frontend-hardening-20261027`, baseline `99ab72e`. Tại thời điểm đo các thay đổi **chưa commit**. Hiện nay (2026-10-28) các thay đổi đã merge vào `master` qua **PR #85** (merge commit [`cd0d85c`](https://github.com/bawgitne/AloUTE/commit/cd0d85c)); các số liệu trong hồ sơ giữ nguyên giá trị đo lịch sử.
+Các số liệu hardening được đo trên baseline `99ab72e` và giữ nguyên giá trị tại thời điểm đo. Trạng thái mã nguồn hiện hành được xác định bởi `master`.
 
 ## 6. Production và giới hạn xác minh
 
 - Audit live ngày 2026-10-27 chỉ kiểm tra **guest** trên `https://justneed.food`; ghi nhận `origin/master` lúc audit là `6f257eb`, sau đó PR #73 merge tạo `99ab72e`. Không có bằng chứng production chạy commit nào trong hai commit này.
-- Không có GitHub Deployment/environment record; không có endpoint version công khai (theo [`03_LIVE_WEBSITE_AUDIT.md`](../audits/independent-full-audit-2026-10-27/03_LIVE_WEBSITE_AUDIT.md)).
+- Không có GitHub Deployment/environment record hoặc endpoint version công khai.
 - Vì vậy mọi kết quả hardening trong hồ sơ này là **local**, không phải “đã sửa trên production”.
 - Các luồng cần đăng nhập trên production: **BLOCKED** — không có tài khoản được cấp phép. Không dùng tài khoản seed/dev trên production.
 - Các phát hiện P0/P1 của audit (seed account, STOMP, rate limit, poll visibility, private account, schema) nằm ngoài phạm vi frontend hardening; không sửa trong nhánh này.

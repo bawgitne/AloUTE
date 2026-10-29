@@ -4,15 +4,15 @@
 > **Người thực hiện**: Ngô Anh Bằng (MSSV: 24110166 — Nhóm trưởng)  
 > **Vai trò**: Realtime, Communication & Project Lead  
 > **Thời gian thực hiện**: Tuần 3 (05/10/2026 – 11/10/2026)  
-> **Căn cứ kế hoạch**: `Nhom13_KeHoachCodeTest.docx` (Nộp GVHD Th.S Nguyễn Trần Thi Văn)
+> **Căn cứ kế hoạch**: kế hoạch 3 tuần của nhóm
 
 ---
 
 ## 1. TỔNG KẾT KẾT QUẢ THỰC HIỆN TUẦN 3
 
-Theo đúng phân công và kế hoạch chi tiết trong `Nhom13_KeHoachCodeTest.docx`, nhóm trưởng Ngô Anh Bằng đã hoàn thành 100% các mục tiêu và tính năng đề ra cho Tuần 3:
+Theo đúng phân công và kế hoạch chi tiết trong kế hoạch 3 tuần của nhóm, nhóm trưởng Ngô Anh Bằng đã hoàn thành 100% các mục tiêu và tính năng đề ra cho Tuần 3:
 
-| STT | Nhiệm vụ theo Kế hoạch (`Nhom13_KeHoachCodeTest.docx`) | Sản phẩm bàn giao cụ thể | Trạng thái |
+| STT | Nhiệm vụ theo Kế hoạch (kế hoạch 3 tuần của nhóm) | Sản phẩm bàn giao cụ thể | Trạng thái |
 | :---: | :--- | :--- | :---: |
 | 1 | **Nghiên cứu & Thiết kế Thuật toán Gợi ý Bảng tin (Feed Recommendation)** | • Báo cáo khoa học: [`docs/bang/FEED_RECOMMENDATION_ALGORITHM.md`](FEED_RECOMMENDATION_ALGORITHM.md)<br>• Hiện thực Service: `FeedRecommendationService.java`<br>• 4 tham số chuẩn hóa: Recency Decay (Half-life 12h), Social Graph, Topic Matching, Engagement Scaling | **ĐÃ HOÀN THÀNH** |
 | 2 | **Bảo mật Kết nối STOMP & Realtime Interceptor** | • Bộ chặn kênh STOMP: `StompAuthChannelInterceptor.java`<br>• Xác thực JWT Bearer Token tại sự kiện STOMP CONNECT<br>• Gán `UsernamePasswordAuthenticationToken` vào `SimpAttributesContextHolder` / Principal | **ĐÃ HOÀN THÀNH** |
@@ -68,8 +68,8 @@ Dưới đây là bức tranh tổng thể kết quả đóng góp của Ngô An
 
 ## 4. KẾT LUẬN & ĐÁNH GIÁ SẴN SÀNG NGHIỆM THU
 
-- **Khối lượng công việc**: Hoàn thành 100% mục tiêu cả 3 tuần theo bảng kế hoạch `Nhom13_KeHoachCodeTest.docx`.
+- **Khối lượng công việc**: Hoàn thành 100% mục tiêu cả 3 tuần theo bảng kế hoạch kế hoạch 3 tuần của nhóm.
 - **Chất lượng mã nguồn**:
-  - Tuân thủ nghiêm ngặt mô hình kiến trúc `skills/system_architecture.md` và hợp đồng `skills/aloute-openapi.yaml`.
-  - Tách biệt rõ ràng ranh giới nghiệp vụ giữa các thành viên, không gây xung đột hay ghi đè công việc của Quân và Khôi.
+  - Tuân thủ mô hình kiến trúc tại [README.md](../../README.md) §4 và hợp đồng [docs/api/openapi.yaml](../api/openapi.yaml).
+  - Tách biệt rõ ràng ranh giới nghiệp vụ giữa các thành viên, không gây xung đột hay ghi đè công việc của Quân và Khởi Nguyên.
 - **Tính ổn định**: 100% Unit Tests viết mới đều được kiểm chứng và vượt qua các tiêu chuẩn CI/CD tự động của GitHub Actions.
