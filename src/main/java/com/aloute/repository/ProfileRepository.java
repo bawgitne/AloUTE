@@ -23,6 +23,26 @@ public interface ProfileRepository extends JpaRepository<Profile, Long> {
     List<Profile> findWithUserByUserIdIn(@Param("userIds") Collection<Long> userIds);
 
     /**
+     * BL-05: atomic followers/following counter advance — never read-modify-write, so
+     * concurrent follows/approvals cannot lose increments.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Profile p SET p.followersCount = p.followersCount + 1 WHERE p.userId = :userId")
+    int incrementFollowersCount(@Param("userId") Long userId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Profile p SET p.followingCount = p.followingCount + 1 WHERE p.userId = :userId")
+    int incrementFollowingCount(@Param("userId") Long userId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Profile p SET p.followersCount = CASE WHEN p.followersCount > 0 THEN p.followersCount - 1 ELSE 0 END WHERE p.userId = :userId")
+    int decrementFollowersCount(@Param("userId") Long userId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Profile p SET p.followingCount = CASE WHEN p.followingCount > 0 THEN p.followingCount - 1 ELSE 0 END WHERE p.userId = :userId")
+    int decrementFollowingCount(@Param("userId") Long userId);
+
+    /**
      * BL-15: atomic lifetime post-count advance (bulk UPDATE), never read-modify-write.
      * Semantic (issue #92 decision): counts ROOT posts ever created by the user —
      * quotes and community posts included, replies excluded — and is never decremented

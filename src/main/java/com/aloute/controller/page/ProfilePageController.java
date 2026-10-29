@@ -150,6 +150,23 @@ public class ProfilePageController {
             }
         }
 
+        // BL-05 (issue #92): on one's own private profile, surface the pending
+        // follow-request inbox so the owner can approve/reject without leaving the page.
+        java.util.List<com.aloute.dto.response.FollowRequestSummaryResponse> followRequests = java.util.List.of();
+        boolean followRequestsError = false;
+        if (isSelf && targetProfile != null && targetProfile.isPrivate()) {
+            try {
+                var requestsRes = socialService.pendingFollowRequests(currentUserId,
+                        org.springframework.data.domain.PageRequest.of(0, 20));
+                if (requestsRes != null && requestsRes.getData() != null) {
+                    followRequests = requestsRes.getData();
+                }
+            } catch (Exception e) {
+                log.warn("Failed to load follow requests for user {}: {}", currentUserId, e.getMessage());
+                followRequestsError = true;
+            }
+        }
+
         model.addAttribute("profile", targetProfile);
         model.addAttribute("targetUser", targetProfile);
         model.addAttribute("currentUser", currentUser);
@@ -165,6 +182,8 @@ public class ProfilePageController {
         model.addAttribute("isMuted", isMuted);
         model.addAttribute("isRestricted", isRestricted);
         model.addAttribute("isFollowing", isFollowing);
+        model.addAttribute("followRequests", followRequests);
+        model.addAttribute("followRequestsError", followRequestsError);
         model.addAttribute("currentTab", tab);
         model.addAttribute("activeNav", "profile");
         model.addAttribute("activeTab", "profile");

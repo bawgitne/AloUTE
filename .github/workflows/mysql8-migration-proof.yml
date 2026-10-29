@@ -87,7 +87,7 @@ jobs:
         id: apply_migrations
         run: |
           set -euo pipefail
-          for f in mysql8_login_lockout.sql mysql8_used_two_factor_tickets.sql; do
+          for f in mysql8_login_lockout.sql mysql8_used_two_factor_tickets.sql mysql8_follow_requests.sql; do
             echo "--- applying $f ---"
             docker exec -i -e MYSQL_PWD "$CONTAINER_ID" \
               mysql --protocol=TCP -h127.0.0.1 -u root aloutedb_proof \
@@ -109,6 +109,14 @@ jobs:
           M aloutedb_proof -e "SHOW CREATE TABLE used_two_factor_tickets" | tee /tmp/ticket.txt
           grep -q 'uk_2fa_used_tickets_hash' /tmp/ticket.txt || { echo "ERROR: unique ticket_hash constraint missing"; exit 1; }
           grep -q 'idx_2fa_used_tickets_consumed_at' /tmp/ticket.txt || { echo "ERROR: consumed_at index missing"; exit 1; }
+
+          echo "== follow_requests table after migration =="
+          M aloutedb_proof -e "SHOW CREATE TABLE follow_requests" | tee /tmp/freq.txt
+          grep -q 'uk_follow_requests_pair' /tmp/freq.txt || { echo "ERROR: unique pair constraint missing"; exit 1; }
+          grep -q 'idx_follow_requests_target_status' /tmp/freq.txt || { echo "ERROR: target/status index missing"; exit 1; }
+          M aloutedb_proof -e "INSERT INTO follow_requests (requester_id, target_id, status, created_at, updated_at) SELECT MIN(id), MAX(id), 'PENDING', NOW(), NOW() FROM users"
+          M aloutedb_proof -e "SELECT COUNT(*) FROM follow_requests" | tee /tmp/freq_count.txt
+          grep -q '^1$' /tmp/freq_count.txt || { echo "ERROR: follow_requests row insert failed"; exit 1; }
 
           echo "== legacy rows preserved with additive defaults =="
           M aloutedb_proof -e "SELECT username, failed_login_attempts, locked_until FROM users ORDER BY username" | tee /tmp/legacy.txt

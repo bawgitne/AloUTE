@@ -1,6 +1,8 @@
 package com.aloute.service;
 
 import com.aloute.common.api.ApiResponse;
+import com.aloute.common.api.PageMeta;
+import com.aloute.dto.response.FollowRequestSummaryResponse;
 import com.aloute.dto.response.SocialRelationResponse;
 import com.aloute.dto.response.UserRelationStatusResponse;
 import com.aloute.dto.response.UserSummary;
@@ -10,6 +12,15 @@ import java.util.List;
 public interface SocialService {
     SocialRelationResponse follow(Long currentUserId, Long targetUserId);
     void unfollow(Long currentUserId, Long targetUserId);
+
+    /** BL-05 (issue #92): the target's pending private-account follow-request inbox. */
+    ApiResponse<List<FollowRequestSummaryResponse>> pendingFollowRequests(Long targetUserId, Pageable pageable);
+
+    /** BL-05 (issue #92): target approves a pending request; the requester becomes a follower. */
+    SocialRelationResponse approveFollowRequest(Long currentUserId, Long requestId);
+
+    /** BL-05 (issue #92): target declines a pending request; no Follow row is created. */
+    void rejectFollowRequest(Long currentUserId, Long requestId);
     ApiResponse<List<UserSummary>> followers(Long userId, Pageable pageable);
     ApiResponse<List<UserSummary>> following(Long userId, Pageable pageable);
 

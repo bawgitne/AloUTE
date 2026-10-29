@@ -568,37 +568,145 @@ paths:
   /api/social/follows/{userId}:
     put:
       tags: [Social]
-      summary: Follow a user
+      summary: Follow a user (or request to follow a private account)
       description: |
-        Creates the current user's follow relationship to the target user.
-        Private-account follow-request approval is not modeled yet.
+        Public target: creates the follow relationship immediately and moves the
+        followers/following counters atomically.
+
+        Private target (BL-05, issue #92): no follow relationship and no counter
+        movement happen. A PENDING follow request is created (idempotent — a repeated
+        call does not duplicate it) and the response returns
+        `followRequestPending: true`. The target approves or rejects it from their
+        inbox; only an approved request creates the Follow row. Blocked pairs cannot
+        create requests in either direction (403 `BLOCKED_BY_RELATIONSHIP`).
       parameters:
         - $ref: '#/components/parameters/UserId'
       responses:
         '200':
-          description: Follow relationship active
+          description: |
+            Follow relationship active (public target), or a PENDING follow request
+            exists (private target, `data.followRequestPending = true`).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SocialRelationEnvelope'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '403':
+          description: A block relationship exists between the pair (private request path)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
     delete:
       tags: [Social]
-      summary: Unfollow a user
+      summary: Unfollow a user (or withdraw a pending follow request)
+      description: |
+        With an approved follow: removes it and decrements the counters atomically.
+        With only a PENDING request toward a private account: cancels the request and
+        touches no counters.
       parameters:
         - $ref: '#/components/parameters/UserId'
       responses:
         '204':
-          description: Follow relationship removed
+          description: Follow relationship removed or pending request withdrawn
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '404':
           $ref: '#/components/responses/NotFound'
+
+  /api/social/follow-requests:
+    get:
+      tags: [Social]
+      summary: List the current user's pending follow requests (target only)
+      description: |
+        BL-05 (issue #92): the private-account owner's inbox — every PENDING request
+        awaiting the current user's approval. Scoped strictly to the caller; other
+        users' inboxes are never exposed.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Paged pending follow requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FollowRequestListEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/social/follow-requests/{requestId}/approve:
+    post:
+      tags: [Social]
+      summary: Approve a pending follow request (target only)
+      description: |
+        BL-05 (issue #92): creates the Follow relationship exactly once (atomic counter
+        movement), marks the request ACCEPTED and notifies the requester
+        (FOLLOW_ACCEPTED). Optimistic transition: a concurrent cancel/reject/approve
+        makes this return 409 `FOLLOW_REQUEST_NOT_PENDING`.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Request approved; the requester is now a follower
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialRelationEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          description: The caller is not the request target (`FOLLOW_REQUEST_NOT_OWNED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The request is no longer PENDING (`FOLLOW_REQUEST_NOT_PENDING`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/social/follow-requests/{requestId}/reject:
+    post:
+      tags: [Social]
+      summary: Reject a pending follow request (target only)
+      description: |
+        BL-05 (issue #92): marks the request REJECTED without creating a Follow row.
+        Silent by design — no notification is sent to the requester.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Request rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseNull'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          description: The caller is not the request target (`FOLLOW_REQUEST_NOT_OWNED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The request is no longer PENDING (`FOLLOW_REQUEST_NOT_PENDING`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
 
   /api/social/relations/{userId}:
     get:
@@ -3679,9 +3787,36 @@ components:
         active:
           type: boolean
 
+    FollowRequestSummaryResponse:
+      type: object
+      required: [requestId, requester, createdAt]
+      properties:
+        requestId:
+          type: integer
+          format: int64
+        requester:
+          $ref: '#/components/schemas/UserSummary'
+        createdAt:
+          type: string
+          format: date-time
+
+    FollowRequestListEnvelope:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/FollowRequestSummaryResponse'
+        meta:
+          type: object
+
     UserRelationStatusResponse:
       type: object
-      required: [targetUserId, following, blocked, muted, restricted]
+      required: [targetUserId, following, blocked, muted, restricted, followRequestPending]
       properties:
         targetUserId:
           type: integer
@@ -3694,6 +3829,9 @@ components:
           type: boolean
         restricted:
           type: boolean
+        followRequestPending:
+          type: boolean
+          description: True when the viewer has a PENDING follow request toward the target (BL-05).
 
     UserRelationStatusEnvelope:
       allOf:

@@ -32,6 +32,28 @@ public class SocialController {
         return ResponseEntity.noContent().build();
     }
 
+    /** BL-05 (issue #92): the current user's pending private-account follow-request inbox. */
+    @GetMapping("/follow-requests")
+    public ApiResponse<List<com.aloute.dto.response.FollowRequestSummaryResponse>> pendingFollowRequests(
+            @PageableDefault(size = 20) Pageable pageable) {
+        return socialService.pendingFollowRequests(currentUserProvider.requireUserId(), pageable);
+    }
+
+    /** BL-05 (issue #92): approve a pending request (target only). */
+    @PostMapping("/follow-requests/{requestId}/approve")
+    public ApiResponse<com.aloute.dto.response.SocialRelationResponse> approveFollowRequest(
+            @PathVariable @Positive Long requestId) {
+        return ApiResponse.success(socialService.approveFollowRequest(currentUserProvider.requireUserId(), requestId));
+    }
+
+    /** BL-05 (issue #92): reject a pending request (target only). */
+    @PostMapping("/follow-requests/{requestId}/reject")
+    public ApiResponse<Void> rejectFollowRequest(
+            @PathVariable @Positive Long requestId) {
+        socialService.rejectFollowRequest(currentUserProvider.requireUserId(), requestId);
+        return ApiResponse.success(null);
+    }
+
     @GetMapping("/blocks")
     public ApiResponse<java.util.List<com.aloute.dto.response.UserSummary>> getBlockedUsers(
             @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
