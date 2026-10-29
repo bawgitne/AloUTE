@@ -286,8 +286,16 @@ public class PostServiceImpl implements PostService {
             }
         }
 
-        if (community != null) {
-            communityRepository.incrementPostCount(community.getId());
+        // BL-15: lifetime counters advance once per successfully persisted ROOT post
+        // (quotes and community posts are root posts; replies are not). Soft delete
+        // never decrements them — the displayed tabs recompute from live rows, so the
+        // counters intentionally read >= the tab counts once posts are deleted.
+        // Atomic bulk UPDATEs keep concurrent creations from losing increments.
+        if (parentPost == null) {
+            profileRepository.incrementPostsCount(userId);
+            if (community != null) {
+                communityRepository.incrementPostCount(community.getId());
+            }
         }
 
         return get(savedPost.getId(), userId);
